@@ -1,0 +1,38 @@
+import type { TObject } from "@sinclair/typebox";
+import { type RED } from "../../server/types";
+import type { ConfigNodeContext, IONodeContext, NodeConfig, NodeCredentials, TypedInput } from "./types";
+declare abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
+    static readonly type: string;
+    static readonly category: "config" | string;
+    static readonly configSchema?: TObject;
+    static readonly credentialsSchema?: TObject;
+    static readonly settingsSchema?: TObject;
+    private static _cachedSettings;
+    static registered?(RED: RED): void | Promise<void>;
+    static validateSettings(RED: RED): void;
+    protected readonly RED: RED;
+    protected readonly node: any;
+    protected readonly context: ConfigNodeContext | IONodeContext;
+    readonly config: NodeConfig<TConfig>;
+    private readonly timers;
+    private readonly intervals;
+    constructor(RED: RED, node: any, config: NodeConfig<TConfig>, credentials: NodeCredentials<TCredentials>);
+    i18n(key: string, substitutions?: Record<string, string>): string;
+    setTimeout(fn: () => void, ms: number): NodeJS.Timeout;
+    setInterval(fn: () => void, ms: number): NodeJS.Timeout;
+    clearTimeout(timer: NodeJS.Timeout): void;
+    clearInterval(interval: NodeJS.Timeout): void;
+    created?(): void | Promise<void>;
+    closed?(removed?: boolean): void | Promise<void>;
+    resolveTypedInput<T = any>(typedInput: TypedInput, msg?: Record<string, any>): Promise<T>;
+    on(event: string, callback: (...args: any[]) => void): void;
+    log(msg: any): void;
+    warn(message: string): void;
+    error(message: string, msg?: any): void;
+    get id(): string;
+    get name(): string | undefined;
+    get z(): string | undefined;
+    get credentials(): NodeCredentials<TCredentials> | undefined;
+    get settings(): TSettings;
+}
+export { Node };

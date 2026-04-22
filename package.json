@@ -1,0 +1,25 @@
+{
+  "name": "bonsae-nrg",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The NRG framework — build Node-RED nodes with Vue 3 and TypeScript",
+  "author": "Allan Oricil <allanoricil@duck.com>",
+  "license": "MIT",
+  "repository": {
+    "url": "https://github.com/bonsae/bonsae-nrg",
+    "type": "git"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.11.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "typescript": "^5.8.3"
+  }
+}

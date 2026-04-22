@@ -1,0 +1,57 @@
+{
+  "name": "@bonsae/nrg",
+  "version": "0.0.1",
+  "description": "NRG framework core — shared schemas, server nodes, and client utilities",
+  "author": "Allan Oricil <allanoricil@duck.com>",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "url": "https://github.com/bonsae/bonsae-nrg",
+    "type": "git",
+    "directory": "packages/nrg"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.11.0"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "exports": {
+    "./server": {
+      "types": "./server/index.ts",
+      "require": "./dist/server/index.cjs",
+      "default": "./dist/server/index.cjs"
+    },
+    "./client": "./client/index.ts",
+    "./schemas": "./schemas/index.ts",
+    "./schemas/types": "./schemas/types/index.ts",
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/client.json": "./tsconfig/client.json",
+    "./tsconfig/server.json": "./tsconfig/server.json"
+  },
+  "peerDependencies": {
+    "@sinclair/typebox": "^0.34.33",
+    "vue": "^3.5.14"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.33",
+    "ajv": "^8.17.1",
+    "ajv-errors": "^3.0.0",
+    "ajv-formats": "^3.0.1",
+    "es-toolkit": "^1.37.2",
+    "jsonpointer": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.18",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.4",
+    "vue": "^3.5.14"
+  }
+}
