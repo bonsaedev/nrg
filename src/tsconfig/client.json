@@ -1,0 +1,11 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "files": [
+    "../core/client/shims-vue.d.ts",
+    "../core/client/components.d.ts",
+    "../core/client/globals.d.ts"
+  ]
+}

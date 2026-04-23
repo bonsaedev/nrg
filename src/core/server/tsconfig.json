@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": true,
+    "resolveJsonModule": true
+  },
+  "include": ["**/*.ts", "../constants.ts", "../validator.ts"],
+  "exclude": ["node_modules"]
+}

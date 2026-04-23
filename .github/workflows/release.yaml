@@ -1,0 +1,67 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no publish, no tags, no GitHub release)"
+        type: boolean
+        default: false
+
+permissions:
+  packages: write
+  pull-requests: write
+  contents: write
+  issues: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.11.0
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+        env:
+          HUSKY: 0
+
+      - name: Type Check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format Check
+        run: pnpm format:check
+
+      # - name: Test
+      #   run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4.1.1
+        with:
+          dry_run: ${{ inputs.dry_run }}
+        env:
+          HUSKY: 0
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

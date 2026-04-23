@@ -1,0 +1,369 @@
+import type { Plugin } from "vite";
+import type { NodeRedLauncher } from "./node-red-launcher";
+import type { Http2ServerRequest } from "http2";
+
+interface BuildContext {
+  outDir: string;
+  packageName: string;
+  isDev: boolean;
+}
+
+interface BuildPluginOptions {
+  serverBuildOptions: ServerBuildOptions;
+  clientBuildOptions: ClientBuildOptions;
+  extraFilesCopyTargets: CopyTarget[];
+  buildContext: BuildContext;
+}
+
+interface ClientBuildOptions {
+  /** Source directory for client code. @default "./src/client" */
+  srcDir?: string;
+  /** Entry filename relative to srcDir. @default "index.ts" */
+  entry?: string;
+  /** Subdirectory name for node definition files. @default "nodes" */
+  nodesSubdir?: string;
+  /** Pattern to match node definition files. */
+  nodeFilePattern?: RegExp;
+  /** Global variable name for the UMD/IIFE bundle. @default "NodeRedNodes" */
+  name?: string;
+  /** Output format for the client bundle. @default "es" */
+  format?: "es" | "iife" | "umd";
+  /** Base public path for serving resources. */
+  base?: string;
+  /** Path to LICENSE file to include in the HTML output. @default "./LICENSE" */
+  licensePath?: string;
+  /** Internationalization options for labels and docs. */
+  locales?: LocalesOptions;
+  /** Directories for static assets (icons, public files). */
+  staticDirs?: {
+    /** Directory containing node icons ({type}.png). @default "./src/icons" */
+    icons?: string;
+    /** Directory for public static files copied to dist/resources/. @default "./src/client/public" */
+    public?: string;
+  };
+  /** Modules to treat as external (not bundled). @default ["jquery", "node-red", "vue", "@bonsae/nrg/client"] */
+  external?: string[];
+  /** Global variable mappings for external modules. */
+  globals?: Record<string, string>;
+  /** Custom chunk splitting function for Rollup. */
+  manualChunks?: (id: string) => string | undefined;
+  /** Additional Vite plugins for the client build. */
+  plugins: Plugin[];
+}
+
+interface CopyTarget {
+  /** Source file or directory path. */
+  src: string;
+  /** Destination path relative to the output directory. */
+  dest: string;
+}
+
+interface LocalesOptions {
+  /** Directory containing documentation files ({type}/{lang}.md or .html). @default "./src/locales/docs" */
+  docsDir?: string;
+  /** Directory containing label files ({type}/{lang}.json). @default "./src/locales/labels" */
+  labelsDir?: string;
+  /** Supported languages. @default ["en-US", "de", "es-ES", "fr", "ko", "pt-BR", "ru", "ja", "zh-CN", "zh-TW"] */
+  languages?: string[];
+}
+
+interface LoggerOptions {
+  name: string;
+  prefix?: string;
+}
+
+interface NodeRedLauncherOptions {
+  runtime?: {
+    /** Port for Node-RED to listen on. @default 1880 */
+    port?: number;
+    /** Path to the Node-RED settings file (TypeScript supported). @default "./node-red.settings.ts" */
+    settingsFilepath?: string;
+    /** Node-RED version to install for the dev server. @default "latest" */
+    version?: string;
+  };
+  /** Delay in ms before restarting Node-RED after a file change. @default 1000 */
+  restartDelay?: number;
+  /** Additional CLI arguments passed to the Node-RED process. */
+  args?: string[];
+}
+
+/**
+ * Options for the `nodeRed()` Vite plugin.
+ *
+ * All options are optional — defaults work for the standard `src/` directory layout.
+ */
+interface NodeRedPluginOptions {
+  /** Output directory for the built Node-RED package. @default "./dist" */
+  outDir?: string;
+  /** Options for building the client-side editor UI. */
+  clientBuildOptions?: ClientBuildOptions;
+  /** Options for building the server-side node runtime. */
+  serverBuildOptions?: ServerBuildOptions;
+  /** Options for the Node-RED dev server launcher. */
+  nodeRedLauncherOptions?: NodeRedLauncherOptions;
+  /** Extra files to copy into the output directory (e.g., LICENSE, README). */
+  extraFilesCopyTargets?: CopyTarget[];
+}
+
+interface NodeRedRuntimeSettings {
+  // NOTE: commented out because the preferred port must be set using NodeRedLauncherOptions.runtime.port
+  // uiPort?: number;
+  // NOTE: commented out because the plugin set it to 127.0.0.1
+  // uiHost?: string;
+  userDir?: string;
+  nodesDir?: string | string[];
+  flowFile?: string;
+  flowFilePretty?: boolean;
+  credentialSecret?: string | false;
+  requireHttps?: boolean;
+  https?:
+    | { key: string; cert: string }
+    | (() =>
+        | Promise<{ key: string; cert: string }>
+        | { key: string; cert: string });
+  httpsRefreshInterval?: number;
+  httpAdminRoot?: string;
+  httpNodeRoot?: string;
+  httpNodeCors?: { origin: string; methods: string };
+  httpStatic?: string | { path: string; root: string }[];
+  httpStaticRoot?: string;
+  httpAdminMiddleware?: (req: unknown, res: unknown, next: () => void) => void;
+  httpNodeMiddleware?: (req: unknown, res: unknown, next: () => void) => void;
+  httpServerOptions?: Record<string, unknown>;
+  adminAuth?: {
+    type?: "credentials" | "strategy";
+    users?: {
+      username: string;
+      password: string;
+      permissions?: string | string[];
+    }[];
+    default?: {
+      permissions?: string | string[];
+    };
+    tokens?: (
+      token: string,
+    ) => Promise<{ user: string; permissions: string | string[] } | null>;
+    tokenHeader: "string";
+    sessionExpiryTime?: number;
+    [key: string]: unknown;
+  };
+  httpNodeAuth?: {
+    user?: string;
+    pass?: string;
+  };
+  httpStaticAuth?: {
+    user?: string;
+    pass?: string;
+  };
+  lang?:
+    | "en-US"
+    | "de"
+    | "es-ES"
+    | "fr"
+    | "ko"
+    | "pt-BR"
+    | "ru"
+    | "ja"
+    | "zh-CN"
+    | "zh-TW";
+  diagnostics?: {
+    enabled?: boolean;
+    ui?: boolean;
+  };
+  runtimeState?: {
+    enabled?: boolean;
+    ui?: boolean;
+  };
+  disableEditor?: boolean;
+  editorTheme?: {
+    page?: {
+      title?: string;
+      favicon?: string;
+      css?: string | string[];
+      scripts?: string | string[];
+    };
+    header?: {
+      title?: string;
+      image?: string;
+      url?: string;
+    };
+    deployButton?: {
+      type?: "simple" | "default";
+      label?: string;
+      icon?: string;
+    };
+    menu?: {
+      "menu-item-import-library"?: boolean;
+      "menu-item-export-library"?: boolean;
+      "menu-item-keyboard-shortcuts"?: boolean;
+      "menu-item-help"?: {
+        label?: string;
+        url?: string;
+      };
+      [menuItem: string]:
+        | boolean
+        | { label?: string; url?: string }
+        | undefined;
+    };
+    userMenu?: boolean;
+    login?: {
+      image?: string;
+    };
+    logout?: {
+      redirect?: string;
+    };
+    palette?: {
+      catalogues?: string[];
+      categories?: string[];
+      theme?: { category: string; type: string; color: string }[];
+    };
+    projects?: {
+      enabled?: boolean;
+      workflow?: {
+        mode: "manual" | "auto";
+      };
+    };
+    codeEditor?: {
+      lib?: "monaco" | "ace";
+      // TODO: add monaco option types
+      options?: Record<string, unknown>;
+    };
+    mermaid?: {
+      theme?: string;
+    };
+    tours?: boolean;
+    theme?: string;
+    [key: string]: unknown;
+  };
+  contextStorage?: {
+    default?: {
+      module?: "memory" | "localfilesystem" | object;
+      config?: Record<string, unknown>;
+    };
+    [store: string]:
+      | {
+          module?: "memory" | "localfilesystem" | object;
+          config?: Record<string, unknown>;
+        }
+      | undefined;
+  };
+  exportGlobalContextKeys?: boolean;
+  logging?: {
+    console?: {
+      level?: "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "off";
+      metrics?: boolean;
+      audit?: boolean;
+    };
+  };
+  fileWorkingDirectory?: string;
+  functionExternalModules?: boolean;
+  functionGlobalContext?: Record<string, unknown>;
+  nodeMessageBufferMaxLength?: number;
+  functionTimeout?: number;
+  externalModules?: {
+    autoInstall?: boolean;
+    autoInstallRetry?: number;
+    palette?: {
+      allowInstall?: boolean;
+      allowUpdate?: boolean;
+      allowUpload?: boolean;
+      allowList?: string[];
+      denyList?: string[];
+      allowUpdateList?: string[];
+      denyUpdateList?: string[];
+    };
+    modules?: {
+      allowInstall?: boolean;
+      allowList?: string[];
+      denyList?: string[];
+    };
+  };
+  execMaxBufferSize?: number;
+  debugMaxLength?: number;
+  debugUseColors?: boolean;
+  httpRequestTimeout?: number;
+  mqttReconnectTime?: number;
+  serialReconnectTime?: number;
+  socketReconnectTime?: number;
+  socketTimeout?: number;
+  tcpMsgQueueSize?: number;
+  inboundWebSocketTimeout?: number;
+  tlsConfigDisableLocalFiles?: boolean;
+  webSocketNodeVerifyClient?: (info: {
+    origin: string;
+    req: Http2ServerRequest;
+    secure: boolean;
+  }) => boolean;
+  apiMaxLength?: string;
+  [key: string]: unknown;
+}
+
+interface PackageJson {
+  name: string;
+  version: string;
+  description?: string;
+  type?: "commonjs" | "module";
+  main?: string;
+  types?: string;
+  exports?: Record<string, unknown>;
+  scripts?: Record<string, string>;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  keywords?: string[];
+  author?: string | { name: string; email?: string; url?: string };
+  license?: string;
+  repository?: string | { type: string; url: string };
+  bugs?: string | { url: string; email?: string };
+  homepage?: string;
+  engines?: Record<string, string>;
+  files?: string[];
+  private?: boolean;
+  publishConfig?: Record<string, unknown>;
+  "node-red"?: {
+    nodes?: Record<string, string>;
+    version?: string;
+  };
+  [key: string]: unknown;
+}
+
+interface ServerBuildOptions {
+  /** Source directory for server code. @default "./src/server" */
+  srcDir?: string;
+  /** Entry filename relative to srcDir. @default "index.ts" */
+  entry?: string;
+  /** Output format. "esm" builds to .mjs with a CJS bridge for Node-RED. @default "esm" */
+  format?: "cjs" | "esm";
+  /** Dependencies to bundle into the output instead of keeping as external. @default [] */
+  bundled?: string[];
+  /** Generate rolled-up .d.ts type declarations (production only). @default true */
+  types?: boolean;
+  /** esbuild target for the server bundle. @default "node22" */
+  nodeTarget?: string;
+  /** Additional Vite plugins for the server build. */
+  plugins: Plugin[];
+}
+
+interface ServerPluginOptions {
+  nodeRedLauncher: NodeRedLauncher;
+  serverBuildOptions: ServerBuildOptions;
+  clientBuildOptions: ClientBuildOptions;
+  extraFilesCopyTargets: CopyTarget[];
+  buildContext: BuildContext;
+}
+
+export {
+  BuildContext,
+  BuildPluginOptions,
+  ClientBuildOptions,
+  CopyTarget,
+  LocalesOptions,
+  LoggerOptions,
+  NodeRedLauncherOptions,
+  NodeRedPluginOptions,
+  NodeRedRuntimeSettings,
+  PackageJson,
+  ServerBuildOptions,
+  ServerPluginOptions,
+};

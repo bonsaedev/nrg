@@ -1,25 +1,105 @@
 {
-  "name": "bonsae-nrg",
-  "private": true,
-  "version": "0.0.0",
-  "description": "The NRG framework — build Node-RED nodes with Vue 3 and TypeScript",
+  "name": "@bonsae/nrg",
+  "version": "0.0.1",
+  "description": "NRG framework — build Node-RED nodes with Vue 3, TypeScript, and JSON Schema",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
+  "type": "module",
   "repository": {
-    "url": "https://github.com/bonsae/bonsae-nrg",
+    "url": "https://github.com/bonsaedev/nrg",
     "type": "git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=22",
     "pnpm": ">=10.11.0"
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "build": "node build.mjs",
+    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,vue,json}\"",
+    "prepare": "husky"
+  },
+  "files": [
+    "src/",
+    "build/"
+  ],
+  "exports": {
+    "./server": {
+      "types": "./src/core/server/index.ts",
+      "require": "./build/server/index.cjs",
+      "default": "./build/server/index.cjs"
+    },
+    "./client": "./src/core/client/index.ts",
+    "./schemas": "./src/core/server/schemas/index.ts",
+    "./schemas/types": "./src/core/server/schemas/types/index.ts",
+    "./vite": {
+      "types": "./src/vite/index.ts",
+      "default": "./build/vite/index.js"
+    },
+    "./vite/utils": {
+      "types": "./src/vite/utils.ts",
+      "default": "./build/vite/utils.js"
+    },
+    "./tsconfig/base.json": "./src/tsconfig/base.json",
+    "./tsconfig/client.json": "./src/tsconfig/client.json",
+    "./tsconfig/server.json": "./src/tsconfig/server.json"
+  },
+  "peerDependencies": {
+    "@sinclair/typebox": "^0.34.33",
+    "vite": "^6.0.0",
+    "vue": "^3.5.14"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.0.1",
+    "@sinclair/typebox": "^0.34.33",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "ajv": "^8.17.1",
+    "ajv-errors": "^3.0.0",
+    "ajv-formats": "^3.0.1",
+    "chokidar": "^5.0.0",
+    "detect-port": "^2.1.0",
+    "es-toolkit": "^1.37.2",
+    "esbuild": "^0.25.4",
+    "get-port": "^7.1.0",
+    "jsonpointer": "^5.0.1",
+    "mime-types": "^3.0.1",
+    "tree-kill": "^1.2.2",
+    "typescript": "^5.8.3",
+    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-static-copy": "^3.1.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,vue}": ["eslint --fix", "prettier --write"],
+    "src/**/*.json": ["prettier --write"]
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@eslint/js": "^9.27.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@types/express": "^5.0.1",
+    "@types/mime-types": "^2.1.4",
     "@types/node": "^22.15.18",
-    "typescript": "^5.8.3"
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.1.0",
+    "globals": "^16.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.5.3",
+    "semantic-release": "^24.2.4",
+    "typescript-eslint": "^8.32.1",
+    "vite": "^6.3.4",
+    "vue": "^3.5.14"
   }
 }
