@@ -1,6 +1,6 @@
 {
   "name": "@bonsae/nrg",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "NRG framework — build Node-RED nodes with Vue 3, TypeScript, and JSON Schema",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
@@ -75,8 +75,13 @@
     "vite-plugin-static-copy": "^3.1.0"
   },
   "lint-staged": {
-    "src/**/*.{ts,vue}": ["eslint --fix", "prettier --write"],
-    "src/**/*.json": ["prettier --write"]
+    "src/**/*.{ts,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.json": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
