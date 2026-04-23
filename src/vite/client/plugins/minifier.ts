@@ -10,10 +10,13 @@ function minifier(): Plugin {
       order: "post",
       async handler(code, chunk, outputOptions) {
         if (outputOptions.format === "es" && chunk.fileName.endsWith(".js")) {
-          const result = await transform(code, { minify: true });
-          return result.code;
+          const result = await transform(code, {
+            minify: true,
+            sourcemap: true,
+          });
+          return { code: result.code, map: result.map };
         }
-        return code;
+        return null;
       },
     },
   };
