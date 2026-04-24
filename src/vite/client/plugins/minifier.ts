@@ -6,18 +6,16 @@ function minifier(): Plugin {
     name: "vite-plugin-node-red:client:minifier",
     apply: "build",
 
-    renderChunk: {
-      order: "post",
-      async handler(code, chunk, outputOptions) {
-        if (outputOptions.format === "es" && chunk.fileName.endsWith(".js")) {
-          const result = await transform(code, {
+    async generateBundle(_options, bundle) {
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === "chunk" && fileName.endsWith(".js")) {
+          const result = await transform(chunk.code, {
             minify: true,
-            sourcemap: true,
           });
-          return { code: result.code, map: result.map };
+          chunk.code = result.code;
+          chunk.map = null as any;
         }
-        return null;
-      },
+      }
     },
   };
 }

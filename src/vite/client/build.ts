@@ -173,7 +173,7 @@ async function build(
     build: {
       outDir: buildContext.outDir,
       emptyOutDir: false,
-      sourcemap: buildContext.isDev ? "inline" : true,
+      sourcemap: buildContext.isDev ? "inline" : false,
       minify: !buildContext.isDev && format !== "es",
       copyPublicDir: false,
       lib: {
