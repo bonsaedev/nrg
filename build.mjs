@@ -59,7 +59,14 @@ if (existsSync(cssPath)) {
   console.log("✓ Inlined nrg-client.css into nrg-client.js");
 }
 
-// Phase 4: Build vite plugin (ESM)
+// Phase 4: Build root entry (ESM)
+execSync(
+  "esbuild src/index.ts --bundle --packages=external --format=esm --platform=node --outfile=build/index.js",
+  { stdio: "inherit" },
+);
+console.log("✓ Built root entry to build/index.js");
+
+// Phase 5: Build vite plugin (ESM)
 execSync(
   "esbuild src/vite/index.ts src/vite/utils.ts --bundle --packages=external --format=esm --platform=node --outdir=build/vite",
   { stdio: "inherit" },

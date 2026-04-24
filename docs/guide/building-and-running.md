@@ -19,7 +19,7 @@ This will:
 To customize the Node-RED runtime, create a `node-red.settings.ts` at the project root:
 
 ```typescript
-import { defineRuntimeSettings } from "@bonsae/nrg/vite";
+import { defineRuntimeSettings } from "@bonsae/nrg";
 
 export default defineRuntimeSettings({
   flowFile: "flows.json",

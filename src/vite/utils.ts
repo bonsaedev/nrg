@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import type { NodeRedRuntimeSettings, PackageJson } from "./types";
+import type { PackageJson } from "./types";
 
 function cleanDir(dir: string) {
   if (fs.existsSync(dir)) {
@@ -69,35 +69,4 @@ function mergeOptions<T extends Record<string, unknown>>(
   return result;
 }
 
-/**
- * Define Node-RED runtime settings with full type support.
- *
- * Note: All paths should be absolute. Use `import.meta.dirname` or `__dirname` to resolve relative paths.
- *
- * @example
- * ```typescript
- * import { defineRuntimeSettings } from "./vite/utils";
- * import path from "path";
- *
- * const __dirname = import.meta.dirname;
- *
- * export default defineRuntimeSettings({
- *   userDir: path.resolve(__dirname, ".node-red"),
- *   flowFile: "flows.json",
- *   httpStatic: path.resolve(__dirname, "public"),
- * });
- * ```
- */
-function defineRuntimeSettings(
-  settings: NodeRedRuntimeSettings,
-): NodeRedRuntimeSettings {
-  return settings;
-}
-
-export {
-  cleanDir,
-  copyFiles,
-  defineRuntimeSettings,
-  getPackageName,
-  mergeOptions,
-};
+export { cleanDir, copyFiles, getPackageName, mergeOptions };
