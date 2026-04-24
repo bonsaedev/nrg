@@ -23,6 +23,9 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,vue,json}\"",
+    "docs:dev": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build",
+    "docs:preview": "pnpm --dir docs preview",
     "prepare": "husky"
   },
   "files": [
