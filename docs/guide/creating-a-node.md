@@ -20,6 +20,22 @@ export const ConfigsSchema = defineSchema(
   },
   { $id: "my-node:configs" }
 );
+
+export const CredentialsSchema = defineSchema(
+  {
+    apiKey: SchemaType.String({ default: "" }),
+    secret: SchemaType.String({ default: "", format: "password" }),
+  },
+  { $id: "my-node:credentials" }
+);
+
+export const SettingsSchema = defineSchema(
+  {
+    apiEndpoint: SchemaType.String({ default: "https://api.example.com" }),
+    maxRetries: SchemaType.Number({ default: 3 }),
+  },
+  { $id: "my-node:settings" }
+);
 ```
 
 ### Schema Types
@@ -290,7 +306,8 @@ Use `Infer` to extract the TypeScript type from a schema:
 import type { Infer } from "@bonsae/nrg/server";
 
 export type Config = Infer<typeof ConfigsSchema>;
-// { name: string; prefix: string; threshold: number; enabled: boolean }
+export type Credentials = Infer<typeof CredentialsSchema>;
+export type Settings = Infer<typeof SettingsSchema>;
 ```
 
 ## 2. Create the Server Node
@@ -299,27 +316,42 @@ Server nodes handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
 ```typescript
 import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../schemas/my-node";
+import {
+  ConfigsSchema,
+  CredentialsSchema,
+  SettingsSchema,
+} from "../schemas/my-node";
 
 export type Config = Infer<typeof ConfigsSchema>;
+export type Credentials = Infer<typeof CredentialsSchema>;
+export type Settings = Infer<typeof SettingsSchema>;
 
-export default class MyNode extends IONode<Config> {
+export default class MyNode extends IONode<
+  Config,
+  Credentials,
+  any,
+  any,
+  Settings
+> {
   static readonly type = "my-node";
   static readonly category = "function";
   static readonly color: `#${string}` = "#a6bbcf";
   static readonly inputs = 1;
   static readonly outputs = 1;
   static readonly configSchema: Schema = ConfigsSchema;
+  static readonly credentialsSchema: Schema = CredentialsSchema;
+  static readonly settingsSchema: Schema = SettingsSchema;
 
   static async registered(RED: any) {
     RED.log.info("my-node type registered");
   }
 
   async created() {
-    this.log("Node created");
+    this.log(`Using endpoint: ${this.settings.apiEndpoint}`);
   }
 
   async input(msg: any) {
+    const apiKey = this.credentials?.apiKey;
     msg.payload = `${this.config.prefix}: ${msg.payload}`;
     this.send(msg);
   }
