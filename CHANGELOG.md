@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/bonsaedev/nrg/compare/v0.2.0...v0.3.0) (2026-04-24)
+
+
+### Features
+
+* move defineRuntimeSettings to root @bonsae/nrg export ([df5c6fc](https://github.com/bonsaedev/nrg/commit/df5c6fc4dc6370582ab7d041aab6f6253efe7c09))
+
 # [0.2.0](https://github.com/bonsaedev/nrg/compare/v0.1.0...v0.2.0) (2026-04-24)
 
 
