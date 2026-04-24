@@ -291,6 +291,16 @@ function buildField(
       return { key, label, inputType: "text", required, htmlType: "text" };
 
     default:
+      // string with editor language → code editor
+      if (schema["x-editor-language"]) {
+        return {
+          key,
+          label,
+          inputType: "editor",
+          required,
+          language: schema["x-editor-language"],
+        };
+      }
       // string (or untyped)
       return {
         key,

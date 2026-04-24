@@ -26,15 +26,29 @@ function NodeRef<T extends new (...args: any[]) => any>(
   } as unknown as TNodeRef<InstanceType<T>>;
 }
 
-function TypedInput(options?: SchemaOptions): TTypedInput {
+function TypedInput(
+  options?: SchemaOptions & { types?: string[] },
+): TTypedInput {
+  const { types, ...rest } = options ?? {};
   return {
     ...TypedInputSchema,
-    ...options,
+    ...rest,
+    ...(types ? { "x-typed-types": types } : {}),
     [Kind]: "TypedInput",
   } as unknown as TTypedInput;
 }
 
+const _OriginalString = BaseType.String.bind(BaseType);
+function StringWithLang(options?: SchemaOptions & { lang?: string }) {
+  const { lang, ...rest } = options ?? {};
+  return _OriginalString({
+    ...rest,
+    ...(lang ? { "x-editor-language": lang } : {}),
+  });
+}
+
 const SchemaType = Object.assign({}, BaseType, {
+  String: StringWithLang,
   NodeRef,
   TypedInput,
 });
