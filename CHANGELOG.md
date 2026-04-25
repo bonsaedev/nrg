@@ -1,3 +1,15 @@
+# [0.5.0](https://github.com/bonsaedev/nrg/compare/v0.4.0...v0.5.0) (2026-04-25)
+
+
+### Bug Fixes
+
+* prevent restart loop when client entry is auto-generated ([d07e99c](https://github.com/bonsaedev/nrg/commit/d07e99c19f4b47abe44fbc52552d9a52829e6b0f))
+
+
+### Features
+
+* add NodeRedInputLabel component with label slot and x-node-red-input-label-icon support ([1d8e4fc](https://github.com/bonsaedev/nrg/commit/1d8e4fcf52468e1e3dd6602b0892d66fe40af8b4))
+
 # [0.4.0](https://github.com/bonsaedev/nrg/compare/v0.3.0...v0.4.0) (2026-04-25)
 
 
