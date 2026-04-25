@@ -5,9 +5,13 @@ class NodeRedValidator extends Validator {
   constructor(RED: RED) {
     super({
       customKeywords: [
-        { keyword: "skip-validation", schemaType: "boolean", valid: true },
         {
-          keyword: "node-type",
+          keyword: "x-nrg-skip-validation",
+          schemaType: "boolean",
+          valid: true,
+        },
+        {
+          keyword: "x-nrg-node-type",
           type: "string",
           validate: (schemaValue: string, dataValue: string) => {
             if (!dataValue) return true;

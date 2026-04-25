@@ -11,7 +11,7 @@ interface TNodeRef<T = any> extends TSchema {
   [Kind]: "NodeRef";
   static: T;
   type: "string";
-  "node-type"?: string;
+  "x-nrg-node-type"?: string;
 }
 
 type ResolveNodeRefs<T> =
@@ -37,9 +37,17 @@ interface TTypedInput extends TSchema {
   };
 }
 
+interface NrgFormOptions {
+  icon?: string;
+  typedInputTypes?: string[];
+  editorLanguage?: string;
+}
+
 declare module "@sinclair/typebox" {
   interface SchemaOptions {
     exportable?: boolean;
+    "x-nrg-node-type"?: string;
+    "x-nrg-form"?: NrgFormOptions;
   }
 }
 

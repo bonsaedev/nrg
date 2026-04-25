@@ -10,81 +10,31 @@ import { TypedInputSchema } from "./base";
 import type { TNodeRef, TTypedInput } from "./types";
 import { isJSONType } from "ajv/dist/compile/rules";
 
-function extractIcon(options: Record<string, any> | undefined) {
-  if (!options || !("icon" in options))
-    return { rest: options ?? {}, xIcon: {} };
-  const { icon, ...rest } = options;
-  return { rest, xIcon: icon ? { "x-node-red-input-label-icon": icon } : {} };
-}
-
 function NodeRef<T extends new (...args: any[]) => any>(
   nodeClass: T,
-  options?: SchemaOptions & { icon?: string },
+  options?: SchemaOptions,
 ): TNodeRef<InstanceType<T>> {
-  const { rest, xIcon } = extractIcon(options);
   return {
-    ...SchemaType.String({
+    ...BaseType.String({
       description:
-        rest?.description || `Reference to ${(nodeClass as any).type}`,
+        options?.description || `Reference to ${(nodeClass as any).type}`,
       format: "node-id",
     }),
-    "node-type": (nodeClass as any).type,
-    ...rest,
-    ...xIcon,
+    "x-nrg-node-type": (nodeClass as any).type,
+    ...options,
     [Kind]: "NodeRef",
   } as unknown as TNodeRef<InstanceType<T>>;
 }
 
-function TypedInput(
-  options?: SchemaOptions & { types?: string[]; icon?: string },
-): TTypedInput {
-  const { rest, xIcon } = extractIcon(options);
-  const { types, ...remaining } = rest as Record<string, any>;
+function TypedInput(options?: SchemaOptions): TTypedInput {
   return {
     ...TypedInputSchema,
-    ...remaining,
-    ...(types ? { "x-typed-types": types } : {}),
-    ...xIcon,
+    ...options,
     [Kind]: "TypedInput",
   } as unknown as TTypedInput;
 }
 
-const _OriginalString = BaseType.String.bind(BaseType);
-function StringWithLang(
-  options?: SchemaOptions & { lang?: string; icon?: string },
-) {
-  const { rest, xIcon } = extractIcon(options);
-  const { lang, ...remaining } = rest as Record<string, any>;
-  return _OriginalString({
-    ...remaining,
-    ...(lang ? { "x-editor-language": lang } : {}),
-    ...xIcon,
-  });
-}
-
-const _OriginalNumber = BaseType.Number.bind(BaseType);
-function NumberWithIcon(options?: SchemaOptions & { icon?: string }) {
-  const { rest, xIcon } = extractIcon(options);
-  return _OriginalNumber({ ...rest, ...xIcon });
-}
-
-const _OriginalInteger = BaseType.Integer.bind(BaseType);
-function IntegerWithIcon(options?: SchemaOptions & { icon?: string }) {
-  const { rest, xIcon } = extractIcon(options);
-  return _OriginalInteger({ ...rest, ...xIcon });
-}
-
-const _OriginalBoolean = BaseType.Boolean.bind(BaseType);
-function BooleanWithIcon(options?: SchemaOptions & { icon?: string }) {
-  const { rest, xIcon } = extractIcon(options);
-  return _OriginalBoolean({ ...rest, ...xIcon });
-}
-
 const SchemaType = Object.assign({}, BaseType, {
-  String: StringWithLang,
-  Number: NumberWithIcon,
-  Integer: IntegerWithIcon,
-  Boolean: BooleanWithIcon,
   NodeRef,
   TypedInput,
 });
@@ -98,7 +48,7 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
 
   // NOTE: if the type is non serializable, like Functions or Constructor, we must skip validation and avoid applying defaults
   if (hasInvalidType) {
-    (schema as any)["skip-validation"] = true;
+    (schema as any)["x-nrg-skip-validation"] = true;
 
     if ((schema as any).default !== undefined) {
       (schema as any)._default = (schema as any).default;

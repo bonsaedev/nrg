@@ -165,6 +165,12 @@ const SKIP_FIELDS = new Set([
   "validateOutput",
 ]);
 
+interface NrgFormOptions {
+  icon?: string;
+  typedInputTypes?: string[];
+  editorLanguage?: string;
+}
+
 interface FieldSchema {
   type?: string | string[];
   properties?: Record<string, FieldSchema>;
@@ -175,9 +181,8 @@ interface FieldSchema {
   description?: string;
   default?: any;
   items?: FieldSchema;
-  "node-type"?: string;
-  "x-typed-types"?: string[];
-  "x-editor-language"?: string;
+  "x-nrg-node-type"?: string;
+  "x-nrg-form"?: NrgFormOptions;
   [key: string]: any;
 }
 
@@ -223,17 +228,18 @@ function buildField(
   required: boolean,
 ): FormField {
   const label = schema.title || formatLabel(key);
-  const icon = schema["x-node-red-input-label-icon"] || "";
+  const form = schema["x-nrg-form"] ?? {};
+  const icon = form.icon || "";
 
   // NodeRef → config input
-  if (schema["node-type"]) {
+  if (schema["x-nrg-node-type"]) {
     return {
       key,
       label,
       icon,
       inputType: "config",
       required,
-      configType: schema["node-type"],
+      configType: schema["x-nrg-node-type"],
     };
   }
 
@@ -245,7 +251,7 @@ function buildField(
       icon,
       inputType: "typed",
       required,
-      types: schema["x-typed-types"],
+      types: form.typedInputTypes,
     };
   }
 
@@ -299,28 +305,28 @@ function buildField(
       };
 
     case "array":
-      if (schema["x-editor-language"]) {
+      if (form.editorLanguage) {
         return {
           key,
           label,
           icon,
           inputType: "editor",
           required,
-          language: schema["x-editor-language"],
+          language: form.editorLanguage,
         };
       }
       // Plain array of strings → comma-separated text input
       return { key, label, icon, inputType: "array-text", required };
 
     case "object":
-      if (schema["x-editor-language"]) {
+      if (form.editorLanguage) {
         return {
           key,
           label,
           icon,
           inputType: "editor",
           required,
-          language: schema["x-editor-language"],
+          language: form.editorLanguage,
         };
       }
       // Plain object → text input (stored as JSON string)
@@ -335,14 +341,14 @@ function buildField(
 
     default:
       // string with editor language → code editor
-      if (schema["x-editor-language"]) {
+      if (form.editorLanguage) {
         return {
           key,
           label,
           icon,
           inputType: "editor",
           required,
-          language: schema["x-editor-language"],
+          language: form.editorLanguage,
         };
       }
       // string (or untyped)

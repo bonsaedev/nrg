@@ -28,7 +28,7 @@ function getDefaultsFromSchema(
     result[key] = {
       required: false,
       value: prop.default ?? undefined,
-      type: prop["node-type"],
+      type: prop["x-nrg-node-type"],
     };
   }
   return result;

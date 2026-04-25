@@ -1,7 +1,7 @@
 import type { TObject, SchemaOptions } from "@sinclair/typebox";
 
 interface NodeSchemaOptions extends SchemaOptions {
-  "node-type"?: string;
+  "x-nrg-node-type"?: string;
   default?: any;
   format?: string;
 }
@@ -25,7 +25,7 @@ function getDefaultsFromSchema(
       required: false,
       value: property.default ?? undefined,
       // NOTE: I'm using a custom json schema keyword to determine the node type
-      type: property["node-type"],
+      type: property["x-nrg-node-type"],
     };
   }
 
