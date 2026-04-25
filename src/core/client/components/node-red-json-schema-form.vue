@@ -1,36 +1,44 @@
 <template>
   <div>
     <div v-for="field in configFields" :key="field.key" class="form-row">
-      <span class="nrg-label">
-        {{ field.label }}
-        <span v-if="field.required" class="nrg-required">*</span>
-      </span>
-
       <NodeRedInput
         v-if="field.inputType === 'text' || field.inputType === 'number'"
         :value="node[field.key]"
         :type="field.htmlType"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
         :error="errors[`node.${field.key}`]"
         @update:value="node[field.key] = $event"
       />
 
-      <input
-        v-else-if="field.inputType === 'boolean'"
-        type="checkbox"
-        :checked="node[field.key]"
-        style="width: auto; margin: 0"
-        @change="
-          (e) => {
-            node[field.key] = (e.target as HTMLInputElement).checked;
-          }
-        "
-      />
+      <div v-else-if="field.inputType === 'boolean'">
+        <NodeRedInputLabel
+          :label="field.label"
+          :icon="field.icon"
+          :required="field.required"
+          style="width: auto"
+        />
+        <input
+          type="checkbox"
+          :checked="node[field.key]"
+          style="width: auto; margin: 0"
+          @change="
+            (e) => {
+              node[field.key] = (e.target as HTMLInputElement).checked;
+            }
+          "
+        />
+      </div>
 
       <NodeRedSelectInput
         v-else-if="field.inputType === 'select'"
         :value="node[field.key]"
         :options="field.options!"
         :multiple="field.multiple"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
         :error="errors[`node.${field.key}`]"
         @update:value="node[field.key] = $event"
       />
@@ -39,6 +47,9 @@
         v-else-if="field.inputType === 'typed'"
         :value="node[field.key]"
         :types="field.types"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
         :error="errors[`node.${field.key}`]"
         @update:value="node[field.key] = $event"
       />
@@ -49,11 +60,19 @@
         :type="field.configType!"
         :node="node"
         :prop-name="field.key"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
         :error="errors[`node.${field.key}`]"
         @update:value="node[field.key] = $event"
       />
 
       <div v-else-if="field.inputType === 'array-text'">
+        <NodeRedInputLabel
+          :label="field.label"
+          :icon="field.icon"
+          :required="field.required"
+        />
         <span
           style="
             display: block;
@@ -95,6 +114,9 @@
         v-else-if="field.inputType === 'editor'"
         :value="node[field.key]"
         :language="field.language"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
         :error="errors[`node.${field.key}`]"
         @update:value="node[field.key] = $event"
       />
@@ -105,14 +127,12 @@
       :key="`cred-${field.key}`"
       class="form-row"
     >
-      <span class="nrg-label">
-        {{ field.label }}
-        <span v-if="field.required" class="nrg-required">*</span>
-      </span>
-
       <NodeRedInput
         :value="node.credentials[field.key]"
         :type="field.htmlType"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
         :error="errors[`node.credentials.${field.key}`]"
         @update:value="node.credentials[field.key] = $event"
       />
@@ -123,6 +143,7 @@
 <script lang="ts">
 import type { PropType } from "vue";
 import { defineComponent } from "vue";
+import NodeRedInputLabel from "./node-red-input-label.vue";
 import NodeRedInput from "./node-red-input.vue";
 import NodeRedSelectInput from "./node-red-select-input.vue";
 import NodeRedTypedInput from "./node-red-typed-input.vue";
@@ -163,6 +184,7 @@ interface FieldSchema {
 interface FormField {
   key: string;
   label: string;
+  icon: string;
   inputType:
     | "text"
     | "number"
@@ -201,12 +223,14 @@ function buildField(
   required: boolean,
 ): FormField {
   const label = schema.title || formatLabel(key);
+  const icon = schema["x-node-red-input-label-icon"] || "";
 
   // NodeRef → config input
   if (schema["node-type"]) {
     return {
       key,
       label,
+      icon,
       inputType: "config",
       required,
       configType: schema["node-type"],
@@ -218,6 +242,7 @@ function buildField(
     return {
       key,
       label,
+      icon,
       inputType: "typed",
       required,
       types: schema["x-typed-types"],
@@ -229,6 +254,7 @@ function buildField(
     return {
       key,
       label,
+      icon,
       inputType: "select",
       required,
       multiple: true,
@@ -244,6 +270,7 @@ function buildField(
     return {
       key,
       label,
+      icon,
       inputType: "select",
       required,
       multiple: false,
@@ -258,37 +285,53 @@ function buildField(
 
   switch (rawType) {
     case "boolean":
-      return { key, label, inputType: "boolean", required };
+      return { key, label, icon, inputType: "boolean", required };
 
     case "number":
     case "integer":
-      return { key, label, inputType: "number", required, htmlType: "number" };
+      return {
+        key,
+        label,
+        icon,
+        inputType: "number",
+        required,
+        htmlType: "number",
+      };
 
     case "array":
       if (schema["x-editor-language"]) {
         return {
           key,
           label,
+          icon,
           inputType: "editor",
           required,
           language: schema["x-editor-language"],
         };
       }
       // Plain array of strings → comma-separated text input
-      return { key, label, inputType: "array-text", required };
+      return { key, label, icon, inputType: "array-text", required };
 
     case "object":
       if (schema["x-editor-language"]) {
         return {
           key,
           label,
+          icon,
           inputType: "editor",
           required,
           language: schema["x-editor-language"],
         };
       }
       // Plain object → text input (stored as JSON string)
-      return { key, label, inputType: "text", required, htmlType: "text" };
+      return {
+        key,
+        label,
+        icon,
+        inputType: "text",
+        required,
+        htmlType: "text",
+      };
 
     default:
       // string with editor language → code editor
@@ -296,6 +339,7 @@ function buildField(
         return {
           key,
           label,
+          icon,
           inputType: "editor",
           required,
           language: schema["x-editor-language"],
@@ -305,6 +349,7 @@ function buildField(
       return {
         key,
         label,
+        icon,
         inputType: "text",
         required,
         htmlType: schema.format === "password" ? "password" : "text",
@@ -315,6 +360,7 @@ function buildField(
 export default defineComponent({
   name: "NodeRedJsonSchemaForm",
   components: {
+    NodeRedInputLabel,
     NodeRedInput,
     NodeRedSelectInput,
     NodeRedTypedInput,
@@ -370,10 +416,3 @@ export default defineComponent({
   },
 });
 </script>
-
-<style scoped>
-.nrg-required {
-  color: var(--red-ui-text-color-error);
-  margin-left: 2px;
-}
-</style>

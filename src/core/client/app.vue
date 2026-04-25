@@ -14,7 +14,7 @@
           localNode.validateInput = ($event.target as HTMLInputElement).checked
         "
       />
-      <span class="nrg-label" style="width: auto">Validate Input</span>
+      <NodeRedInputLabel label="Validate Input" style="width: auto" />
     </template>
     <template v-if="features.hasOutputSchema">
       <input
@@ -26,7 +26,7 @@
           localNode.validateOutput = ($event.target as HTMLInputElement).checked
         "
       />
-      <span class="nrg-label" style="width: auto">Validate Output</span>
+      <NodeRedInputLabel label="Validate Output" style="width: auto" />
     </template>
   </div>
   <div style="width: 100%; padding-bottom: 12px">
@@ -183,12 +183,6 @@ export default defineComponent({
 <style scoped>
 :deep(.node-red-vue-input-error-message) {
   color: var(--red-ui-text-color-error);
-}
-
-:deep(.nrg-label) {
-  display: inline-block;
-  width: 100%;
-  cursor: default;
 }
 
 :deep(.form-row input[type="text"]),

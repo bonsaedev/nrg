@@ -1,5 +1,13 @@
 <template>
   <div style="display: flex; flex-direction: column; width: 100%">
+    <slot name="label">
+      <NodeRedInputLabel
+        v-if="label"
+        :label="label"
+        :icon="icon"
+        :required="required"
+      />
+    </slot>
     <input
       ref="inputField"
       :type="type"
@@ -18,10 +26,12 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import NodeRedInputLabel from "./node-red-input-label.vue";
 
 const SECRET_PATTERN = "*************";
 
 export default defineComponent({
+  components: { NodeRedInputLabel },
   props: {
     value: {
       type: String,
@@ -34,6 +44,18 @@ export default defineComponent({
     placeholder: {
       type: String,
       default: "",
+    },
+    label: {
+      type: String,
+      default: "",
+    },
+    icon: {
+      type: String,
+      default: "",
+    },
+    required: {
+      type: Boolean,
+      default: false,
     },
     error: {
       type: String,

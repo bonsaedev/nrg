@@ -1,5 +1,13 @@
 <template>
   <div ref="container" class="container">
+    <slot name="label">
+      <NodeRedInputLabel
+        v-if="label"
+        :label="label"
+        :icon="icon"
+        :required="required"
+      />
+    </slot>
     <button
       ref="expand-button"
       class="red-ui-button red-ui-button-small expand-button"
@@ -17,7 +25,9 @@
 <script lang="ts">
 // TODO: expose editor apis
 import { defineComponent } from "vue";
+import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
+  components: { NodeRedInputLabel },
   props: {
     value: {
       type: String,
@@ -120,6 +130,18 @@ export default defineComponent({
         }
         return isValid;
       },
+    },
+    label: {
+      type: String,
+      default: "",
+    },
+    icon: {
+      type: String,
+      default: "",
+    },
+    required: {
+      type: Boolean,
+      default: false,
     },
     error: {
       type: String,

@@ -1,5 +1,13 @@
 <template>
   <div style="display: flex; flex-direction: column; width: 100%">
+    <slot name="label">
+      <NodeRedInputLabel
+        v-if="label"
+        :label="label"
+        :icon="icon"
+        :required="required"
+      />
+    </slot>
     <input
       ref="typedInput"
       type="text"
@@ -14,9 +22,11 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import NodeRedInputLabel from "./node-red-input-label.vue";
 import { TYPED_INPUT_TYPES } from "../../constants";
 
 export default defineComponent({
+  components: { NodeRedInputLabel },
   props: {
     value: {
       type: Object,
@@ -42,6 +52,18 @@ export default defineComponent({
     types: {
       type: Array,
       default: () => TYPED_INPUT_TYPES,
+    },
+    label: {
+      type: String,
+      default: "",
+    },
+    icon: {
+      type: String,
+      default: "",
+    },
+    required: {
+      type: Boolean,
+      default: false,
     },
     error: {
       type: String,
