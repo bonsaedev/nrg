@@ -46,7 +46,7 @@ export const SettingsSchema = defineSchema(
 | --- | --- |
 | `SchemaType.String()` | Text input |
 | `SchemaType.String({ format: "password" })` | Password input |
-| `SchemaType.String({ lang: "..." })` | Code editor with syntax highlighting |
+| `SchemaType.String({ "x-nrg-form": { editorLanguage: "..." } })` | Code editor with syntax highlighting |
 | `SchemaType.Number()` | Number input |
 | `SchemaType.Boolean()` | Checkbox |
 | `SchemaType.Optional(...)` | Marks a property as optional |
@@ -56,6 +56,62 @@ export const SettingsSchema = defineSchema(
 | `SchemaType.Object(...)` | Text input (stored as JSON) |
 | `SchemaType.TypedInput()` | Node-RED TypedInput (value + type pair) |
 | `SchemaType.NodeRef(NodeClass)` | Config node selector dropdown |
+
+### Customizing Form Rendering with `x-nrg-form`
+
+The `x-nrg-form` property is a JSON Schema extension that controls how a field is rendered in the auto-generated editor form. You can pass it as an option to any `SchemaType` method:
+
+```typescript
+SchemaType.String({
+  default: "",
+  "x-nrg-form": {
+    icon: "globe",
+    editorLanguage: "json",
+  },
+})
+```
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `icon` | `string` | Font Awesome icon name displayed in the field label (e.g., `"globe"`, `"key"`, `"server"`). The `fa-` prefix is optional — `"globe"` and `"fa-globe"` both work. |
+| `editorLanguage` | `string` | Renders the field as a code editor with syntax highlighting. Supports `json`, `javascript`, `html`, `css`, `yaml`, `sql`, `python`, `markdown`, and [many more](https://microsoft.github.io/monaco-editor/). |
+| `typedInputTypes` | `string[]` | Restricts the allowed types in a `TypedInput` widget. Defaults to all types: `msg`, `flow`, `global`, `str`, `num`, `bool`, `json`, `bin`, `re`, `jsonata`, `date`, `env`, `node`, `cred`. |
+
+TypeScript autocomplete is available for all `x-nrg-form` properties — no imports needed.
+
+**Example — adding icons to labels:**
+
+```typescript
+export const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "", "x-nrg-form": { icon: "tag" } }),
+    url: SchemaType.String({ default: "", "x-nrg-form": { icon: "globe" } }),
+    timeout: SchemaType.Number({ default: 5000, "x-nrg-form": { icon: "clock-o" } }),
+    enabled: SchemaType.Boolean({ default: true, "x-nrg-form": { icon: "check" } }),
+    server: SchemaType.NodeRef(RemoteServer, { "x-nrg-form": { icon: "server" } }),
+    endpoint: SchemaType.TypedInput({
+      "x-nrg-form": { icon: "plug", typedInputTypes: ["str", "msg", "flow"] },
+    }),
+    template: SchemaType.String({
+      default: "",
+      "x-nrg-form": { icon: "code", editorLanguage: "html" },
+    }),
+  },
+  { $id: "my-node:configs" }
+);
+```
+
+::: tip Label slot
+When building a custom form, all input components (`<NodeRedInput>`, `<NodeRedTypedInput>`, etc.) accept `label`, `icon`, and `required` props. You can also override the label entirely using the `label` slot for full customization:
+
+```vue
+<NodeRedInput v-model="node.name">
+  <template #label>
+    <NodeRedInputLabel label="Custom Label" icon="star" />
+  </template>
+</NodeRedInput>
+```
+:::
 
 ### Text Input
 
@@ -192,18 +248,18 @@ export const ConfigsSchema = defineSchema(
 
 ### Code Editor
 
-Use `SchemaType.String` with a `lang` option to render a code editor with syntax highlighting:
+Use `SchemaType.String` with `"x-nrg-form": { editorLanguage: "..." }` to render a code editor with syntax highlighting:
 
 ```typescript
 export const ConfigsSchema = defineSchema(
   {
     template: SchemaType.String({
       default: "",
-      lang: "html",
+      "x-nrg-form": { editorLanguage: "html" },
     }),
     payload: SchemaType.String({
       default: "{}",
-      lang: "json",
+      "x-nrg-form": { editorLanguage: "json" },
     }),
   },
   { $id: "my-node:configs" }
@@ -239,13 +295,13 @@ export const ConfigsSchema = defineSchema(
 
 By default, all types are available: `msg`, `flow`, `global`, `str`, `num`, `bool`, `json`, `bin`, `re`, `jsonata`, `date`, `env`, `node`, `cred`.
 
-Restrict the allowed types directly in the schema using `types`. The auto-generated form picks them up automatically:
+Restrict the allowed types using `"x-nrg-form": { typedInputTypes: [...] }`. The auto-generated form picks them up automatically:
 
 ```typescript
 export const ConfigsSchema = defineSchema(
   {
     target: SchemaType.TypedInput({
-      types: ["str", "num", "msg"],
+      "x-nrg-form": { typedInputTypes: ["str", "num", "msg"] },
     }),
   },
   { $id: "my-node:configs" }
@@ -494,6 +550,7 @@ NRG registers these components globally in every form:
 
 | Component | Description |
 | --- | --- |
+| `<NodeRedInputLabel>` | Reusable label with optional Font Awesome icon and required indicator |
 | `<NodeRedInput>` | Standard text/number input bound to a node property |
 | `<NodeRedTypedInput>` | Node-RED TypedInput widget (value + type selector) |
 | `<NodeRedConfigInput>` | Dropdown to select a config node |
