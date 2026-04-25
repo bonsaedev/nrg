@@ -98,6 +98,7 @@
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@types/express": "^5.0.1",
+    "@types/jquery": "^4.0.0",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^22.15.18",
     "@typescript-eslint/eslint-plugin": "^8.32.1",

@@ -1,5 +1,5 @@
 import type { Schema } from "../schemas/types";
-import { type RED } from "../../server/types";
+import { type RED, type NodeRedNode } from "../../server/types";
 import type {
   ConfigNodeContext,
   IONodeContext,
@@ -80,7 +80,7 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
     RED.log.info("Settings are valid");
   }
   protected readonly RED: RED;
-  protected readonly node: any;
+  protected readonly node: NodeRedNode;
   protected readonly context!: ConfigNodeContext | IONodeContext;
   public readonly config!: NodeConfig<TConfig>;
 
@@ -89,7 +89,7 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
 
   constructor(
     RED: RED,
-    node: any,
+    node: NodeRedNode,
     config: NodeConfig<TConfig>,
     credentials: NodeCredentials<TCredentials>,
   ) {
