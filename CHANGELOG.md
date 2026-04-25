@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/bonsaedev/nrg/compare/v0.3.0...v0.4.0) (2026-04-25)
+
+
+### Features
+
+* improve RED type definitions for server and client ([ea675ad](https://github.com/bonsaedev/nrg/commit/ea675ad81ffe505e9748f9b2abf15a40565c42ce))
+
 # [0.3.0](https://github.com/bonsaedev/nrg/compare/v0.2.0...v0.3.0) (2026-04-24)
 
 
