@@ -39,13 +39,15 @@ async function build(
   if (fs.existsSync(physicalEntryPath)) {
     entryPath = physicalEntryPath;
   } else {
-    // No physical entry — create a minimal empty file that the inliner
-    // will prepend auto-registration code into.
-    if (!fs.existsSync(path.dirname(physicalEntryPath))) {
-      fs.mkdirSync(path.dirname(physicalEntryPath), { recursive: true });
+    // No physical entry — create a minimal empty file in the cache directory
+    // so the file watcher on srcDir is not triggered by the create/delete cycle.
+    const cacheDir = path.resolve("node_modules", ".nrg", "client");
+    const cachedEntryPath = path.resolve(cacheDir, entry);
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
     }
-    fs.writeFileSync(physicalEntryPath, "// auto-generated entry\n");
-    entryPath = physicalEntryPath;
+    fs.writeFileSync(cachedEntryPath, "// auto-generated entry\n");
+    entryPath = cachedEntryPath;
     generatedEntry = true;
   }
 
@@ -215,7 +217,7 @@ async function build(
     throw new BuildError("client", error as Error);
   } finally {
     if (generatedEntry) {
-      fs.unlinkSync(physicalEntryPath);
+      fs.unlinkSync(entryPath);
     }
   }
 }
