@@ -37,10 +37,22 @@ function buildPlugin(options: BuildPluginOptions): Plugin {
         const tsconfigsToCheck = [serverTsconfig, clientTsconfig].filter((p) =>
           fs.existsSync(p),
         );
-        for (const tsconfig of tsconfigsToCheck) {
-          execSync(`npx tsc -p ${tsconfig} --noEmit`, { stdio: "inherit" });
+        try {
+          for (const tsconfig of tsconfigsToCheck) {
+            execSync(`npx tsc -p ${tsconfig} --noEmit`, {
+              stdio: ["inherit", "pipe", "pipe"],
+              encoding: "utf-8",
+            });
+          }
+          logger.stopSpinner("Type checked");
+        } catch (e: any) {
+          logger.stopSpinner("Type check failed");
+          const output = (e.stdout || "") + (e.stderr || "");
+          if (output) {
+            console.error(output);
+          }
+          throw new BuildError("type-check", e);
         }
-        logger.stopSpinner("Type checked");
 
         logger.startSpinner("Cleaning");
         cleanDir(buildContext.outDir);
