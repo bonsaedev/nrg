@@ -1,3 +1,13 @@
+# Changelog
+
+## [0.5.1](https://github.com/bonsaedev/nrg/compare/v0.5.0...v0.5.1) (2026-04-26)
+
+
+### Bug Fixes
+
+* correct expand button position in editor input with label slot ([feeb9a1](https://github.com/bonsaedev/nrg/commit/feeb9a1569d3abc1e91271993e5c113ad4eab1b2))
+* show type check errors in build output ([2048362](https://github.com/bonsaedev/nrg/commit/20483628bce0fd9dfda0ed56cce8d683bbbd789f))
+
 # [0.5.0](https://github.com/bonsaedev/nrg/compare/v0.4.0...v0.5.0) (2026-04-25)
 
 
