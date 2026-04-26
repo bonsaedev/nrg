@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/bonsaedev/nrg/compare/v0.5.1...v0.5.2) (2026-04-26)
+
+
+### Bug Fixes
+
+* serve Vue dev build in development for devtools support ([85c30d5](https://github.com/bonsaedev/nrg/commit/85c30d54bc4505a7b44b459db3bd80fa43f38819))
+
 ## [0.5.1](https://github.com/bonsaedev/nrg/compare/v0.5.0...v0.5.1) (2026-04-26)
 
 
