@@ -8,14 +8,16 @@
         :required="required"
       />
     </slot>
-    <button
-      ref="expand-button"
-      class="red-ui-button red-ui-button-small expand-button"
-      @click="onClickExpand"
-    >
-      <i class="fa fa-expand"></i>
-    </button>
-    <div :id="editorId" ref="editor"></div>
+    <div class="editor-wrapper">
+      <button
+        ref="expand-button"
+        class="red-ui-button red-ui-button-small expand-button"
+        @click="onClickExpand"
+      >
+        <i class="fa fa-expand"></i>
+      </button>
+      <div :id="editorId" ref="editor"></div>
+    </div>
     <div v-show="error" class="node-red-vue-input-error-message">
       {{ error }}
     </div>
@@ -290,7 +292,7 @@ export default defineComponent({
 });
 </script>
 <style scoped>
-.container {
+.editor-wrapper {
   position: relative;
 }
 
