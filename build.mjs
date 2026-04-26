@@ -20,8 +20,10 @@ console.log("✓ Built server to build/server/");
 mkdirSync("build/server/resources", { recursive: true });
 
 const vueProdFile = require.resolve("vue/dist/vue.esm-browser.prod.js");
+const vueDevFile = require.resolve("vue/dist/vue.esm-browser.js");
 copyFileSync(vueProdFile, path.resolve(__dirname, "build/server/resources/vue.esm-browser.prod.js"));
-console.log("✓ Copied vue.esm-browser.prod.js to build/server/resources/");
+copyFileSync(vueDevFile, path.resolve(__dirname, "build/server/resources/vue.esm-browser.js"));
+console.log("✓ Copied Vue runtimes (dev + prod) to build/server/resources/");
 
 // Phase 3: Build client (ESM library)
 await viteBuild({
