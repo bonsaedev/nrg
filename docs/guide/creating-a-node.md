@@ -354,6 +354,118 @@ In a custom form, use `<NodeRedConfigInput>`:
 </template>
 ```
 
+### Conditional Validation with `if`/`then`
+
+NRG uses [AJV](https://ajv.js.org/) for schema validation, which supports JSON Schema's `if`/`then` conditional keywords. This lets you create dependent validation rules — where a field's constraints change based on another field's value. Validation errors are shown inline in the auto-generated form.
+
+You can also use [ajv-errors](https://github.com/ajv-validator/ajv-errors) `errorMessage` to provide custom, user-friendly error messages instead of the default AJV output.
+
+Since `defineSchema` returns a standard JSON Schema object, you can add `allOf` with `if`/`then` conditions directly after defining the schema:
+
+```typescript
+import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+
+const ConfigsSchema = defineSchema(
+  {
+    method: SchemaType.String({
+      default: "GET",
+      enum: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    }),
+    url: SchemaType.String({ default: "", minLength: 1 }),
+    body: SchemaType.String({ default: "" }),
+    authType: SchemaType.String({
+      default: "none",
+      enum: ["none", "basic", "bearer"],
+    }),
+    username: SchemaType.String({ default: "" }),
+    password: SchemaType.String({ default: "", format: "password" }),
+    token: SchemaType.String({ default: "", format: "password" }),
+    retries: SchemaType.Number({ default: 0, minimum: 0, maximum: 10 }),
+    retryDelay: SchemaType.Number({ default: 1000, minimum: 100 }),
+  },
+  { $id: "http-request:configs" },
+);
+
+// Add conditional validation rules after defining the schema
+const schema = ConfigsSchema as any;
+
+schema.allOf = [
+  // If method is POST/PUT/PATCH, body must not be empty
+  {
+    if: {
+      properties: { method: { enum: ["POST", "PUT", "PATCH"] } },
+    },
+    then: {
+      properties: { body: { minLength: 1 } },
+      errorMessage: {
+        properties: {
+          body: "Body is required for ${/method} requests",
+        },
+      },
+    },
+  },
+  // If authType is "basic", username and password are required
+  {
+    if: {
+      properties: { authType: { const: "basic" } },
+    },
+    then: {
+      properties: {
+        username: { minLength: 1 },
+        password: { minLength: 1 },
+      },
+      errorMessage: {
+        properties: {
+          username: "Username is required for basic auth",
+          password: "Password is required for basic auth",
+        },
+      },
+    },
+  },
+  // If authType is "bearer", token is required
+  {
+    if: {
+      properties: { authType: { const: "bearer" } },
+    },
+    then: {
+      properties: { token: { minLength: 1 } },
+      errorMessage: {
+        properties: {
+          token: "Token is required for bearer auth",
+        },
+      },
+    },
+  },
+  // If retries > 0, retryDelay must be at least 100
+  {
+    if: {
+      properties: { retries: { exclusiveMinimum: 0 } },
+    },
+    then: {
+      properties: { retryDelay: { minimum: 100 } },
+      errorMessage: {
+        properties: {
+          retryDelay: "Retry delay is required when retries > 0",
+        },
+      },
+    },
+  },
+];
+
+export { ConfigsSchema };
+```
+
+#### How it works
+
+- **`if`** — matches when the specified properties meet the condition (e.g., method is POST)
+- **`then`** — applies additional constraints when the `if` matches (e.g., body must have `minLength: 1`)
+- **`errorMessage`** — custom error text shown in the form (from `ajv-errors`). You can interpolate values using JSON Pointer syntax like `${/method}`
+- **`allOf`** — allows multiple independent conditions on the same schema
+
+::: tip Custom error messages
+Without `errorMessage`, AJV shows generic messages like "must NOT have fewer than 1 characters". Use `errorMessage.properties` to replace these with context-specific messages that help users understand what to fix.
+:::
+
 ### Inferring the TypeScript Type
 
 Use `Infer` to extract the TypeScript type from a schema:
