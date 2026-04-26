@@ -57,6 +57,7 @@ jobs:
         run: pnpm build
 
       - name: Semantic Release
+        id: semantic
         uses: cycjimmy/semantic-release-action@v4.1.1
         with:
           dry_run: ${{ inputs.dry_run }}
@@ -65,3 +66,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+
+      - name: Trigger docs deployment
+        if: steps.semantic.outputs.new_release_published == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          event-type: deploy-docs
