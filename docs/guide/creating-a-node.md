@@ -495,7 +495,7 @@ Without `errorMessage`, AJV shows generic messages like "must NOT have fewer tha
 
 ::: warning Good to know
 - **TypeScript types are not affected** — `if`/`then` conditions are enforced at runtime by AJV. `Infer<typeof Schema>` reflects the full shape of the schema with all fields present. This is expected — conditional requirements are a runtime concern, and your code should handle all fields regardless.
-- **All fields are always rendered** — the auto-generated form displays every property in the schema. Conditional rules control when validation errors appear, not field visibility. For dynamic show/hide behavior, use a [custom form component](#src-client-components-type-vue-custom-form-component) — it only takes a few lines of Vue.
+- **All fields are always rendered** — the auto-generated form displays every property in the schema. Conditional rules control when validation errors appear, not field visibility. For dynamic show/hide behavior, use a [custom form component](#custom-form-component) — it only takes a few lines of Vue.
 - **Need more advanced validation?** — JSON Schema covers most validation patterns (`if`/`then`, `pattern`, `minLength`, `minimum`, `enum`, etc.). For anything beyond that (async checks, complex cross-field logic), a custom form component gives you full control — you can combine schema-driven validation with your own computed validation errors.
 :::
 
@@ -671,7 +671,7 @@ export default defineNode({
 });
 ```
 
-### `src/client/components/{type}.vue` — Custom Form Component
+### `src/client/components/{type}.vue` — Custom Form Component {#custom-form-component}
 
 Use this to replace the auto-generated JSON schema form with a fully custom Vue 3 component. This gives you complete control over the editor UI:
 
