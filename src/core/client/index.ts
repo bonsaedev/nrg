@@ -203,7 +203,7 @@ function getNodeState(node: Node): NodeState {
   const state: NodeState = {
     credentials: {},
   };
-  Object.keys(node._def.defaults).forEach((prop) => {
+  Object.keys(node._def.defaults ?? {}).forEach((prop) => {
     state[prop] = node[prop];
   });
   if (node._def.credentials) {
@@ -354,7 +354,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       const changed = !!Object.keys(changes)?.length;
       if (!changed) return false;
 
-      Object.keys(node._def.defaults).forEach((prop) => {
+      Object.keys(node._def.defaults ?? {}).forEach((prop) => {
         if (!node._def.defaults?.[prop]?.type) return;
         const oldConfigNodeId: string = node[prop] as string;
         const newConfigNodeId: string = node._newState![prop] as string;
@@ -370,7 +370,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
         }
       });
 
-      Object.keys(node._def.defaults).forEach((prop) => {
+      Object.keys(node._def.defaults ?? {}).forEach((prop) => {
         if (!node._def.defaults?.[prop]?.type) return;
         const newConfigNodeId: string = node._newState![prop] as string;
         if (!newConfigNodeId) return;
@@ -394,7 +394,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       // overwriting the correctly-typed values already set by merge() above.
       const isConfigNode = definition.category === "config";
       if (isConfigNode) {
-        Object.keys(node._def.defaults).forEach((prop) => {
+        Object.keys(node._def.defaults ?? {}).forEach((prop) => {
           if (node._def.defaults[prop].type) return; // config-node refs handled separately
           const inputId = `node-config-input-${prop}`;
           let input = $(`#${inputId}`);
