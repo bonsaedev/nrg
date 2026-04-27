@@ -300,8 +300,6 @@ function defineNode<T extends NodeDefinition>(options: T): T {
 async function registerType(definition: NodeDefinition): Promise<void> {
   const { type } = definition;
   try {
-    console.log(`Registering node type: ${type}`);
-
     const nodeDefinition = {
       ...(_schemas[type] ?? {}),
       ...definition,
@@ -310,9 +308,6 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     // defaults and credentials are pre-computed at build time by the inliner
     const defaults = nodeDefinition.defaults ?? undefined;
     const credentials = nodeDefinition.credentials ?? undefined;
-
-    console.log("defaults", defaults);
-    console.log("credentials", credentials);
 
     const appContainerId = `nrg-app-${type}`;
 
@@ -323,9 +318,6 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     }).appendTo("body");
 
     function oneditprepare(this: Node) {
-      console.log("oneditprepare");
-      console.log(this);
-
       const validationSchema = nodeDefinition.credentialsSchema?.properties
         ? {
             ...nodeDefinition.configSchema,
@@ -484,9 +476,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
  */
 async function registerTypes(nodes: NodeDefinition[]): Promise<void> {
   try {
-    console.log("Registering node types in parallel");
     await Promise.all(nodes.map((definition) => registerType(definition)));
-    console.log("All node types registered in parallel");
   } catch (error) {
     console.error("Error registering node types:", error);
     throw error;
