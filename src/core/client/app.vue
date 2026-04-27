@@ -162,7 +162,7 @@ export default defineComponent({
             error.instancePath,
           );
           if (
-            error.parentSchema.format === "password" &&
+            error.parentSchema?.format === "password" &&
             errorValue === "__PWD__"
           ) {
             return acc;
