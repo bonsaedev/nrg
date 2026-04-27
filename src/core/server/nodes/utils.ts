@@ -35,8 +35,15 @@ function setupConfigProxy<T extends object>(
   // NOTE: must not proxy its own id or parents ids
   const SKIP_PROPS = new Set(["id", "_id", "_users"]);
 
+  // Cache proxied objects so the same target always returns the same proxy.
+  // This preserves reference equality: config.server === config.server
+  const proxyCache = new WeakMap<object, any>();
+
   const createProxy = <O extends object>(obj: O): any => {
-    return new Proxy(obj, {
+    const cached = proxyCache.get(obj);
+    if (cached) return cached;
+
+    const proxy = new Proxy(obj, {
       get(target: any, prop: string | symbol): any {
         if (typeof prop === "symbol") {
           return target[prop];
@@ -75,6 +82,9 @@ function setupConfigProxy<T extends object>(
         return value;
       },
     });
+
+    proxyCache.set(obj, proxy);
+    return proxy;
   };
 
   return createProxy(config) as ResolveNodeRefs<T>;
