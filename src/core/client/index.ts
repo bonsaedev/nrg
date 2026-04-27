@@ -318,18 +318,20 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     }).appendTo("body");
 
     function oneditprepare(this: Node) {
-      const validationSchema = nodeDefinition.credentialsSchema?.properties
-        ? {
-            ...nodeDefinition.configSchema,
-            properties: {
-              ...nodeDefinition.configSchema.properties,
-              credentials: {
-                type: "object",
-                properties: nodeDefinition.credentialsSchema.properties,
+      const validationSchema =
+        nodeDefinition.configSchema &&
+        nodeDefinition.credentialsSchema?.properties
+          ? {
+              ...nodeDefinition.configSchema,
+              properties: {
+                ...nodeDefinition.configSchema.properties,
+                credentials: {
+                  type: "object",
+                  properties: nodeDefinition.credentialsSchema.properties,
+                },
               },
-            },
-          }
-        : nodeDefinition.configSchema;
+            }
+          : nodeDefinition.configSchema;
 
       const form =
         definition.form ??
