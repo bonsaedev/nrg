@@ -32,9 +32,7 @@ function serveNrgResources(RED: RED): void {
   httpAdmin.use(function (req: any, res: any, next: any) {
     const prefix = "/nrg/assets/";
     if (!(req.path as string).startsWith(prefix)) return next();
-    let reqPath = (req.path as string)
-      .slice(prefix.length)
-      .replace(/\.\./g, "");
+    let reqPath = (req.path as string).slice(prefix.length);
     // Serve the Vue dev build in development for devtools support
     if (
       reqPath === "vue.esm-browser.prod.js" &&
@@ -46,7 +44,8 @@ function serveNrgResources(RED: RED): void {
       }
     }
     const filePath = path.resolve(clientDir, reqPath);
-    if (!filePath.startsWith(clientDir)) return next();
+    const rel = path.relative(clientDir, filePath);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) return next();
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile())
       return next();
     const ext = path.extname(filePath);
