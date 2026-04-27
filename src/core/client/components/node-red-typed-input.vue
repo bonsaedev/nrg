@@ -136,6 +136,12 @@ export default defineComponent({
       this.onChange();
     });
   },
+  beforeUnmount() {
+    if (this._observer) {
+      this._observer.disconnect();
+      this._observer = null;
+    }
+  },
   methods: {
     onChange() {
       const newValue = this.$input.typedInput("value");
