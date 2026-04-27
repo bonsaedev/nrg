@@ -105,8 +105,14 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
     function (this: any, config: any) {
       RED.nodes.createNode(this, config);
       const node = new NC(RED, this, config, this.credentials);
-      // NOTE: save node intance inside node-red's node so that the proxy can resolve it lazyly
-      this._node = node;
+      // NOTE: save node instance inside node-red's node so that the proxy can resolve it lazily.
+      // Non-writable to prevent accidental clobbering by other code in the process.
+      Object.defineProperty(this, "_node", {
+        value: node,
+        writable: false,
+        configurable: false,
+        enumerable: false,
+      });
 
       // NOTE: created promise must be here because we only want it to start after the whole object creation chain has been completed: child -> IONode -> Node -> IONode -> child -> done
       const createdPromise = Promise.resolve(node.created?.()).catch(
