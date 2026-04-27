@@ -31,59 +31,66 @@ function setupContext(
 function setupConfigProxy<T extends object>(
   RED: RED,
   config: T,
+  schema?: any,
 ): ResolveNodeRefs<T> {
-  // NOTE: must not proxy its own id or parents ids
   const SKIP_PROPS = new Set(["id", "_id", "_users"]);
 
-  // Cache proxied objects so the same target always returns the same proxy.
+  // Build a set of property names that are node references based on the schema.
+  // Only these properties will have their string values resolved via RED.nodes.getNode().
+  const nodeRefProps = new Set<string>();
+  if (schema?.properties) {
+    for (const [key, propSchema] of Object.entries(schema.properties)) {
+      if ((propSchema as any)?.["x-nrg-node-type"]) {
+        nodeRefProps.add(key);
+      }
+    }
+  }
+
+  // Per-node-instance cache: original object/array -> proxy or mapped array.
   // This preserves reference equality: config.server === config.server
-  const proxyCache = new WeakMap<object, any>();
+  const cache = new WeakMap<object, any>();
 
   const createProxy = <O extends object>(obj: O): any => {
-    const cached = proxyCache.get(obj);
+    const cached = cache.get(obj);
     if (cached) return cached;
+
+    if (Array.isArray(obj)) {
+      // Map once, cache the result array so identity is stable across reads
+      const mapped = obj.map((item) => {
+        if (item && typeof item === "object") {
+          return createProxy(item);
+        }
+        return item;
+      });
+      cache.set(obj, mapped);
+      return mapped;
+    }
 
     const proxy = new Proxy(obj, {
       get(target: any, prop: string | symbol): any {
-        if (typeof prop === "symbol") {
-          return target[prop];
-        }
-
-        if (SKIP_PROPS.has(prop)) {
-          return target[prop];
-        }
+        if (typeof prop === "symbol") return target[prop];
+        if (SKIP_PROPS.has(prop)) return target[prop];
 
         const value = target[prop];
 
-        if (typeof value === "string" && value.length > 0) {
-          // NOTE: using the instance provided by the user instead of node-red's internal one
-          const node = RED.nodes.getNode(value)?._node;
-          return node || value;
-        }
-
-        if (Array.isArray(value)) {
-          return value.map((item) => {
-            if (typeof item === "string") {
-              // NOTE: using the instance provided by the user instead of node-red's internal one
-              const node = RED.nodes.getNode(item)?._node;
-              return node || item;
-            }
-            if (item && typeof item === "object") {
-              return createProxy(item);
-            }
-            return item;
-          });
+        // Only resolve strings as node references if the schema marks the property
+        if (
+          typeof value === "string" &&
+          value.length > 0 &&
+          nodeRefProps.has(prop)
+        ) {
+          return RED.nodes.getNode(value)?._node ?? value;
         }
 
         if (value && typeof value === "object") {
-          return createProxy(value);
+          return createProxy(value); // hits the cache on repeat access
         }
 
         return value;
       },
     });
 
-    proxyCache.set(obj, proxy);
+    cache.set(obj, proxy);
     return proxy;
   };
 

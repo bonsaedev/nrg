@@ -115,7 +115,11 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
         );
       }
     }
-    (this as any).config = setupConfigProxy(RED, config);
+    (this as any).config = setupConfigProxy(
+      RED,
+      config,
+      constructor.configSchema,
+    );
 
     if (constructor.credentialsSchema && credentials) {
       this.log("Validating credentials");
