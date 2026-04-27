@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.3](https://github.com/bonsaedev/nrg/compare/v0.5.2...v0.5.3) (2026-04-27)
+
+
+### Bug Fixes
+
+* add set trap to config proxy to prevent accidental mutations ([7f18bd1](https://github.com/bonsaedev/nrg/commit/7f18bd1afc1a83d57b8c2728457cafc3526ee066))
+* cache proxied config objects with WeakMap for reference equality ([003ca7d](https://github.com/bonsaedev/nrg/commit/003ca7d92d05ffbcf98f41227650bff5a555f257))
+* make _node back-reference non-writable ([64c2d3b](https://github.com/bonsaedev/nrg/commit/64c2d3bdb7b57bbba216ee2fee80340985b857bb))
+* use path.relative for traversal check in asset server ([5a258cd](https://github.com/bonsaedev/nrg/commit/5a258cdda67ba4b994d45841385a0fa4b5730435))
+* use schema x-nrg-node-type to resolve node references in config proxy ([3da3dab](https://github.com/bonsaedev/nrg/commit/3da3dab7ff06a1f895cea610a4aaadfdfa071ab4))
+
 ## [0.5.2](https://github.com/bonsaedev/nrg/compare/v0.5.1...v0.5.2) (2026-04-26)
 
 
