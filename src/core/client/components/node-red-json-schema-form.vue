@@ -197,7 +197,8 @@ interface FormField {
     | "select"
     | "typed"
     | "config"
-    | "editor";
+    | "editor"
+    | "array-text";
   required: boolean;
   htmlType?: "text" | "number" | "password";
   options?: Array<{ value: string; label: string }>;
