@@ -4,6 +4,7 @@ import { getCredentialsFromSchema } from "./utils";
 import { Node } from "./nodes";
 import { type RED } from "./types";
 import { initValidator } from "./validator";
+import { NrgError } from "../errors";
 
 const MIME: Record<string, string> = {
   ".js": "application/javascript",
@@ -69,24 +70,24 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
   const NC = NodeClass as any;
   RED.log.debug(`Registering Type: ${NC.type}`);
   if (!(NC.prototype instanceof Node)) {
-    throw new Error(`${NC.name} must extend IONode or ConfigNode classes`);
+    throw new NrgError(`${NC.name} must extend IONode or ConfigNode classes`);
   }
 
   if (!NC.type) {
-    throw new Error("type must be provided when registering the node");
+    throw new NrgError("type must be provided when registering the node");
   }
 
   if (NC.color && !/^#[0-9A-Fa-f]{6}$/.test(NC.color)) {
-    throw new Error(
+    throw new NrgError(
       `Invalid color for ${NodeClass.type}: ${NC.color} color must be in hex format`,
     );
   }
 
   if (
     NC.inputs !== undefined &&
-    (!Number.isInteger(NC.inputs) || (NC.inputs != 0 && NC.inputs != 1))
+    (!Number.isInteger(NC.inputs) || (NC.inputs !== 0 && NC.inputs !== 1))
   ) {
-    throw new Error(
+    throw new NrgError(
       `Invalid number of inputs for ${NodeClass.type}: inputs must be 0 or 1`,
     );
   }
@@ -95,7 +96,7 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
     NC.outputs !== undefined &&
     (!Number.isInteger(NC.outputs) || NC.outputs < 0)
   ) {
-    throw new Error(
+    throw new NrgError(
       `Invalid number of outputs for ${NodeClass.type}: outputs must be a positive integer`,
     );
   }
@@ -219,6 +220,7 @@ function registerTypes(nodes: AnyNodeClass[]): NodeRedPackageFunction {
 
 export { registerType, registerTypes };
 export { Node, IONode, ConfigNode } from "./nodes";
+export { NrgError } from "../errors";
 export type { RED } from "./types";
 export { SchemaType, defineSchema } from "./schemas";
 export type { Schema, Infer } from "./schemas/types";
