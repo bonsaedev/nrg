@@ -1,6 +1,7 @@
 import type { ResolveNodeRefs } from "../schemas/types";
 import type { RED, NodeRedContextStore } from "../types";
 import type { NodeContextStore } from "./types";
+import { NrgError } from "../../errors";
 
 function setupContext(
   context: NodeRedContextStore,
@@ -87,6 +88,11 @@ function setupConfigProxy<T extends object>(
         }
 
         return value;
+      },
+      set(_target: any, prop: string | symbol): boolean {
+        throw new NrgError(
+          `Cannot set property '${String(prop)}' on read-only node config`,
+        );
       },
     });
 
