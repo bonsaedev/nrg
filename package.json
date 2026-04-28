@@ -17,6 +17,10 @@
     "pnpm": ">=10.11.0"
   },
   "scripts": {
+    "test": "vitest run && vitest run --config vitest.e2e.config.ts",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "build": "node build.mjs",
     "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit",
     "lint": "eslint src/",
@@ -103,6 +107,7 @@
     "@types/node": "^22.15.18",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.1.0",
@@ -113,6 +118,7 @@
     "semantic-release": "^24.2.4",
     "typescript-eslint": "^8.32.1",
     "vite": "^6.3.4",
+    "vitest": "^4.1.5",
     "vue": "^3.5.14"
   }
 }
