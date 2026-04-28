@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.4](https://github.com/bonsaedev/nrg/compare/v0.5.3...v0.5.4) (2026-04-28)
+
+
+### Bug Fixes
+
+* add missing array-text to FormField inputType union ([b9097d6](https://github.com/bonsaedev/nrg/commit/b9097d6fa265acfe899c43d91748b433829da269))
+* disconnect MutationObserver on typed input unmount ([fc5932d](https://github.com/bonsaedev/nrg/commit/fc5932d1af41bf6de91ef3b8d45b412cb6a65669))
+* guard auto-generated entry cleanup in client build ([aa9377c](https://github.com/bonsaedev/nrg/commit/aa9377c44ed87ef147cf18786cb55959d35c62c1))
+* guard configSchema access in oneditprepare validation schema ([54bea18](https://github.com/bonsaedev/nrg/commit/54bea187f0752ed4dc3144f7d9b1e7d574f3f1e1))
+* guard node._def.defaults access with nullish coalescing ([ed71c2f](https://github.com/bonsaedev/nrg/commit/ed71c2f970cb76aded119a42578ace97ef5da143))
+* remove debug console.log statements from client registration ([a35b4d4](https://github.com/bonsaedev/nrg/commit/a35b4d4aad96a205cf1afc06431b2469123ff1df))
+* use optional chaining on error.parentSchema in validation ([cb5be44](https://github.com/bonsaedev/nrg/commit/cb5be4430b797b12c3d56aba076d6b29ee8fa71b))
+
 ## [0.5.3](https://github.com/bonsaedev/nrg/compare/v0.5.2...v0.5.3) (2026-04-27)
 
 
