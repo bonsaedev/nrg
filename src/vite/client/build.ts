@@ -217,7 +217,9 @@ async function build(
     throw new BuildError("client", error as Error);
   } finally {
     if (generatedEntry) {
-      fs.unlinkSync(entryPath);
+      if (fs.existsSync(entryPath)) {
+        fs.unlinkSync(entryPath);
+      }
     }
   }
 }
