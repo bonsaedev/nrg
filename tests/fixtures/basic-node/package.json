@@ -1,0 +1,6 @@
+{
+  "name": "@test/node-red-basic",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module"
+}

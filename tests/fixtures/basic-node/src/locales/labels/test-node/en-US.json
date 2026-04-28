@@ -1,0 +1,10 @@
+{
+  "test-node": {
+    "label": "Test Node",
+    "configs": {
+      "name": "Name",
+      "timeout": "Timeout",
+      "enabled": "Enabled"
+    }
+  }
+}
