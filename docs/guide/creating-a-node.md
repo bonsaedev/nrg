@@ -76,6 +76,7 @@ SchemaType.String({
 | `icon` | `string` | Font Awesome icon name displayed in the field label (e.g., `"globe"`, `"key"`, `"server"`). The `fa-` prefix is optional — `"globe"` and `"fa-globe"` both work. |
 | `editorLanguage` | `string` | Renders the field as a code editor with syntax highlighting. Supports `json`, `javascript`, `html`, `css`, `yaml`, `sql`, `python`, `markdown`, and [many more](https://microsoft.github.io/monaco-editor/). |
 | `typedInputTypes` | `string[]` | Restricts the allowed types in a `TypedInput` widget. Defaults to all types: `msg`, `flow`, `global`, `str`, `num`, `bool`, `json`, `bin`, `re`, `jsonata`, `date`, `env`, `node`, `cred`. |
+| `toggle` | `boolean` | Renders a boolean field as a toggle switch instead of a checkbox. Only applies to `SchemaType.Boolean()` fields. |
 
 TypeScript autocomplete is available for all `x-nrg-form` properties — no imports needed.
 
@@ -87,7 +88,7 @@ export const ConfigsSchema = defineSchema(
     name: SchemaType.String({ default: "", "x-nrg-form": { icon: "tag" } }),
     url: SchemaType.String({ default: "", "x-nrg-form": { icon: "globe" } }),
     timeout: SchemaType.Number({ default: 5000, "x-nrg-form": { icon: "clock-o" } }),
-    enabled: SchemaType.Boolean({ default: true, "x-nrg-form": { icon: "check" } }),
+    enabled: SchemaType.Boolean({ default: true, "x-nrg-form": { icon: "check", toggle: true } }),
     server: SchemaType.NodeRef(RemoteServer, { "x-nrg-form": { icon: "server" } }),
     endpoint: SchemaType.TypedInput({
       "x-nrg-form": { icon: "plug", typedInputTypes: ["str", "msg", "flow"] },
@@ -159,6 +160,34 @@ export const ConfigsSchema = defineSchema(
   },
   { $id: "my-node:configs" }
 );
+```
+
+### Toggle
+
+Use `"x-nrg-form": { toggle: true }` to render a boolean field as a toggle switch instead of a checkbox:
+
+```typescript
+export const ConfigsSchema = defineSchema(
+  {
+    followRedirects: SchemaType.Boolean({
+      default: true,
+      "x-nrg-form": { icon: "share", toggle: true },
+    }),
+  },
+  { $id: "my-node:configs" }
+);
+```
+
+In a custom form, use `<NodeRedToggle>`:
+
+```vue
+<template>
+  <NodeRedToggle
+    v-model="node.followRedirects"
+    label="Follow Redirects"
+    icon="share"
+  />
+</template>
 ```
 
 ### Select (Picklist)
@@ -877,6 +906,7 @@ NRG registers these components globally in every form:
 | `<NodeRedConfigInput>` | Dropdown to select a config node |
 | `<NodeRedSelectInput>` | Dropdown select input |
 | `<NodeRedEditorInput>` | Code editor (ACE/Monaco) input |
+| `<NodeRedToggle>` | Toggle switch for boolean fields |
 | `<NodeRedJsonSchemaForm>` | Auto-generated form from a JSON schema |
 
 ### TypedInput Example
