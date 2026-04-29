@@ -1,5 +1,14 @@
 # Changelog
 
+# [0.6.0](https://github.com/bonsaedev/nrg/compare/v0.5.4...v0.6.0) (2026-04-29)
+
+
+### Features
+
+* add defineIONode and defineConfigNode factory functions ([df7ecb2](https://github.com/bonsaedev/nrg/commit/df7ecb2acd14e233c651c19b79373b95eb0355c8))
+* add defineModule for typed server entry exports ([f7db901](https://github.com/bonsaedev/nrg/commit/f7db90103b12da7605659ae334b007cc5a65192b))
+* add NodeRedToggle component with x-nrg-form toggle support ([bf813bd](https://github.com/bonsaedev/nrg/commit/bf813bd0f509149dfa2ed54a538364baac2492f9))
+
 ## [0.5.4](https://github.com/bonsaedev/nrg/compare/v0.5.3...v0.5.4) (2026-04-28)
 
 
