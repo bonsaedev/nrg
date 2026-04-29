@@ -608,15 +608,18 @@ export default class MyNode extends IONode<
 
 ## 3. Register the Server Entry
 
-Export all nodes from `src/server/index.ts`:
+Export all nodes from `src/server/index.ts` using `defineModule`:
 
 ```typescript
+import { defineModule } from "@bonsae/nrg/server";
 import MyNode from "./nodes/my-node";
 
-export default {
+export default defineModule({
   nodes: [MyNode],
-};
+});
 ```
+
+`defineModule` creates a typed module manifest that NRG uses to register your nodes with Node-RED. Use it instead of exporting a plain object — it provides type checking on the `nodes` array and will support additional fields (like `plugins`) in future releases.
 
 ## 4. Client-Side Files (All Optional)
 
@@ -939,3 +942,224 @@ Config nodes have `category` set to `"config"` and expose:
 - `this.userIds` — array of IDs of nodes using this config
 - `this.users` — array of node instances using this config
 - `this.getUser(index)` — get a specific user node by index
+
+## Functional API: `defineIONode` and `defineConfigNode`
+
+As an alternative to extending classes, NRG provides a functional API for defining nodes. Instead of writing a class with static properties, generics, and `Infer` types, you pass a plain object and get full type inference automatically.
+
+### Why use it?
+
+- **Less boilerplate** — no `static readonly` declarations, no `Infer<typeof Schema>` type exports, no generic parameters
+- **Automatic type inference** — `this.config`, `this.credentials`, `this.settings`, `msg`, and `this.send()` are all typed from the schemas you pass in, without explicit type annotations
+- **Same runtime behavior** — the functions return a class that extends `IONode` or `ConfigNode`, so everything works exactly the same: validation, proxy, lifecycle hooks, registration
+
+### `defineIONode`
+
+```typescript
+import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+
+const ConfigsSchema = defineSchema(
+  {
+    url: SchemaType.String({ default: "https://api.example.com" }),
+    retries: SchemaType.Number({ default: 3 }),
+  },
+  { $id: "api-client:configs" },
+);
+
+const CredentialsSchema = defineSchema(
+  {
+    apiKey: SchemaType.String({ default: "", format: "password" }),
+  },
+  { $id: "api-client:credentials" },
+);
+
+const InputSchema = defineSchema(
+  {
+    payload: SchemaType.Object({
+      userId: SchemaType.String(),
+    }),
+  },
+  { $id: "api-client:input" },
+);
+
+const OutputSchema = defineSchema(
+  {
+    result: SchemaType.String(),
+    code: SchemaType.Number(),
+  },
+  { $id: "api-client:output" },
+);
+
+export default defineIONode({
+  type: "api-client",
+  category: "network",
+  color: "#ff6633",
+  inputs: 1,
+  outputs: 1,
+  configSchema: ConfigsSchema,
+  credentialsSchema: CredentialsSchema,
+  inputSchema: InputSchema,
+  outputsSchema: OutputSchema,
+  validateInput: true,
+
+  async input(msg) {
+    // msg.payload.userId is typed as string — no annotations needed
+    const { userId } = msg.payload;
+
+    // this.config.url is string, this.config.retries is number
+    const url = `${this.config.url}/users/${userId}`;
+
+    // this.credentials?.apiKey is string
+    const headers = { Authorization: `Bearer ${this.credentials?.apiKey}` };
+
+    this.send({ result: url, code: 200 });
+  },
+
+  created() {
+    this.log(`API Client ready: ${this.config.url}`);
+  },
+
+  closed(removed) {
+    this.log(`Closed (removed: ${removed})`);
+  },
+});
+```
+
+### `defineConfigNode`
+
+```typescript
+import { defineConfigNode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+
+const ConfigsSchema = defineSchema(
+  {
+    host: SchemaType.String({ default: "localhost" }),
+    port: SchemaType.Number({ default: 1883 }),
+    useTls: SchemaType.Boolean({ default: false }),
+  },
+  { $id: "my-broker:configs" },
+);
+
+const CredentialsSchema = defineSchema(
+  {
+    username: SchemaType.Optional(SchemaType.String({ default: "" })),
+    password: SchemaType.Optional(
+      SchemaType.String({ default: "", format: "password" }),
+    ),
+  },
+  { $id: "my-broker:credentials" },
+);
+
+export default defineConfigNode({
+  type: "my-broker",
+  configSchema: ConfigsSchema,
+  credentialsSchema: CredentialsSchema,
+
+  created() {
+    // this.config.host, port, useTls are all typed
+    this.log(`Broker: ${this.config.host}:${this.config.port}`);
+  },
+
+  closed() {
+    this.log("Disconnected");
+  },
+});
+```
+
+Config nodes created with `defineConfigNode` automatically have `category` set to `"config"` and expose `this.userIds`, `this.users`, and `this.getUser()`.
+
+### Using `NodeRef` with `defineIONode`
+
+Nodes created with `defineIONode` and `defineConfigNode` work with `NodeRef` the same way as class-based nodes. The referenced config node is fully typed:
+
+```typescript
+import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+import MyBroker from "./my-broker";
+
+const ConfigsSchema = defineSchema(
+  {
+    broker: SchemaType.NodeRef(MyBroker),
+    topic: SchemaType.String({ default: "test/topic" }),
+  },
+  { $id: "my-subscriber:configs" },
+);
+
+export default defineIONode({
+  type: "my-subscriber",
+  category: "network",
+  color: "#d8bfd8",
+  inputs: 0,
+  outputs: 1,
+  configSchema: ConfigsSchema,
+
+  created() {
+    const broker = this.config.broker;
+    if (broker) {
+      // broker.config.host, broker.config.port are typed
+      this.log(`Subscribing via ${broker.config.host}:${broker.config.port}`);
+    }
+  },
+
+  async input() {},
+});
+```
+
+### Per-port output typing
+
+For nodes with multiple outputs, use `as const` on the `outputsSchema` array to get per-port type safety on `this.send()`:
+
+```typescript
+const SuccessSchema = defineSchema(
+  { payload: SchemaType.Object({ ok: SchemaType.Literal(true), id: SchemaType.String() }) },
+  { $id: "router:success" },
+);
+
+const ErrorSchema = defineSchema(
+  { payload: SchemaType.Object({ ok: SchemaType.Literal(false), reason: SchemaType.String() }) },
+  { $id: "router:error" },
+);
+
+export default defineIONode({
+  type: "router",
+  outputs: 2,
+  outputsSchema: [SuccessSchema, ErrorSchema] as const,
+  validateOutput: true,
+
+  async input(msg) {
+    try {
+      const id = await process(msg);
+      // Tuple typing: [successPort, errorPort]
+      this.send([{ payload: { ok: true, id } }, null]);
+    } catch (err) {
+      this.send([null, { payload: { ok: false, reason: String(err) } }]);
+    }
+  },
+});
+```
+
+::: warning Arrow functions
+Don't use arrow functions for `input`, `created`, or `closed` handlers. Arrow functions don't bind `this`, so `this.config`, `this.send()`, etc. would be `undefined` at runtime. TypeScript won't catch this — it's the same constraint as Vue's Options API.
+
+```typescript
+// BAD — this is undefined at runtime
+input: async (msg) => {
+  this.send(msg); // TypeError
+}
+
+// GOOD — regular function, this is the node instance
+async input(msg) {
+  this.send(msg);
+}
+```
+:::
+
+### Class vs functional: which to use?
+
+| | Class (`extends IONode`) | Functional (`defineIONode`) |
+| --- | --- | --- |
+| Type inference | Manual — `Infer<typeof Schema>`, generic parameters | Automatic — inferred from schema props |
+| Boilerplate | More — static properties, type exports | Less — plain object |
+| Custom methods | Yes — add methods to the class | No — only lifecycle hooks |
+| Inheritance | Yes — extend other node classes | No — fixed base class |
+| Mixins/decorators | Yes | No |
+
+Use the **functional API** when your node is straightforward — schemas, lifecycle hooks, and `input`/`send`. Use **classes** when you need custom methods, inheritance, or more advanced patterns.
