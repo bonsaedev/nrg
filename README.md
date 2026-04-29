@@ -47,23 +47,49 @@ export default defineConfig({
 });
 ```
 
-**src/server/index.ts**
+**src/server/schemas/my-node.ts**
 
 ```typescript
-import MyNode from "./nodes/my-node";
+import { defineSchema, SchemaType } from "@bonsae/nrg/server";
 
-export default {
-  nodes: [MyNode],
-};
+export const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    prefix: SchemaType.String({ default: "hello" }),
+  },
+  { $id: "my-node:configs" }
+);
 ```
 
-**src/server/nodes/my-node.ts**
+**src/server/nodes/my-node.ts** (functional API — recommended)
+
+```typescript
+import { defineIONode } from "@bonsae/nrg/server";
+import { ConfigsSchema } from "../schemas/my-node";
+
+export default defineIONode({
+  type: "my-node",
+  color: "#ffffff",
+  inputs: 1,
+  outputs: 1,
+  configSchema: ConfigsSchema,
+
+  async input(msg) {
+    // this.config.prefix is typed as string — no annotations needed
+    msg.payload = `${this.config.prefix}: ${msg.payload}`;
+    this.send(msg);
+  },
+});
+```
+
+<details>
+<summary>Alternative: class-based API</summary>
 
 ```typescript
 import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
 import { ConfigsSchema } from "../schemas/my-node";
 
-export type Config = Infer<typeof ConfigsSchema>;
+type Config = Infer<typeof ConfigsSchema>;
 
 export default class MyNode extends IONode<Config> {
   static readonly type = "my-node";
@@ -74,9 +100,23 @@ export default class MyNode extends IONode<Config> {
   static readonly configSchema: Schema = ConfigsSchema;
 
   async input(msg: any) {
+    msg.payload = `${this.config.prefix}: ${msg.payload}`;
     this.send(msg);
   }
 }
+```
+
+</details>
+
+**src/server/index.ts**
+
+```typescript
+import { defineModule } from "@bonsae/nrg/server";
+import MyNode from "./nodes/my-node";
+
+export default defineModule({
+  nodes: [MyNode],
+});
 ```
 
 See the [consumer template](https://github.com/AllanOricil/node-red-vue-template) for a complete example.
