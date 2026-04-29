@@ -97,11 +97,12 @@ Create the server and client entry points. See the [Project Structure](./project
 **src/server/index.ts**
 
 ```typescript
+import { defineModule } from "@bonsae/nrg/server";
 import MyNode from "./nodes/my-node";
 
-export default {
+export default defineModule({
   nodes: [MyNode],
-};
+});
 ```
 
 **src/client/index.ts**
