@@ -177,6 +177,7 @@ function defineModule(definition: ModuleDefinition): ModuleDefinition {
 }
 
 export { registerType, registerTypes, defineModule };
+export type { ModuleDefinition };
 export {
   Node,
   IONode,

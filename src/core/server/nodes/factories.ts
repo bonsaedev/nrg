@@ -6,6 +6,7 @@ import type {
   InferOutputs,
   IONodeDefinition,
   ConfigNodeDefinition,
+  NodeClassBase,
   HexColor,
 } from "./types";
 import { IONode } from "./io-node";
@@ -25,7 +26,7 @@ function defineIONode<
     TInputSchema,
     TOutputsSchema
   >,
-) {
+): NodeClassBase {
   const NodeClass = class extends IONode<
     InferOr<TConfigSchema, any>,
     InferOr<TCredsSchema, any>,
@@ -65,7 +66,7 @@ function defineIONode<
     }
 
     async input(msg: InferOr<TInputSchema, any>) {
-      return def.input.call(this as any, msg);
+      if (def.input) return def.input.call(this as any, msg);
     }
 
     override async created() {
@@ -84,14 +85,16 @@ function defineIONode<
     configurable: true,
   });
 
-  return NodeClass;
+  return NodeClass as unknown as NodeClassBase;
 }
 
 function defineConfigNode<
   TConfigSchema extends TSchema | undefined = undefined,
   TCredsSchema extends TSchema | undefined = undefined,
   TSettingsSchema extends TSchema | undefined = undefined,
->(def: ConfigNodeDefinition<TConfigSchema, TCredsSchema, TSettingsSchema>) {
+>(
+  def: ConfigNodeDefinition<TConfigSchema, TCredsSchema, TSettingsSchema>,
+): NodeClassBase {
   const NodeClass = class extends ConfigNode<
     InferOr<TConfigSchema, any>,
     InferOr<TCredsSchema, any>,
@@ -127,7 +130,7 @@ function defineConfigNode<
     configurable: true,
   });
 
-  return NodeClass;
+  return NodeClass as unknown as NodeClassBase;
 }
 
 export { defineIONode, defineConfigNode };

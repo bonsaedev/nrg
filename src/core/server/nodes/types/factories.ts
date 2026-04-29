@@ -79,7 +79,7 @@ interface IONodeDefinition<
     >,
     removed?: boolean,
   ): void | Promise<void>;
-  input(
+  input?(
     this: BoundIONode<
       TConfigSchema,
       TCredsSchema,
@@ -112,4 +112,19 @@ interface ConfigNodeDefinition<
   ): void | Promise<void>;
 }
 
-export type { InferOr, InferOutputs, IONodeDefinition, ConfigNodeDefinition };
+// Return types for factory functions — uses structural typing to avoid
+// referencing internal class paths in declaration emit, while preserving
+// the instance type for NodeRef inference.
+interface NodeClassBase {
+  readonly type: string;
+  readonly category: string;
+  new (...args: any[]): any;
+}
+
+export type {
+  InferOr,
+  InferOutputs,
+  IONodeDefinition,
+  ConfigNodeDefinition,
+  NodeClassBase,
+};

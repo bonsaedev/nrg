@@ -46,6 +46,9 @@
       "require": "./build/server/index.cjs",
       "default": "./build/server/index.cjs"
     },
+    "./server/nodes": {
+      "types": "./src/core/server/nodes/index.ts"
+    },
     "./client": "./src/core/client/index.ts",
     "./schemas": "./src/core/server/schemas/index.ts",
     "./schemas/types": "./src/core/server/schemas/types/index.ts",
