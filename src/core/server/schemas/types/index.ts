@@ -41,6 +41,7 @@ interface NrgFormOptions {
   icon?: string;
   typedInputTypes?: string[];
   editorLanguage?: string;
+  toggle?: boolean;
 }
 
 declare module "@sinclair/typebox" {

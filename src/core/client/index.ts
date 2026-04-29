@@ -9,6 +9,7 @@ import NodeRedConfigInput from "./components/node-red-config-input.vue";
 import NodeRedSelectInput from "./components/node-red-select-input.vue";
 import NodeRedEditorInput from "./components/node-red-editor-input.vue";
 import NodeRedInputLabel from "./components/node-red-input-label.vue";
+import NodeRedToggle from "./components/node-red-toggle.vue";
 import NodeRedJsonSchemaForm from "./components/node-red-json-schema-form.vue";
 
 const _schemas: Record<string, any> = {};
@@ -165,6 +166,7 @@ function createNodeRedVueApp(
   });
 
   app.component("NodeRedInputLabel", NodeRedInputLabel);
+  app.component("NodeRedToggle", NodeRedToggle);
   app.component("NodeRedInput", NodeRedInput);
   app.component("NodeRedTypedInput", NodeRedTypedInput);
   app.component("NodeRedConfigInput", NodeRedConfigInput);

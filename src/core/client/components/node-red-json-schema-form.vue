@@ -12,12 +12,20 @@
         @update:value="node[field.key] = $event"
       />
 
+      <div v-else-if="field.inputType === 'boolean' && field.toggle">
+        <NodeRedToggle
+          :model-value="node[field.key]"
+          :label="field.label"
+          :icon="field.icon"
+          @update:model-value="node[field.key] = $event"
+        />
+      </div>
+
       <div v-else-if="field.inputType === 'boolean'">
         <NodeRedInputLabel
           :label="field.label"
           :icon="field.icon"
           :required="field.required"
-          style="width: auto"
         />
         <input
           type="checkbox"
@@ -144,6 +152,7 @@
 import type { PropType } from "vue";
 import { defineComponent } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
+import NodeRedToggle from "./node-red-toggle.vue";
 import NodeRedInput from "./node-red-input.vue";
 import NodeRedSelectInput from "./node-red-select-input.vue";
 import NodeRedTypedInput from "./node-red-typed-input.vue";
@@ -169,6 +178,7 @@ interface NrgFormOptions {
   icon?: string;
   typedInputTypes?: string[];
   editorLanguage?: string;
+  toggle?: boolean;
 }
 
 interface FieldSchema {
@@ -206,6 +216,7 @@ interface FormField {
   types?: string[];
   configType?: string;
   language?: string;
+  toggle?: boolean;
 }
 
 function formatLabel(key: string): string {
@@ -292,7 +303,14 @@ function buildField(
 
   switch (rawType) {
     case "boolean":
-      return { key, label, icon, inputType: "boolean", required };
+      return {
+        key,
+        label,
+        icon,
+        inputType: "boolean",
+        required,
+        toggle: form.toggle,
+      };
 
     case "number":
     case "integer":
@@ -368,6 +386,7 @@ export default defineComponent({
   name: "NodeRedJsonSchemaForm",
   components: {
     NodeRedInputLabel,
+    NodeRedToggle,
     NodeRedInput,
     NodeRedSelectInput,
     NodeRedTypedInput,

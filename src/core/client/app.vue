@@ -2,32 +2,22 @@
   <div
     v-if="features.hasInputSchema || features.hasOutputSchema"
     class="form-row"
-    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"
+    style="display: flex; align-items: center; gap: 12px"
   >
-    <template v-if="features.hasInputSchema">
-      <input
-        :id="`node-input-validateInput-${localNode.id}`"
-        type="checkbox"
-        :checked="localNode.validateInput"
-        style="width: auto; margin: 0"
-        @change="
-          localNode.validateInput = ($event.target as HTMLInputElement).checked
-        "
-      />
-      <NodeRedInputLabel label="Validate Input" style="width: auto" />
-    </template>
-    <template v-if="features.hasOutputSchema">
-      <input
-        :id="`node-input-validateOutput-${localNode.id}`"
-        type="checkbox"
-        :checked="localNode.validateOutput"
-        style="width: auto; margin: 0"
-        @change="
-          localNode.validateOutput = ($event.target as HTMLInputElement).checked
-        "
-      />
-      <NodeRedInputLabel label="Validate Output" style="width: auto" />
-    </template>
+    <NodeRedToggle
+      v-if="features.hasInputSchema"
+      :model-value="localNode.validateInput"
+      label="Validate Input"
+      style="flex: 1"
+      @update:model-value="localNode.validateInput = $event"
+    />
+    <NodeRedToggle
+      v-if="features.hasOutputSchema"
+      :model-value="localNode.validateOutput"
+      label="Validate Output"
+      style="flex: 1"
+      @update:model-value="localNode.validateOutput = $event"
+    />
   </div>
   <div style="width: 100%; padding-bottom: 12px">
     <NodeRedNodeForm
