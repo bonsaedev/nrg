@@ -1,59 +1,9 @@
-import path from "path";
-import fs from "fs";
 import { getCredentialsFromSchema } from "./utils";
 import { Node } from "./nodes";
 import { type RED } from "./types";
 import { initValidator } from "./validator";
+import { serveNrgResources } from "./api";
 import { NrgError } from "../errors";
-
-const MIME: Record<string, string> = {
-  ".js": "application/javascript",
-  ".mjs": "application/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".map": "application/json",
-  ".png": "image/png",
-  ".svg": "image/svg+xml",
-};
-
-let _nrgResourcesRegistered = false;
-
-function serveNrgResources(RED: RED): void {
-  if (_nrgResourcesRegistered) return;
-  _nrgResourcesRegistered = true;
-
-  const clientDir = path.resolve(__dirname, "./resources");
-  if (!fs.existsSync(clientDir)) return;
-
-  const httpAdmin = (RED as any).httpAdmin;
-  if (!httpAdmin) return;
-
-  // /nrg/assets/ is not handled by Node-RED's editorApp, so our handler
-  // appended via use() is reached normally without any stack manipulation.
-  httpAdmin.use(function (req: any, res: any, next: any) {
-    const prefix = "/nrg/assets/";
-    if (!(req.path as string).startsWith(prefix)) return next();
-    let reqPath = (req.path as string).slice(prefix.length);
-    // Serve the Vue dev build in development for devtools support
-    if (
-      reqPath === "vue.esm-browser.prod.js" &&
-      process.env.NODE_ENV !== "production"
-    ) {
-      const devPath = path.resolve(clientDir, "vue.esm-browser.js");
-      if (fs.existsSync(devPath)) {
-        reqPath = "vue.esm-browser.js";
-      }
-    }
-    const filePath = path.resolve(clientDir, reqPath);
-    const rel = path.relative(clientDir, filePath);
-    if (rel.startsWith("..") || path.isAbsolute(rel)) return next();
-    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile())
-      return next();
-    const ext = path.extname(filePath);
-    res.setHeader("Content-Type", MIME[ext] ?? "application/octet-stream");
-    fs.createReadStream(filePath).pipe(res);
-  });
-}
 
 type AnyNodeClass = (abstract new (...args: any[]) => Node) &
   Partial<typeof Node>;
@@ -187,7 +137,7 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
   RED.log.debug(`Type registered: ${NC.type}`);
 }
 
-type NodeRedPackageFunction = ((RED: RED) => Promise<void>) & {
+type RegistrationFunction = ((RED: RED) => Promise<void>) & {
   nodes: AnyNodeClass[];
 };
 
@@ -199,7 +149,7 @@ type NodeRedPackageFunction = ((RED: RED) => Promise<void>) & {
  *
  * @param nodes - Array of node classes to register
  */
-function registerTypes(nodes: AnyNodeClass[]): NodeRedPackageFunction {
+function registerTypes(nodes: AnyNodeClass[]): RegistrationFunction {
   const fn = async function (RED: RED) {
     initValidator(RED);
     serveNrgResources(RED);
@@ -214,12 +164,26 @@ function registerTypes(nodes: AnyNodeClass[]): NodeRedPackageFunction {
       throw error;
     }
   };
-  (fn as NodeRedPackageFunction).nodes = nodes;
-  return fn as NodeRedPackageFunction;
+  (fn as RegistrationFunction).nodes = nodes;
+  return fn as RegistrationFunction;
 }
 
-export { registerType, registerTypes };
-export { Node, IONode, ConfigNode } from "./nodes";
+interface ModuleDefinition {
+  nodes: AnyNodeClass[];
+}
+
+function defineModule(definition: ModuleDefinition): ModuleDefinition {
+  return definition;
+}
+
+export { registerType, registerTypes, defineModule };
+export {
+  Node,
+  IONode,
+  ConfigNode,
+  defineIONode,
+  defineConfigNode,
+} from "./nodes";
 export { NrgError } from "../errors";
 export type { RED } from "./types";
 export { SchemaType, defineSchema } from "./schemas";
