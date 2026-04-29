@@ -61,7 +61,13 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-**src/server/nodes/my-node.ts** (functional API — recommended)
+**src/server/nodes/my-node.ts**
+
+NRG supports two ways to define nodes:
+
+<table>
+<tr><th>Functional API</th><th>Class API</th></tr>
+<tr><td>
 
 ```typescript
 import { defineIONode } from "@bonsae/nrg/server";
@@ -75,15 +81,13 @@ export default defineIONode({
   configSchema: ConfigsSchema,
 
   async input(msg) {
-    // this.config.prefix is typed as string — no annotations needed
     msg.payload = `${this.config.prefix}: ${msg.payload}`;
     this.send(msg);
   },
 });
 ```
 
-<details>
-<summary>Alternative: class-based API</summary>
+</td><td>
 
 ```typescript
 import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
@@ -106,7 +110,12 @@ export default class MyNode extends IONode<Config> {
 }
 ```
 
-</details>
+</td></tr>
+<tr>
+<td>Automatic type inference, less boilerplate</td>
+<td>Custom methods, inheritance, mixins</td>
+</tr>
+</table>
 
 **src/server/index.ts**
 
