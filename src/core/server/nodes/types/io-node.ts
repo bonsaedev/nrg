@@ -28,7 +28,10 @@ type IONodeContext = {
   global: NodeContextStore;
 };
 
+type HexColor = `#${string}`;
+
 export {
+  HexColor,
   IONodeConfig,
   IONodeContext,
   IONodeContextScope,

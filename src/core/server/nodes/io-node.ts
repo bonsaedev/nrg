@@ -3,6 +3,7 @@ import type { RED } from "../../server/types";
 import { validator } from "../validator";
 import { Node } from "./node";
 import type {
+  HexColor,
   IONodeContext,
   IONodeContextScope,
   IONodeStatus,
@@ -19,7 +20,7 @@ abstract class IONode<
   TSettings = any,
 > extends Node<TConfig, TCredentials, TSettings> {
   public static readonly align?: "left" | "right";
-  public static readonly color: `#${string}`;
+  public static readonly color: HexColor;
   public static readonly labelStyle?:
     | "node_label"
     | "node_label_italic"
