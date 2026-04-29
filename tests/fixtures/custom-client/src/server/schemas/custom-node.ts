@@ -8,4 +8,19 @@ const ConfigsSchema = defineSchema(
   { $id: "custom-node:configs" },
 );
 
-export { ConfigsSchema };
+const InputSchema = defineSchema(
+  {
+    payload: SchemaType.String(),
+  },
+  { $id: "custom-node:input" },
+);
+
+const OutputSchema = defineSchema(
+  {
+    result: SchemaType.String(),
+    timestamp: SchemaType.Number(),
+  },
+  { $id: "custom-node:output" },
+);
+
+export { ConfigsSchema, InputSchema, OutputSchema };

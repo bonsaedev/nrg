@@ -1,15 +1,17 @@
-import { IONode, type Schema } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../schemas/custom-node";
+import { defineIONode } from "@bonsae/nrg/server";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/custom-node";
 
-export default class CustomNode extends IONode {
-  static override readonly type = "custom-node";
-  static override readonly category = "function";
-  static override readonly color: `#${string}` = "#33cc99";
-  static override readonly inputs = 1;
-  static override readonly outputs = 1;
-  static override readonly configSchema: Schema = ConfigsSchema;
+export default defineIONode({
+  type: "custom-node",
+  category: "function",
+  color: "#33cc99",
+  inputs: 1,
+  outputs: 1,
+  configSchema: ConfigsSchema,
+  inputSchema: InputSchema,
+  outputsSchema: OutputSchema,
 
-  async input(msg: any) {
-    this.send(msg);
-  }
-}
+  async input(msg) {
+    this.send({ result: msg.payload, timestamp: Date.now() });
+  },
+});
