@@ -161,6 +161,139 @@ function getNodeTypeExports(
  * Runtime class values are exposed by `cjsDefaultExportPlugin` dynamically
  * via the `nodes` array on the package function.
  */
+/**
+ * Semantic names for schema properties in both class static properties
+ * and factory definition objects.
+ */
+const SCHEMA_PROP_SEMANTICS: Record<string, string> = {
+  configSchema: "ConfigSchema",
+  credentialsSchema: "CredentialsSchema",
+  inputSchema: "InputSchema",
+  outputsSchema: "OutputsSchema",
+  settingsSchema: "SettingsSchema",
+};
+
+/**
+ * Extract schema references from a node file — works for both class-based
+ * and factory-based (defineIONode/defineConfigNode) patterns.
+ *
+ * Returns an array of { localName, semanticName, importSource } where:
+ * - localName: the identifier used in the file (e.g., "ConfigsSchema")
+ * - semanticName: the semantic slot name (e.g., "ConfigSchema")
+ * - importSource: the relative import path (e.g., "../schemas/my-node")
+ */
+function getSchemaReferences(
+  filePath: string,
+): Array<{ localName: string; semanticName: string; importSource: string }> {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const source = ts.createSourceFile(
+    filePath,
+    content,
+    ts.ScriptTarget.ESNext,
+    true,
+  );
+
+  // Build a map of imported identifiers → their source module
+  const importMap = new Map<string, string>();
+  for (const stmt of source.statements) {
+    if (ts.isImportDeclaration(stmt) && stmt.importClause) {
+      const moduleSpecifier = (stmt.moduleSpecifier as ts.StringLiteral).text;
+      const namedBindings = stmt.importClause.namedBindings;
+      if (namedBindings && ts.isNamedImports(namedBindings)) {
+        for (const el of namedBindings.elements) {
+          importMap.set(el.name.text, moduleSpecifier);
+        }
+      }
+    }
+  }
+
+  // Collect schema property assignments: { propName → identifiers[] }
+  const schemaRefs = new Map<string, string[]>();
+
+  // Extract identifier(s) from an initializer — handles both single identifiers
+  // and array literals like [Output1Schema, Output2Schema].
+  function extractIdentifiers(node: ts.Expression): string[] {
+    if (ts.isIdentifier(node)) return [node.text];
+    if (ts.isArrayLiteralExpression(node)) {
+      return node.elements.filter(ts.isIdentifier).map((el) => el.text);
+    }
+    return [];
+  }
+
+  for (const stmt of source.statements) {
+    // Class-based: static readonly configSchema = ConfigsSchema
+    //              static readonly outputsSchema = [Output1Schema, Output2Schema]
+    if (ts.isClassDeclaration(stmt)) {
+      for (const member of stmt.members) {
+        if (
+          ts.isPropertyDeclaration(member) &&
+          ts.isIdentifier(member.name) &&
+          member.name.text in SCHEMA_PROP_SEMANTICS &&
+          member.initializer
+        ) {
+          const ids = extractIdentifiers(member.initializer);
+          if (ids.length > 0) {
+            schemaRefs.set(member.name.text, ids);
+          }
+        }
+      }
+    }
+
+    // Factory-based: export default defineIONode({ configSchema: X, ... })
+    if (
+      ts.isExportAssignment(stmt) &&
+      stmt.expression &&
+      ts.isCallExpression(stmt.expression)
+    ) {
+      const callee = stmt.expression.expression;
+      if (
+        ts.isIdentifier(callee) &&
+        (callee.text === "defineIONode" || callee.text === "defineConfigNode")
+      ) {
+        const arg = stmt.expression.arguments[0];
+        if (arg && ts.isObjectLiteralExpression(arg)) {
+          for (const prop of arg.properties) {
+            if (
+              ts.isPropertyAssignment(prop) &&
+              ts.isIdentifier(prop.name) &&
+              prop.name.text in SCHEMA_PROP_SEMANTICS
+            ) {
+              const ids = extractIdentifiers(prop.initializer);
+              if (ids.length > 0) {
+                schemaRefs.set(prop.name.text, ids);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Build result: match schema references to their import sources
+  const result: Array<{
+    localName: string;
+    semanticName: string;
+    importSource: string;
+    tupleProp?: string;
+  }> = [];
+  for (const [propName, identifiers] of schemaRefs) {
+    const semanticName = SCHEMA_PROP_SEMANTICS[propName];
+    const isArray = identifiers.length > 1;
+    for (const identifier of identifiers) {
+      const importSource = importMap.get(identifier);
+      if (importSource) {
+        result.push({
+          localName: identifier,
+          semanticName: isArray ? identifier : semanticName,
+          importSource,
+          tupleProp: isArray ? semanticName : undefined,
+        });
+      }
+    }
+  }
+  return result;
+}
+
 function buildNodeReexports(srcDir: string, entryFile: string): string {
   const nodesDir = path.join(srcDir, "nodes");
   const nodeFiles = collectTsFiles(nodesDir);
@@ -175,6 +308,7 @@ function buildNodeReexports(srcDir: string, entryFile: string): string {
 
       const lines = [`export { default as ${ns} } from "${specifier}";`];
 
+      // Re-export type aliases from the node file (class-based nodes)
       const typePairs = getNodeTypeExports(file);
       if (typePairs.length > 0) {
         const prefixed = typePairs
@@ -184,6 +318,29 @@ function buildNodeReexports(srcDir: string, entryFile: string): string {
           )
           .join(", ");
         lines.push(`export type { ${prefixed} } from "${specifier}";`);
+      }
+
+      // Re-export schemas referenced by the node definition (class or factory)
+      const schemaRefs = getSchemaReferences(file);
+      // Group by import source for cleaner re-exports
+      const bySource = new Map<string, string[]>();
+      for (const ref of schemaRefs) {
+        const resolvedSource = path
+          .relative(
+            path.dirname(entryFile),
+            path.resolve(path.dirname(file), ref.importSource),
+          )
+          .replace(/\\/g, "/");
+        const sourceSpecifier = resolvedSource.startsWith(".")
+          ? resolvedSource
+          : `./${resolvedSource}`;
+        if (!bySource.has(sourceSpecifier)) bySource.set(sourceSpecifier, []);
+        bySource
+          .get(sourceSpecifier)!
+          .push(`${ref.localName} as ${ns}${ref.semanticName}`);
+      }
+      for (const [source, names] of bySource) {
+        lines.push(`export { ${names.join(", ")} } from "${source}";`);
       }
 
       return lines.join("\n");
