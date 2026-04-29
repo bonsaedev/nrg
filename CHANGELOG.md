@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/bonsaedev/nrg/compare/v0.6.0...v0.6.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* fix declaration emit for factory-defined nodes ([28c7a75](https://github.com/bonsaedev/nrg/commit/28c7a757a466a119199e27b681c1b3bea4481f37))
+* generate schema type exports for all nodes in declarations ([ae88856](https://github.com/bonsaedev/nrg/commit/ae8885610742c7532e3887873cce87aa65e2d8b8))
+
 # [0.6.0](https://github.com/bonsaedev/nrg/compare/v0.5.4...v0.6.0) (2026-04-29)
 
 
