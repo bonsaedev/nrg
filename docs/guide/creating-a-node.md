@@ -1192,4 +1192,4 @@ async input(msg) {
 | Inheritance | Yes — extend other node classes | No — fixed base class |
 | Mixins/decorators | Yes | No |
 
-Use the **functional API** when your node is straightforward — schemas, lifecycle hooks, and `input`/`send`. Use **classes** when you need custom methods, inheritance, or more advanced patterns.
+Both approaches produce the same runtime behavior. Choose based on your needs — the functional API trades flexibility for less boilerplate, while classes give you full control over the node's structure.
