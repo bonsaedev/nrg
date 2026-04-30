@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/bonsaedev/nrg/compare/v0.6.2...v0.6.3) (2026-04-30)
+
+
+### Bug Fixes
+
+* preserve generic types in factory return for NodeRef inference ([0857cd8](https://github.com/bonsaedev/nrg/commit/0857cd867dbdee86f632a5d1aca995c6b52bab88))
+
 ## [0.6.2](https://github.com/bonsaedev/nrg/compare/v0.6.1...v0.6.2) (2026-04-30)
 
 
