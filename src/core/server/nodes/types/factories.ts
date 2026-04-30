@@ -2,7 +2,8 @@ import { type Static, type TSchema } from "@sinclair/typebox";
 import type { RED } from "../../types";
 import type { IONode } from "../io-node";
 import type { ConfigNode } from "../config-node";
-import type { HexColor } from "./io-node";
+import type { HexColor, IONodeConfig, IONodeCredentials } from "./io-node";
+import type { ConfigNodeConfig, ConfigNodeCredentials } from "./config-node";
 
 type InferOr<T, Fallback> = T extends TSchema ? Static<T> : Fallback;
 
@@ -31,6 +32,29 @@ type BoundConfigNode<
   TCr extends TSchema | undefined,
   TS extends TSchema | undefined,
 > = ConfigNode<InferOr<TC, any>, InferOr<TCr, any>, InferOr<TS, any>>;
+
+// Public-only instance projections — avoids TS4094 by not exposing
+// private/protected members (RED, node, timers, etc.) in declaration emit.
+interface ConfigNodeInstance<TConfig = any, TCredentials = any> {
+  readonly config: ConfigNodeConfig<TConfig>;
+  readonly credentials: ConfigNodeCredentials<TCredentials> | undefined;
+  readonly id: string;
+  readonly name: string | undefined;
+}
+
+interface IONodeInstance<
+  TConfig = any,
+  TCredentials = any,
+  TInput = any,
+  TOutput = any,
+> {
+  readonly config: IONodeConfig<TConfig>;
+  readonly credentials: IONodeCredentials<TCredentials> | undefined;
+  readonly id: string;
+  readonly name: string | undefined;
+  input(msg: TInput): void | Promise<void>;
+  send(msg: TOutput): void;
+}
 
 interface IONodeDefinition<
   TConfigSchema extends TSchema | undefined = undefined,
@@ -115,10 +139,10 @@ interface ConfigNodeDefinition<
 // Return types for factory functions — uses structural typing to avoid
 // referencing internal class paths in declaration emit, while preserving
 // the instance type for NodeRef inference.
-interface NodeClassBase {
+interface NodeClassBase<TInstance = unknown> {
   readonly type: string;
   readonly category: string;
-  new (...args: any[]): any;
+  new (...args: any[]): TInstance;
 }
 
 export type {
@@ -127,4 +151,6 @@ export type {
   IONodeDefinition,
   ConfigNodeDefinition,
   NodeClassBase,
+  ConfigNodeInstance,
+  IONodeInstance,
 };
