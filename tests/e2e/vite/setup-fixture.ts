@@ -13,20 +13,14 @@ export function setupFixtureNodeModules(fixtureDir: string): void {
 
   fs.mkdirSync(path.dirname(nrgDir), { recursive: true });
 
-  // Copy package.json and build/ so Node can resolve @bonsae/nrg exports
+  // Copy package.json and dist/ so Node can resolve @bonsae/nrg exports
   fs.cpSync(
     path.join(REPO_ROOT, "package.json"),
     path.join(nrgDir, "package.json"),
   );
   fs.cpSync(
-    path.join(REPO_ROOT, "build"),
-    path.join(nrgDir, "build"),
-    { recursive: true },
-  );
-  // Copy src/ for TypeScript source exports (types)
-  fs.cpSync(
-    path.join(REPO_ROOT, "src"),
-    path.join(nrgDir, "src"),
+    path.join(REPO_ROOT, "dist"),
+    path.join(nrgDir, "dist"),
     { recursive: true },
   );
 }

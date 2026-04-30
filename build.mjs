@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { mkdirSync, copyFileSync, readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
+import { mkdirSync, copyFileSync, cpSync, readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
 import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,19 +11,19 @@ const require = createRequire(import.meta.url);
 
 // Phase 1: Build server (CJS)
 execSync(
-  "esbuild src/core/server/index.ts --bundle --packages=external --format=cjs --platform=node --outfile=build/server/index.cjs",
+  "esbuild src/core/server/index.ts --bundle --packages=external --format=cjs --platform=node --outfile=dist/server/index.cjs",
   { stdio: "inherit" },
 );
-console.log("✓ Built server to build/server/");
+console.log("✓ Built server to dist/server/");
 
 // Phase 2: Copy Vue runtime
-mkdirSync("build/server/resources", { recursive: true });
+mkdirSync("dist/server/resources", { recursive: true });
 
 const vueProdFile = require.resolve("vue/dist/vue.esm-browser.prod.js");
 const vueDevFile = require.resolve("vue/dist/vue.esm-browser.js");
-copyFileSync(vueProdFile, path.resolve(__dirname, "build/server/resources/vue.esm-browser.prod.js"));
-copyFileSync(vueDevFile, path.resolve(__dirname, "build/server/resources/vue.esm-browser.js"));
-console.log("✓ Copied Vue runtimes (dev + prod) to build/server/resources/");
+copyFileSync(vueProdFile, path.resolve(__dirname, "dist/server/resources/vue.esm-browser.prod.js"));
+copyFileSync(vueDevFile, path.resolve(__dirname, "dist/server/resources/vue.esm-browser.js"));
+console.log("✓ Copied Vue runtimes (dev + prod) to dist/server/resources/");
 
 // Phase 3: Build client (ESM library)
 await viteBuild({
@@ -31,7 +31,7 @@ await viteBuild({
   logLevel: "warn",
   plugins: [vue()],
   build: {
-    outDir: path.resolve(__dirname, "build/server/resources"),
+    outDir: path.resolve(__dirname, "dist/server/resources"),
     emptyOutDir: false,
     lib: {
       entry: path.resolve(__dirname, "src/core/client/index.ts"),
@@ -47,13 +47,13 @@ await viteBuild({
     },
   },
 });
-console.log("✓ Built nrg-client.js to build/server/resources/");
+console.log("✓ Built nrg-client.js to dist/server/resources/");
 
 // Inline the extracted CSS into nrg-client.js so styles are injected when the script loads
-const cssPath = path.resolve(__dirname, "build/server/resources/nrg-client.css");
+const cssPath = path.resolve(__dirname, "dist/server/resources/nrg-client.css");
 if (existsSync(cssPath)) {
   const css = readFileSync(cssPath, "utf-8");
-  const jsPath = path.resolve(__dirname, "build/server/resources/nrg-client.js");
+  const jsPath = path.resolve(__dirname, "dist/server/resources/nrg-client.js");
   const js = readFileSync(jsPath, "utf-8");
   const inject = `(function(){var s=document.createElement("style");s.textContent=${JSON.stringify(css)};document.head.appendChild(s);})();\n`;
   writeFileSync(jsPath, inject + js);
@@ -63,14 +63,83 @@ if (existsSync(cssPath)) {
 
 // Phase 4: Build root entry (ESM)
 execSync(
-  "esbuild src/index.ts --bundle --packages=external --format=esm --platform=node --outfile=build/index.js",
+  "esbuild src/index.ts --bundle --packages=external --format=esm --platform=node --outfile=dist/index.js",
   { stdio: "inherit" },
 );
-console.log("✓ Built root entry to build/index.js");
+console.log("✓ Built root entry to dist/index.js");
 
 // Phase 5: Build vite plugin (ESM)
 execSync(
-  "esbuild src/vite/index.ts src/vite/utils.ts --bundle --packages=external --format=esm --platform=node --outdir=build/vite",
+  "esbuild src/vite/index.ts --bundle --packages=external --format=esm --platform=node --outdir=dist/vite",
   { stdio: "inherit" },
 );
-console.log("✓ Built vite plugin to build/vite/");
+console.log("✓ Built vite plugin to dist/vite/");
+
+// Phase 6: Generate bundled type declarations
+const dtsFlags = "--no-check --project tsconfig.build.json --external-inlines @sinclair/typebox";
+execSync(`npx dts-bundle-generator -o dist/types/index.d.ts src/index.ts ${dtsFlags}`, { stdio: "inherit" });
+execSync(`npx dts-bundle-generator -o dist/types/server.d.ts src/core/server/index.ts ${dtsFlags}`, { stdio: "inherit" });
+// Client types are written manually because dts-bundle-generator can't handle .vue imports
+writeFileSync("dist/types/client.d.ts", `
+import type { Component } from "vue";
+
+export interface NodeButtonDefinition {
+  toggle: string;
+  onclick: () => void;
+  enabled?: () => boolean;
+  visible?: () => boolean;
+}
+
+export interface NodeFormDefinition {
+  component?: Component;
+}
+
+export interface NodeDefinition {
+  type: string;
+  category?: string;
+  color?: string;
+  icon?: ((this: any) => string) | string;
+  label?: ((this: any) => string) | string;
+  inputs?: number;
+  outputs?: number;
+  paletteLabel?: ((this: any) => string) | string;
+  labelStyle?: ((this: any) => string) | string;
+  inputLabels?: ((this: any) => string) | string;
+  outputLabels?: ((this: any) => string) | string;
+  align?: "left" | "right";
+  button?: NodeButtonDefinition;
+  onEditResize?: (this: any, size: { width: number; height: number }) => void;
+  onPaletteAdd?: (this: any) => void;
+  onPaletteRemove?: (this: any) => void;
+  form?: NodeFormDefinition;
+}
+
+export declare function defineNode<T extends NodeDefinition>(options: T): T;
+export declare function registerType(definition: NodeDefinition): Promise<void>;
+export declare function registerTypes(nodes: NodeDefinition[]): Promise<void>;
+`);
+console.log("✓ Generated client types (manual)");
+// Vite types are written manually because the vite plugin code has loose typing
+writeFileSync("dist/types/vite.d.ts", `
+import type { Plugin } from "vite";
+
+export interface NodeRedPluginOptions {
+  outDir?: string;
+  serverBuildOptions?: Record<string, any>;
+  clientBuildOptions?: Record<string, any>;
+  nodeRedLauncherOptions?: Record<string, any>;
+  extraFilesCopyTargets?: Array<{ src: string; dest: string }>;
+}
+
+export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
+`);
+console.log("✓ Generated type declarations to dist/types/");
+
+// Phase 7: Copy shared tsconfigs and client shims
+mkdirSync("dist/tsconfig", { recursive: true });
+cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
+mkdirSync("dist/shims", { recursive: true });
+copyFileSync("src/core/client/shims-vue.d.ts", "dist/shims/shims-vue.d.ts");
+copyFileSync("src/core/client/components.d.ts", "dist/shims/components.d.ts");
+copyFileSync("src/core/client/globals.d.ts", "dist/shims/globals.d.ts");
+console.log("✓ Copied tsconfigs and shims to dist/");

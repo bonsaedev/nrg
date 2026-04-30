@@ -13,6 +13,8 @@ declare module "vue" {
     NodeRedConfigInput: (typeof import("./components/node-red-config-input.vue"))["default"];
     NodeRedSelectInput: (typeof import("./components/node-red-select-input.vue"))["default"];
     NodeRedEditorInput: (typeof import("./components/node-red-editor-input.vue"))["default"];
+    NodeRedInputLabel: (typeof import("./components/node-red-input-label.vue"))["default"];
+    NodeRedToggle: (typeof import("./components/node-red-toggle.vue"))["default"];
     NodeRedJsonSchemaForm: (typeof import("./components/node-red-json-schema-form.vue"))["default"];
   }
 }

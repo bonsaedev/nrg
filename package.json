@@ -33,39 +33,30 @@
     "prepare": "husky"
   },
   "files": [
-    "src/",
-    "build/"
+    "dist/"
   ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./build/index.js"
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./server": {
-      "types": "./src/core/server/index.ts",
-      "require": "./build/server/index.cjs",
-      "default": "./build/server/index.cjs"
+      "types": "./dist/types/server.d.ts",
+      "require": "./dist/server/index.cjs",
+      "default": "./dist/server/index.cjs"
     },
-    "./server/nodes": {
-      "types": "./src/core/server/nodes/index.ts"
+    "./client": {
+      "types": "./dist/types/client.d.ts"
     },
-    "./client": "./src/core/client/index.ts",
-    "./schemas": "./src/core/server/schemas/index.ts",
-    "./schemas/types": "./src/core/server/schemas/types/index.ts",
     "./vite": {
-      "types": "./src/vite/index.ts",
-      "default": "./build/vite/index.js"
+      "types": "./dist/types/vite.d.ts",
+      "default": "./dist/vite/index.js"
     },
-    "./vite/utils": {
-      "types": "./src/vite/utils.ts",
-      "default": "./build/vite/utils.js"
-    },
-    "./tsconfig/base.json": "./src/tsconfig/base.json",
-    "./tsconfig/client.json": "./src/tsconfig/client.json",
-    "./tsconfig/server.json": "./src/tsconfig/server.json"
+    "./tsconfig/base.json": "./dist/tsconfig/base.json",
+    "./tsconfig/client.json": "./dist/tsconfig/client.json",
+    "./tsconfig/server.json": "./dist/tsconfig/server.json"
   },
   "peerDependencies": {
-    "@sinclair/typebox": "^0.34.33",
     "vite": "^6.0.0",
     "vue": "^3.5.14"
   },
@@ -111,6 +102,7 @@
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "@vitest/coverage-v8": "^4.1.5",
+    "dts-bundle-generator": "^9.5.1",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.1.0",

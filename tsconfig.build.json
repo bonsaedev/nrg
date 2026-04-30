@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitAny": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": ".dts-tmp",
+    "stripInternal": true,
+    "esModuleInterop": true,
+    "types": ["node", "jquery"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.vue", "tests/**"]
+}

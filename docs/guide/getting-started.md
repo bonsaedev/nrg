@@ -29,7 +29,7 @@ If you prefer to add NRG to an existing project:
 ### 1. Install dependencies
 
 ```bash
-pnpm add @bonsae/nrg @sinclair/typebox vue
+pnpm add @bonsae/nrg vue
 pnpm add -D vite
 ```
 

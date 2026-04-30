@@ -14,7 +14,7 @@ Build Node-RED nodes with Vue 3, TypeScript, and JSON Schema validation.
 ## Install
 
 ```bash
-pnpm add @bonsae/nrg @sinclair/typebox vue
+pnpm add @bonsae/nrg vue
 pnpm add -D vite
 ```
 
@@ -22,9 +22,9 @@ pnpm add -D vite
 
 | Export | Description |
 | --- | --- |
-| `@bonsae/nrg/server` | Server node classes (`Node`, `IONode`, `ConfigNode`), schema utilities, validation |
-| `@bonsae/nrg/client` | Vue 3 form components, client-side registration |
-| `@bonsae/nrg/schemas` | TypeBox schema types (`Schema`, `Infer`, `SchemaType`) |
+| `@bonsae/nrg` | Root entry — `defineRuntimeSettings` |
+| `@bonsae/nrg/server` | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
+| `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`) |
 | `@bonsae/nrg/vite` | Vite plugin for building and developing Node-RED packages |
 | `@bonsae/nrg/tsconfig/*` | Shared TypeScript configurations for consumers |
 
@@ -32,7 +32,7 @@ pnpm add -D vite
 
 ```bash
 # In your Node-RED package project
-pnpm add @bonsae/nrg @sinclair/typebox vue
+pnpm add @bonsae/nrg vue
 pnpm add -D vite
 ```
 
