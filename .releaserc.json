@@ -21,11 +21,16 @@
         "changelogTitle": "# Changelog"
       }
     ],
-    "@semantic-release/npm",
+    [
+      "@semantic-release/npm",
+      {
+        "pkgRoot": "dist"
+      }
+    ],
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "jq '.version=\"${nextRelease.version}\"' package.json > tmp.json && mv tmp.json package.json"
+        "prepareCmd": "jq '.version=\"${nextRelease.version}\"' package.json > tmp.json && mv tmp.json package.json && jq '.version=\"${nextRelease.version}\"' dist/package.json > tmp.json && mv tmp.json dist/package.json"
       }
     ],
     [

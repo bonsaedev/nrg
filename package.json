@@ -32,9 +32,6 @@
     "docs:preview": "pnpm --dir docs preview",
     "prepare": "husky"
   },
-  "files": [
-    "dist/"
-  ],
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",

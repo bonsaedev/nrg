@@ -143,3 +143,49 @@ copyFileSync("src/core/client/shims-vue.d.ts", "dist/shims/shims-vue.d.ts");
 copyFileSync("src/core/client/components.d.ts", "dist/shims/components.d.ts");
 copyFileSync("src/core/client/globals.d.ts", "dist/shims/globals.d.ts");
 console.log("✓ Copied tsconfigs and shims to dist/");
+
+// Phase 8: Generate publish-ready package.json in dist/
+const rootPkg = JSON.parse(readFileSync("package.json", "utf-8"));
+const distPkg = {
+  name: rootPkg.name,
+  version: rootPkg.version,
+  description: rootPkg.description,
+  author: rootPkg.author,
+  license: rootPkg.license,
+  type: rootPkg.type,
+  repository: rootPkg.repository,
+  publishConfig: rootPkg.publishConfig,
+  engines: rootPkg.engines,
+  keywords: rootPkg.keywords,
+  exports: {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./index.js",
+    },
+    "./server": {
+      "types": "./types/server.d.ts",
+      "require": "./server/index.cjs",
+      "default": "./server/index.cjs",
+    },
+    "./client": {
+      "types": "./types/client.d.ts",
+    },
+    "./vite": {
+      "types": "./types/vite.d.ts",
+      "default": "./vite/index.js",
+    },
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/client.json": "./tsconfig/client.json",
+    "./tsconfig/server.json": "./tsconfig/server.json",
+  },
+  peerDependencies: rootPkg.peerDependencies,
+  dependencies: rootPkg.dependencies,
+};
+writeFileSync("dist/package.json", JSON.stringify(distPkg, null, 2) + "\n");
+console.log("✓ Generated dist/package.json");
+
+// Copy README into dist/ for npm (LICENSE/CHANGELOG are included automatically)
+if (existsSync("README.md")) {
+  copyFileSync("README.md", "dist/README.md");
+}
+console.log("✓ Copied README to dist/");
