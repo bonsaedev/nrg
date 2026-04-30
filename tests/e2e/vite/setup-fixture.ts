@@ -13,14 +13,10 @@ export function setupFixtureNodeModules(fixtureDir: string): void {
 
   fs.mkdirSync(path.dirname(nrgDir), { recursive: true });
 
-  // Copy package.json and dist/ so Node can resolve @bonsae/nrg exports
-  fs.cpSync(
-    path.join(REPO_ROOT, "package.json"),
-    path.join(nrgDir, "package.json"),
-  );
+  // Copy dist/ contents as the package root — mirrors what npm publishes
   fs.cpSync(
     path.join(REPO_ROOT, "dist"),
-    path.join(nrgDir, "dist"),
+    nrgDir,
     { recursive: true },
   );
 }
