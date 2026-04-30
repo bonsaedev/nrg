@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.2](https://github.com/bonsaedev/nrg/compare/v0.6.1...v0.6.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* publish dist/ as package root via semantic-release ([2cc7936](https://github.com/bonsaedev/nrg/commit/2cc793615563567b967158794cca22ef25bad471))
+* ship bundled .d.ts declarations and inline TypeBox types ([fb4c916](https://github.com/bonsaedev/nrg/commit/fb4c9167c474eb07e5a0b1b0eb71731bc6bdcd8b))
+
 ## [0.6.1](https://github.com/bonsaedev/nrg/compare/v0.6.0...v0.6.1) (2026-04-29)
 
 
