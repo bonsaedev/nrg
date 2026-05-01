@@ -30,11 +30,11 @@
 </template>
 
 <script lang="ts">
-import jsonpointer from "jsonpointer";
 import { type JSONSchemaType } from "ajv";
 import type { PropType } from "vue";
 import { defineComponent } from "vue";
-import { validator } from "../validator";
+import { debounce } from "es-toolkit";
+import { validateForm } from "./validation";
 
 export default defineComponent({
   name: "NodeRedVueApp",
@@ -58,8 +58,13 @@ export default defineComponent({
   data() {
     return {
       localNode: this.node,
-      errors: {},
+      errors: {} as Record<string, string>,
     };
+  },
+  created() {
+    // Debounce validation so rapid keystrokes don't trigger AJV on every
+    // character. 150ms is fast enough to feel instant while batching bursts.
+    this.debouncedValidate = debounce(() => this.validate(), 150);
   },
   beforeMount() {
     // Normalize array-typed properties to actual arrays. Nodes saved with an
@@ -92,6 +97,8 @@ export default defineComponent({
       });
     }
 
+    // Run initial validation synchronously (no debounce) so the form opens
+    // with errors already visible.
     this.validate();
 
     if (this.localNode._def.defaults) {
@@ -99,7 +106,7 @@ export default defineComponent({
         this.$watch(
           () => this.localNode[prop],
           () => {
-            this.validate();
+            this.debouncedValidate();
           },
           { deep: true },
         );
@@ -110,8 +117,8 @@ export default defineComponent({
       Object.keys(this.localNode._def.credentials).forEach((prop) => {
         this.$watch(
           () => this.localNode.credentials[prop],
-          (newVal, oldVal) => {
-            this.validate();
+          (newVal: any, oldVal: any) => {
+            this.debouncedValidate();
 
             if (
               this.localNode._def.credentials[prop].type === "password" &&
@@ -126,6 +133,9 @@ export default defineComponent({
     }
   },
   beforeUnmount() {
+    // Cancel any pending debounced validation so it doesn't fire after unmount.
+    this.debouncedValidate?.cancel?.();
+
     // NOTE: must set credentials prop to undefined to avoid updating it to __PWD__ in the server
     if (this.localNode._def.credentials) {
       Object.keys(this.localNode._def.credentials).forEach((prop) => {
@@ -141,30 +151,7 @@ export default defineComponent({
   },
   methods: {
     validate() {
-      const result = validator.validate(this.localNode, this.schema, {
-        cacheKey: `node-schema-${this.node.type}`,
-      });
-
-      if (!result.valid) {
-        this.errors = result.errors.reduce((acc, error) => {
-          const errorValue = jsonpointer.get(
-            this.localNode,
-            error.instancePath,
-          );
-          if (
-            error.parentSchema?.format === "password" &&
-            errorValue === "__PWD__"
-          ) {
-            return acc;
-          } else {
-            const key = `node${error.instancePath.replaceAll("/", ".")}`;
-            acc[key] = error.message;
-            return acc;
-          }
-        }, {});
-      } else {
-        this.errors = {};
-      }
+      this.errors = validateForm(this.localNode, this.schema);
     },
   },
 });

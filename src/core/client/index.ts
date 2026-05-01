@@ -1,6 +1,7 @@
 import type { Component, App } from "vue";
 import { createApp } from "vue";
 import { cloneDeep, isEqual } from "es-toolkit";
+import { validateNode } from "./validation";
 import type { JSONSchemaType } from "ajv";
 import NodeRedVueApp from "./app.vue";
 import NodeRedInput from "./components/node-red-input.vue";
@@ -308,7 +309,9 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     };
 
     // defaults and credentials are pre-computed at build time by the inliner
-    const defaults = nodeDefinition.defaults ?? undefined;
+    const defaults = nodeDefinition.defaults
+      ? { ...nodeDefinition.defaults }
+      : undefined;
     const credentials = nodeDefinition.credentials ?? undefined;
 
     const appContainerId = `nrg-app-${type}`;
@@ -319,22 +322,40 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       html: `<div id="${appContainerId}"></div>`,
     }).appendTo("body");
 
-    function oneditprepare(this: Node) {
-      const validationSchema =
-        nodeDefinition.configSchema &&
-        nodeDefinition.credentialsSchema?.properties
-          ? {
-              ...nodeDefinition.configSchema,
-              properties: {
-                ...nodeDefinition.configSchema.properties,
-                credentials: {
-                  type: "object",
-                  properties: nodeDefinition.credentialsSchema.properties,
-                },
+    const validationSchema =
+      nodeDefinition.configSchema &&
+      nodeDefinition.credentialsSchema?.properties
+        ? {
+            ...nodeDefinition.configSchema,
+            properties: {
+              ...nodeDefinition.configSchema.properties,
+              credentials: {
+                type: "object",
+                properties: nodeDefinition.credentialsSchema.properties,
               },
-            }
-          : nodeDefinition.configSchema;
+            },
+          }
+        : nodeDefinition.configSchema;
 
+    // Wire schema validation into Node-RED's own validation system.
+    // Node-RED calls defaults[prop].validate during its validateNode() cycle
+    // (on import, save, undo, deploy). Returning false marks the node invalid
+    // and shows the red error triangle on the workspace.
+    if (validationSchema && defaults) {
+      const firstProp = Object.keys(defaults)[0];
+      if (firstProp) {
+        defaults[firstProp] = {
+          ...defaults[firstProp],
+          // 2-arg signature (value, opt) tells Node-RED 3.x to accept
+          // string/array returns as error messages for the tooltip.
+          validate: function (this: Node, _value: any, _opt: any) {
+            return validateNode(this, validationSchema);
+          },
+        };
+      }
+    }
+
+    function oneditprepare(this: Node) {
       const form =
         definition.form ??
         (_forms[type] ? { component: _forms[type] } : undefined);
