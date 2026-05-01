@@ -84,13 +84,15 @@ export default defineComponent({
       }
     }
 
-    // Set __PWD__ for existing password fields before the first validation so
-    // the password-skip logic in validate() sees the sentinel value correctly.
+    // Set __PWD__ for password fields whose value is missing (server has it
+    // but didn't send it). If the value is still present (e.g. not yet
+    // deployed), keep it so the form can validate and display it.
     if (this.localNode._def.credentials) {
       Object.keys(this.localNode._def.credentials).forEach((prop) => {
         if (
           this.localNode._def.credentials[prop].type === "password" &&
-          this.localNode.credentials[`has_${prop}`]
+          this.localNode.credentials[`has_${prop}`] &&
+          !this.localNode.credentials[prop]
         ) {
           this.localNode.credentials[prop] = "__PWD__";
         }
