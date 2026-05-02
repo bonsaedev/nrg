@@ -54,7 +54,7 @@ export const SettingsSchema = defineSchema(
 | `SchemaType.Array(SchemaType.String({ enum: [...] }))` | Multi-select dropdown |
 | `SchemaType.Union([SchemaType.Literal(...)])` | Single-select dropdown |
 | `SchemaType.Object(...)` | Text input (stored as JSON) |
-| `SchemaType.TypedInput()` | Node-RED TypedInput (value + type pair) |
+| `SchemaType.TypedInput<T>()` | Node-RED TypedInput (value + type pair, resolves to `T`) |
 | `SchemaType.NodeRef(NodeClass)` | Config node selector dropdown |
 
 ### Customizing Form Rendering with `x-nrg-form`
@@ -311,12 +311,12 @@ Supported languages include `json`, `javascript`, `html`, `css`, `yaml`, `sql`, 
 
 ### TypedInput
 
-A `TypedInput` stores both a value and its type (e.g., `msg.payload`, a string literal, or a JSONata expression):
+A `TypedInput` stores both a value and its type (e.g., `msg.payload`, a string literal, or a JSONata expression). You can specify the expected resolved type via the generic parameter:
 
 ```typescript
 export const ConfigsSchema = defineSchema(
   {
-    target: SchemaType.TypedInput(),
+    target: SchemaType.TypedInput<string>(),
   },
   { $id: "my-node:configs" }
 );
@@ -329,7 +329,7 @@ Restrict the allowed types using `"x-nrg-form": { typedInputTypes: [...] }`. The
 ```typescript
 export const ConfigsSchema = defineSchema(
   {
-    target: SchemaType.TypedInput({
+    target: SchemaType.TypedInput<string>({
       "x-nrg-form": { typedInputTypes: ["str", "num", "msg"] },
     }),
   },
@@ -350,10 +350,18 @@ In a custom form, pass the types via the `types` prop:
 </template>
 ```
 
-At runtime, resolve it in your node with:
+At runtime, `this.config.target` is a `TypedInput` instance with `.type`, `.value`, and `.resolve()`:
 
 ```typescript
-const resolved = await this.resolveTypedInput(this.config.target, msg);
+async input(msg: Input) {
+  const target = this.config.target;
+  this.log(`Type: ${target.type}, Value: ${target.value}`);
+
+  // resolve() evaluates the value using Node-RED's evaluateNodeProperty
+  // Return type is inferred from SchemaType.TypedInput<T>()
+  const resolved: string = await target.resolve(msg);
+  this.log(`Resolved: ${resolved}`);
+}
 ```
 
 ### NodeRef (Config Node Reference)
@@ -630,7 +638,7 @@ export default class MyNode extends IONode<
 | `this.warn(msg)` | Log a warning |
 | `this.error(msg)` | Log an error |
 | `this.i18n(key)` | Get a translated string |
-| `this.resolveTypedInput(typedInput, msg?)` | Resolve a TypedInput value |
+| `this.config.<prop>.resolve(msg?)` | Resolve a TypedInput value |
 | `this.setTimeout(fn, ms)` | Auto-cleared timeout |
 | `this.setInterval(fn, ms)` | Auto-cleared interval |
 | `this.context("flow")` / `this.context("global")` | Access context storage |
