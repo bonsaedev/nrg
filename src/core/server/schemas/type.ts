@@ -1,10 +1,5 @@
-import type {
-  TSchema,
-  TProperties,
-  SchemaOptions,
-  ObjectOptions,
-} from "@sinclair/typebox";
-import type { Schema } from "./types";
+import type { TSchema, TProperties, ObjectOptions } from "@sinclair/typebox";
+import type { Schema, NrgSchemaOptions } from "./types";
 import { Type as BaseType, Kind } from "@sinclair/typebox";
 import { TypedInputSchema } from "./base";
 import type { TNodeRef, TTypedInput } from "./types";
@@ -12,7 +7,7 @@ import { isJSONType } from "ajv/dist/compile/rules";
 
 function NodeRef<T extends new (...args: any[]) => any>(
   nodeClass: T,
-  options?: SchemaOptions,
+  options?: NrgSchemaOptions,
 ): TNodeRef<InstanceType<T>> {
   return {
     ...BaseType.String({
@@ -26,12 +21,13 @@ function NodeRef<T extends new (...args: any[]) => any>(
   } as unknown as TNodeRef<InstanceType<T>>;
 }
 
-function TypedInput(options?: SchemaOptions): TTypedInput {
+function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
   return {
     ...TypedInputSchema,
+    "x-nrg-typed-input": true,
     ...options,
     [Kind]: "TypedInput",
-  } as unknown as TTypedInput;
+  } as unknown as TTypedInput<T>;
 }
 
 const SchemaType = Object.assign({}, BaseType, {

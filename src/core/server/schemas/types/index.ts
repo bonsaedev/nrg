@@ -4,8 +4,10 @@ import type {
   TObject,
   TProperties,
   Static,
+  SchemaOptions,
 } from "@sinclair/typebox";
 import type { TYPED_INPUT_TYPES } from "../../../constants";
+import type TypedInput from "../../typed-input";
 
 interface TNodeRef<T = any> extends TSchema {
   [Kind]: "NodeRef";
@@ -15,8 +17,8 @@ interface TNodeRef<T = any> extends TSchema {
 }
 
 type ResolveNodeRefs<T> =
-  T extends TNodeRef<infer N>
-    ? N
+  T extends TypedInput<any>
+    ? T
     : T extends (...args: any[]) => any
       ? T
       : T extends Array<infer Item>
@@ -29,12 +31,9 @@ type Infer<T extends TSchema> = ResolveNodeRefs<Static<T>>;
 
 type TypedInputType = (typeof TYPED_INPUT_TYPES)[number];
 
-interface TTypedInput extends TSchema {
+interface TTypedInput<T = unknown> extends TSchema {
   [Kind]: "TypedInput";
-  static: {
-    value: string | number | boolean | null;
-    type: TypedInputType;
-  };
+  static: TypedInput<T>;
 }
 
 interface NrgFormOptions {
@@ -44,19 +43,18 @@ interface NrgFormOptions {
   toggle?: boolean;
 }
 
-declare module "@sinclair/typebox" {
-  interface SchemaOptions {
-    exportable?: boolean;
-    "x-nrg-node-type"?: string;
-    "x-nrg-form"?: NrgFormOptions;
-  }
+interface NrgSchemaOptions extends SchemaOptions {
+  exportable?: boolean;
+  "x-nrg-node-type"?: string;
+  "x-nrg-form"?: NrgFormOptions;
 }
 
 interface Schema<T extends TProperties = TProperties> extends TObject<T> {
   $id: string;
 }
 
-export { Infer, ResolveNodeRefs, TNodeRef, TTypedInput };
+export { Infer, ResolveNodeRefs, TNodeRef, TTypedInput, TypedInputType };
+export type { NrgFormOptions, NrgSchemaOptions };
 export type { Schema };
 export type {
   TSchema,
