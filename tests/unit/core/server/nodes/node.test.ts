@@ -296,50 +296,6 @@ describe("Node", () => {
     });
   });
 
-  describe("resolveTypedInput", () => {
-    it("should call RED.util.evaluateNodeProperty", () => {
-      const RED = createMockRED();
-      RED.util.evaluateNodeProperty.mockImplementation(
-        (_v: any, _t: any, _n: any, _m: any, cb: Function) =>
-          cb(null, "resolved"),
-      );
-      const node = createMockNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
-
-      const promise = instance.resolveTypedInput({ value: "test", type: "str" });
-      return expect(promise).resolves.toBe("resolved");
-    });
-
-    it("should reject on error", () => {
-      const RED = createMockRED();
-      RED.util.evaluateNodeProperty.mockImplementation(
-        (_v: any, _t: any, _n: any, _m: any, cb: Function) =>
-          cb(new Error("eval failed")),
-      );
-      const node = createMockNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
-
-      return expect(
-        instance.resolveTypedInput({ value: "test", type: "str" }),
-      ).rejects.toThrow("eval failed");
-    });
-
-    it("should resolve _node for node-type typed inputs", () => {
-      const RED = createMockRED();
-      const mockNodeInstance = { id: "n1", type: "my-type" };
-      RED.util.evaluateNodeProperty.mockImplementation(
-        (_v: any, _t: any, _n: any, _m: any, cb: Function) =>
-          cb(null, { _node: mockNodeInstance }),
-      );
-      const node = createMockNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
-
-      return expect(
-        instance.resolveTypedInput({ value: "n1", type: "node" }),
-      ).resolves.toBe(mockNodeInstance);
-    });
-  });
-
   describe("validateSettings", () => {
     it("should validate and cache settings from RED.settings", () => {
       const settingsSchema = defineSchema(

@@ -1,7 +1,8 @@
 import type { ResolveNodeRefs } from "../schemas/types";
-import type { RED, NodeRedContextStore } from "../types";
+import type { RED, NodeRedNode, NodeRedContextStore } from "../types";
 import type { NodeContextStore } from "./types";
 import { NrgError } from "../../errors";
+import TypedInput from "../typed-input";
 
 function setupContext(
   context: NodeRedContextStore,
@@ -29,26 +30,29 @@ function setupContext(
   };
 }
 
+interface SetupConfigProxyOptions<T extends object> {
+  RED: RED;
+  node: NodeRedNode;
+  config: T;
+  schema?: any;
+}
+
 function setupConfigProxy<T extends object>(
-  RED: RED,
-  config: T,
-  schema?: any,
+  opts: SetupConfigProxyOptions<T>,
 ): ResolveNodeRefs<T> {
+  const { RED, node, config, schema } = opts;
   const SKIP_PROPS = new Set(["id", "_id", "_users"]);
 
-  // Build a set of property names that are node references based on the schema.
-  // Only these properties will have their string values resolved via RED.nodes.getNode().
   const nodeRefProps = new Set<string>();
+  const typedInputProps = new Set<string>();
   if (schema?.properties) {
     for (const [key, propSchema] of Object.entries(schema.properties)) {
-      if ((propSchema as any)?.["x-nrg-node-type"]) {
-        nodeRefProps.add(key);
-      }
+      const s = propSchema as any;
+      if (s?.["x-nrg-node-type"]) nodeRefProps.add(key);
+      if (s?.["x-nrg-typed-input"]) typedInputProps.add(key);
     }
   }
 
-  // Per-node-instance cache: original object/array -> proxy or mapped array.
-  // This preserves reference equality: config.server === config.server
   const cache = new WeakMap<object, any>();
 
   const createProxy = <O extends object>(obj: O): any => {
@@ -56,13 +60,9 @@ function setupConfigProxy<T extends object>(
     if (cached) return cached;
 
     if (Array.isArray(obj)) {
-      // Map once, cache the result array so identity is stable across reads
-      const mapped = obj.map((item) => {
-        if (item && typeof item === "object") {
-          return createProxy(item);
-        }
-        return item;
-      });
+      const mapped = obj.map((item) =>
+        item && typeof item === "object" ? createProxy(item) : item,
+      );
       cache.set(obj, mapped);
       return mapped;
     }
@@ -74,7 +74,6 @@ function setupConfigProxy<T extends object>(
 
         const value = target[prop];
 
-        // Only resolve strings as node references if the schema marks the property
         if (
           typeof value === "string" &&
           value.length > 0 &&
@@ -83,8 +82,23 @@ function setupConfigProxy<T extends object>(
           return RED.nodes.getNode(value)?._node ?? value;
         }
 
+        if (
+          typedInputProps.has(prop) &&
+          value &&
+          typeof value === "object" &&
+          "type" in value &&
+          "value" in value
+        ) {
+          let ref = cache.get(value);
+          if (!ref) {
+            ref = new TypedInput(RED, node, value);
+            cache.set(value, ref);
+          }
+          return ref;
+        }
+
         if (value && typeof value === "object") {
-          return createProxy(value); // hits the cache on repeat access
+          return createProxy(value);
         }
 
         return value;

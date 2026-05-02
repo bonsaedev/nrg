@@ -5,7 +5,6 @@ import type {
   IONodeContext,
   NodeConfig,
   NodeCredentials,
-  TypedInput,
   NodeSettings,
 } from "./types";
 import { validator } from "../validation";
@@ -115,11 +114,12 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
         );
       }
     }
-    (this as any).config = setupConfigProxy(
+    (this as any).config = setupConfigProxy({
       RED,
+      node,
       config,
-      constructor.configSchema,
-    );
+      schema: constructor.configSchema,
+    });
 
     if (constructor.credentialsSchema && credentials) {
       this.log("Validating credentials");
@@ -174,35 +174,6 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
   public created?(): void | Promise<void>;
   public closed?(removed?: boolean): void | Promise<void>;
 
-  // NOTE: typing msg isnt necessary in this case
-  public resolveTypedInput<T = any>(
-    typedInput: TypedInput,
-    msg?: Record<string, any>,
-  ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.RED.util.evaluateNodeProperty(
-        typedInput.value,
-        typedInput.type,
-        this.node,
-        msg,
-        (error: Error | null, result: any) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          // NOTE: some references might have not been written with the nrg framework
-          // TODO: type with NodeRedNode for nodes that don't have types
-          if (typedInput.type === "node" && result) {
-            resolve((result._node ?? result) as T);
-            return;
-          }
-
-          resolve(result as T);
-        },
-      );
-    });
-  }
   // NOTE: used by the registered function. Had to be a different one to avoid calling the parent's closed again
   /** @internal */
   public async _closed(removed?: boolean) {

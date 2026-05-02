@@ -20,7 +20,7 @@ describe("setupConfigProxy", () => {
         },
       };
 
-      const proxy = setupConfigProxy(RED, config, schema);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       expect(proxy.server).toBe(mockNode._node);
     });
 
@@ -34,7 +34,7 @@ describe("setupConfigProxy", () => {
         },
       };
 
-      const proxy = setupConfigProxy(RED, config, schema);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       expect(proxy.name).toBe("my-node");
       expect(proxy.url).toBe("https://example.com");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
@@ -49,7 +49,7 @@ describe("setupConfigProxy", () => {
         },
       };
 
-      const proxy = setupConfigProxy(RED, config, schema);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       expect(proxy.server).toBe("missing-id");
     });
 
@@ -62,7 +62,7 @@ describe("setupConfigProxy", () => {
         },
       };
 
-      const proxy = setupConfigProxy(RED, config, schema);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       expect(proxy.server).toBe("");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
     });
@@ -74,7 +74,7 @@ describe("setupConfigProxy", () => {
       const nested = { value: "str", type: "str" };
       const config = { myProp: nested };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.myProp).toBe(proxy.myProp);
     });
 
@@ -82,7 +82,7 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED();
       const config = { tags: ["a", "b", "c"] };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.tags).toBe(proxy.tags);
     });
   });
@@ -91,7 +91,7 @@ describe("setupConfigProxy", () => {
     it("should throw NrgError when setting a property", () => {
       const RED = createMockRED();
       const config = { name: "test" };
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
 
       expect(() => {
         (proxy as any).name = "changed";
@@ -101,7 +101,7 @@ describe("setupConfigProxy", () => {
     it("should include property name in error message", () => {
       const RED = createMockRED();
       const config = { name: "test" };
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
 
       expect(() => {
         (proxy as any).name = "changed";
@@ -119,7 +119,7 @@ describe("setupConfigProxy", () => {
         },
       };
 
-      const proxy = setupConfigProxy(RED, config, schema);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       expect(proxy.id).toBe("node-123");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
     });
@@ -128,7 +128,7 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED();
       const config = { _id: "abc", _users: ["u1", "u2"] } as any;
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy._id).toBe("abc");
       expect(proxy._users).toEqual(["u1", "u2"]);
     });
@@ -139,7 +139,7 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED();
       const config = { settings: { timeout: 5000 } };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.settings.timeout).toBe(5000);
     });
 
@@ -147,7 +147,7 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED();
       const config = { items: [{ name: "a" }, { name: "b" }] };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.items[0].name).toBe("a");
       expect(proxy.items[1].name).toBe("b");
     });
@@ -156,7 +156,7 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED();
       const config = { tags: ["alpha", "beta"] };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.tags).toEqual(["alpha", "beta"]);
     });
 
@@ -164,7 +164,7 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED();
       const config = { count: 42, enabled: true, label: null };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.count).toBe(42);
       expect(proxy.enabled).toBe(true);
       expect(proxy.label).toBeNull();
@@ -176,9 +176,99 @@ describe("setupConfigProxy", () => {
       const RED = createMockRED({ "test": { _node: {} } });
       const config = { name: "test" };
 
-      const proxy = setupConfigProxy(RED, config);
+      const proxy = setupConfigProxy({ RED, node: {} as any, config });
       expect(proxy.name).toBe("test");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("TypedInput resolution", () => {
+    function makeTypedInputSchema() {
+      return {
+        properties: {
+          target: { "x-nrg-typed-input": true },
+          name: { type: "string" },
+        },
+      };
+    }
+
+    it("should return a TypedInputRef for TypedInput-marked props", () => {
+      const RED = createMockRED();
+      const config = { target: { value: "payload", type: "msg" }, name: "test" };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      const ref = proxy.target;
+      expect(ref).toBeDefined();
+      expect(ref.type).toBe("msg");
+      expect(ref.value).toBe("payload");
+    });
+
+    it("should return the same TypedInputRef on repeated access (cache)", () => {
+      const RED = createMockRED();
+      const config = { target: { value: "x", type: "str" }, name: "test" };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      expect(proxy.target).toBe(proxy.target);
+    });
+
+    it("should resolve a TypedInputRef via evaluateNodeProperty", async () => {
+      const RED = createMockRED();
+      RED.util.evaluateNodeProperty.mockImplementation(
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "resolved-value"),
+      );
+      const mockNode = { id: "n1" } as any;
+      const config = { target: { value: "payload", type: "msg" } };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: mockNode, config, schema });
+      const result = await proxy.target.resolve({ payload: "hello" });
+      expect(result).toBe("resolved-value");
+      expect(RED.util.evaluateNodeProperty).toHaveBeenCalledWith(
+        "payload", "msg", mockNode, { payload: "hello" }, expect.any(Function),
+      );
+    });
+
+    it("should reject when evaluateNodeProperty returns an error", async () => {
+      const RED = createMockRED();
+      RED.util.evaluateNodeProperty.mockImplementation(
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(new Error("eval failed")),
+      );
+      const config = { target: { value: "x", type: "str" } };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      await expect(proxy.target.resolve()).rejects.toThrow("eval failed");
+    });
+
+    it("should unwrap _node for node-type inputs", async () => {
+      const RED = createMockRED();
+      const nrgNode = { id: "n1", type: "test" };
+      RED.util.evaluateNodeProperty.mockImplementation(
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, { _node: nrgNode }),
+      );
+      const config = { target: { value: "node-id", type: "node" } };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      const result = await proxy.target.resolve();
+      expect(result).toBe(nrgNode);
+    });
+
+    it("should not wrap non-TypedInput objects as refs", () => {
+      const RED = createMockRED();
+      const config = { settings: { value: "x", type: "str" }, name: "test" };
+      const schema = {
+        properties: {
+          settings: { type: "object" },
+          name: { type: "string" },
+        },
+      };
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      expect(proxy.settings.value).toBe("x");
+      expect(typeof proxy.settings.resolve).toBe("undefined");
     });
   });
 });

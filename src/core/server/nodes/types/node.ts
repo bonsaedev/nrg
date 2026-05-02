@@ -1,5 +1,5 @@
 import type { Static } from "@sinclair/typebox";
-import type { NodeConfigSchema, TTypedInput } from "../../schemas";
+import type { NodeConfigSchema } from "../../schemas";
 import type { RED } from "../../../server/types";
 
 type NodeContextScope = "node" | "flow" | "global";
@@ -26,9 +26,6 @@ interface NodeSetting<T = any> {
 
 type NodeSettings = Record<string, NodeSetting>;
 
-// TODO: move this somewhere else
-type TypedInput = Static<TTypedInput>;
-
 export {
   NodeConfig,
   NodeContextStore,
@@ -37,5 +34,4 @@ export {
   NodeCredentials,
   NodeSetting,
   NodeSettings,
-  TypedInput,
 };
