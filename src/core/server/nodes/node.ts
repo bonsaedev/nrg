@@ -8,7 +8,7 @@ import type {
   TypedInput,
   NodeSettings,
 } from "./types";
-import { validator } from "../validator";
+import { validator } from "../validation";
 import { setupConfigProxy } from "./utils";
 
 abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {

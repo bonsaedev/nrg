@@ -1,6 +1,30 @@
 import jsonpointer from "jsonpointer";
-import { validator } from "../validator";
+import { Validator } from "../validator";
 import type { ErrorObject } from "ajv";
+
+const validator = new Validator({
+  customKeywords: [
+    {
+      keyword: "x-nrg-skip-validation",
+      schemaType: "boolean",
+      valid: true,
+    },
+    {
+      keyword: "x-nrg-node-type",
+      type: "string",
+      validate: (schemaValue: string, dataValue: string) => {
+        if (!dataValue) return true;
+        const node = RED.nodes.node(dataValue);
+        return !!node && node.type === schemaValue;
+      },
+    },
+  ],
+  customFormats: {
+    "node-id": /^[a-zA-Z0-9-_]+$/,
+    "flow-id": /^[a-f0-9]{16}$/,
+    "topic-path": (data: string) => /^[a-zA-Z0-9/_-]+$/.test(data),
+  },
+});
 
 /**
  * Runs AJV validation and returns the raw error array — empty when valid.
@@ -26,21 +50,31 @@ function validateNode(subject: any, schema: any): true | string[] {
     if (e.parentSchema?.format !== "password") return true;
     // No credentials on the client (import/post-save) — can't validate
     if (!subject.credentials) return false;
-    // Skip sentinel or missing values — the real password lives on the server
+    const prop = e.instancePath.split("/").pop();
     const v = jsonpointer.get(subject, e.instancePath);
-    return v != null && v !== "__PWD__";
+    // If the server has this password (has_<prop> = true) and the value is
+    // empty or the __PWD__ placeholder, the user didn't change it — skip.
+    // Only keep errors for values the user actually typed.
+    if (subject.credentials[`has_${prop}`] && (!v || v === "__PWD__")) {
+      return false;
+    }
+    return true;
   });
   if (errors.length === 0) return true;
-  return errors.map(
-    (e) => `${e.instancePath.slice(1) || "root"}: ${e.message ?? "invalid"}`,
-  );
+  return errors.map((e) => {
+    let path = e.instancePath;
+    if (e.keyword === "required" && e.params?.missingProperty) {
+      path = `${path}/${e.params.missingProperty}`;
+    }
+    return `${path.slice(1) || "root"}: ${e.message ?? "invalid"}`;
+  });
 }
 
 /**
  * Converts filtered AJV errors into a keyed `Record<string, string>` for
  * inline error display, where keys are dot-paths like `"node.name"`.
  *
- * Skips password fields that hold the `__PWD__` sentinel — these represent
+ * Skips password fields that hold the `__PWD__` placeholder — these represent
  * existing credentials that haven't been changed by the user.
  */
 function validateForm(subject: any, schema: any): Record<string, string> {
@@ -52,7 +86,14 @@ function validateForm(subject: any, schema: any): Record<string, string> {
     })
     .reduce(
       (acc, error) => {
-        const key = `node${error.instancePath.replaceAll("/", ".")}`;
+        // For `required` errors, instancePath points to the parent object,
+        // not the missing property. Use params.missingProperty to build
+        // the correct key so the form component can display the error.
+        let path = error.instancePath;
+        if (error.keyword === "required" && error.params?.missingProperty) {
+          path = `${path}/${error.params.missingProperty}`;
+        }
+        const key = `node${path.replaceAll("/", ".")}`;
         acc[key] = error.message ?? "Invalid";
         return acc;
       },

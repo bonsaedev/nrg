@@ -1,6 +1,6 @@
 import type { Schema } from "../schemas/types";
 import type { RED } from "../../server/types";
-import { validator } from "../validator";
+import { validator } from "../validation";
 import { Node } from "./node";
 import type {
   HexColor,

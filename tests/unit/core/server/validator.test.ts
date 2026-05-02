@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initValidator, validator } from "../../../../src/core/server/validator";
+import { initValidator, validator } from "../../../../src/core/server/validation";
 import { createMockRED } from "../../../mocks/red";
 
 describe("NodeRedValidator", () => {

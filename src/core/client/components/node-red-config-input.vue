@@ -70,7 +70,10 @@ export default defineComponent({
 
     const input = $("#" + this.inputId);
     input.on("change", () => {
-      this.$emit("update:value", input.val());
+      const val = input.val() as string;
+      // "_ADD_" is Node-RED's internal placeholder for "Add new..." —
+      // treat it as empty so validation catches unset config refs.
+      this.$emit("update:value", val === "_ADD_" ? "" : val);
     });
 
     input.val(this.value || "_ADD_");

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Node } from "../../../../../src/core/server/nodes/node";
-import { initValidator } from "../../../../../src/core/server/validator";
+import { initValidator } from "../../../../../src/core/server/validation";
 import { defineSchema, SchemaType } from "../../../../../src/core/server/schemas";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
 

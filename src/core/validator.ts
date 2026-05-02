@@ -211,9 +211,7 @@ class ValidationError extends Error {
   }
 }
 
-const validator = new Validator();
-
-export { Validator, ValidationError, validator };
+export { Validator, ValidationError };
 export type {
   ValidationResult,
   ValidatorOptions,

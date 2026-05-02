@@ -2,7 +2,7 @@ import { getCredentialsFromSchema } from "./utils";
 import { Node } from "./nodes";
 import type { NodeClassBase } from "./nodes/types/factories";
 import { type RED } from "./types";
-import { initValidator } from "./validator";
+import { initValidator } from "./validation";
 import { serveNrgResources } from "./api";
 import { NrgError } from "../errors";
 

@@ -5,7 +5,7 @@ import { IONode } from "../../../../../src/core/server/nodes/io-node";
 import { ConfigNode } from "../../../../../src/core/server/nodes/config-node";
 import { Node } from "../../../../../src/core/server/nodes/node";
 import { defineSchema, SchemaType } from "../../../../../src/core/server/schemas";
-import { initValidator } from "../../../../../src/core/server/validator";
+import { initValidator } from "../../../../../src/core/server/validation";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
 
 describe("defineIONode", () => {

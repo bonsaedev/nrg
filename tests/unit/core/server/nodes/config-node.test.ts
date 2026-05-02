@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConfigNode } from "../../../../../src/core/server/nodes/config-node";
-import { initValidator } from "../../../../../src/core/server/validator";
+import { initValidator } from "../../../../../src/core/server/validation";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
 
 class TestConfigNode extends ConfigNode {
