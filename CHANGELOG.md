@@ -1,5 +1,17 @@
 # Changelog
 
+# [0.8.0](https://github.com/bonsaedev/nrg/compare/v0.7.0...v0.8.0) (2026-05-02)
+
+
+### Bug Fixes
+
+* export NrgSchemaOptions so consumers get IntelliSense for x-nrg-form ([4ff7a03](https://github.com/bonsaedev/nrg/commit/4ff7a035b4213e4811bd82aea253fba24dab9e86))
+
+
+### Features
+
+* resolve TypedInput properties via config proxy ([2de2d6e](https://github.com/bonsaedev/nrg/commit/2de2d6ea30e160f1dbbad8ae9c0b169f0e4cf542))
+
 # [0.7.0](https://github.com/bonsaedev/nrg/compare/v0.6.3...v0.7.0) (2026-05-02)
 
 
