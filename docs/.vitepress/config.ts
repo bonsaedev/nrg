@@ -30,6 +30,7 @@ export default defineConfig({
       {
         text: "Guide",
         items: [
+          { text: "Why NRG?", link: "/guide/why-nrg" },
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Project Structure", link: "/guide/project-structure" },
           { text: "Creating a Node", link: "/guide/creating-a-node" },
