@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/bonsaedev/nrg/compare/v0.8.0...v0.8.1) (2026-05-02)
+
+
+### Bug Fixes
+
+* resolve node ID to instance in TypedInput node resolver ([5221bb3](https://github.com/bonsaedev/nrg/commit/5221bb38a9381ffc139f0ba6a2b496dc1301fd52))
+
 # [0.8.0](https://github.com/bonsaedev/nrg/compare/v0.7.0...v0.8.0) (2026-05-02)
 
 

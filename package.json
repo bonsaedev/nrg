@@ -1,6 +1,6 @@
 {
   "name": "@bonsae/nrg",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "NRG framework — build Node-RED nodes with Vue 3, TypeScript, and JSON Schema",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
