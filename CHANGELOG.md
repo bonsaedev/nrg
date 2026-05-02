@@ -1,5 +1,18 @@
 # Changelog
 
+# [0.7.0](https://github.com/bonsaedev/nrg/compare/v0.6.3...v0.7.0) (2026-05-02)
+
+
+### Bug Fixes
+
+* preserve password value for validation when not yet deployed ([5e755cd](https://github.com/bonsaedev/nrg/commit/5e755cde4f2143447f6c44e8b3b0f10546fe88b1))
+* validate config node references and show errors for unset refs ([1fae0c2](https://github.com/bonsaedev/nrg/commit/1fae0c252a389a1451874e8def0bd83fcd5c4467))
+
+
+### Features
+
+* integrate schema validation with Node-RED error triangle ([d9159ef](https://github.com/bonsaedev/nrg/commit/d9159ef825c6b67fed4649e571ae1c8b48f974bd))
+
 ## [0.6.3](https://github.com/bonsaedev/nrg/compare/v0.6.2...v0.6.3) (2026-04-30)
 
 
