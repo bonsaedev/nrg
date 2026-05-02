@@ -29,8 +29,8 @@ If you prefer to add NRG to an existing project:
 ### 1. Install dependencies
 
 ```bash
-pnpm add @bonsae/nrg vue
-pnpm add -D vite
+pnpm add @bonsae/nrg
+pnpm add -D vite vue
 ```
 
 ### 2. Configure Vite
