@@ -242,18 +242,48 @@ describe("setupConfigProxy", () => {
       await expect(proxy.target.resolve()).rejects.toThrow("eval failed");
     });
 
-    it("should unwrap _node for node-type inputs", async () => {
-      const RED = createMockRED();
-      const nrgNode = { id: "n1", type: "test" };
+    it("should resolve node ID to NRG node instance for node-type inputs", async () => {
+      const nrgInstance = { id: "n1", type: "test", config: { name: "test" } };
+      const rawNode = { _node: nrgInstance };
+      const RED = createMockRED({ "n1": rawNode });
+      // evaluateNodeProperty returns the string ID for "node" type
       RED.util.evaluateNodeProperty.mockImplementation(
-        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, { _node: nrgNode }),
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "n1"),
       );
-      const config = { target: { value: "node-id", type: "node" } };
+      const config = { target: { value: "n1", type: "node" } };
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       const result = await proxy.target.resolve();
-      expect(result).toBe(nrgNode);
+      expect(result).toBe(nrgInstance);
+      expect(RED.nodes.getNode).toHaveBeenCalledWith("n1");
+    });
+
+    it("should return raw node when no NRG wrapper exists", async () => {
+      const rawNode = { id: "n2", type: "debug" };
+      const RED = createMockRED({ "n2": rawNode });
+      RED.util.evaluateNodeProperty.mockImplementation(
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "n2"),
+      );
+      const config = { target: { value: "n2", type: "node" } };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      const result = await proxy.target.resolve();
+      expect(result).toBe(rawNode);
+    });
+
+    it("should return the ID string when node is not found", async () => {
+      const RED = createMockRED({});
+      RED.util.evaluateNodeProperty.mockImplementation(
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "missing-id"),
+      );
+      const config = { target: { value: "missing-id", type: "node" } };
+      const schema = makeTypedInputSchema();
+
+      const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
+      const result = await proxy.target.resolve();
+      expect(result).toBe("missing-id");
     });
 
     it("should not wrap non-TypedInput objects as refs", () => {

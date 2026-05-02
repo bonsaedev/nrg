@@ -5,8 +5,16 @@ export default class TypedInput<T = unknown> {
   private readonly resolvers: Partial<
     Record<TypedInputType, (raw: any) => any>
   > = {
-    // NOTE: NRG nodes are wrapped — surface the NRG instance, fall back to raw NodeRedNode
-    node: (raw) => raw?._node ?? raw,
+    // evaluateNodeProperty returns the node ID string for "node" type —
+    // resolve it to the actual node instance via RED.nodes.getNode,
+    // then surface the NRG wrapper if available.
+    node: (raw) => {
+      if (typeof raw === "string") {
+        const node = this.RED.nodes.getNode(raw);
+        return node?._node ?? node ?? raw;
+      }
+      return raw?._node ?? raw;
+    },
   };
 
   constructor(
