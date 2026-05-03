@@ -39,6 +39,10 @@ export default defineConfig({
             link: "/guide/building-and-running",
           },
           { text: "Schema Validation", link: "/guide/schemas" },
+          {
+            text: "Locales & Help Docs",
+            link: "/guide/locales",
+          },
         ],
       },
     ],

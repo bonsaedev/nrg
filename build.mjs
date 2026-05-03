@@ -138,11 +138,12 @@ console.log("✓ Generated type declarations to dist/types/");
 // Phase 7: Copy shared tsconfigs and client shims
 mkdirSync("dist/tsconfig", { recursive: true });
 cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
-mkdirSync("dist/shims", { recursive: true });
-copyFileSync("src/core/client/shims-vue.d.ts", "dist/shims/shims-vue.d.ts");
-copyFileSync("src/core/client/components.d.ts", "dist/shims/components.d.ts");
-copyFileSync("src/core/client/globals.d.ts", "dist/shims/globals.d.ts");
-console.log("✓ Copied tsconfigs and shims to dist/");
+mkdirSync("dist/types/shims", { recursive: true });
+copyFileSync("src/core/client/shims-vue.d.ts", "dist/types/shims/shims-vue.d.ts");
+copyFileSync("src/core/client/components.d.ts", "dist/types/shims/components.d.ts");
+copyFileSync("src/core/client/globals.d.ts", "dist/types/shims/globals.d.ts");
+cpSync("src/schemas", "dist/schemas", { recursive: true });
+console.log("✓ Copied tsconfigs, shims, and schemas to dist/");
 
 // Phase 8: Generate publish-ready package.json in dist/
 const rootPkg = JSON.parse(readFileSync("package.json", "utf-8"));

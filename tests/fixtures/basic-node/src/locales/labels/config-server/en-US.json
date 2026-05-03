@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "label": "Config Server",
+  "description": "Test config server for broker connections",
+  "configs": {
+    "host": "Hostname",
+    "port": "Port"
+  }
+}

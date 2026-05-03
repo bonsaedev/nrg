@@ -1,3 +1,4 @@
+export { helpGenerator } from "./help-generator";
 export { htmlGenerator } from "./html-generator";
 export { localesGenerator } from "./locales-generator";
 export { minifier } from "./minifier";

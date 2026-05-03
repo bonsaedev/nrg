@@ -62,8 +62,6 @@ interface LocalesOptions {
   docsDir?: string;
   /** Directory containing label files ({type}/{lang}.json). @default "./src/locales/labels" */
   labelsDir?: string;
-  /** Supported languages. @default ["en-US", "de", "es-ES", "fr", "ko", "pt-BR", "ru", "ja", "zh-CN", "zh-TW"] */
-  languages?: string[];
 }
 
 interface LoggerOptions {

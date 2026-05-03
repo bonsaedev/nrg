@@ -23,18 +23,6 @@ const DEFAULT_CLIENT_BUILD_OPTIONS: ClientBuildOptions = {
   locales: {
     docsDir: "./src/locales/docs",
     labelsDir: "./src/locales/labels",
-    languages: [
-      "en-US",
-      "de",
-      "es-ES",
-      "fr",
-      "ko",
-      "pt-BR",
-      "ru",
-      "ja",
-      "zh-CN",
-      "zh-TW",
-    ],
   },
   staticDirs: {
     icons: "./src/icons",

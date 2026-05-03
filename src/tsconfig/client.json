@@ -4,8 +4,8 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "files": [
-    "../shims/shims-vue.d.ts",
-    "../shims/components.d.ts",
-    "../shims/globals.d.ts"
+    "../types/shims/shims-vue.d.ts",
+    "../types/shims/components.d.ts",
+    "../types/shims/globals.d.ts"
   ]
 }

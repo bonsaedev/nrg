@@ -7,6 +7,7 @@ import { BuildError } from "../errors";
 import { logger } from "../logger";
 import type { ClientBuildOptions, BuildContext, CopyTarget } from "../types";
 import {
+  helpGenerator,
   htmlGenerator,
   localesGenerator,
   minifier,
@@ -76,29 +77,27 @@ async function build(
   );
 
   if (locales) {
-    const {
-      docsDir = "./locales/docs",
-      labelsDir = "./locales/labels",
-      languages = [
-        "en-US",
-        "de",
-        "es-ES",
-        "fr",
-        "ko",
-        "pt-BR",
-        "ru",
-        "ja",
-        "zh-CN",
-        "zh-TW",
-      ],
-    } = locales;
+    const { docsDir = "./locales/docs", labelsDir = "./locales/labels" } =
+      locales;
+
+    const localesOutDir = path.join(buildContext.outDir, "locales");
 
     plugins.push(
       localesGenerator({
-        outDir: path.join(buildContext.outDir, "locales"),
+        outDir: localesOutDir,
         docsDir: path.resolve(docsDir),
         labelsDir: path.resolve(labelsDir),
-        languages,
+      }),
+    );
+
+    // Generate help docs from schemas for nodes without manual docs.
+    // Runs after localesGenerator and appends to the output.
+    plugins.push(
+      helpGenerator({
+        outDir: buildContext.outDir,
+        localesOutDir,
+        docsDir: path.resolve(docsDir),
+        labelsDir: path.resolve(labelsDir),
       }),
     );
   }

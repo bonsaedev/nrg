@@ -184,7 +184,8 @@ export default defineConfig({
 | --- | --- | --- |
 | `docsDir` | `"./src/locales/docs"` | Directory containing documentation files (`{type}/{lang}.md` or `.html`) |
 | `labelsDir` | `"./src/locales/labels"` | Directory containing label files (`{type}/{lang}.json`) |
-| `languages` | `["en-US", "de", "es-ES", "fr", "ko", "pt-BR", "ru", "ja", "zh-CN", "zh-TW"]` | Supported languages |
+
+Supported languages: `en-US`, `de`, `es-ES`, `fr`, `ko`, `pt-BR`, `ru`, `ja`, `zh-CN`, `zh-TW`.
 
 ### `NodeRedLauncherOptions`
 

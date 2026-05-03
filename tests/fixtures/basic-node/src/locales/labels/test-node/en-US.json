@@ -1,10 +1,9 @@
 {
-  "test-node": {
-    "label": "Test Node",
-    "configs": {
-      "name": "Name",
-      "timeout": "Timeout",
-      "enabled": "Enabled"
-    }
+  "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "label": "Test Node",
+  "configs": {
+    "name": "Name",
+    "timeout": "Timeout",
+    "enabled": "Enabled"
   }
 }

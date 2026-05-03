@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "title": "NRG Node Labels",
+  "description": "Label file for NRG Node-RED nodes. Provides human-readable labels for the editor UI and auto-generated help docs.",
+  "type": "object",
+  "required": ["label"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for IDE validation"
+    },
+    "label": {
+      "type": "string",
+      "description": "Display name shown in the palette and workspace"
+    },
+    "description": {
+      "type": "string",
+      "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
+    },
+    "configs": {
+      "$ref": "#/$defs/labelMap",
+      "description": "Labels for config properties"
+    },
+    "credentials": {
+      "$ref": "#/$defs/labelMap",
+      "description": "Labels for credential properties"
+    },
+    "input": {
+      "$ref": "#/$defs/labelMap",
+      "description": "Labels for input schema properties"
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/labelMap"
+      },
+      "description": "Per-port output labels, matching outputsSchema order. Single output uses an array with one element."
+    },
+    "errors": {
+      "$ref": "#/$defs/labelMap",
+      "description": "Custom error messages. Use __field__ for placeholder substitution."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "labelMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Maps property keys to human-readable labels"
+    }
+  }
+}

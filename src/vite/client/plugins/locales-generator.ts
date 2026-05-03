@@ -6,9 +6,20 @@ function localesGenerator(options: {
   outDir: string;
   docsDir: string;
   labelsDir: string;
-  languages: string[];
 }): Plugin {
-  const { outDir, docsDir, labelsDir, languages } = options;
+  const { outDir, docsDir, labelsDir } = options;
+  const languages = [
+    "en-US",
+    "de",
+    "es-ES",
+    "fr",
+    "ko",
+    "pt-BR",
+    "ru",
+    "ja",
+    "zh-CN",
+    "zh-TW",
+  ];
 
   return {
     name: "vite-plugin-node-red:client:locales-generator",
@@ -112,8 +123,20 @@ function localesGenerator(options: {
         value.join("\n"),
       );
 
-      const labelLangs = forEachFile(labelsDir, [".json"], ({ filePath }) =>
-        JSON.parse(fs.readFileSync(filePath, "utf-8")),
+      const labelLangs = forEachFile(
+        labelsDir,
+        [".json"],
+        ({ filePath, nodeType }) => {
+          const parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+          if (parsed[nodeType] && typeof parsed[nodeType] === "object") {
+            console.warn(
+              `[locales] Warning: "${filePath}" uses nested format (root key "${nodeType}"). ` +
+                `Label files should be flat — the node type is added automatically. ` +
+                `See https://bonsaedev.github.io/nrg/guide/building-and-running`,
+            );
+          }
+          return parsed;
+        },
       );
 
       writeOutput(labelLangs, "index.json", (value) =>

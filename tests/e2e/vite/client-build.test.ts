@@ -54,7 +54,6 @@ describe("client build", () => {
       locales: {
         docsDir: path.join(FIXTURE_DIR, "src/locales/docs"),
         labelsDir: path.join(FIXTURE_DIR, "src/locales/labels"),
-        languages: ["en-US"],
       },
       staticDirs: {
         icons: path.join(FIXTURE_DIR, "src/icons"),
@@ -163,5 +162,79 @@ describe("client build", () => {
     const files = fs.readdirSync(localesDir, { recursive: true }) as string[];
     const enFiles = files.filter((f) => String(f).includes("en-US"));
     expect(enFiles.length).toBeGreaterThan(0);
+  });
+
+  it("should auto-generate help docs for nodes without manual docs", () => {
+    const indexHtml = fs.readFileSync(
+      path.join(outDir, "locales", "en-US", "index.html"),
+      "utf-8",
+    );
+    // config-server has no manual doc — should be auto-generated
+    expect(indexHtml).toContain('data-help-name="config-server"');
+    // second-node has no manual doc — should be auto-generated
+    expect(indexHtml).toContain('data-help-name="second-node"');
+  });
+
+  it("should include node description in auto-generated help docs", () => {
+    const indexHtml = fs.readFileSync(
+      path.join(outDir, "locales", "en-US", "index.html"),
+      "utf-8",
+    );
+    expect(indexHtml).toContain("Test config server for broker connections");
+  });
+
+  it("should include schema properties as HTML table in auto-generated help docs", () => {
+    const indexHtml = fs.readFileSync(
+      path.join(outDir, "locales", "en-US", "index.html"),
+      "utf-8",
+    );
+    // config-server has host and port properties
+    expect(indexHtml).toContain("<td>host</td>");
+    expect(indexHtml).toContain("<td>port</td>");
+    expect(indexHtml).toContain("<table");
+  });
+
+  it("should not overwrite manual docs with auto-generated ones", () => {
+    const indexHtml = fs.readFileSync(
+      path.join(outDir, "locales", "en-US", "index.html"),
+      "utf-8",
+    );
+    // test-node has a manual doc — should contain the manual content, not auto-generated
+    const testNodeMatch = indexHtml.match(
+      /data-help-name="test-node">([\s\S]*?)<\/script>/,
+    );
+    expect(testNodeMatch).toBeTruthy();
+    // Manual doc should NOT have auto-generated table format
+    expect(testNodeMatch![1]).not.toContain("<table");
+  });
+
+  it("should include label column when labels are available", () => {
+    const indexHtml = fs.readFileSync(
+      path.join(outDir, "locales", "en-US", "index.html"),
+      "utf-8",
+    );
+    // config-server has labels for host ("Hostname") and port ("Port")
+    expect(indexHtml).toContain("<th>Label</th>");
+    expect(indexHtml).toContain("<td>Hostname</td>");
+    expect(indexHtml).toContain("<td>Port</td>");
+  });
+
+  it("should generate help docs for other languages when label files exist", () => {
+    const dePath = path.join(outDir, "locales", "de", "index.html");
+    expect(fs.existsSync(dePath)).toBe(true);
+    const deHtml = fs.readFileSync(dePath, "utf-8");
+    // config-server has a de.json label file
+    expect(deHtml).toContain('data-help-name="config-server"');
+    expect(deHtml).toContain("Konfigurationsserver");
+    expect(deHtml).toContain("<td>Anschluss</td>");
+  });
+
+  it("should use description from labels when available", () => {
+    const indexHtml = fs.readFileSync(
+      path.join(outDir, "locales", "en-US", "index.html"),
+      "utf-8",
+    );
+    // config-server label file has description field
+    expect(indexHtml).toContain("Test config server for broker connections");
   });
 });
