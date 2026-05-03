@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.9.0](https://github.com/bonsaedev/nrg/compare/v0.8.1...v0.9.0) (2026-05-03)
+
+
+### Features
+
+* auto-generate help docs from schemas and labels ([9b1031e](https://github.com/bonsaedev/nrg/commit/9b1031e2a7d6ed616f2fd0c00aaa9274ccd71963))
+
 ## [0.8.1](https://github.com/bonsaedev/nrg/compare/v0.8.0...v0.8.1) (2026-05-02)
 
 
