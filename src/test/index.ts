@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import { createMockRED, createMockNodeRedNode } from "./mocks";
-import { initValidator } from "../core/server/validation";
+// @ts-expect-error — self-referencing package import; resolved at runtime via exports map
+import { initValidator } from "@bonsae/nrg/server";
 import type { MockNodeRedNodeOptions } from "./mocks";
 
 interface CreateNodeOptions {
