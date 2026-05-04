@@ -43,6 +43,7 @@ export default defineConfig({
             text: "Locales & Help Docs",
             link: "/guide/locales",
           },
+          { text: "Testing", link: "/guide/testing" },
         ],
       },
     ],

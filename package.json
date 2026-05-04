@@ -49,6 +49,10 @@
       "types": "./dist/types/vite.d.ts",
       "default": "./dist/vite/index.js"
     },
+    "./test": {
+      "types": "./dist/types/test.d.ts",
+      "default": "./dist/test/index.js"
+    },
     "./tsconfig/base.json": "./dist/tsconfig/base.json",
     "./tsconfig/client.json": "./dist/tsconfig/client.json",
     "./tsconfig/server.json": "./dist/tsconfig/server.json"

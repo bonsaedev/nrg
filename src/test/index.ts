@@ -1,0 +1,199 @@
+import { vi } from "vitest";
+import { createMockRED, createMockNodeRedNode } from "./mocks";
+import { initValidator } from "../core/server/validation";
+import type { MockNodeRedNodeOptions } from "./mocks";
+
+interface CreateNodeOptions {
+  config?: Record<string, any>;
+  credentials?: Record<string, any>;
+  configNodes?: Record<string, any>;
+  settings?: Record<string, any>;
+  overrides?: MockNodeRedNodeOptions;
+}
+
+type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
+type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
+
+interface TestNodeHelpers<TInput = any, TOutput = any> {
+  receive(msg: TInput): Promise<void>;
+  close(removed?: boolean): Promise<void>;
+  reset(): void;
+  sent(): TOutput[];
+  sent(port: number): any[];
+  statuses(): any[];
+  logged(level?: "info" | "warn" | "error" | "debug"): string[];
+  warned(): string[];
+  errored(): string[];
+}
+
+interface CreateNodeResult<T> {
+  node: T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>>;
+  RED: any;
+}
+
+function buildConfig(NodeClass: any, userConfig: Record<string, any> = {}) {
+  const defaults: Record<string, any> = {};
+
+  if (NodeClass.configSchema?.properties) {
+    for (const [key, prop] of Object.entries(
+      NodeClass.configSchema.properties,
+    )) {
+      if ((prop as any).default !== undefined) {
+        defaults[key] = (prop as any).default;
+      }
+    }
+  }
+
+  return { ...defaults, ...userConfig };
+}
+
+function buildNodeRedNodes(
+  configNodes: Record<string, any>,
+): Record<string, any> {
+  const nodes: Record<string, any> = {};
+
+  for (const [id, value] of Object.entries(configNodes)) {
+    if (value && typeof value === "object" && "id" in value) {
+      nodes[id] = { _node: value };
+    } else {
+      nodes[id] = value;
+    }
+  }
+
+  return nodes;
+}
+
+function attachHelpers<T>(
+  node: T,
+  nodeRedNode: any,
+): T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>> {
+  const sentMessages: any[] = [];
+  const statusCalls: any[] = [];
+
+  nodeRedNode.send.mockImplementation((msg: any) => {
+    sentMessages.push(msg);
+  });
+
+  nodeRedNode.status.mockImplementation((status: any) => {
+    statusCalls.push(status);
+  });
+
+  const nodeRef = node as any;
+
+  const helpers: TestNodeHelpers = {
+    async receive(msg: any): Promise<void> {
+      const sendFn = vi.fn((outMsg: any) => {
+        nodeRedNode.send(outMsg);
+      });
+      await nodeRef._input(msg, sendFn);
+    },
+    async close(removed = false): Promise<void> {
+      await nodeRef._closed(removed);
+    },
+    reset(): void {
+      sentMessages.length = 0;
+      statusCalls.length = 0;
+      nodeRedNode.log.mockClear();
+      nodeRedNode.warn.mockClear();
+      nodeRedNode.error.mockClear();
+    },
+    sent(port?: number): any[] {
+      if (port === undefined) return [...sentMessages];
+      return sentMessages
+        .map((msg) =>
+          Array.isArray(msg) ? msg[port] : port === 0 ? msg : undefined,
+        )
+        .filter((msg) => msg != null);
+    },
+    statuses() {
+      return [...statusCalls];
+    },
+    logged(level?: "info" | "warn" | "error" | "debug") {
+      if (level) {
+        return nodeRedNode[level === "info" ? "log" : level].mock.calls.map(
+          (c: any[]) => c[0],
+        );
+      }
+      return [
+        ...nodeRedNode.log.mock.calls.map((c: any[]) => c[0]),
+        ...nodeRedNode.warn.mock.calls.map((c: any[]) => c[0]),
+        ...nodeRedNode.error.mock.calls.map((c: any[]) => c[0]),
+      ];
+    },
+    warned() {
+      return nodeRedNode.warn.mock.calls.map((c: any[]) => c[0]);
+    },
+    errored() {
+      return nodeRedNode.error.mock.calls.map((c: any[]) => c[0]);
+    },
+  };
+
+  return Object.assign(node as any, helpers);
+}
+
+function isConfigNode(NodeClass: any): boolean {
+  return NodeClass.category === "config";
+}
+
+interface NodeClass {
+  readonly type: string;
+  readonly category?: string;
+  readonly configSchema?: any;
+  registered?(RED: any): void | Promise<void>;
+  _registered?(RED: any): void | Promise<void>;
+  new (...args: any[]): any;
+}
+
+async function createNode<T extends NodeClass>(
+  NodeClass: T,
+  options: CreateNodeOptions = {},
+): Promise<CreateNodeResult<InstanceType<T>>> {
+  const {
+    config: userConfig = {},
+    credentials = {},
+    configNodes = {},
+    settings = {},
+    overrides: overrideOpts = {},
+  } = options;
+
+  const redNodes = buildNodeRedNodes(configNodes);
+  const RED = createMockRED({ nodes: redNodes, settings });
+  initValidator(RED);
+
+  const configDefaults: Record<string, any> = {
+    id: overrideOpts.id ?? `test-${Math.random().toString(36).slice(2, 10)}`,
+    type: NodeClass.type,
+  };
+
+  // ConfigNodes require _users array
+  if (isConfigNode(NodeClass)) {
+    configDefaults._users = [];
+  }
+
+  const config = buildConfig(NodeClass, {
+    ...configDefaults,
+    ...userConfig,
+  });
+
+  const nodeRedNode = createMockNodeRedNode({
+    id: config.id,
+    type: NodeClass.type,
+    name: config.name ?? "",
+    credentials,
+    ...overrideOpts,
+  });
+
+  // Call the static registered() hook (mirrors what registerType does)
+  await Promise.resolve(
+    NodeClass._registered?.(RED) ?? NodeClass.registered?.(RED),
+  );
+
+  const node = new (NodeClass as any)(RED, nodeRedNode, config, credentials);
+  const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);
+
+  await Promise.resolve(augmented.created?.());
+
+  return { node: augmented, RED };
+}
+
+export { createNode };
