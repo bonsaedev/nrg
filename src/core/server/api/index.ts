@@ -1,1 +1,1 @@
-export { serveNrgResources } from "./serve-nrg-resources";
+export { initRoutes } from "./routes";

@@ -148,25 +148,13 @@ interface NodeRedHooks {
 }
 
 // ---------------------------------------------------------------------------
-// Express-like HTTP app (httpAdmin / httpNode)
+// Express HTTP app (httpAdmin / httpNode)
 // ---------------------------------------------------------------------------
 
-type NodeRedRequestHandler = (req: any, res: any, next?: () => void) => void;
+import type { Express, RequestHandler } from "express";
 
-interface NodeRedExpressApp {
-  get(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  post(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  put(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  delete(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  patch(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  options(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  head(path: string, ...handlers: NodeRedRequestHandler[]): void;
-  use(
-    path: string | NodeRedRequestHandler,
-    ...handlers: NodeRedRequestHandler[]
-  ): void;
-  all(path: string, ...handlers: NodeRedRequestHandler[]): void;
-}
+type NodeRedExpressApp = Express;
+type NodeRedRequestHandler = RequestHandler;
 
 // ---------------------------------------------------------------------------
 // RED (main interface)
@@ -217,4 +205,11 @@ interface NodeRedContextStore {
   ): void;
 }
 
-export { RED, NodeRedNode, NodeRedNodeContext, NodeRedContextStore };
+export {
+  RED,
+  NodeRedExpressApp,
+  NodeRedRequestHandler,
+  NodeRedNode,
+  NodeRedNodeContext,
+  NodeRedContextStore,
+};

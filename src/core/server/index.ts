@@ -3,7 +3,7 @@ import { Node } from "./nodes";
 import type { NodeClassBase } from "./nodes/types/factories";
 import { type RED } from "./types";
 import { initValidator } from "./validation";
-import { serveNrgResources } from "./api";
+import { initRoutes } from "./api";
 import { NrgError } from "../errors";
 
 type AnyNodeClass =
@@ -154,7 +154,7 @@ type RegistrationFunction = ((RED: RED) => Promise<void>) & {
 function registerTypes(nodes: AnyNodeClass[]): RegistrationFunction {
   const fn = async function (RED: RED) {
     initValidator(RED);
-    serveNrgResources(RED);
+    initRoutes(RED);
     try {
       RED.log.info("Registering node types in series");
       for (const NodeClass of nodes) {

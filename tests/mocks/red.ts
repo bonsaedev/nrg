@@ -14,6 +14,10 @@ export function createMockRED(nodes: Record<string, any> = {}) {
       createNode: vi.fn(),
     },
     httpAdmin: {
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
       use: vi.fn(),
     },
     settings: {} as Record<string, any>,
