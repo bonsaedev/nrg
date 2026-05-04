@@ -155,6 +155,9 @@ src/
 │   │   └── index.ts             # registerTypes, exports
 │   ├── constants.ts
 │   └── validator.ts             # AJV-based validation
+├── test/                        # Test utilities for consumers
+│   ├── index.ts                 # createNode, receive, close, reset
+│   └── mocks.ts                 # RED and Node-RED node mocks
 ├── vite/                        # Build tooling
 │   ├── plugin.ts                # Vite plugin factory
 │   ├── plugins/                 # Dev server, build orchestration
@@ -165,6 +168,37 @@ src/
     ├── base.json
     ├── client.json
     └── server.json
+```
+
+## Testing
+
+Test your nodes' server-side logic with `@bonsae/nrg/test`:
+
+```bash
+pnpm add -D vitest
+```
+
+```typescript
+// tests/my-node.test.ts
+import { describe, it, expect } from "vitest";
+import { createNode } from "@bonsae/nrg/test";
+import MyNode from "../src/server/nodes/my-node";
+
+describe("my-node", () => {
+  it("should process messages", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { greeting: "hello" },
+    });
+
+    await node.receive({ payload: "world" });
+
+    expect(node.sent(0)).toEqual([{ payload: "hello world" }]);
+  });
+});
+```
+
+```bash
+npx vitest run
 ```
 
 ## Development

@@ -1,4 +1,4 @@
-# Testing
+# Testing a Node
 
 NRG provides a test framework at `@bonsae/nrg/test` for unit and integration testing the **server-side logic** of your nodes with Vitest. This covers node lifecycle hooks, input/output handling, config resolution, credentials, context stores, and settings — everything that runs in the Node-RED runtime.
 
@@ -105,214 +105,186 @@ Every node returned by `createNode` has these helpers:
 
 ## Examples
 
-### Node Creation
-
 ```typescript
+import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test";
-import MyNode from "./nodes/my-node";
+import MyNode from "../server/nodes/my-node";
+import Splitter from "../server/nodes/splitter";
+import RemoteServer from "../server/nodes/remote-server";
 
-const { node } = await createNode(MyNode);
+describe("my-node", () => {
+  it("should apply config defaults from schema", async () => {
+    const { node } = await createNode(MyNode);
+    expect(node.config.name).toBe("my-node");
+  });
 
-// Config defaults from schema are applied automatically
-expect(node.config.name).toBe("my-node");
-```
+  it("should accept custom config", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { greeting: "hi", timeout: 3000 },
+    });
+    expect(node.config.greeting).toBe("hi");
+    expect(node.config.timeout).toBe(3000);
+  });
 
-### Custom Config
+  it("should process input and produce output", async () => {
+    const { node } = await createNode(MyNode);
+    await node.receive({ payload: "hello" });
 
-```typescript
-const { node } = await createNode(MyNode, {
-  config: { greeting: "hi", timeout: 3000 },
+    expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
+    expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
+  });
+
+  it("should call registered() automatically", async () => {
+    const { RED } = await createNode(MyNode);
+    expect(RED.log.info).toHaveBeenCalledWith("my-node registered");
+  });
+
+  it("should call created() automatically", async () => {
+    const { node } = await createNode(MyNode);
+    expect(node.logged("info")).toContain("node created");
+  });
+
+  it("should support close lifecycle", async () => {
+    const { node } = await createNode(MyNode);
+    await node.close();
+    expect(node.logged("info")).toContain("node closed");
+  });
+
+  it("should capture logs, warnings, and errors", async () => {
+    const { node } = await createNode(MyNode);
+    await node.receive({ payload: "test" });
+
+    expect(node.logged("info")).toContain("processing test");
+    expect(node.warned()).toHaveLength(0);
+    expect(node.errored()).toHaveLength(0);
+  });
+
+  it("should reset captured state between assertions", async () => {
+    const { node } = await createNode(MyNode);
+
+    await node.receive({ payload: "a" });
+    expect(node.sent()).toHaveLength(1);
+
+    node.reset();
+
+    expect(node.sent()).toHaveLength(0);
+    expect(node.statuses()).toHaveLength(0);
+    expect(node.logged()).toHaveLength(0);
+
+    await node.receive({ payload: "b" });
+    expect(node.sent()).toHaveLength(1);
+  });
 });
 
-expect(node.config.greeting).toBe("hi");
-expect(node.config.timeout).toBe(3000);
-```
+describe("credentials", () => {
+  it("should pass credentials to the node", async () => {
+    const { node } = await createNode(MyNode, {
+      credentials: { apiKey: "secret-123" },
+    });
 
-### Trigger Input and Check Output
-
-```typescript
-const { node } = await createNode(MyNode);
-
-await node.receive({ payload: "hello" });
-
-expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
-expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
-```
-
-### Multi-Output Nodes
-
-```typescript
-const { node } = await createNode(Splitter, {
-  config: { threshold: 50 },
+    await node.receive({ payload: "test" });
+    expect(node.sent(0)).toEqual([{ payload: "authenticated" }]);
+  });
 });
 
-await node.receive({ payload: 75 });
-await node.receive({ payload: 30 });
+describe("settings", () => {
+  it("should resolve settings from RED.settings", async () => {
+    const { node } = await createNode(MyNode, {
+      settings: { myNodeTimeout: 3000 },
+    });
 
-// Port 0 — above threshold
-expect(node.sent(0)).toEqual([{ payload: 75, label: "above" }]);
-// Port 1 — below threshold
-expect(node.sent(1)).toEqual([{ payload: 30, label: "below" }]);
-```
-
-### Config Node References
-
-```typescript
-import RemoteServer from "./nodes/remote-server";
-
-const { node: server } = await createNode(RemoteServer, {
-  config: { host: "localhost", port: 3000 },
-  overrides: { id: "server-1" },
+    await node.receive({});
+    expect(node.sent(0)).toEqual([{ payload: 3000 }]);
+  });
 });
 
-const { node } = await createNode(MyNode, {
-  config: { server: "server-1" },
-  configNodes: { "server-1": server },
+describe("TypedInput", () => {
+  it("should resolve TypedInput values", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { target: { value: "payload", type: "msg" } },
+    });
+
+    await node.receive({ payload: "resolved-value" });
+    expect(node.sent(0)).toEqual([{ payload: "resolved-value" }]);
+  });
 });
 
-// NodeRef resolves to the config node instance
-expect(node.config.server.config.host).toBe("localhost");
-```
+describe("config node references", () => {
+  it("should resolve NodeRef to config node instance", async () => {
+    const { node: server } = await createNode(RemoteServer, {
+      config: { host: "localhost", port: 3000 },
+      overrides: { id: "server-1" },
+    });
 
-### Credentials
+    const { node } = await createNode(MyNode, {
+      config: { server: "server-1" },
+      configNodes: { "server-1": server },
+    });
 
-```typescript
-const { node } = await createNode(MyNode, {
-  credentials: { apiKey: "secret-123" },
+    expect(node.config.server.config.host).toBe("localhost");
+  });
 });
 
-await node.receive({ payload: "test" });
-// Node uses this.credentials.apiKey internally
-expect(node.sent(0)).toEqual([{ payload: "authenticated" }]);
-```
+describe("multi-output nodes", () => {
+  it("should route messages to different ports", async () => {
+    const { node } = await createNode(Splitter, {
+      config: { threshold: 50 },
+    });
 
-### Settings
+    await node.receive({ payload: 75 });
+    await node.receive({ payload: 30 });
 
-```typescript
-const { node } = await createNode(MyNode, {
-  settings: { myNodeTimeout: 3000 },
+    expect(node.sent(0)).toEqual([{ payload: 75, label: "above" }]);
+    expect(node.sent(1)).toEqual([{ payload: 30, label: "below" }]);
+  });
 });
 
-await node.receive({});
-expect(node.sent(0)).toEqual([{ payload: 3000 }]);
-```
+describe("context store", () => {
+  it("should persist values across triggers", async () => {
+    const { node } = await createNode(MyNode);
 
-### TypedInput Resolution
+    await node.receive({});
+    await node.receive({});
 
-```typescript
-const { node } = await createNode(MyNode, {
-  config: {
-    target: { value: "payload", type: "msg" },
-  },
+    expect(node.sent(0)).toEqual([{ payload: 1 }, { payload: 2 }]);
+  });
 });
 
-await node.receive({ payload: "resolved-value" });
-// TypedInput is resolved automatically via the mock evaluateNodeProperty
-expect(node.sent(0)).toEqual([{ payload: "resolved-value" }]);
-```
+describe("error handling", () => {
+  it("should reject when input throws", async () => {
+    const { node } = await createNode(ErrorNode);
 
-### Context Store (Node / Flow / Global)
-
-```typescript
-const { node } = await createNode(MyNode);
-
-// Node sets context in created(), reads in input()
-await node.receive({});
-await node.receive({});
-
-// Counter incremented via this.context.node.get/set
-expect(node.sent(0)).toEqual([{ payload: 1 }, { payload: 2 }]);
-```
-
-### Error Handling
-
-```typescript
-const { node } = await createNode(ErrorNode);
-
-await expect(node.receive({ payload: "bad" })).rejects.toThrow("something broke");
-expect(node.sent()).toHaveLength(0);
-```
-
-### Lifecycle Hooks
-
-```typescript
-const { node } = await createNode(MyNode);
-
-// created() was already called by createNode
-expect(node.logged("info")).toContain("node created");
-
-// Trigger close
-await node.close();
-expect(node.logged("info")).toContain("node closed");
-```
-
-### Registered Hook
-
-```typescript
-const { RED } = await createNode(MyNode);
-
-// registered() was called automatically with RED
-expect(RED.log.info).toHaveBeenCalledWith("my-node registered");
-```
-
-### i18n
-
-```typescript
-const { node } = await createNode(MyNode);
-
-await node.receive({});
-
-// RED._ mock returns the key with __placeholder__ substitutions applied
-expect(node.sent(0)).toEqual([{ payload: "my-node.greeting" }]);
-```
-
-### Logging
-
-```typescript
-const { node } = await createNode(MyNode);
-
-await node.receive({ payload: "test" });
-
-expect(node.logged("info")).toContain("processing test");
-expect(node.warned()).toHaveLength(0);
-expect(node.errored()).toHaveLength(0);
-```
-
-### Reset State
-
-```typescript
-const { node } = await createNode(MyNode);
-
-await node.receive({ payload: "a" });
-expect(node.sent()).toHaveLength(1);
-
-node.reset();
-
-expect(node.sent()).toHaveLength(0);
-expect(node.statuses()).toHaveLength(0);
-expect(node.logged()).toHaveLength(0);
-
-await node.receive({ payload: "b" });
-expect(node.sent()).toHaveLength(1);
-```
-
-### Factory API (defineIONode / defineConfigNode)
-
-```typescript
-import { defineIONode } from "@bonsae/nrg/server";
-
-const MyNode = defineIONode({
-  type: "my-node",
-  configSchema: ConfigsSchema,
-  input(msg) {
-    this.send({ payload: msg.payload.toUpperCase() });
-  },
+    await expect(node.receive({ payload: "bad" })).rejects.toThrow(
+      "something broke",
+    );
+    expect(node.sent()).toHaveLength(0);
+  });
 });
 
-// Works the same as class-based nodes
-const { node } = await createNode(MyNode);
-await node.receive({ payload: "hello" });
-expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
+describe("i18n", () => {
+  it("should resolve labels with __placeholder__ substitution", async () => {
+    const { node } = await createNode(MyNode);
+
+    await node.receive({});
+    expect(node.sent(0)).toEqual([{ payload: "my-node.greeting" }]);
+  });
+});
+
+describe("factory API", () => {
+  it("should work with defineIONode", async () => {
+    const FactoryNode = defineIONode({
+      type: "factory-node",
+      configSchema: ConfigsSchema,
+      input(msg) {
+        this.send({ payload: msg.payload.toUpperCase() });
+      },
+    });
+
+    const { node } = await createNode(FactoryNode);
+    await node.receive({ payload: "hello" });
+    expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
+  });
+});
 ```
 
 ## Coverage

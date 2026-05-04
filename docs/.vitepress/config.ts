@@ -34,6 +34,7 @@ export default defineConfig({
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Project Structure", link: "/guide/project-structure" },
           { text: "Creating a Node", link: "/guide/creating-a-node" },
+          { text: "Testing a Node", link: "/guide/testing" },
           {
             text: "Building & Running",
             link: "/guide/building-and-running",
@@ -43,7 +44,6 @@ export default defineConfig({
             text: "Locales & Help Docs",
             link: "/guide/locales",
           },
-          { text: "Testing", link: "/guide/testing" },
         ],
       },
     ],
