@@ -199,13 +199,38 @@ describe("settings", () => {
 });
 
 describe("TypedInput", () => {
-  it("should resolve TypedInput values", async () => {
+  // Given a node that resolves a TypedInput in its input handler:
+  //
+  //   async input(msg) {
+  //     const value = await this.config.target.resolve(msg);
+  //     this.send({ payload: value });
+  //   }
+
+  it("should resolve msg property via TypedInput", async () => {
     const { node } = await createNode(MyNode, {
       config: { target: { value: "payload", type: "msg" } },
     });
 
-    await node.receive({ payload: "resolved-value" });
-    expect(node.sent(0)).toEqual([{ payload: "resolved-value" }]);
+    await node.receive({ payload: "from-msg" });
+    expect(node.sent(0)).toEqual([{ payload: "from-msg" }]);
+  });
+
+  it("should resolve string literal via TypedInput", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { target: { value: "hello", type: "str" } },
+    });
+
+    await node.receive({});
+    expect(node.sent(0)).toEqual([{ payload: "hello" }]);
+  });
+
+  it("should resolve number via TypedInput", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { target: { value: "42", type: "num" } },
+    });
+
+    await node.receive({});
+    expect(node.sent(0)).toEqual([{ payload: 42 }]);
   });
 });
 

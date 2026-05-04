@@ -458,16 +458,34 @@ describe("credentials", () => {
 });
 
 describe("TypedInput resolution", () => {
-  it("should resolve TypedInput values via evaluateNodeProperty", async () => {
+  it("should resolve msg property via TypedInput", async () => {
     const { node } = await createNode(TestCredNode, {
       config: { endpoint: { value: "payload", type: "msg" } },
       credentials: { apiKey: "key" },
     });
 
-    await node.receive({ payload: "resolved-value" });
-    expect(node.sent(0)).toEqual([
-      { payload: "resolved-value", auth: "key" },
-    ]);
+    await node.receive({ payload: "from-msg" });
+    expect(node.sent(0)).toEqual([{ payload: "from-msg", auth: "key" }]);
+  });
+
+  it("should resolve string literal via TypedInput", async () => {
+    const { node } = await createNode(TestCredNode, {
+      config: { endpoint: { value: "hello", type: "str" } },
+      credentials: { apiKey: "key" },
+    });
+
+    await node.receive({});
+    expect(node.sent(0)).toEqual([{ payload: "hello", auth: "key" }]);
+  });
+
+  it("should resolve number via TypedInput", async () => {
+    const { node } = await createNode(TestCredNode, {
+      config: { endpoint: { value: "42", type: "num" } },
+      credentials: { apiKey: "key" },
+    });
+
+    await node.receive({});
+    expect(node.sent(0)).toEqual([{ payload: 42, auth: "key" }]);
   });
 });
 
