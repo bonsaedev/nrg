@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/bonsaedev/nrg/compare/v0.10.0...v0.10.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* add vitest alias for self-referencing @bonsae/nrg/server import ([3dcce33](https://github.com/bonsaedev/nrg/commit/3dcce33f4e80cdda7020c359bf1c8a220b20e0a8))
+* export initValidator as internal for test framework singleton sharing ([6426d75](https://github.com/bonsaedev/nrg/commit/6426d75b5e019fc63383230e462e4cee1eae9b50))
+
 # [0.10.0](https://github.com/bonsaedev/nrg/compare/v0.9.1...v0.10.0) (2026-05-04)
 
 
