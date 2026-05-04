@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.10.0](https://github.com/bonsaedev/nrg/compare/v0.9.1...v0.10.0) (2026-05-04)
+
+
+### Features
+
+* add @bonsae/nrg/test for server-side node testing ([1cd81a5](https://github.com/bonsaedev/nrg/commit/1cd81a56cd39c8fb1eceb6550b1312fd62d65fd9))
+
 ## [0.9.1](https://github.com/bonsaedev/nrg/compare/v0.9.0...v0.9.1) (2026-05-04)
 
 
