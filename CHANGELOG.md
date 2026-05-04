@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/bonsaedev/nrg/compare/v0.9.0...v0.9.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* refactor routes into typed Express handlers with allowlist ([e703458](https://github.com/bonsaedev/nrg/commit/e703458de86a9bbd960d6074d443e5e167bae4aa))
+
 # [0.9.0](https://github.com/bonsaedev/nrg/compare/v0.8.1...v0.9.0) (2026-05-03)
 
 
