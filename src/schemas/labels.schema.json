@@ -14,9 +14,22 @@
       "type": "string",
       "description": "Display name shown in the palette and workspace"
     },
+    "paletteLabel": {
+      "type": "string",
+      "description": "Label shown in the palette. Falls back to 'label' if not set."
+    },
     "description": {
       "type": "string",
       "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
+    },
+    "inputLabels": {
+      "type": "string",
+      "description": "Label for the input port."
+    },
+    "outputLabels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Labels for output ports, one per port."
     },
     "configs": {
       "$ref": "#/$defs/labelMap",
