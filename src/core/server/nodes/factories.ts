@@ -48,11 +48,7 @@ function defineIONode<
     static override readonly color: HexColor = def.color ?? "#a6bbcf";
     static override readonly inputs: number = def.inputs ?? 1;
     static override readonly outputs: number = def.outputs ?? 1;
-    static override readonly paletteLabel = def.paletteLabel;
-    static override readonly inputLabels = def.inputLabels;
-    static override readonly outputLabels = def.outputLabels;
     static override readonly align = def.align;
-    static override readonly labelStyle = def.labelStyle;
 
     static override readonly configSchema: Schema | undefined =
       def.configSchema as Schema | undefined;

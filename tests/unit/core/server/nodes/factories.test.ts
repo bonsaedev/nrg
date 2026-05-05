@@ -41,11 +41,7 @@ describe("defineIONode", () => {
       color: "#ff6633",
       inputs: 0,
       outputs: 3,
-      paletteLabel: "My Node",
-      inputLabels: "in",
-      outputLabels: ["out1", "out2", "out3"],
       align: "right",
-      labelStyle: "node_label_italic",
       validateInput: true,
       validateOutput: true,
       input() {},
@@ -54,11 +50,7 @@ describe("defineIONode", () => {
     expect(Node.color).toBe("#ff6633");
     expect(Node.inputs).toBe(0);
     expect(Node.outputs).toBe(3);
-    expect(Node.paletteLabel).toBe("My Node");
-    expect(Node.inputLabels).toBe("in");
-    expect(Node.outputLabels).toEqual(["out1", "out2", "out3"]);
     expect(Node.align).toBe("right");
-    expect(Node.labelStyle).toBe("node_label_italic");
     expect(Node.validateInput).toBe(true);
     expect(Node.validateOutput).toBe(true);
   });

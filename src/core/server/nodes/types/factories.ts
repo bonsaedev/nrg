@@ -68,11 +68,7 @@ interface IONodeDefinition<
   color?: HexColor;
   inputs?: 0 | 1;
   outputs?: number;
-  paletteLabel?: string;
-  inputLabels?: string | string[];
-  outputLabels?: string | string[];
   align?: "left" | "right";
-  labelStyle?: string;
 
   configSchema?: TConfigSchema;
   credentialsSchema?: TCredsSchema;

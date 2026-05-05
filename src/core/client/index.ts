@@ -65,8 +65,8 @@ interface Node {
     outputs?: number;
     paletteLabel?: ((this: Node) => string) | string;
     labelStyle?: ((this: Node) => string) | string;
-    inputLabels?: ((this: Node) => string) | string;
-    outputLabels?: ((this: Node) => string) | string;
+    inputLabels?: ((this: Node, index: number) => string) | string;
+    outputLabels?: ((this: Node, index: number) => string) | string;
     align?: "left" | "right";
     button?: NodeButtonDefinition;
     onPaletteAdd?: (this: Node) => void;
@@ -139,8 +139,8 @@ interface NodeDefinition {
   outputs?: number;
   paletteLabel?: ((this: Node) => string) | string;
   labelStyle?: ((this: Node) => string) | string;
-  inputLabels?: ((this: Node) => string) | string;
-  outputLabels?: ((this: Node) => string) | string;
+  inputLabels?: ((this: Node, index: number) => string) | string;
+  outputLabels?: ((this: Node, index: number) => string) | string;
   align?: "left" | "right";
   button?: NodeButtonDefinition;
   onEditResize?: (this: Node, size: { width: number; height: number }) => void;
@@ -465,12 +465,43 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       label:
         nodeDefinition.label ||
         function (this: Node) {
-          return this.name || this._(`${type}.label`);
+          if (this.name) return this.name;
+          const label = this._(`${type}.label`);
+          if (label && label !== `${type}.label`) return label;
+          return type;
         },
-      paletteLabel: nodeDefinition.paletteLabel || type,
+      paletteLabel:
+        nodeDefinition.paletteLabel ||
+        function (this: Node) {
+          const palette = this._(`${type}.paletteLabel`);
+          if (palette && palette !== `${type}.paletteLabel`) return palette;
+          const label = this._(`${type}.label`);
+          if (label && label !== `${type}.label`) return label;
+          return type;
+        },
       labelStyle: nodeDefinition.labelStyle,
-      inputLabels: nodeDefinition.inputLabels,
-      outputLabels: nodeDefinition.outputLabels,
+      inputLabels:
+        nodeDefinition.inputLabels ||
+        function (this: Node, index: number) {
+          // Try indexed label first (inputLabels[0], inputLabels[1], ...)
+          const indexed = this._(`${type}.inputLabels.${index}`);
+          if (indexed && indexed !== `${type}.inputLabels.${index}`)
+            return indexed;
+          // Try single string label
+          const single = this._(`${type}.inputLabels`);
+          if (single && single !== `${type}.inputLabels`) return single;
+          return undefined;
+        },
+      outputLabels:
+        nodeDefinition.outputLabels ||
+        function (this: Node, index: number) {
+          const indexed = this._(`${type}.outputLabels.${index}`);
+          if (indexed && indexed !== `${type}.outputLabels.${index}`)
+            return indexed;
+          const single = this._(`${type}.outputLabels`);
+          if (single && single !== `${type}.outputLabels`) return single;
+          return undefined;
+        },
       align: nodeDefinition.align || "left",
       button: nodeDefinition.button,
       oneditprepare,

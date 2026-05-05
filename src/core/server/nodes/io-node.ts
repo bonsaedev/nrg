@@ -21,15 +21,8 @@ abstract class IONode<
 > extends Node<TConfig, TCredentials, TSettings> {
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
-  public static readonly labelStyle?:
-    | "node_label"
-    | "node_label_italic"
-    | string;
-  public static readonly paletteLabel?: string;
   public static readonly inputs?: number = 0;
   public static readonly outputs?: number = 0;
-  public static readonly inputLabels?: string | string[];
-  public static readonly outputLabels?: string | string[];
   public static readonly inputSchema?: Schema;
   public static readonly outputsSchema?: Schema | Schema[];
   public static readonly validateInput: boolean = false;

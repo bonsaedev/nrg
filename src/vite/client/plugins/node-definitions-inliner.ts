@@ -134,12 +134,8 @@ function nodeDefinitionsInliner(
           align: NodeClass.align,
           color: NodeClass.color,
           icon: iconsDir ? resolveIcon(iconsDir, type) : undefined,
-          labelStyle: NodeClass.labelStyle,
-          paletteLabel: NodeClass.paletteLabel,
           inputs: NodeClass.inputs,
           outputs: NodeClass.outputs,
-          inputLabels: NodeClass.inputLabels,
-          outputLabels: NodeClass.outputLabels,
           inputSchema,
           outputsSchema,
         };
