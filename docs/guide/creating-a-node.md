@@ -615,9 +615,6 @@ export default class MyNode extends IONode<
 | `outputsSchema` | No | Schema (or array of schemas) for outgoing messages |
 | `settingsSchema` | No | Schema for Node-RED runtime settings |
 | `align` | No | `"left"` or `"right"` alignment |
-| `paletteLabel` | No | Label shown in the palette |
-| `inputLabels` | No | Label(s) for input ports |
-| `outputLabels` | No | Label(s) for output ports |
 
 ### Lifecycle Hooks
 

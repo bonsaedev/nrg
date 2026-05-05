@@ -28,7 +28,10 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 {
   "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
   "label": "My Node",
+  "paletteLabel": "Node",
   "description": "What this node does",
+  "inputLabels": "Input",
+  "outputLabels": ["Success", "Error"],
   "configs": {
     "url": "API URL",
     "timeout": "Timeout (ms)"
@@ -54,9 +57,12 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `label` | Yes | Display name shown in the palette and workspace |
-| `description` | No | Node description for the help panel. Supports per-language overrides. |
-| `configs` | No | Labels for config properties (maps property key → display label) |
+| `label` | Yes | Display name shown in the palette and workspace. Also used as the canvas label when no `name` is set. |
+| `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
+| `description` | No | Node description for the help panel and palette tooltip. |
+| `inputLabels` | No | Label for the input port (string). |
+| `outputLabels` | No | Labels for output ports (array of strings, one per port). |
+| `configs` | No | Labels for config properties (maps property key → display label). Also used in the auto-generated editor form. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
 | `outputs` | No | Array of label maps, one per output port. Matches `outputsSchema` order. |
@@ -67,6 +73,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
 - **`outputs` is an array** — even for single-output nodes, use `[{ ... }]`
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label
+- **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to camelCase formatting
 
 ### JSON Schema
 
