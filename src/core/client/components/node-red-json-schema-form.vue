@@ -238,8 +238,9 @@ function buildField(
   key: string,
   schema: FieldSchema,
   required: boolean,
+  i18nLabel?: string,
 ): FormField {
-  const label = schema.title || formatLabel(key);
+  const label = i18nLabel || schema.title || formatLabel(key);
   const form = schema["x-nrg-form"] ?? {};
   const icon = form.icon || "";
 
@@ -295,6 +296,22 @@ function buildField(
       options: schema.enum.map((v: any) => ({
         value: String(v),
         label: String(v),
+      })),
+    };
+  }
+
+  // Union of literals (anyOf with const) → single select
+  if (schema.anyOf && schema.anyOf.every((s: any) => s.const !== undefined)) {
+    return {
+      key,
+      label,
+      icon,
+      inputType: "select",
+      required,
+      multiple: false,
+      options: schema.anyOf.map((s: any) => ({
+        value: String(s.const),
+        label: String(s.const),
       })),
     };
   }
@@ -414,7 +431,12 @@ export default defineComponent({
       return Object.entries(this.schema.properties)
         .filter(([key]) => !SKIP_FIELDS.has(key))
         .map(([key, propSchema]) =>
-          buildField(key, propSchema as FieldSchema, required.has(key)),
+          buildField(
+            key,
+            propSchema as FieldSchema,
+            required.has(key),
+            this.resolveI18n("configs", key),
+          ),
         );
     },
     credentialFields(): FormField[] {
@@ -424,7 +446,12 @@ export default defineComponent({
       if (!credSchema?.properties) return [];
       const required = new Set(credSchema.required ?? []);
       return Object.entries(credSchema.properties).map(([key, propSchema]) => {
-        const f = buildField(key, propSchema as FieldSchema, required.has(key));
+        const f = buildField(
+          key,
+          propSchema as FieldSchema,
+          required.has(key),
+          this.resolveI18n("credentials", key),
+        );
         // Force credential fields to be text/password inputs
         if (f.inputType !== "text") {
           return {
@@ -438,6 +465,17 @@ export default defineComponent({
         }
         return f;
       });
+    },
+  },
+  methods: {
+    resolveI18n(prefix: string, key: string): string | undefined {
+      const resolved = this.$i18n(`${prefix}.${key}`);
+      const fullKey = `${this.node.type}.${prefix}.${key}`;
+      // RED._() returns the key itself when not found
+      if (resolved && resolved !== fullKey && resolved !== `${prefix}.${key}`) {
+        return resolved;
+      }
+      return undefined;
     },
   },
 });
