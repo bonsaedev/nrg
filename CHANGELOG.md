@@ -1,5 +1,19 @@
 # Changelog
 
+# [0.11.0](https://github.com/bonsaedev/nrg/compare/v0.10.1...v0.11.0) (2026-05-05)
+
+
+### Bug Fixes
+
+* resolve form labels from locale catalog and support Union literals ([218e0cd](https://github.com/bonsaedev/nrg/commit/218e0cd7a05d1c02de7f23c73cd1d9c7fe729298))
+
+
+### Features
+
+* add paletteLabel, inputLabels, outputLabels to labels JSON schema ([58ac35d](https://github.com/bonsaedev/nrg/commit/58ac35dfe315ddb853f29a26ef70581b77f34738))
+* resolve paletteLabel, inputLabels, outputLabels from locale files ([62f5595](https://github.com/bonsaedev/nrg/commit/62f5595c465899911345eb18479ed3748d090da6))
+* translate auto-generated help docs and output as HTML ([a449c29](https://github.com/bonsaedev/nrg/commit/a449c29f83001101186eaf4a2b8f203517792870))
+
 ## [0.10.1](https://github.com/bonsaedev/nrg/compare/v0.10.0...v0.10.1) (2026-05-04)
 
 
