@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
 import { createRequire } from "module";
+import { getHelpTranslations, type HelpTranslations } from "./help-i18n";
 
 interface HelpGeneratorOptions {
   outDir: string;
@@ -68,12 +69,25 @@ const SKIP_FIELDS = new Set([
   "_users",
 ]);
 
-function generateSchemaSection(
-  title: string,
-  schema: any,
-  labels?: Record<string, string>,
-  heading = "###",
-): string {
+interface SchemaSectionOptions {
+  title: string;
+  schema: any;
+  t: HelpTranslations;
+  labels?: Record<string, string>;
+  heading?: string;
+  includeDefault?: boolean;
+}
+
+function generateSchemaSection(options: SchemaSectionOptions): string {
+  const {
+    title,
+    schema,
+    t,
+    labels,
+    heading = "###",
+    includeDefault = true,
+  } = options;
+
   if (!schema?.properties) return "";
 
   const required = new Set<string>(schema.required ?? []);
@@ -91,18 +105,31 @@ function generateSchemaSection(
   if (rows.length === 0) return "";
 
   const hasLabels = rows.some((r) => r.label);
+  const c = t.columns;
+  const v = t.values;
 
-  const headerCells = hasLabels
-    ? '<th>Property</th><th>Label</th><th>Type</th><th>Required</th><th>Default</th><th style="width:35%">Description</th>'
-    : '<th>Property</th><th>Type</th><th>Required</th><th>Default</th><th style="width:40%">Description</th>';
+  let headerCells: string;
+  let rowFn: (r: PropertyRow) => string;
 
-  const tableRows = rows
-    .map((r) =>
-      hasLabels
-        ? `<tr><td>${r.name}</td><td>${r.label}</td><td>${r.type}</td><td>${r.required ? "Yes" : "No"}</td><td>${r.defaultVal ? `<code>${r.defaultVal}</code>` : ""}</td><td>${r.description}</td></tr>`
-        : `<tr><td>${r.name}</td><td>${r.type}</td><td>${r.required ? "Yes" : "No"}</td><td>${r.defaultVal ? `<code>${r.defaultVal}</code>` : ""}</td><td>${r.description}</td></tr>`,
-    )
-    .join("\n");
+  if (hasLabels && includeDefault) {
+    headerCells = `<th>${c.label}</th><th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th>${c.default}</th><th style="width:35%">${c.description}</th>`;
+    rowFn = (r) =>
+      `<tr><td>${r.label}</td><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.defaultVal ? `<code>${r.defaultVal}</code>` : ""}</td><td>${r.description}</td></tr>`;
+  } else if (hasLabels) {
+    headerCells = `<th>${c.label}</th><th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th style="width:35%">${c.description}</th>`;
+    rowFn = (r) =>
+      `<tr><td>${r.label}</td><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.description}</td></tr>`;
+  } else if (includeDefault) {
+    headerCells = `<th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th>${c.default}</th><th style="width:40%">${c.description}</th>`;
+    rowFn = (r) =>
+      `<tr><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.defaultVal ? `<code>${r.defaultVal}</code>` : ""}</td><td>${r.description}</td></tr>`;
+  } else {
+    headerCells = `<th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th style="width:40%">${c.description}</th>`;
+    rowFn = (r) =>
+      `<tr><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.description}</td></tr>`;
+  }
+
+  const tableRows = rows.map(rowFn).join("\n");
 
   const table = `<div style="overflow-x:auto">
 <table width="100%" style="min-width:500px">
@@ -113,7 +140,9 @@ ${tableRows}
 </table>
 </div>`;
 
-  return `${heading} ${title}\n\n${table}\n`;
+  const headingLevel = heading.length; // "###" = 3, "####" = 4
+  const tag = `h${headingLevel}`;
+  return `<${tag}>${title}</${tag}>\n${table}\n`;
 }
 
 interface NodeLabels {
@@ -140,84 +169,76 @@ function loadNodeLabels(labelPath: string): NodeLabels {
   }
 }
 
-function generateHelpDoc(nodeClass: any, labels: NodeLabels): string {
+function generateHelpDoc(
+  nodeClass: any,
+  labels: NodeLabels,
+  t: HelpTranslations,
+): string {
   const lines: string[] = [];
 
   if (labels.description) {
-    lines.push(labels.description);
-    lines.push("");
+    lines.push(`<p>${labels.description}</p>`);
   }
 
-  const configSection = generateSchemaSection(
-    "Properties",
-    nodeClass.configSchema,
-    labels.configs,
-  );
+  const configSection = generateSchemaSection({
+    title: t.sections.properties,
+    schema: nodeClass.configSchema,
+    t,
+    labels: labels.configs,
+  });
   if (configSection) lines.push(configSection);
 
-  const credsSection = generateSchemaSection(
-    "Credentials",
-    nodeClass.credentialsSchema,
-    labels.credentials,
-  );
+  const credsSection = generateSchemaSection({
+    title: t.sections.credentials,
+    schema: nodeClass.credentialsSchema,
+    t,
+    labels: labels.credentials,
+  });
   if (credsSection) lines.push(credsSection);
 
-  // Input
+  // Input — no Default column
   if (nodeClass.inputSchema) {
-    const inputLabels = nodeClass.inputLabels;
-    const inputLabel =
-      typeof inputLabels === "string"
-        ? inputLabels
-        : Array.isArray(inputLabels)
-          ? inputLabels[0]
-          : undefined;
-    const inputTitle = inputLabel ? `Input (${inputLabel})` : "Input";
-    const inputSection = generateSchemaSection(
-      inputTitle,
-      nodeClass.inputSchema,
-      labels.input,
-    );
+    const inputSection = generateSchemaSection({
+      title: t.sections.input,
+      schema: nodeClass.inputSchema,
+      t,
+      labels: labels.input,
+      includeDefault: false,
+    });
     if (inputSection) lines.push(inputSection);
   }
 
-  // Output(s)
+  // Output(s) — no Default column
   if (nodeClass.outputsSchema) {
-    const outputLabels = nodeClass.outputLabels;
     if (Array.isArray(nodeClass.outputsSchema)) {
       const portSections: string[] = [];
       nodeClass.outputsSchema.forEach((schema: any, i: number) => {
-        const portLabel = Array.isArray(outputLabels)
-          ? outputLabels[i]
-          : undefined;
-        const title = portLabel
-          ? `Port ${i + 1} — ${portLabel}`
-          : `Port ${i + 1}`;
+        const title = `${t.sections.port} ${i + 1}`;
         const portPropLabels = labels.outputs?.[i];
-        const section = generateSchemaSection(
+        const section = generateSchemaSection({
           title,
           schema,
-          portPropLabels,
-          "####",
-        );
+          t,
+          labels: portPropLabels,
+          heading: "####",
+          includeDefault: false,
+        });
         if (section) portSections.push(section);
       });
       if (portSections.length) {
-        lines.push(`### Outputs\n\n${portSections.join("\n")}`);
+        lines.push(
+          `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
+        );
       }
     } else {
-      const label =
-        typeof outputLabels === "string"
-          ? outputLabels
-          : Array.isArray(outputLabels)
-            ? outputLabels[0]
-            : undefined;
-      const title = label ? `Output (${label})` : "Output";
       const outputPropLabels = labels.outputs?.[0];
-      const section = generateSchemaSection(
-        title,
-        nodeClass.outputsSchema,
-        outputPropLabels,
-      );
+      const section = generateSchemaSection({
+        title: t.sections.output,
+        schema: nodeClass.outputsSchema,
+        t,
+        labels: outputPropLabels,
+        includeDefault: false,
+      });
       if (section) lines.push(section);
     }
   }
@@ -279,14 +300,15 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
 
           const labelPath = path.join(labelsDir, type, `${lang}.json`);
           const labels = loadNodeLabels(labelPath);
-          const content = generateHelpDoc(NodeClass, labels);
+          const t = getHelpTranslations(lang);
+          const content = generateHelpDoc(NodeClass, labels, t);
           if (!content) continue;
 
           if (!helpByLang.has(lang)) helpByLang.set(lang, []);
           helpByLang
             .get(lang)!
             .push(
-              `<script type="text/markdown" data-help-name="${type}">\n${content}\n</script>`,
+              `<script type="text/html" data-help-name="${type}">\n${content}\n</script>`,
             );
         }
       }
@@ -308,5 +330,15 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
   };
 }
 
-export { helpGenerator };
-export type { HelpGeneratorOptions };
+export {
+  helpGenerator,
+  buildPropertyRow,
+  generateSchemaSection,
+  generateHelpDoc,
+};
+export type {
+  HelpGeneratorOptions,
+  PropertyRow,
+  SchemaSectionOptions,
+  NodeLabels,
+};
