@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/bonsaedev/nrg/compare/v0.11.0...v0.11.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* improve dev server restart reliability ([c13ff02](https://github.com/bonsaedev/nrg/commit/c13ff02229e2b0c960c83f423269f9398c967859))
+
 # [0.11.0](https://github.com/bonsaedev/nrg/compare/v0.10.1...v0.11.0) (2026-05-05)
 
 
