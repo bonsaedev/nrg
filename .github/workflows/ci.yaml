@@ -40,7 +40,13 @@ jobs:
         run: pnpm format:check
 
       - name: Unit Tests
-        run: pnpm test:unit
+        run: pnpm test:unit -- --coverage
+
+      - name: Upload Coverage
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Build
         run: pnpm build
