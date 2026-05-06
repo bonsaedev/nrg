@@ -174,7 +174,27 @@ module.exports = settings;
   }
 
   async start(): Promise<number> {
-    this.port = await getPort({ port: this.preferredPort });
+    // Always try the preferred port first. If it's still occupied
+    // (e.g. orphaned process from a failed restart), wait briefly
+    // and retry before falling back to a random port.
+    const available = await detect(this.preferredPort);
+    if (available === this.preferredPort) {
+      this.port = this.preferredPort;
+    } else {
+      this.logger.warn(
+        `Port ${this.preferredPort} is still in use, waiting...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const retryAvailable = await detect(this.preferredPort);
+      if (retryAvailable === this.preferredPort) {
+        this.port = this.preferredPort;
+      } else {
+        this.logger.warn(
+          `Port ${this.preferredPort} still occupied, using port ${retryAvailable}`,
+        );
+        this.port = await getPort({ port: this.preferredPort });
+      }
+    }
 
     const startProcess = (): Promise => {
       // eslint-disable-next-line no-async-promise-executor
@@ -312,11 +332,19 @@ module.exports = settings;
       };
 
       try {
-        await retry(checkPortUsage, { attempts: 5, delay: 100 });
+        await retry(checkPortUsage, { attempts: 10, delay: 300 });
       } catch {
         this.logger.warn(
-          `Port ${currentPort} may still be in use. If restart fails, try again in a few seconds.`,
+          `Port ${currentPort} still in use after stop. Force killing...`,
         );
+        // Force kill anything on the port as a last resort
+        if (pid) {
+          await new Promise<void>((resolve) => {
+            treeKill(pid, "SIGKILL", () => resolve());
+          });
+          // Wait for OS to release the port
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
     }
 

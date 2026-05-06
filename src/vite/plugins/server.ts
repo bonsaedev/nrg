@@ -134,10 +134,14 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
               changeOrigin: true,
               ws: true,
               configure: (proxy) => {
-                proxy.on("error", () => {
+                proxy.on("error", (_err, _req, res) => {
                   if (nodeRedPort) {
                     (proxy as any).options.target =
                       `http://127.0.0.1:${nodeRedPort}`;
+                  }
+                  if (res && !res.headersSent && "writeHead" in res) {
+                    (res as any).writeHead(502);
+                    (res as any).end();
                   }
                 });
               },
@@ -152,7 +156,11 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
           ...console,
           info: () => {},
           warn: console.warn,
-          error: console.error,
+          error: (...args: any[]) => {
+            const msg = args.map(String).join(" ");
+            if (isStarting && msg.includes("ECONNREFUSED")) return;
+            console.error(...args);
+          },
           warnOnce: () => {},
           hasWarned: false,
           clearScreen: () => {},
