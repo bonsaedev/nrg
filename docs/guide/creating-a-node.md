@@ -640,6 +640,90 @@ export default class MyNode extends IONode<
 | `this.setInterval(fn, ms)` | Auto-cleared interval |
 | `this.context("flow")` / `this.context("global")` | Access context storage |
 
+### Emit Ports
+
+By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure scoping separately, which breaks the visual data flow.
+
+NRG lets you add explicit output ports for these events. When enabled, errors, completions, and status changes are sent through wires like any other message, keeping the flow visible and debuggable.
+
+This feature is **opt-in per node**. Emit ports only appear in the editor when you add the corresponding boolean properties to your config schema. If you don't add them, nothing changes.
+
+#### Adding emit ports to your schema
+
+Add any combination of `emitError`, `emitComplete`, and `emitStatus` to your config schema:
+
+```typescript
+export const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    url: SchemaType.String({ default: "" }),
+    // ... your node-specific config
+
+    // Opt-in to emit ports (all optional — add only the ones you need)
+    emitError: SchemaType.Boolean({ default: false }),
+    emitComplete: SchemaType.Boolean({ default: false }),
+    emitStatus: SchemaType.Boolean({ default: false }),
+  },
+  { $id: "my-node:config" }
+);
+```
+
+The framework detects these properties by name. When present, toggle switches appear in the editor (similar to the validation toggles for `validateInput`/`validateOutput`). Users can enable or disable each port independently.
+
+#### How it works
+
+When a user enables an emit port, an extra output is appended to the node:
+
+| Property | Trigger | Output message |
+| --- | --- | --- |
+| `emitError` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { message, source: { id, type, name } } }` |
+| `emitComplete` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` |
+| `emitStatus` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
+
+Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
+
+```
+Port 0: Data output 1
+Port 1: Data output 2
+Port 2: Error        (if emitError enabled)
+Port 3: Complete     (if emitComplete enabled)
+Port 4: Status       (if emitStatus enabled)
+```
+
+#### Example: node with error and status ports
+
+```typescript
+const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    url: SchemaType.String({ default: "" }),
+    emitError: SchemaType.Boolean({ default: false }),
+    emitStatus: SchemaType.Boolean({ default: false }),
+  },
+  { $id: "http-client:config" }
+);
+
+export default class HttpClient extends IONode<Config> {
+  static override readonly type = "http-client";
+  static override readonly inputs = 1;
+  static override readonly outputs = 1;
+  static override readonly configSchema: Schema = ConfigsSchema;
+
+  override async input(msg: any) {
+    this.status({ fill: "green", shape: "dot", text: "requesting..." });
+    const response = await fetch(this.config.url);
+    this.status({ fill: "green", shape: "dot", text: "done" });
+    this.send({ payload: await response.json() });
+  }
+}
+```
+
+If the user enables both `emitError` and `emitStatus`, the node gets 3 outputs: data (port 0), error (port 1), and status (port 2). If they leave both off, the node has a single output as usual.
+
+::: tip Backward compatible
+Emit ports work alongside Node-RED's built-in `catch`, `complete`, and `status` nodes. Enabling an emit port doesn't disable the implicit behavior — both work simultaneously.
+:::
+
 ## 3. Register the Server Entry
 
 Export all nodes from `src/server/index.ts` using `defineModule`:
