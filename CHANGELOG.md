@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/bonsaedev/nrg/compare/v0.12.0...v0.12.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* remove type checking from build plugin ([70221ba](https://github.com/bonsaedev/nrg/commit/70221ba72833399165d37bbcebcf882d19875e35))
+
 # [0.12.0](https://github.com/bonsaedev/nrg/compare/v0.11.0...v0.12.0) (2026-05-08)
 
 
