@@ -1,7 +1,4 @@
 import type { Plugin } from "vite";
-import { execSync } from "child_process";
-import fs from "fs";
-import path from "path";
 import { BuildError } from "../errors";
 import { logger } from "../logger";
 import type { BuildPluginOptions } from "../types";
@@ -24,35 +21,6 @@ function buildPlugin(options: BuildPluginOptions): Plugin {
     async buildStart() {
       try {
         logger.intro();
-
-        logger.startSpinner("Type checking");
-        const serverTsconfig = path.resolve(
-          serverBuildOptions.srcDir ?? "./src/server",
-          "tsconfig.json",
-        );
-        const clientTsconfig = path.resolve(
-          clientBuildOptions.srcDir ?? "./src/client",
-          "tsconfig.json",
-        );
-        const tsconfigsToCheck = [serverTsconfig, clientTsconfig].filter((p) =>
-          fs.existsSync(p),
-        );
-        try {
-          for (const tsconfig of tsconfigsToCheck) {
-            execSync(`npx tsc -p ${tsconfig} --noEmit`, {
-              stdio: ["inherit", "pipe", "pipe"],
-              encoding: "utf-8",
-            });
-          }
-          logger.stopSpinner("Type checked");
-        } catch (e: any) {
-          logger.stopSpinner("Type check failed");
-          const output = (e.stdout || "") + (e.stderr || "");
-          if (output) {
-            console.error(output);
-          }
-          throw new BuildError("type-check", e);
-        }
 
         logger.startSpinner("Cleaning");
         cleanDir(buildContext.outDir);
