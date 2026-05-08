@@ -30,6 +30,11 @@ describe("Validator", () => {
       expect(result.valid).toBe(false);
       expect(result.errors).toBeDefined();
       expect(result.errors!.length).toBeGreaterThan(0);
+      expect(
+        result.errors!.some(
+          (e) => e.instancePath === "" && e.keyword === "required",
+        ),
+      ).toBe(true);
     });
 
     it("should throw ValidationError when throwOnError is true", () => {

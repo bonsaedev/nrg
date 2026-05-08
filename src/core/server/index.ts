@@ -92,15 +92,45 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
           try {
             this.log("Calling input");
             await Promise.resolve(node._input(msg, send));
+
+            // Send to complete port if enabled
+            const completeIdx = node._getCompletePortIndex();
+            if (completeIdx !== null) {
+              node._sendToPort(completeIdx, {
+                ...(msg as any),
+                complete: {
+                  source: { id: node.id, type: NC.type, name: node.name },
+                },
+              });
+            }
+
             done();
             this.log("Input processed");
           } catch (error) {
+            const errorMsg =
+              error instanceof Error
+                ? error.message
+                : "Unknown error during input handling";
+
+            // Send to error port if enabled (explicit this.error() also sends, but
+            // this catches uncaught exceptions that bypass this.error())
+            const errorIdx = node._getErrorPortIndex();
+            if (errorIdx !== null) {
+              node._sendToPort(errorIdx, {
+                ...(msg as any),
+                error: {
+                  message: errorMsg,
+                  source: { id: node.id, type: NC.type, name: node.name },
+                },
+              });
+            }
+
             if (error instanceof Error) {
               this.error("Error while processing input: " + error.message, msg);
               done(error);
             } else {
               this.error("Unknown error occurred during input handling", msg);
-              done(new Error("Unknown error during input handling"));
+              done(new Error(errorMsg));
             }
           }
         },

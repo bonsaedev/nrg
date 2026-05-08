@@ -337,6 +337,23 @@ async function registerType(definition: NodeDefinition): Promise<void> {
           }
         : nodeDefinition.configSchema;
 
+    // If emit port flags exist in defaults, ensure 'outputs' is also in defaults
+    // so Node-RED can track it dynamically. Compute the initial outputs count
+    // from the default values of the emit flags.
+    const hasEmitPorts =
+      defaults &&
+      ("emitError" in defaults ||
+        "emitComplete" in defaults ||
+        "emitStatus" in defaults);
+    const baseOutputs = nodeDefinition.outputs || 0;
+    if (hasEmitPorts && defaults && !("outputs" in defaults)) {
+      let initialOutputs = baseOutputs;
+      if (defaults.emitError?.value) initialOutputs++;
+      if (defaults.emitComplete?.value) initialOutputs++;
+      if (defaults.emitStatus?.value) initialOutputs++;
+      defaults.outputs = { value: initialOutputs };
+    }
+
     // Wire schema validation into Node-RED's own validation system.
     // Node-RED calls defaults[prop].validate during its validateNode() cycle
     // (on import, save, undo, deploy). Returning false marks the node invalid
@@ -495,6 +512,23 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       outputLabels:
         nodeDefinition.outputLabels ||
         function (this: Node, index: number) {
+          // Check if this index is an emit port
+          if (hasEmitPorts) {
+            let extraIdx = baseOutputs;
+            if (this.emitError) {
+              if (index === extraIdx) return "Error";
+              extraIdx++;
+            }
+            if (this.emitComplete) {
+              if (index === extraIdx) return "Complete";
+              extraIdx++;
+            }
+            if (this.emitStatus) {
+              if (index === extraIdx) return "Status";
+              extraIdx++;
+            }
+          }
+          // Fall through to locale labels for data ports
           const indexed = this._(`${type}.outputLabels.${index}`);
           if (indexed && indexed !== `${type}.outputLabels.${index}`)
             return indexed;

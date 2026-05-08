@@ -12,6 +12,9 @@ import type {
 } from "./types";
 import { setupContext } from "./utils";
 
+/** Reserved config property names for dynamic emit ports */
+const EMIT_PORT_KEYS = ["emitError", "emitComplete", "emitStatus"] as const;
+
 abstract class IONode<
   TConfig = any,
   TCredentials = any,
@@ -134,8 +137,83 @@ abstract class IONode<
     }
   }
 
+  // --- Emit port management ---
+
+  /** @internal */
+  public get _baseOutputs(): number {
+    return (this.constructor as typeof IONode).outputs ?? 0;
+  }
+
+  /** @internal */
+  public get _totalOutputs(): number {
+    let count = this._baseOutputs;
+    if ((this.config as any).emitError) count++;
+    if ((this.config as any).emitComplete) count++;
+    if ((this.config as any).emitStatus) count++;
+    return count;
+  }
+
+  /** @internal */
+  public _sendToPort(portIndex: number, msg: any) {
+    const out: (any | null)[] = Array(this._totalOutputs).fill(null);
+    out[portIndex] = msg;
+    this.node.send(out);
+  }
+
+  /** @internal */
+  public _getErrorPortIndex(): number | null {
+    if (!(this.config as any).emitError) return null;
+    return this._baseOutputs;
+  }
+
+  /** @internal */
+  public _getCompletePortIndex(): number | null {
+    if (!(this.config as any).emitComplete) return null;
+    let idx = this._baseOutputs;
+    if ((this.config as any).emitError) idx++;
+    return idx;
+  }
+
+  /** @internal */
+  public _getStatusPortIndex(): number | null {
+    if (!(this.config as any).emitStatus) return null;
+    let idx = this._baseOutputs;
+    if ((this.config as any).emitError) idx++;
+    if ((this.config as any).emitComplete) idx++;
+    return idx;
+  }
+
+  private _nodeSource() {
+    return {
+      id: this.id,
+      type: (this.constructor as typeof IONode).type,
+      name: this.name,
+    };
+  }
+
   public status(status: IONodeStatus) {
     this.node.status(status);
+    const portIdx = this._getStatusPortIndex();
+    if (portIdx !== null) {
+      this._sendToPort(portIdx, {
+        status,
+        source: this._nodeSource(),
+      });
+    }
+  }
+
+  public override error(message: string, msg?: any) {
+    super.error(message, msg);
+    const portIdx = this._getErrorPortIndex();
+    if (portIdx !== null && msg) {
+      this._sendToPort(portIdx, {
+        ...msg,
+        error: {
+          message,
+          source: this._nodeSource(),
+        },
+      });
+    }
   }
 
   public updateWires(wires: string[][]) {
@@ -169,4 +247,4 @@ abstract class IONode<
   }
 }
 
-export { IONode };
+export { IONode, EMIT_PORT_KEYS };

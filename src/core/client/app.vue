@@ -1,23 +1,60 @@
 <template>
   <div
     v-if="features.hasInputSchema || features.hasOutputSchema"
-    class="form-row"
-    style="display: flex; align-items: center; gap: 12px"
+    class="form-row nrg-toggles-grid"
   >
-    <NodeRedToggle
-      v-if="features.hasInputSchema"
-      :model-value="localNode.validateInput"
-      label="Validate Input"
-      style="flex: 1"
-      @update:model-value="localNode.validateInput = $event"
-    />
-    <NodeRedToggle
-      v-if="features.hasOutputSchema"
-      :model-value="localNode.validateOutput"
-      label="Validate Output"
-      style="flex: 1"
-      @update:model-value="localNode.validateOutput = $event"
-    />
+    <div v-if="features.hasInputSchema">
+      <NodeRedToggle
+        :model-value="localNode.validateInput"
+        label="Validate Input"
+        @update:model-value="localNode.validateInput = $event"
+      />
+    </div>
+    <div v-if="features.hasOutputSchema">
+      <NodeRedToggle
+        :model-value="localNode.validateOutput"
+        label="Validate Output"
+        @update:model-value="localNode.validateOutput = $event"
+      />
+    </div>
+  </div>
+  <div v-if="hasEmitPorts" class="form-row nrg-toggles-grid">
+    <div v-if="hasEmitError">
+      <NodeRedToggle
+        :model-value="localNode.emitError"
+        label="Emit Error"
+        @update:model-value="
+          (val: boolean) => {
+            localNode.emitError = val;
+            recalculateOutputs();
+          }
+        "
+      />
+    </div>
+    <div v-if="hasEmitComplete">
+      <NodeRedToggle
+        :model-value="localNode.emitComplete"
+        label="Emit Complete"
+        @update:model-value="
+          (val: boolean) => {
+            localNode.emitComplete = val;
+            recalculateOutputs();
+          }
+        "
+      />
+    </div>
+    <div v-if="hasEmitStatus">
+      <NodeRedToggle
+        :model-value="localNode.emitStatus"
+        label="Emit Status"
+        @update:model-value="
+          (val: boolean) => {
+            localNode.emitStatus = val;
+            recalculateOutputs();
+          }
+        "
+      />
+    </div>
   </div>
   <div style="width: 100%; padding-bottom: 12px">
     <NodeRedNodeForm
@@ -60,6 +97,20 @@ export default defineComponent({
       localNode: this.node,
       errors: {} as Record<string, string>,
     };
+  },
+  computed: {
+    hasEmitError(): boolean {
+      return this.schema?.properties?.emitError !== undefined;
+    },
+    hasEmitComplete(): boolean {
+      return this.schema?.properties?.emitComplete !== undefined;
+    },
+    hasEmitStatus(): boolean {
+      return this.schema?.properties?.emitStatus !== undefined;
+    },
+    hasEmitPorts(): boolean {
+      return this.hasEmitError || this.hasEmitComplete || this.hasEmitStatus;
+    },
   },
   created() {
     // Debounce validation so rapid keystrokes don't trigger AJV on every
@@ -155,11 +206,25 @@ export default defineComponent({
     validate() {
       this.errors = validateForm(this.localNode, this.schema);
     },
+    recalculateOutputs() {
+      const baseOutputs = this.localNode._def?.outputs ?? 0;
+      let count = baseOutputs;
+      if (this.localNode.emitError) count++;
+      if (this.localNode.emitComplete) count++;
+      if (this.localNode.emitStatus) count++;
+      this.localNode.outputs = count;
+    },
   },
 });
 </script>
 
 <style scoped>
+.nrg-toggles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px 16px;
+}
+
 :deep(.node-red-vue-input-error-message) {
   color: var(--red-ui-text-color-error);
 }

@@ -59,10 +59,11 @@ export default defineComponent({
 
 .nrg-toggle {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex !important;
+  flex-direction: column;
+  align-items: flex-start;
   cursor: pointer;
-  gap: 8px;
+  gap: 4px;
   user-select: none;
 }
 

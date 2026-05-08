@@ -17,7 +17,12 @@
           :model-value="node[field.key]"
           :label="field.label"
           :icon="field.icon"
-          @update:model-value="node[field.key] = $event"
+          @update:model-value="
+            (val: boolean) => {
+              node[field.key] = val;
+              if (field.isEmitPort) recalculateOutputs();
+            }
+          "
         />
       </div>
 
@@ -34,6 +39,7 @@
           @change="
             (e) => {
               node[field.key] = (e.target as HTMLInputElement).checked;
+              if (field.isEmitPort) recalculateOutputs();
             }
           "
         />
@@ -172,7 +178,13 @@ const SKIP_FIELDS = new Set([
   "_users",
   "validateInput",
   "validateOutput",
+  "outputs",
+  "emitError",
+  "emitComplete",
+  "emitStatus",
 ]);
+
+const EMIT_PORT_FIELDS = new Set(["emitError", "emitComplete", "emitStatus"]);
 
 interface NrgFormOptions {
   icon?: string;
@@ -217,6 +229,7 @@ interface FormField {
   configType?: string;
   language?: string;
   toggle?: boolean;
+  isEmitPort?: boolean;
 }
 
 function formatLabel(key: string): string {
@@ -327,6 +340,7 @@ function buildField(
         inputType: "boolean",
         required,
         toggle: form.toggle,
+        isEmitPort: EMIT_PORT_FIELDS.has(key),
       };
 
     case "number":
@@ -468,6 +482,21 @@ export default defineComponent({
     },
   },
   methods: {
+    recalculateOutputs() {
+      if (!this.schema?.properties) return;
+      const hasEmitFields = Object.keys(this.schema.properties).some((k) =>
+        EMIT_PORT_FIELDS.has(k),
+      );
+      if (!hasEmitFields) return;
+
+      // Find base outputs from the node definition (static outputs count)
+      const baseOutputs = this.node._def?.outputs ?? 0;
+      let count = baseOutputs;
+      if (this.node.emitError) count++;
+      if (this.node.emitComplete) count++;
+      if (this.node.emitStatus) count++;
+      this.node.outputs = count;
+    },
     resolveI18n(prefix: string, key: string): string | undefined {
       const resolved = this.$i18n(`${prefix}.${key}`);
       const fullKey = `${this.node.type}.${prefix}.${key}`;
