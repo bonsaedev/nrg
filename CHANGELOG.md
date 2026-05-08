@@ -1,5 +1,17 @@
 # Changelog
 
+# [0.12.0](https://github.com/bonsaedev/nrg/compare/v0.11.0...v0.12.0) (2026-05-08)
+
+
+### Bug Fixes
+
+* improve dev server restart reliability ([c13ff02](https://github.com/bonsaedev/nrg/commit/c13ff02229e2b0c960c83f423269f9398c967859))
+
+
+### Features
+
+* add optional error, complete, and status output ports to IONode ([5576d59](https://github.com/bonsaedev/nrg/commit/5576d5986f8c327c4850dfe3b9e35c732fc37edb))
+
 # [0.11.0](https://github.com/bonsaedev/nrg/compare/v0.10.1...v0.11.0) (2026-05-05)
 
 
