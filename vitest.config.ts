@@ -1,15 +1,6 @@
-import path from "path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@bonsae/nrg/server": path.resolve(
-        __dirname,
-        "src/core/server/index.ts",
-      ),
-    },
-  },
   test: {
     include: ["tests/unit/**/*.test.ts"],
     coverage: {

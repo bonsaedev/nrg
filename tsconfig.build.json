@@ -13,5 +13,5 @@
     "types": ["node", "jquery"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.vue", "tests/**"]
+  "exclude": ["src/**/*.vue", "tests/**", "dist/**"]
 }
