@@ -298,6 +298,8 @@ describe("factory API", () => {
     const FactoryNode = defineIONode({
       type: "factory-node",
       configSchema: ConfigsSchema,
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: SchemaType.Object({}),
       input(msg) {
         this.send({ payload: msg.payload.toUpperCase() });
       },
@@ -328,7 +330,7 @@ describe("factory API", () => {
 | Credentials | Pass `credentials: { ... }` to `createNode` |
 | Settings | Pass `settings: { ... }` to `createNode` |
 | TypedInput | Set config with `{ value, type }`, trigger, check output |
-| Config node refs | Use `configNodes` option with pre-created nodes |
+| Config node refs | Pass config node instances directly in `config` values |
 | Context store | Node/flow/global stores persist across triggers |
 | i18n | `node.i18n(key, subs)` — substitutions work automatically |
 | Error handling | `expect(node.receive(...)).rejects.toThrow(...)` |

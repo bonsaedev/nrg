@@ -70,85 +70,52 @@ describe("registerType validation", () => {
     ).resolves.not.toThrow();
   });
 
-  it("should throw NrgError for invalid inputs value", async () => {
-    const { IONode, registerType } = await getModules();
-    const RED = createMockRED();
+  it("should derive inputs from inputSchema presence", async () => {
+    const { IONode } = await getModules();
+    const { SchemaType } = await import(
+      "../../../../src/core/server/schemas"
+    );
 
-    class BadInputs extends IONode {
-      static override readonly type = "bad-inputs";
+    class WithInput extends IONode {
+      static override readonly type = "with-input";
       static override readonly category = "function";
-      static override readonly inputs = 5; // must be 0 or 1
+      static override readonly inputSchema = SchemaType.Object({});
     }
 
-    await expect(registerType(RED, BadInputs as any)).rejects.toThrow(NrgError);
-    await expect(registerType(RED, BadInputs as any)).rejects.toThrow(
-      "inputs must be 0 or 1",
-    );
+    class WithoutInput extends IONode {
+      static override readonly type = "without-input";
+      static override readonly category = "function";
+    }
+
+    expect(WithInput.inputs).toBe(1);
+    expect(WithoutInput.inputs).toBe(0);
   });
 
-  it("should accept inputs of 0 or 1", async () => {
-    const { IONode, registerType } = await getModules();
-    const RED = createMockRED();
-
-    class ZeroInputs extends IONode {
-      static override readonly type = "zero-inputs";
-      static override readonly category = "function";
-      static override readonly inputs = 0;
-    }
-
-    class OneInput extends IONode {
-      static override readonly type = "one-input";
-      static override readonly category = "function";
-      static override readonly inputs = 1;
-    }
-
-    await expect(
-      registerType(RED, ZeroInputs as any),
-    ).resolves.not.toThrow();
-    await expect(
-      registerType(RED, OneInput as any),
-    ).resolves.not.toThrow();
-  });
-
-  it("should throw NrgError for negative outputs", async () => {
-    const { IONode, registerType } = await getModules();
-    const RED = createMockRED();
-
-    class BadOutputs extends IONode {
-      static override readonly type = "bad-outputs";
-      static override readonly category = "function";
-      static override readonly outputs = -1;
-    }
-
-    await expect(registerType(RED, BadOutputs as any)).rejects.toThrow(
-      NrgError,
+  it("should derive outputs from outputsSchema", async () => {
+    const { IONode } = await getModules();
+    const { SchemaType } = await import(
+      "../../../../src/core/server/schemas"
     );
-    await expect(registerType(RED, BadOutputs as any)).rejects.toThrow(
-      "outputs must be a positive integer",
-    );
-  });
 
-  it("should accept zero or positive outputs", async () => {
-    const { IONode, registerType } = await getModules();
-    const RED = createMockRED();
-
-    class ZeroOutputs extends IONode {
-      static override readonly type = "zero-outputs";
+    class SingleOutput extends IONode {
+      static override readonly type = "single-output";
       static override readonly category = "function";
-      static override readonly outputs = 0;
+      static override readonly outputsSchema = SchemaType.Object({});
     }
 
     class MultiOutputs extends IONode {
       static override readonly type = "multi-outputs";
       static override readonly category = "function";
-      static override readonly outputs = 5;
+      static override readonly outputsSchema = [SchemaType.Object({}), SchemaType.Object({}), SchemaType.Object({})];
     }
 
-    await expect(
-      registerType(RED, ZeroOutputs as any),
-    ).resolves.not.toThrow();
-    await expect(
-      registerType(RED, MultiOutputs as any),
-    ).resolves.not.toThrow();
+    class NoOutputs extends IONode {
+      static override readonly type = "no-outputs";
+      static override readonly category = "function";
+    }
+
+    expect(SingleOutput.outputs).toBe(1);
+    expect(MultiOutputs.outputs).toBe(3);
+    expect(NoOutputs.outputs).toBe(0);
   });
 });

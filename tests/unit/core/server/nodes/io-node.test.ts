@@ -8,8 +8,8 @@ class TestIONode extends IONode {
   static override readonly type = "test-io-node";
   static override readonly category = "function";
   static override readonly color = "#ffffff" as const;
-  static override readonly inputs = 1;
-  static override readonly outputs = 1;
+  static override readonly inputSchema = SchemaType.Object({});
+  static override readonly outputsSchema = SchemaType.Object({});
 
   public inputCalled = false;
   public lastMsg: any = null;
@@ -169,7 +169,6 @@ describe("IONode", () => {
         static override readonly type = "multi-output";
         static override readonly category = "function";
         static override readonly color = "#ffffff" as const;
-        static override readonly outputs = 2;
         static override readonly validateOutput = true;
         static override readonly outputsSchema = [schema1, schema2];
         public async input() {}

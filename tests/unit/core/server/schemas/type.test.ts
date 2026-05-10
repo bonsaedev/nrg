@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { Kind } from "@sinclair/typebox";
 import { SchemaType, defineSchema } from "../../../../../src/core/server/schemas";
+import { initValidator, validator } from "../../../../../src/core/server/validation";
+import { createMockRED } from "../../../../mocks/red";
 
 describe("SchemaType", () => {
   describe("primitive types", () => {
@@ -199,5 +201,51 @@ describe("defineSchema", () => {
     expect(schema.properties.config).toBeDefined();
     const nestedProps = (schema.properties.config as any).properties;
     expect(nestedProps.name).toBeDefined();
+  });
+
+  describe("SchemaType.Object({}) as permissive schema", () => {
+    it("should create a valid object schema with no properties", () => {
+      const schema = SchemaType.Object({});
+      expect(schema.type).toBe("object");
+      expect(schema.properties).toEqual({});
+      expect(schema.required ?? []).toEqual([]);
+    });
+  });
+
+  describe("defineSchema without $id", () => {
+    it("should create a valid schema without $id", () => {
+      const schema = defineSchema({
+        name: SchemaType.String({ default: "test" }),
+      });
+      expect(schema.type).toBe("object");
+      expect(schema.$id).toBeUndefined();
+      expect(schema.properties.name).toBeDefined();
+    });
+
+    it("should still accept $id when provided", () => {
+      const schema = defineSchema(
+        { name: SchemaType.String({ default: "" }) },
+        { $id: "explicit-id" },
+      );
+      expect(schema.$id).toBe("explicit-id");
+    });
+
+    it("should work with the validator without $id", () => {
+      initValidator(createMockRED());
+
+      const schema = defineSchema({
+        payload: SchemaType.String({ minLength: 1 }),
+      });
+
+      const result = validator.validate({ payload: "hello" }, schema, {
+        cacheKey: "test-no-id:input",
+      });
+      expect(result.valid).toBe(true);
+
+      const invalid = validator.validate({ payload: "" }, schema, {
+        cacheKey: "test-no-id:input",
+      });
+      expect(invalid.valid).toBe(false);
+    });
   });
 });

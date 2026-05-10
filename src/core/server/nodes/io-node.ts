@@ -15,7 +15,7 @@ import { setupContext } from "./utils";
 /** Reserved config property names for dynamic emit ports */
 const EMIT_PORT_KEYS = ["emitError", "emitComplete", "emitStatus"] as const;
 
-abstract class IONode<
+class IONode<
   TConfig = any,
   TCredentials = any,
   TInput = any,
@@ -24,12 +24,20 @@ abstract class IONode<
 > extends Node<TConfig, TCredentials, TSettings> {
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
-  public static readonly inputs?: number = 0;
-  public static readonly outputs?: number = 0;
   public static readonly inputSchema?: Schema;
   public static readonly outputsSchema?: Schema | Schema[];
   public static readonly validateInput: boolean = false;
   public static readonly validateOutput: boolean = false;
+
+  public static get inputs(): 0 | 1 {
+    return this.inputSchema ? 1 : 0;
+  }
+
+  public static get outputs(): number {
+    const s = this.outputsSchema;
+    if (!s) return 0;
+    return Array.isArray(s) ? s.length : 1;
+  }
 
   private _send: ((msg: any) => void) | undefined;
 
@@ -69,7 +77,7 @@ abstract class IONode<
     this.context = fn as any;
   }
 
-  public abstract input(msg: TInput): void | Promise<void>;
+  public input(msg: TInput): void | Promise<void> {}
 
   // NOTE: used by the registered function. Had to be a different one to avoid calling the parent's input again
   /** @internal */

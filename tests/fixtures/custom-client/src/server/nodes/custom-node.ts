@@ -5,8 +5,6 @@ export default defineIONode({
   type: "custom-node",
   category: "function",
   color: "#33cc99",
-  inputs: 1,
-  outputs: 1,
   configSchema: ConfigsSchema,
   inputSchema: InputSchema,
   outputsSchema: OutputSchema,

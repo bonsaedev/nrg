@@ -82,7 +82,7 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
 
 function defineSchema<T extends TProperties>(
   properties: T,
-  options: ObjectOptions & { $id: string },
+  options?: ObjectOptions & { $id?: string },
 ): Schema<T> {
   const schema = SchemaType.Object(properties, options);
   return markNonValidatable(schema) as Schema<T>;

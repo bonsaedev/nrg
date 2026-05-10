@@ -24,6 +24,8 @@ describe("defineIONode", () => {
   it("should set default static properties", () => {
     const Node = defineIONode({
       type: "defaults-io",
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: SchemaType.Object({}),
       input() {},
     });
     expect(Node.category).toBe("function");
@@ -34,14 +36,13 @@ describe("defineIONode", () => {
     expect(Node.validateOutput).toBe(false);
   });
 
-  it("should apply custom static properties", () => {
+  it("should derive inputs and outputs from schemas", () => {
     const Node = defineIONode({
       type: "custom-io",
       category: "network",
       color: "#ff6633",
-      inputs: 0,
-      outputs: 3,
       align: "right",
+      outputsSchema: [SchemaType.Object({}), SchemaType.Object({}), SchemaType.Object({})],
       validateInput: true,
       validateOutput: true,
       input() {},

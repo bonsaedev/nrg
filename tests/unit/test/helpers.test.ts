@@ -4,6 +4,7 @@ import {
   ConfigNode,
   defineIONode,
   defineConfigNode,
+  SchemaType,
   type Schema,
   type Infer,
   type RED,
@@ -48,6 +49,8 @@ class TestIONode extends IONode<TestIOConfig> {
   static override readonly type = "test-io";
   static override readonly category = "function";
   static override readonly configSchema: Schema = TestIOSchema;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
   static registeredCalled = false;
 
   static override async registered(RED: RED) {
@@ -81,7 +84,8 @@ const SplitterSchema = defineSchema(
 class TestSplitter extends IONode {
   static override readonly type = "test-splitter";
   static override readonly category = "function";
-  static override readonly outputs = 2;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
   static override readonly configSchema: Schema = SplitterSchema;
 
   async input(msg: any) {
@@ -96,7 +100,8 @@ class TestSplitter extends IONode {
 class TestBroadcaster extends IONode {
   static override readonly type = "test-broadcaster";
   static override readonly category = "function";
-  static override readonly outputs = 2;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
 
   async input(msg: any) {
     this.send([
@@ -129,6 +134,8 @@ class TestCredNode extends IONode<CredConfig, CredCreds> {
   static override readonly category = "function";
   static override readonly configSchema: Schema = CredentialNodeSchema;
   static override readonly credentialsSchema: Schema = CredentialSchema;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
   async input(msg: any) {
     const key = this.credentials?.apiKey;
@@ -144,6 +151,7 @@ class TestCredNode extends IONode<CredConfig, CredCreds> {
 class TestErrorNode extends IONode {
   static override readonly type = "test-error";
   static override readonly category = "function";
+  static override readonly inputSchema: Schema = SchemaType.Object({});
 
   async input(_msg: any) {
     throw new Error("something broke");
@@ -153,6 +161,8 @@ class TestErrorNode extends IONode {
 class TestContextNode extends IONode {
   static override readonly type = "test-context";
   static override readonly category = "function";
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
   async created() {
     await this.context.node.set("counter", 0);
@@ -179,6 +189,8 @@ class TestContextNode extends IONode {
 class TestI18nNode extends IONode {
   static override readonly type = "test-i18n";
   static override readonly category = "function";
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
   async input(_msg: any) {
     const label = this.i18n("greeting");
@@ -217,6 +229,8 @@ const FactoryIONode = defineIONode({
   type: "factory-io",
   category: "function",
   configSchema: FactoryIOSchema,
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: SchemaType.Object({}),
 
   created() {
     this.log("factory io created");
@@ -240,6 +254,8 @@ class TestSettingsNode extends IONode {
   static override readonly type = "test-settings";
   static override readonly category = "function";
   static override readonly settingsSchema: Schema = SettingsSchema;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
   async input(_msg: any) {
     this.send({ payload: this.settings.timeout });

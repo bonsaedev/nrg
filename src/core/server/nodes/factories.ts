@@ -46,8 +46,6 @@ function defineIONode<
     static override readonly type: string = def.type;
     static override readonly category: string = def.category ?? "function";
     static override readonly color: HexColor = def.color ?? "#a6bbcf";
-    static override readonly inputs: number = def.inputs ?? 1;
-    static override readonly outputs: number = def.outputs ?? 1;
     static override readonly align = def.align;
 
     static override readonly configSchema: Schema | undefined =
@@ -70,7 +68,7 @@ function defineIONode<
       return def.registered?.(RED);
     }
 
-    async input(msg: InferOr<TInputSchema, any>) {
+    override async input(msg: InferOr<TInputSchema, any>) {
       if (def.input) return def.input.call(this as any, msg);
     }
 

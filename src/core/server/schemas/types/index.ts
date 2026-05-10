@@ -50,7 +50,7 @@ interface NrgSchemaOptions extends SchemaOptions {
 }
 
 interface Schema<T extends TProperties = TProperties> extends TObject<T> {
-  $id: string;
+  $id?: string;
 }
 
 export { Infer, ResolveNodeRefs, TNodeRef, TTypedInput, TypedInputType };

@@ -35,24 +35,6 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
     );
   }
 
-  if (
-    NC.inputs !== undefined &&
-    (!Number.isInteger(NC.inputs) || (NC.inputs !== 0 && NC.inputs !== 1))
-  ) {
-    throw new NrgError(
-      `Invalid number of inputs for ${NodeClass.type}: inputs must be 0 or 1`,
-    );
-  }
-
-  if (
-    NC.outputs !== undefined &&
-    (!Number.isInteger(NC.outputs) || NC.outputs < 0)
-  ) {
-    throw new NrgError(
-      `Invalid number of outputs for ${NodeClass.type}: outputs must be a positive integer`,
-    );
-  }
-
   RED.nodes.registerType(
     NC.type,
     function (this: any, config: any) {

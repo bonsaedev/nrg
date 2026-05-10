@@ -574,11 +574,11 @@ export default class MyNode extends IONode<
   static readonly type = "my-node";
   static readonly category = "function";
   static readonly color: `#${string}` = "#a6bbcf";
-  static readonly inputs = 1;
-  static readonly outputs = 1;
   static readonly configSchema: Schema = ConfigsSchema;
   static readonly credentialsSchema: Schema = CredentialsSchema;
   static readonly settingsSchema: Schema = SettingsSchema;
+  static readonly inputSchema: Schema = SchemaType.Object({});
+  static readonly outputsSchema: Schema = SchemaType.Object({});
 
   static async registered(RED: any) {
     RED.log.info("my-node type registered");
@@ -600,6 +600,43 @@ export default class MyNode extends IONode<
 }
 ```
 
+### Inputs and Outputs
+
+The number of input and output ports is **derived from the schemas you declare** — there is no `inputs` or `outputs` property to set manually.
+
+| Declaration | Result |
+| --- | --- |
+| `inputSchema` present | 1 input port |
+| `inputSchema` absent | 0 input ports (source node) |
+| `outputsSchema` is a single Schema | 1 output port |
+| `outputsSchema` is an array of N schemas | N output ports |
+| `outputsSchema` absent | 0 output ports (sink node) |
+
+**Examples:**
+
+```typescript
+// Standard node: 1 input, 1 output
+static override readonly inputSchema: Schema = InputSchema;
+static override readonly outputsSchema: Schema = OutputSchema;
+
+// Source node (no input, e.g., subscriber/inject): 0 inputs, 1 output
+static override readonly outputsSchema: Schema = OutputSchema;
+
+// Sink node (no output, e.g., debug/log): 1 input, 0 outputs
+static override readonly inputSchema: Schema = InputSchema;
+
+// Multi-output node: 1 input, 3 outputs
+static override readonly inputSchema: Schema = InputSchema;
+static override readonly outputsSchema: Schema[] = [Port1Schema, Port2Schema, Port3Schema];
+```
+
+Use `SchemaType.Object({})` when a port accepts or emits any message shape:
+
+```typescript
+static override readonly inputSchema: Schema = SchemaType.Object({});
+static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
+```
+
 ### Static Properties
 
 | Property | Required | Description |
@@ -607,12 +644,10 @@ export default class MyNode extends IONode<
 | `type` | Yes | Unique node type identifier |
 | `category` | Yes | Palette category (e.g., `"function"`, `"network"`, `"config"`) |
 | `color` | Yes | Node color in hex format (e.g., `"#a6bbcf"`) |
-| `inputs` | No | Number of input ports (default: `0`) |
-| `outputs` | No | Number of output ports (default: `0`) |
 | `configSchema` | No | TypeBox schema for config validation |
 | `credentialsSchema` | No | TypeBox schema for credential fields |
-| `inputSchema` | No | Schema to validate incoming messages |
-| `outputsSchema` | No | Schema (or array of schemas) for outgoing messages |
+| `inputSchema` | No | Schema for incoming messages. Presence defines `inputs = 1`; absence means no input port (source node). |
+| `outputsSchema` | No | Schema (or array of schemas) for outgoing messages. Single schema = 1 output port; array of N schemas = N output ports; absence means no output port (sink node). |
 | `settingsSchema` | No | Schema for Node-RED runtime settings |
 | `align` | No | `"left"` or `"right"` alignment |
 
@@ -705,9 +740,9 @@ const ConfigsSchema = defineSchema(
 
 export default class HttpClient extends IONode<Config> {
   static override readonly type = "http-client";
-  static override readonly inputs = 1;
-  static override readonly outputs = 1;
   static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
   override async input(msg: any) {
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
@@ -1113,8 +1148,6 @@ export default defineIONode({
   type: "api-client",
   category: "network",
   color: "#ff6633",
-  inputs: 1,
-  outputs: 1,
   configSchema: ConfigsSchema,
   credentialsSchema: CredentialsSchema,
   inputSchema: InputSchema,
@@ -1206,9 +1239,8 @@ export default defineIONode({
   type: "my-subscriber",
   category: "network",
   color: "#d8bfd8",
-  inputs: 0,
-  outputs: 1,
   configSchema: ConfigsSchema,
+  outputsSchema: SchemaType.Object({}),
 
   created() {
     const broker = this.config.broker;
@@ -1217,8 +1249,6 @@ export default defineIONode({
       this.log(`Subscribing via ${broker.config.host}:${broker.config.port}`);
     }
   },
-
-  async input() {},
 });
 ```
 
@@ -1239,7 +1269,7 @@ const ErrorSchema = defineSchema(
 
 export default defineIONode({
   type: "router",
-  outputs: 2,
+  inputSchema: SchemaType.Object({}),
   outputsSchema: [SuccessSchema, ErrorSchema] as const,
   validateOutput: true,
 

@@ -18,8 +18,8 @@ const ConfigSchema = defineSchema(
 
 const TestNode = defineIONode({
   type: "emit-test",
-  inputs: 1,
-  outputs: 1,
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: SchemaType.Object({}),
   configSchema: ConfigSchema,
 
   async input(msg) {
@@ -217,8 +217,8 @@ describe("emit ports", () => {
     it("does not send to error port when msg is not provided", async () => {
       const NodeWithLogError = defineIONode({
         type: "log-error-test",
-        inputs: 1,
-        outputs: 1,
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
         configSchema: ConfigSchema,
         async input() {
           // error() without msg — should not send to error port
@@ -271,8 +271,8 @@ describe("emit ports", () => {
     it("emits multiple messages for multiple status calls", async () => {
       const MultiStatusNode = defineIONode({
         type: "multi-status-test",
-        inputs: 1,
-        outputs: 1,
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
         configSchema: ConfigSchema,
         async input() {
           this.status({ fill: "green", shape: "dot", text: "step 1" });
@@ -335,8 +335,8 @@ describe("emit ports", () => {
   describe("no emit flags in schema", () => {
     const SimpleNode = defineIONode({
       type: "simple-test",
-      inputs: 1,
-      outputs: 1,
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: SchemaType.Object({}),
       async input(msg) {
         this.send(msg);
       },

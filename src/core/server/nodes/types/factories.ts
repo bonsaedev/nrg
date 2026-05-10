@@ -66,8 +66,6 @@ interface IONodeDefinition<
   type: string;
   category?: string;
   color?: HexColor;
-  inputs?: 0 | 1;
-  outputs?: number;
   align?: "left" | "right";
 
   configSchema?: TConfigSchema;
