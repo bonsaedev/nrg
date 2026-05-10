@@ -1,5 +1,18 @@
 # Changelog
 
+# [0.13.0](https://github.com/bonsaedev/nrg/compare/v0.12.1...v0.13.0) (2026-05-10)
+
+
+### Bug Fixes
+
+* **ci:** run build before e2e tests ([3985754](https://github.com/bonsaedev/nrg/commit/39857542d7c85b2281e0b076a8c2a55309f4595b))
+* **test:** allow passing config nodes directly in config option ([fbc42f8](https://github.com/bonsaedev/nrg/commit/fbc42f8d50c9cd602ea524d665489668d7c68724))
+
+
+### Features
+
+* derive inputs/outputs from schemas instead of hardcoding ([837a30e](https://github.com/bonsaedev/nrg/commit/837a30eb16c073b02435541dec21c0c13b08cbc8))
+
 ## [0.12.1](https://github.com/bonsaedev/nrg/compare/v0.12.0...v0.12.1) (2026-05-08)
 
 
