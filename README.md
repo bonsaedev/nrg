@@ -74,15 +74,15 @@ NRG supports two ways to define nodes:
 <tr><td>
 
 ```typescript
-import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../schemas/my-node";
+import { defineIONode, SchemaType } from "@bonsae/nrg/server";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
 
 export default defineIONode({
   type: "my-node",
   color: "#ffffff",
-  inputs: 1,
-  outputs: 1,
   configSchema: ConfigsSchema,
+  inputSchema: InputSchema,
+  outputsSchema: OutputSchema,
 
   async input(msg) {
     msg.payload = `${this.config.prefix}: ${msg.payload}`;
@@ -94,8 +94,8 @@ export default defineIONode({
 </td><td>
 
 ```typescript
-import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../schemas/my-node";
+import { IONode, SchemaType, type Schema, type Infer } from "@bonsae/nrg/server";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 
@@ -103,9 +103,9 @@ export default class MyNode extends IONode<Config> {
   static readonly type = "my-node";
   static readonly category = "function";
   static readonly color: `#${string}` = "#ffffff";
-  static readonly inputs = 1;
-  static readonly outputs = 1;
   static readonly configSchema: Schema = ConfigsSchema;
+  static readonly inputSchema: Schema = InputSchema;
+  static readonly outputsSchema: Schema = OutputSchema;
 
   async input(msg: any) {
     msg.payload = `${this.config.prefix}: ${msg.payload}`;
