@@ -79,9 +79,8 @@ Creates a fully initialized node instance with mocked RED and Node-RED internals
 
 | Option | Description |
 | --- | --- |
-| `config` | Node config object (merged with schema defaults) |
+| `config` | Node config object (merged with schema defaults). Config node instances can be passed directly as values and will be auto-registered. |
 | `credentials` | Credentials object |
-| `configNodes` | Map of `{ nodeId: nodeInstance }` for config node references |
 | `settings` | `RED.settings` overrides |
 | `overrides` | Low-level Node-RED node overrides (`id`, `wires`, etc.) |
 
@@ -242,8 +241,7 @@ describe("config node references", () => {
     });
 
     const { node } = await createNode(MyNode, {
-      config: { server: "server-1" },
-      configNodes: { "server-1": server },
+      config: { server: server },
     });
 
     expect(node.config.server.config.host).toBe("localhost");
