@@ -8,6 +8,7 @@ import type {
 } from "@sinclair/typebox";
 import type { TYPED_INPUT_TYPES } from "../../../constants";
 import type TypedInput from "../../typed-input";
+import type { NrgSchemaExtensions } from "../../schema-options";
 
 interface TNodeRef<T = any> extends TSchema {
   [Kind]: "NodeRef";
@@ -36,25 +37,12 @@ interface TTypedInput<T = unknown> extends TSchema {
   static: TypedInput<T>;
 }
 
-interface NrgFormOptions {
-  icon?: string;
-  typedInputTypes?: string[];
-  editorLanguage?: string;
-  toggle?: boolean;
-}
+interface NrgSchemaOptions extends SchemaOptions, NrgSchemaExtensions {}
 
-interface NrgSchemaOptions extends SchemaOptions {
-  exportable?: boolean;
-  "x-nrg-node-type"?: string;
-  "x-nrg-form"?: NrgFormOptions;
-}
-
-interface Schema<T extends TProperties = TProperties> extends TObject<T> {
-  $id?: string;
-}
+type Schema<T extends TProperties = TProperties> = TObject<T>;
 
 export { Infer, ResolveNodeRefs, TNodeRef, TTypedInput, TypedInputType };
-export type { NrgFormOptions, NrgSchemaOptions };
+export type { NrgSchemaOptions };
 export type { Schema };
 export type {
   TSchema,

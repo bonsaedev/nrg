@@ -86,6 +86,28 @@ console.log("✓ Built test utilities to dist/test/");
 const dtsFlags = "--no-check --project tsconfig.build.json --external-inlines @sinclair/typebox";
 execSync(`npx dts-bundle-generator -o dist/types/index.d.ts src/index.ts ${dtsFlags}`, { stdio: "inherit" });
 execSync(`npx dts-bundle-generator -o dist/types/server.d.ts src/core/server/index.ts ${dtsFlags}`, { stdio: "inherit" });
+// Because typebox is inlined (--external-inlines), its SchemaOptions interface becomes a local
+// declaration in server.d.ts, disconnected from the real @sinclair/typebox module. This means
+// the module augmentation in src/core/server/typebox.d.ts (which works for local development)
+// doesn't reach consumers. To give consumers autocomplete for nrg-specific schema options
+// (x-nrg-form, exportable, etc.), we inject those properties directly into the inlined
+// SchemaOptions interface. Source of truth: src/core/server/schema-options.ts
+const serverDts = readFileSync("dist/types/server.d.ts", "utf-8");
+const schemaOpts = readFileSync("src/core/server/schema-options.ts", "utf-8");
+const soStart = schemaOpts.indexOf("interface NrgSchemaExtensions {");
+const soBodyStart = schemaOpts.indexOf("{", soStart) + 1;
+let braceCount = 1;
+let soBodyEnd = soBodyStart;
+while (braceCount > 0 && soBodyEnd < schemaOpts.length) {
+  if (schemaOpts[soBodyEnd] === "{") braceCount++;
+  if (schemaOpts[soBodyEnd] === "}") braceCount--;
+  soBodyEnd++;
+}
+const shimProps = schemaOpts.slice(soBodyStart, soBodyEnd - 1);
+writeFileSync("dist/types/server.d.ts", serverDts.replace(
+  /(export interface SchemaOptions \{)/,
+  `$1${shimProps}`
+));
 // Client types are written manually because dts-bundle-generator can't handle .vue imports
 writeFileSync("dist/types/client.d.ts", `
 import type { Component } from "vue";

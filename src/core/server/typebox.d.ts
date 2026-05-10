@@ -1,9 +1,10 @@
-import type { NrgFormOptions } from "./schemas/types";
+// This import makes the file a module, which is required for
+// TypeScript module augmentation (declare module) to work correctly.
+// Without it, the file is treated as a global script and the
+// augmentation silently fails.
+import type { NrgSchemaExtensions } from "./schema-options";
 
 declare module "@sinclair/typebox" {
-  interface SchemaOptions {
-    exportable?: boolean;
-    "x-nrg-node-type"?: string;
-    "x-nrg-form"?: NrgFormOptions;
-  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface SchemaOptions extends NrgSchemaExtensions {}
 }
