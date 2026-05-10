@@ -50,3 +50,34 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    name: E2E Tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.19, 22, 24]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.11.0
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+        env:
+          HUSKY: 0
+
+      - name: E2E Tests
+        run: pnpm vitest run --config vitest.e2e.config.ts
