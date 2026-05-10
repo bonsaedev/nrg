@@ -71,7 +71,7 @@ import { type JSONSchemaType } from "ajv";
 import type { PropType } from "vue";
 import { defineComponent } from "vue";
 import { debounce } from "es-toolkit";
-import { validateForm } from "./validation";
+import { validateForm } from "../validation";
 
 export default defineComponent({
   name: "NodeRedVueApp",

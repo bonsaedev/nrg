@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { mkdirSync, copyFileSync, cpSync, readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
+import { mkdirSync, copyFileSync, cpSync, readFileSync, writeFileSync, appendFileSync, unlinkSync, existsSync } from "fs";
 import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -108,46 +108,16 @@ writeFileSync("dist/types/server.d.ts", serverDts.replace(
   /(export interface SchemaOptions \{)/,
   `$1${shimProps}`
 ));
-// Client types are written manually because dts-bundle-generator can't handle .vue imports
-writeFileSync("dist/types/client.d.ts", `
-import type { Component } from "vue";
-
-export interface NodeButtonDefinition {
-  toggle: string;
-  onclick: () => void;
-  enabled?: () => boolean;
-  visible?: () => boolean;
-}
-
-export interface NodeFormDefinition {
-  component?: Component;
-}
-
-export interface NodeDefinition {
-  type: string;
-  category?: string;
-  color?: string;
-  icon?: ((this: any) => string) | string;
-  label?: ((this: any) => string) | string;
-  inputs?: number;
-  outputs?: number;
-  paletteLabel?: ((this: any) => string) | string;
-  labelStyle?: ((this: any) => string) | string;
-  inputLabels?: ((this: any) => string) | string;
-  outputLabels?: ((this: any) => string) | string;
-  align?: "left" | "right";
-  button?: NodeButtonDefinition;
-  onEditResize?: (this: any, size: { width: number; height: number }) => void;
-  onPaletteAdd?: (this: any) => void;
-  onPaletteRemove?: (this: any) => void;
-  form?: NodeFormDefinition;
-}
-
+// Client types — generated from src/core/client/types.ts (interfaces).
+// Function declarations are appended because registration.ts imports from the
+// app module which contains .vue files that dts-bundle-generator can't process.
+execSync(`npx dts-bundle-generator -o dist/types/client.d.ts src/core/client/types.ts ${dtsFlags}`, { stdio: "inherit" });
+appendFileSync("dist/types/client.d.ts", `
 export declare function defineNode<T extends NodeDefinition>(options: T): T;
 export declare function registerType(definition: NodeDefinition): Promise<void>;
 export declare function registerTypes(nodes: NodeDefinition[]): Promise<void>;
 `);
-console.log("✓ Generated client types (manual)");
+console.log("✓ Generated client types");
 // Vite types are written manually because the vite plugin code has loose typing
 writeFileSync("dist/types/vite.d.ts", `
 import type { Plugin } from "vite";

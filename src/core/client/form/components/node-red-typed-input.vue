@@ -23,7 +23,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
-import { TYPED_INPUT_TYPES } from "../../constants";
+import { TYPED_INPUT_TYPES } from "../../../constants";
 
 export default defineComponent({
   components: { NodeRedInputLabel },
