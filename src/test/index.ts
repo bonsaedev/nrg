@@ -7,7 +7,6 @@ import type { MockNodeRedNodeOptions } from "./mocks";
 interface CreateNodeOptions {
   config?: Record<string, any>;
   credentials?: Record<string, any>;
-  configNodes?: Record<string, any>;
   settings?: Record<string, any>;
   overrides?: MockNodeRedNodeOptions;
 }
@@ -152,10 +151,27 @@ async function createNode<T extends NodeClass>(
   const {
     config: userConfig = {},
     credentials = {},
-    configNodes = {},
     settings = {},
     overrides: overrideOpts = {},
   } = options;
+
+  // Extract config node instances passed directly in config values
+  const resolvedConfig: Record<string, any> = {};
+  const configNodes: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(userConfig)) {
+    if (
+      value &&
+      typeof value === "object" &&
+      "id" in value &&
+      "config" in value
+    ) {
+      configNodes[value.id] = value;
+      resolvedConfig[key] = value.id;
+    } else {
+      resolvedConfig[key] = value;
+    }
+  }
 
   const redNodes = buildNodeRedNodes(configNodes);
   const RED = createMockRED({ nodes: redNodes, settings });
@@ -173,7 +189,7 @@ async function createNode<T extends NodeClass>(
 
   const config = buildConfig(NodeClass, {
     ...configDefaults,
-    ...userConfig,
+    ...resolvedConfig,
   });
 
   const nodeRedNode = createMockNodeRedNode({

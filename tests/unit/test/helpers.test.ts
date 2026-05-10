@@ -351,15 +351,14 @@ describe("createNode (ConfigNode)", () => {
 });
 
 describe("integration: IONode with ConfigNode reference", () => {
-  it("should resolve config node references via configNodes", async () => {
+  it("should resolve config node references passed directly in config", async () => {
     const { node: configNode } = await createNode(TestConfigNode, {
       config: { host: "myserver.com", port: 3000 },
       overrides: { id: "config-1" },
     });
 
     const { node } = await createNode(TestIONode, {
-      config: { server: "config-1" },
-      configNodes: { "config-1": configNode },
+      config: { server: configNode },
     });
 
     const resolved = node.config.server;
