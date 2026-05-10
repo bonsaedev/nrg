@@ -94,12 +94,14 @@ export default defineIONode({
 </td><td>
 
 ```typescript
-import { IONode, SchemaType, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
 import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
+type Input = Infer<typeof InputSchema>;
+type Output = Infer<typeof OutputSchema>;
 
-export default class MyNode extends IONode<Config> {
+export default class MyNode extends IONode<Config, any, Input, Output> {
   static readonly type = "my-node";
   static readonly category = "function";
   static readonly color: `#${string}` = "#ffffff";
@@ -107,9 +109,8 @@ export default class MyNode extends IONode<Config> {
   static readonly inputSchema: Schema = InputSchema;
   static readonly outputsSchema: Schema = OutputSchema;
 
-  async input(msg: any) {
-    msg.payload = `${this.config.prefix}: ${msg.payload}`;
-    this.send(msg);
+  async input(msg: Input) {
+    this.send({ payload: `${this.config.prefix}: ${msg.payload}` });
   }
 }
 ```
