@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/bonsaedev/nrg/compare/v0.13.0...v0.13.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **test:** restore @bonsae/nrg/server import to prevent validator duplication ([d026baa](https://github.com/bonsaedev/nrg/commit/d026baa8f08c3769a27e8d3d4750ddf6b120ec70))
+
 # [0.13.0](https://github.com/bonsaedev/nrg/compare/v0.12.1...v0.13.0) (2026-05-10)
 
 
