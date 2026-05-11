@@ -14,7 +14,7 @@ import { setupContext } from "./utils";
 /** Reserved config property names for dynamic emit ports */
 const EMIT_PORT_KEYS = ["emitError", "emitComplete", "emitStatus"] as const;
 
-class IONode<
+abstract class IONode<
   TConfig = any,
   TCredentials = any,
   TInput = any,

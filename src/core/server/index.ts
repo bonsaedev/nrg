@@ -6,10 +6,6 @@ import { initValidator } from "./validation";
 import { initRoutes } from "./api";
 import { NrgError } from "../errors";
 
-type AnyNodeClass =
-  | ((abstract new (...args: any[]) => Node) & Partial<typeof Node>)
-  | NodeConstructor<any>;
-
 /**
  * Registers a custom node with Node-RED.
  *
@@ -18,7 +14,7 @@ type AnyNodeClass =
  * @throws If NodeClass does not extend Node
  * @throws If NodeClass.type is not defined
  */
-async function registerType(RED: RED, NodeClass: AnyNodeClass) {
+async function registerType(RED: RED, NodeClass: NodeConstructor) {
   const NC = NodeClass as any;
   RED.log.debug(`Registering Type: ${NC.type}`);
   if (!(NC.prototype instanceof Node)) {
@@ -152,7 +148,7 @@ async function registerType(RED: RED, NodeClass: AnyNodeClass) {
 }
 
 type RegistrationFunction = ((RED: RED) => Promise<void>) & {
-  nodes: AnyNodeClass[];
+  nodes: NodeConstructor[];
 };
 
 /**
@@ -163,7 +159,7 @@ type RegistrationFunction = ((RED: RED) => Promise<void>) & {
  *
  * @param nodes - Array of node classes to register
  */
-function registerTypes(nodes: AnyNodeClass[]): RegistrationFunction {
+function registerTypes(nodes: NodeConstructor[]): RegistrationFunction {
   const fn = async function (RED: RED) {
     initValidator(RED);
     initRoutes(RED);
@@ -183,7 +179,7 @@ function registerTypes(nodes: AnyNodeClass[]): RegistrationFunction {
 }
 
 interface ModuleDefinition {
-  nodes: AnyNodeClass[];
+  nodes: NodeConstructor[];
 }
 
 function defineModule(definition: ModuleDefinition): ModuleDefinition {
