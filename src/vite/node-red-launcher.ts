@@ -11,9 +11,12 @@ import { build as esbuild } from "esbuild";
 import { withTimeout, retry } from "./async-utils";
 import { NodeRedStartError } from "./errors";
 import { Logger } from "./logger";
-import type { Logger, NodeRedLauncherOptions } from "./types";
+import type {
+  NodeRedLauncherOptions,
+  NodeRedLauncher as INodeRedLauncher,
+} from "./types";
 
-class NodeRedLauncher {
+class NodeRedLauncher implements INodeRedLauncher {
   private compiledRuntimeSettingsFilepath: string | null = null;
   private process: ChildProcess | null = null;
   private bufferedLogs: string[] = [];
@@ -57,7 +60,7 @@ class NodeRedLauncher {
   }
 
   private findRuntimeSettingsFilepath(): string | null {
-    const runtimeSettingsFilepath = this.options.runtime.settingsFilepath;
+    const runtimeSettingsFilepath = this.options.runtime?.settingsFilepath;
     if (runtimeSettingsFilepath) {
       const resolved = path.resolve(runtimeSettingsFilepath);
       if (fs.existsSync(resolved)) {
@@ -196,7 +199,7 @@ module.exports = settings;
       }
     }
 
-    const startProcess = (): Promise => {
+    const startProcess = (): Promise<void> => {
       // eslint-disable-next-line no-async-promise-executor
       return new Promise(async (resolve, reject) => {
         try {
@@ -230,7 +233,7 @@ module.exports = settings;
                 line.includes("Server now running")
               ) {
                 this.isReady = true;
-                resolve();
+                resolve(undefined);
               }
             }
           });
@@ -259,7 +262,7 @@ module.exports = settings;
                 ),
               );
             }
-            resolve();
+            resolve(undefined);
           });
         } catch (error) {
           reject(new NodeRedStartError(error as Error));
@@ -296,7 +299,7 @@ module.exports = settings;
     const stopProcess = new Promise<void>((resolve) => {
       this.process!.once("exit", () => {
         this.process = null;
-        resolve();
+        resolve(undefined);
       });
 
       treeKill(pid, "SIGTERM", (error) => {
@@ -305,7 +308,7 @@ module.exports = settings;
             process.kill(pid, "SIGTERM");
           } catch {
             this.process = null;
-            resolve();
+            resolve(undefined);
           }
         }
       });
@@ -318,7 +321,7 @@ module.exports = settings;
       await new Promise<void>((resolve) => {
         treeKill(pid, "SIGKILL", () => {
           this.process = null;
-          resolve();
+          resolve(undefined);
         });
       });
     }

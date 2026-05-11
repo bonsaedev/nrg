@@ -34,7 +34,6 @@ const DEFAULT_SERVER_BUILD_OPTIONS: ServerBuildOptions = {
   srcDir: "./src/server",
   entry: "index.ts",
   format: "esm",
-  external: [],
   bundled: [],
   types: true,
   nodeTarget: "node22",

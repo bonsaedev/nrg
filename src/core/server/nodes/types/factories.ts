@@ -1,5 +1,6 @@
 import { type Static, type TSchema } from "@sinclair/typebox";
 import type { RED } from "../../types";
+import type { Schema } from "../../schemas/types";
 import type { IONode } from "../io-node";
 import type { ConfigNode } from "../config-node";
 import type { HexColor, IONodeConfig, IONodeCredentials } from "./io-node";
@@ -54,6 +55,16 @@ interface IONodeInstance<
   readonly name: string | undefined;
   input(msg: TInput): void | Promise<void>;
   send(msg: TOutput): void;
+  /** @internal */
+  readonly _baseOutputs: number;
+  /** @internal */
+  readonly _totalOutputs: number;
+  /** @internal */
+  _getErrorPortIndex(): number | null;
+  /** @internal */
+  _getCompletePortIndex(): number | null;
+  /** @internal */
+  _getStatusPortIndex(): number | null;
 }
 
 interface IONodeDefinition<
@@ -136,6 +147,18 @@ interface ConfigNodeDefinition<
 interface NodeClassBase<TInstance = unknown> {
   readonly type: string;
   readonly category: string;
+  readonly color?: string;
+  readonly align?: "left" | "right";
+  readonly inputs?: number;
+  readonly outputs?: number;
+  readonly configSchema?: Schema;
+  readonly credentialsSchema?: Schema;
+  readonly settingsSchema?: Schema;
+  readonly inputSchema?: Schema;
+  readonly outputsSchema?: Schema | Schema[];
+  readonly validateInput?: boolean;
+  readonly validateOutput?: boolean;
+  readonly name: string;
   new (...args: any[]): TInstance;
 }
 

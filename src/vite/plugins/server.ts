@@ -1,5 +1,7 @@
-import type { Plugin, FSWatcher, ViteDevServer } from "vite";
+import type { Plugin, ViteDevServer } from "vite";
 import chokidar from "chokidar";
+import type { FSWatcher } from "chokidar";
+import treeKill from "tree-kill";
 import path from "path";
 const color = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,

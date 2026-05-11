@@ -23,7 +23,6 @@ async function build(
     bundled = [],
     types = true,
     nodeTarget = "node22",
-    plugins: userPlugins = [],
   } = serverOpts;
 
   const entries = Array.isArray(entry) ? entry : [entry];
@@ -52,7 +51,6 @@ async function build(
       format,
     }),
     isEsm ? esmWrapper() : cjsWrapper(),
-    ...userPlugins,
   ];
 
   if (types && !buildContext.isDev) {

@@ -46,7 +46,7 @@ describe("registerType validation", () => {
     class BadColor extends IONode {
       static override readonly type = "bad-color";
       static override readonly category = "function";
-      static readonly color = "red"; // not hex
+      static override readonly color = "red" as any; // not hex
     }
 
     await expect(registerType(RED, BadColor as any)).rejects.toThrow(NrgError);
@@ -62,7 +62,7 @@ describe("registerType validation", () => {
     class GoodColor extends IONode {
       static override readonly type = "good-color";
       static override readonly category = "function";
-      static readonly color = "#a6bbcf";
+      static override readonly color = "#a6bbcf";
     }
 
     await expect(

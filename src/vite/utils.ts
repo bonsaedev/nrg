@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import type { PackageJson } from "./types";
+import type { CopyTarget, PackageJson } from "./types";
 
 function cleanDir(dir: string) {
   if (fs.existsSync(dir)) {
@@ -39,7 +39,7 @@ function getPackageName(): string {
   return "node-red-nodes";
 }
 
-function mergeOptions<T extends Record<string, unknown>>(
+function mergeOptions<T extends Record<string, any>>(
   defaults: T,
   overrides?: Partial<T>,
 ): T {

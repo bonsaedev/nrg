@@ -30,7 +30,6 @@ async function build(
     external = ["jquery", "node-red", "vue"],
     globals = { jquery: "$", "node-red": "RED", vue: "Vue" },
     manualChunks,
-    plugins: userPlugins = [],
   } = clientBuildOptions;
 
   const physicalEntryPath = path.resolve(srcDir, entry);
@@ -66,7 +65,6 @@ async function build(
       path.resolve(srcDir, "nodes"),
       !generatedEntry,
     ),
-    ...userPlugins,
   ];
 
   plugins.push(

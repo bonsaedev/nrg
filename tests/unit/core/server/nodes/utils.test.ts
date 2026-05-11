@@ -3,6 +3,7 @@ import {
   setupConfigProxy,
   setupContext,
 } from "../../../../../src/core/server/nodes/utils";
+import type TypedInput from "../../../../../src/core/server/typed-input";
 import { NrgError } from "../../../../../src/core/errors";
 import { createMockRED } from "../../../../mocks/red";
 
@@ -227,7 +228,7 @@ describe("setupConfigProxy", () => {
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: mockNode, config, schema });
-      const result = await proxy.target.resolve({ payload: "hello" });
+      const result = await (proxy.target as TypedInput<any>).resolve({ payload: "hello" });
       expect(result).toBe("resolved-value");
       expect(RED.util.evaluateNodeProperty).toHaveBeenCalledWith(
         "payload",
@@ -248,7 +249,7 @@ describe("setupConfigProxy", () => {
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
-      await expect(proxy.target.resolve()).rejects.toThrow("eval failed");
+      await expect((proxy.target as TypedInput<any>).resolve()).rejects.toThrow("eval failed");
     });
 
     it("should resolve node ID to NRG node instance for node-type inputs", async () => {
@@ -264,7 +265,7 @@ describe("setupConfigProxy", () => {
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
-      const result = await proxy.target.resolve();
+      const result = await (proxy.target as TypedInput<any>).resolve();
       expect(result).toBe(nrgInstance);
       expect(RED.nodes.getNode).toHaveBeenCalledWith("n1");
     });
@@ -280,7 +281,7 @@ describe("setupConfigProxy", () => {
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
-      const result = await proxy.target.resolve();
+      const result = await (proxy.target as TypedInput<any>).resolve();
       expect(result).toBe(rawNode);
     });
 
@@ -294,7 +295,7 @@ describe("setupConfigProxy", () => {
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
-      const result = await proxy.target.resolve();
+      const result = await (proxy.target as TypedInput<any>).resolve();
       expect(result).toBe("missing-id");
     });
 
@@ -310,7 +311,7 @@ describe("setupConfigProxy", () => {
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
       expect(proxy.settings.value).toBe("x");
-      expect(typeof proxy.settings.resolve).toBe("undefined");
+      expect(typeof (proxy.settings as any).resolve).toBe("undefined");
     });
   });
 });

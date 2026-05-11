@@ -1,6 +1,3 @@
-import type { Plugin } from "vite";
-import type { NodeRedLauncher } from "./node-red-launcher";
-
 interface BuildContext {
   outDir: string;
   packageName: string;
@@ -46,8 +43,6 @@ interface ClientBuildOptions {
   globals?: Record<string, string>;
   /** Custom chunk splitting function for Rollup. */
   manualChunks?: (id: string) => string | undefined;
-  /** Additional Vite plugins for the client build. */
-  plugins: Plugin[];
 }
 
 interface CopyTarget {
@@ -145,8 +140,16 @@ interface ServerBuildOptions {
   types?: boolean;
   /** esbuild target for the server bundle. @default "node22" */
   nodeTarget?: string;
-  /** Additional Vite plugins for the server build. */
-  plugins: Plugin[];
+}
+
+interface NodeRedLauncher {
+  start(): Promise<number>;
+  stop(skipPortUsageCheck?: boolean): Promise<void>;
+  cleanup(): void;
+  flushLogs(): void;
+  readonly preferredPort: number;
+  readonly restartDelay: number;
+  readonly pid: number | null;
 }
 
 interface ServerPluginOptions {
@@ -164,6 +167,7 @@ export {
   CopyTarget,
   LocalesOptions,
   LoggerOptions,
+  NodeRedLauncher,
   NodeRedLauncherOptions,
   NodeRedPluginOptions,
   PackageJson,

@@ -9,7 +9,7 @@ import {
   type Infer,
   type RED,
 } from "../../../src/core/server";
-import { defineSchema, SchemaType } from "../../../src/core/server/schemas";
+import { defineSchema } from "../../../src/core/server/schemas";
 import { createNode } from "../../../src/test";
 
 // --- Test fixtures ---
@@ -29,7 +29,7 @@ class TestConfigNode extends ConfigNode<TestConfig> {
   static override readonly type = "test-config";
   static override readonly configSchema: Schema = TestConfigSchema;
 
-  async created() {
+  override async created() {
     this.log("config node created");
   }
 }
@@ -58,17 +58,17 @@ class TestIONode extends IONode<TestIOConfig> {
     RED.log.info("test-io registered");
   }
 
-  async created() {
+  override async created() {
     this.log("io node created");
   }
 
-  async input(msg: any) {
+  override async input(msg: any) {
     const greeting = this.config.greeting;
     this.send({ payload: `${greeting} ${msg.payload}` });
     this.status({ fill: "green", text: "ok" });
   }
 
-  async closed() {
+  override async closed() {
     this.log("io node closed");
   }
 }
@@ -88,7 +88,7 @@ class TestSplitter extends IONode {
   static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
   static override readonly configSchema: Schema = SplitterSchema;
 
-  async input(msg: any) {
+  override async input(msg: any) {
     if (msg.payload > this.config.threshold) {
       this.send([{ payload: msg.payload, label: "above" }, null]);
     } else {
@@ -103,7 +103,7 @@ class TestBroadcaster extends IONode {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
 
-  async input(msg: any) {
+  override async input(msg: any) {
     this.send([
       { payload: msg.payload, port: 0 },
       { payload: msg.payload, port: 1 },
@@ -137,7 +137,7 @@ class TestCredNode extends IONode<CredConfig, CredCreds> {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  async input(msg: any) {
+  override async input(msg: any) {
     const key = this.credentials?.apiKey;
     if (!key) {
       this.warn("no api key");
@@ -153,7 +153,7 @@ class TestErrorNode extends IONode {
   static override readonly category = "function";
   static override readonly inputSchema: Schema = SchemaType.Object({});
 
-  async input(_msg: any) {
+  override async input(_msg: any) {
     throw new Error("something broke");
   }
 }
@@ -164,13 +164,13 @@ class TestContextNode extends IONode {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  async created() {
+  override async created() {
     await this.context.node.set("counter", 0);
     await this.context.flow.set("sharedKey", "flow-value");
     await this.context.global.set("globalKey", "global-value");
   }
 
-  async input(msg: any) {
+  override async input(msg: any) {
     const scope = msg.scope as string;
     if (scope === "flow") {
       const val = await this.context.flow.get<string>("sharedKey");
@@ -192,7 +192,7 @@ class TestI18nNode extends IONode {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  async input(_msg: any) {
+  override async input(_msg: any) {
     const label = this.i18n("greeting");
     this.send({ payload: label });
   }
@@ -236,7 +236,7 @@ const FactoryIONode = defineIONode({
     this.log("factory io created");
   },
 
-  input(msg) {
+  input(msg: any) {
     this.send({ payload: `${this.config.prefix} ${msg.payload}` });
   },
 });
@@ -257,7 +257,7 @@ class TestSettingsNode extends IONode {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  async input(_msg: any) {
+  override async input(_msg: any) {
     this.send({ payload: this.settings.timeout });
   }
 }

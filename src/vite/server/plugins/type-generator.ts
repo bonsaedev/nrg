@@ -416,7 +416,7 @@ function typeGenerator(options: {
       rollupOptions: {
         messageCallback(message) {
           if (message.messageId === "console-preamble") {
-            message.logLevel = "none";
+            message.logLevel = "none" as any;
           }
         },
       },

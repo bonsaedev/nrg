@@ -91,4 +91,4 @@ export class Logger {
 // NOTE: global logger is still used by other vite messages
 const logger = new Logger({ name: "vite-plugin-node-red" });
 
-export { createLogger, logger };
+export { logger };

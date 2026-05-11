@@ -207,7 +207,7 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       const errorSend = sent.find((s: any) => Array.isArray(s) && s[1]?.error);
-      expect(errorSend[1].error.source).toEqual({
+      expect(errorSend![1].error.source).toEqual({
         id: expect.any(String),
         type: "emit-test",
         name: expect.any(String),
@@ -261,7 +261,7 @@ describe("emit ports", () => {
         (s: any) => Array.isArray(s) && s[1]?.status && s[1]?.source,
       );
       expect(statusSend).toBeDefined();
-      expect(statusSend[1].source).toEqual({
+      expect(statusSend![1].source).toEqual({
         id: expect.any(String),
         type: "emit-test",
         name: expect.any(String),
@@ -349,7 +349,7 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect(sent[0].payload).toBe("hello");
+      expect((sent[0] as any).payload).toBe("hello");
     });
   });
 });

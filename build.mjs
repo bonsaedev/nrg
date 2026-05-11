@@ -124,18 +124,11 @@ export declare function registerType(definition: NodeDefinition): Promise<void>;
 export declare function registerTypes(nodes: NodeDefinition[]): Promise<void>;
 `);
 console.log("✓ Generated client types");
-// Vite types are written manually because the vite plugin code has loose typing
-writeFileSync("dist/types/vite.d.ts", `
+// Vite types — generated from source. The nodeRed() function signature is appended
+// because it returns Plugin[] from vite, which crashes dts-bundle-generator.
+execSync(`npx dts-bundle-generator -o dist/types/vite.d.ts src/vite/types.ts ${dtsFlags}`, { stdio: "inherit" });
+appendFileSync("dist/types/vite.d.ts", `
 import type { Plugin } from "vite";
-
-export interface NodeRedPluginOptions {
-  outDir?: string;
-  serverBuildOptions?: Record<string, any>;
-  clientBuildOptions?: Record<string, any>;
-  nodeRedLauncherOptions?: Record<string, any>;
-  extraFilesCopyTargets?: Array<{ src: string; dest: string }>;
-}
-
 export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
 `);
 // Test utilities types — generated from source

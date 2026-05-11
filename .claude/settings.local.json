@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/allanoricil/bonsae-salesforce/**)",
+      "Bash(pnpm vitest:*)"
+    ]
+  }
+}

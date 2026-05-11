@@ -17,7 +17,7 @@ class TestIONode extends IONode {
   public inputCalled = false;
   public lastMsg: any = null;
 
-  public async input(msg: any) {
+  public override async input(msg: any) {
     this.inputCalled = true;
     this.lastMsg = msg;
   }
@@ -91,7 +91,7 @@ describe("IONode", () => {
         static override readonly color = "#ffffff" as const;
         static override readonly validateInput = true;
         static override readonly inputSchema = inputSchema;
-        public async input() {}
+        public override async input() {}
       }
 
       const RED = createMockRED();
@@ -114,7 +114,7 @@ describe("IONode", () => {
         static override readonly color = "#ffffff" as const;
         static override readonly validateInput = false;
         static override readonly inputSchema = inputSchema;
-        public async input() {}
+        public override async input() {}
       }
 
       const RED = createMockRED();
@@ -138,7 +138,7 @@ describe("IONode", () => {
         static override readonly type = "sending-node";
         static override readonly category = "function";
         static override readonly color = "#ffffff" as const;
-        public async input() {
+        public override async input() {
           this.send({ payload: "result" });
         }
       }
@@ -177,7 +177,7 @@ describe("IONode", () => {
         static override readonly color = "#ffffff" as const;
         static override readonly validateOutput = true;
         static override readonly outputsSchema = [schema1, schema2];
-        public async input() {}
+        public override async input() {}
       }
 
       const RED = createMockRED();
@@ -204,7 +204,7 @@ describe("IONode", () => {
         static override readonly color = "#ffffff" as const;
         static override readonly validateOutput = true;
         static override readonly outputsSchema = outputSchema;
-        public async input() {}
+        public override async input() {}
       }
 
       const RED = createMockRED();
@@ -233,7 +233,7 @@ describe("IONode", () => {
         static override readonly color = "#ffffff" as const;
         static override readonly validateOutput = true;
         static override readonly outputsSchema = outputSchema;
-        public async input() {}
+        public override async input() {}
       }
 
       const RED = createMockRED();
