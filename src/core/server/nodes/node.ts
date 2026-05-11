@@ -7,7 +7,6 @@ import type {
   NodeCredentials,
   NodeSettings,
 } from "./types";
-import { validator } from "../validation";
 import { setupConfigProxy } from "./utils";
 
 abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
@@ -69,7 +68,7 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
       }
     }
 
-    validator.validate(settings, this.settingsSchema, {
+    RED.validator.validate(settings, this.settingsSchema, {
       cacheKey: this.settingsSchema.$id || `${this.type}:settings`,
       throwOnError: true,
     });
@@ -98,7 +97,7 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
     const constructor = this.constructor as typeof Node;
     if (constructor.configSchema) {
       this.log("Validating configs");
-      const configResult = validator.validate(
+      const configResult = this.RED.validator.validate(
         config,
         constructor.configSchema,
         {
@@ -123,7 +122,7 @@ abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
 
     if (constructor.credentialsSchema && credentials) {
       this.log("Validating credentials");
-      const credResult = validator.validate(
+      const credResult = this.RED.validator.validate(
         credentials,
         constructor.credentialsSchema,
         {

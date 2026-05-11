@@ -1,7 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { IONode } from "../../../../../src/core/server/nodes/io-node";
 import { initValidator } from "../../../../../src/core/server/validation";
-import { defineSchema, SchemaType } from "../../../../../src/core/server/schemas";
+import {
+  defineSchema,
+  SchemaType,
+} from "../../../../../src/core/server/schemas";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
 
 class TestIONode extends IONode {
@@ -21,13 +24,11 @@ class TestIONode extends IONode {
 }
 
 describe("IONode", () => {
-  beforeEach(() => {
-    initValidator(createMockRED());
-  });
 
   describe("constructor", () => {
     it("should set up context with node, flow, and global", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
@@ -39,6 +40,7 @@ describe("IONode", () => {
 
     it("should support context as a function with scope", async () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
@@ -53,6 +55,7 @@ describe("IONode", () => {
   describe("properties", () => {
     it("should expose x, y, g, wires from underlying node", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
@@ -66,6 +69,7 @@ describe("IONode", () => {
   describe("_input", () => {
     it("should call input method with message", async () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
       const send = vi.fn();
@@ -91,12 +95,11 @@ describe("IONode", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ValidatedIONode as any)(RED, node, {}, {});
 
-      await expect(
-        instance._input({ payload: "" }, vi.fn()),
-      ).rejects.toThrow();
+      await expect(instance._input({ payload: "" }, vi.fn())).rejects.toThrow();
     });
 
     it("should not validate input when validateInput is false", async () => {
@@ -115,6 +118,7 @@ describe("IONode", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (NoValidateIONode as any)(RED, node, {}, {});
 
@@ -127,6 +131,7 @@ describe("IONode", () => {
   describe("send", () => {
     it("should use _send when inside _input", async () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
 
       class SendingNode extends IONode {
@@ -148,6 +153,7 @@ describe("IONode", () => {
 
     it("should fall back to node.send outside _input", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
@@ -175,18 +181,15 @@ describe("IONode", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (MultiOutputNode as any)(RED, node, {}, {});
 
       // Valid: first port has data, second is null
-      expect(() =>
-        instance.send([{ result: "ok" }, null]),
-      ).not.toThrow();
+      expect(() => instance.send([{ result: "ok" }, null])).not.toThrow();
 
       // Invalid: first port has empty result
-      expect(() =>
-        instance.send([{ result: "" }, null]),
-      ).toThrow();
+      expect(() => instance.send([{ result: "" }, null])).toThrow();
     });
 
     it("should validate array of messages against single schema", () => {
@@ -205,6 +208,7 @@ describe("IONode", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (SingleSchemaArrayNode as any)(RED, node, {}, {});
 
@@ -214,9 +218,7 @@ describe("IONode", () => {
       ).not.toThrow();
 
       // Invalid: one message fails
-      expect(() =>
-        instance.send([{ payload: "" }]),
-      ).toThrow();
+      expect(() => instance.send([{ payload: "" }])).toThrow();
     });
 
     it("should validate output when validateOutput is true", () => {
@@ -235,6 +237,7 @@ describe("IONode", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ValidatedOutputNode as any)(RED, node, {}, {});
 
@@ -245,6 +248,7 @@ describe("IONode", () => {
   describe("status", () => {
     it("should delegate to node.status", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
@@ -260,6 +264,7 @@ describe("IONode", () => {
   describe("updateWires", () => {
     it("should delegate to node.updateWires", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
@@ -271,6 +276,7 @@ describe("IONode", () => {
   describe("receive", () => {
     it("should delegate to node.receive", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 

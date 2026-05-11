@@ -1,6 +1,5 @@
 import type { Schema } from "../schemas/types";
 import type { RED } from "../../server/types";
-import { validator } from "../validation";
 import { Node } from "./node";
 import type {
   HexColor,
@@ -87,7 +86,7 @@ class IONode<
       this.config.validateInput ?? NodeClass.validateInput;
     if (shouldValidateInput && NodeClass.inputSchema) {
       this.log("Validating input");
-      validator.validate(msg, NodeClass.inputSchema, {
+      this.RED.validator.validate(msg, NodeClass.inputSchema, {
         cacheKey: NodeClass.inputSchema.$id || `${NodeClass.type}:input-schema`,
         throwOnError: true,
       });
@@ -114,7 +113,7 @@ class IONode<
         const msgs = msg as any[];
         for (let i = 0; i < schemas.length; i++) {
           if (msgs[i] == null) continue;
-          validator.validate(msgs[i], schemas[i], {
+          this.RED.validator.validate(msgs[i], schemas[i], {
             cacheKey: schemas[i].$id || `${NodeClass.type}:output-schema:${i}`,
             throwOnError: true,
           });
@@ -123,14 +122,14 @@ class IONode<
         // Single schema, array of messages: validate each non-null element
         for (let i = 0; i < (msg as any[]).length; i++) {
           if ((msg as any[])[i] == null) continue;
-          validator.validate((msg as any[])[i], schemas, {
+          this.RED.validator.validate((msg as any[])[i], schemas, {
             cacheKey: schemas.$id || `${NodeClass.type}:output-schema`,
             throwOnError: true,
           });
         }
       } else {
         // Single schema, single message
-        validator.validate(msg, schemas, {
+        this.RED.validator.validate(msg, schemas, {
           cacheKey: schemas.$id || `${NodeClass.type}:output-schema`,
           throwOnError: true,
         });

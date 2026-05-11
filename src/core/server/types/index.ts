@@ -1,5 +1,6 @@
 import type { EventEmitter } from "events";
 import type { NodeRedRuntimeSettings } from "../../../types";
+import type { Validator } from "../../validator";
 
 // ---------------------------------------------------------------------------
 // RED.log
@@ -181,6 +182,8 @@ interface RED {
   settings: NodeRedRuntimeSettings & Record<string, any>;
   /** Node-RED version string */
   version(): string;
+  /** @internal — framework validator, set by initValidator() */
+  readonly validator: Validator;
 }
 
 // ---------------------------------------------------------------------------

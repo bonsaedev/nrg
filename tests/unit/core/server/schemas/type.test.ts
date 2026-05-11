@@ -1,7 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Kind } from "@sinclair/typebox";
-import { SchemaType, defineSchema } from "../../../../../src/core/server/schemas";
-import { initValidator, validator } from "../../../../../src/core/server/validation";
+import {
+  SchemaType,
+  defineSchema,
+} from "../../../../../src/core/server/schemas";
+import { initValidator } from "../../../../../src/core/server/validation";
 import { createMockRED } from "../../../../mocks/red";
 
 describe("SchemaType", () => {
@@ -231,18 +234,19 @@ describe("defineSchema", () => {
     });
 
     it("should work with the validator without $id", () => {
-      initValidator(createMockRED());
+      const RED = createMockRED();
+      initValidator(RED);
 
       const schema = defineSchema({
         payload: SchemaType.String({ minLength: 1 }),
       });
 
-      const result = validator.validate({ payload: "hello" }, schema, {
+      const result = RED.validator.validate({ payload: "hello" }, schema, {
         cacheKey: "test-no-id:input",
       });
       expect(result.valid).toBe(true);
 
-      const invalid = validator.validate({ payload: "" }, schema, {
+      const invalid = RED.validator.validate({ payload: "" }, schema, {
         cacheKey: "test-no-id:input",
       });
       expect(invalid.valid).toBe(false);

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createNode } from "../../../../../src/test";
 import { defineIONode } from "../../../../../src/core/server/nodes";
 import {
@@ -141,7 +141,9 @@ describe("emit ports", () => {
       );
       expect(errorSends).toHaveLength(0);
       // Error should still be logged through the normal error() path
-      expect(node.errored().some((e: string) => e.includes("Explicit error"))).toBe(true);
+      expect(
+        node.errored().some((e: string) => e.includes("Explicit error")),
+      ).toBe(true);
     });
   });
 
@@ -204,9 +206,7 @@ describe("emit ports", () => {
       await node.receive({ payload: "explicit-error" });
 
       const sent = node.sent();
-      const errorSend = sent.find(
-        (s: any) => Array.isArray(s) && s[1]?.error,
-      );
+      const errorSend = sent.find((s: any) => Array.isArray(s) && s[1]?.error);
       expect(errorSend[1].error.source).toEqual({
         id: expect.any(String),
         type: "emit-test",

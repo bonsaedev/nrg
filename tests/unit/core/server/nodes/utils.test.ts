@@ -10,7 +10,7 @@ describe("setupConfigProxy", () => {
   describe("node reference resolution", () => {
     it("should resolve node references marked with x-nrg-node-type", () => {
       const mockNode = { _node: { id: "node-1", type: "remote-server" } };
-      const RED = createMockRED({ "abc123": mockNode });
+      const RED = createMockRED({ abc123: mockNode });
 
       const config = { server: "abc123", name: "test" };
       const schema = {
@@ -173,7 +173,7 @@ describe("setupConfigProxy", () => {
 
   describe("without schema", () => {
     it("should not resolve any strings when no schema is provided", () => {
-      const RED = createMockRED({ "test": { _node: {} } });
+      const RED = createMockRED({ test: { _node: {} } });
       const config = { name: "test" };
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config });
@@ -194,7 +194,10 @@ describe("setupConfigProxy", () => {
 
     it("should return a TypedInputRef for TypedInput-marked props", () => {
       const RED = createMockRED();
-      const config = { target: { value: "payload", type: "msg" }, name: "test" };
+      const config = {
+        target: { value: "payload", type: "msg" },
+        name: "test",
+      };
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node: {} as any, config, schema });
@@ -216,7 +219,8 @@ describe("setupConfigProxy", () => {
     it("should resolve a TypedInputRef via evaluateNodeProperty", async () => {
       const RED = createMockRED();
       RED.util.evaluateNodeProperty.mockImplementation(
-        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "resolved-value"),
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
+          cb(null, "resolved-value"),
       );
       const mockNode = { id: "n1" } as any;
       const config = { target: { value: "payload", type: "msg" } };
@@ -226,14 +230,19 @@ describe("setupConfigProxy", () => {
       const result = await proxy.target.resolve({ payload: "hello" });
       expect(result).toBe("resolved-value");
       expect(RED.util.evaluateNodeProperty).toHaveBeenCalledWith(
-        "payload", "msg", mockNode, { payload: "hello" }, expect.any(Function),
+        "payload",
+        "msg",
+        mockNode,
+        { payload: "hello" },
+        expect.any(Function),
       );
     });
 
     it("should reject when evaluateNodeProperty returns an error", async () => {
       const RED = createMockRED();
       RED.util.evaluateNodeProperty.mockImplementation(
-        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(new Error("eval failed")),
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
+          cb(new Error("eval failed")),
       );
       const config = { target: { value: "x", type: "str" } };
       const schema = makeTypedInputSchema();
@@ -245,10 +254,11 @@ describe("setupConfigProxy", () => {
     it("should resolve node ID to NRG node instance for node-type inputs", async () => {
       const nrgInstance = { id: "n1", type: "test", config: { name: "test" } };
       const rawNode = { _node: nrgInstance };
-      const RED = createMockRED({ "n1": rawNode });
+      const RED = createMockRED({ n1: rawNode });
       // evaluateNodeProperty returns the string ID for "node" type
       RED.util.evaluateNodeProperty.mockImplementation(
-        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "n1"),
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
+          cb(null, "n1"),
       );
       const config = { target: { value: "n1", type: "node" } };
       const schema = makeTypedInputSchema();
@@ -261,9 +271,10 @@ describe("setupConfigProxy", () => {
 
     it("should return raw node when no NRG wrapper exists", async () => {
       const rawNode = { id: "n2", type: "debug" };
-      const RED = createMockRED({ "n2": rawNode });
+      const RED = createMockRED({ n2: rawNode });
       RED.util.evaluateNodeProperty.mockImplementation(
-        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "n2"),
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
+          cb(null, "n2"),
       );
       const config = { target: { value: "n2", type: "node" } };
       const schema = makeTypedInputSchema();
@@ -276,7 +287,8 @@ describe("setupConfigProxy", () => {
     it("should return the ID string when node is not found", async () => {
       const RED = createMockRED({});
       RED.util.evaluateNodeProperty.mockImplementation(
-        (_val: any, _type: any, _node: any, _msg: any, cb: any) => cb(null, "missing-id"),
+        (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
+          cb(null, "missing-id"),
       );
       const config = { target: { value: "missing-id", type: "node" } };
       const schema = makeTypedInputSchema();
@@ -307,18 +319,11 @@ describe("setupContext", () => {
   function createMockContext(): any {
     const store: Record<string, any> = {};
     return {
-      get: vi.fn(
-        (key: string, _store: string | undefined, cb: Function) => {
-          cb(null, store[key]);
-        },
-      ),
+      get: vi.fn((key: string, _store: string | undefined, cb: Function) => {
+        cb(null, store[key]);
+      }),
       set: vi.fn(
-        (
-          key: string,
-          value: any,
-          _store: string | undefined,
-          cb: Function,
-        ) => {
+        (key: string, value: any, _store: string | undefined, cb: Function) => {
           store[key] = value;
           cb(null);
         },
@@ -331,8 +336,8 @@ describe("setupContext", () => {
 
   it("should get a value", async () => {
     const mockCtx = createMockContext();
-    mockCtx.get.mockImplementation(
-      (key: string, _store: any, cb: Function) => cb(null, "hello"),
+    mockCtx.get.mockImplementation((key: string, _store: any, cb: Function) =>
+      cb(null, "hello"),
     );
 
     const ctx = setupContext(mockCtx);
@@ -363,9 +368,8 @@ describe("setupContext", () => {
 
   it("should reject on get error", async () => {
     const mockCtx = createMockContext();
-    mockCtx.get.mockImplementation(
-      (_key: string, _store: any, cb: Function) =>
-        cb(new Error("get failed")),
+    mockCtx.get.mockImplementation((_key: string, _store: any, cb: Function) =>
+      cb(new Error("get failed")),
     );
 
     const ctx = setupContext(mockCtx);

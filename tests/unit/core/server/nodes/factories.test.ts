@@ -1,17 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { defineIONode, defineConfigNode } from "../../../../../src/core/server/nodes/factories";
+import { describe, it, expect, vi } from "vitest";
+import {
+  defineIONode,
+  defineConfigNode,
+} from "../../../../../src/core/server/nodes/factories";
 import { defineModule } from "../../../../../src/core/server/index";
 import { IONode } from "../../../../../src/core/server/nodes/io-node";
 import { ConfigNode } from "../../../../../src/core/server/nodes/config-node";
 import { Node } from "../../../../../src/core/server/nodes/node";
-import { defineSchema, SchemaType } from "../../../../../src/core/server/schemas";
+import {
+  defineSchema,
+  SchemaType,
+} from "../../../../../src/core/server/schemas";
 import { initValidator } from "../../../../../src/core/server/validation";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
 
 describe("defineIONode", () => {
-  beforeEach(() => {
-    initValidator(createMockRED());
-  });
 
   it("should create a class with the correct static type", () => {
     const Node = defineIONode({
@@ -42,7 +45,11 @@ describe("defineIONode", () => {
       category: "network",
       color: "#ff6633",
       align: "right",
-      outputsSchema: [SchemaType.Object({}), SchemaType.Object({}), SchemaType.Object({})],
+      outputsSchema: [
+        SchemaType.Object({}),
+        SchemaType.Object({}),
+        SchemaType.Object({}),
+      ],
       validateInput: true,
       validateOutput: true,
       input() {},
@@ -109,6 +116,7 @@ describe("defineIONode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
@@ -130,6 +138,7 @@ describe("defineIONode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
@@ -151,6 +160,7 @@ describe("defineIONode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
@@ -170,6 +180,7 @@ describe("defineIONode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     await (Node as any)._registered(RED);
 
     expect(registeredFn).toHaveBeenCalledWith(RED);
@@ -182,6 +193,7 @@ describe("defineIONode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
@@ -206,6 +218,7 @@ describe("defineIONode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (NodeClass as any)(RED, node, {}, {});
 
@@ -215,9 +228,6 @@ describe("defineIONode", () => {
 });
 
 describe("defineConfigNode", () => {
-  beforeEach(() => {
-    initValidator(createMockRED());
-  });
 
   it("should create a class with the correct static type", () => {
     const Node = defineConfigNode({ type: "test-config" });
@@ -265,8 +275,14 @@ describe("defineConfigNode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
-    const instance = new (Node as any)(RED, node, { host: "example.com", _users: [] }, {});
+    const instance = new (Node as any)(
+      RED,
+      node,
+      { host: "example.com", _users: [] },
+      {},
+    );
 
     await instance.created();
 
@@ -284,6 +300,7 @@ describe("defineConfigNode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (Node as any)(RED, node, { _users: [] }, {});
 
@@ -301,6 +318,7 @@ describe("defineConfigNode", () => {
     });
 
     const RED = createMockRED();
+    initValidator(RED);
     await (Node as any)._registered(RED);
 
     expect(registeredFn).toHaveBeenCalledWith(RED);
@@ -310,6 +328,7 @@ describe("defineConfigNode", () => {
     const Node = defineConfigNode({ type: "minimal-config" });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (Node as any)(RED, node, { _users: [] }, {});
 
@@ -328,6 +347,7 @@ describe("defineConfigNode", () => {
     const NodeClass = defineConfigNode({ type: "instance-config" });
 
     const RED = createMockRED();
+    initValidator(RED);
     const node = createMockNodeRedNode();
     const instance = new (NodeClass as any)(RED, node, { _users: ["u1"] }, {});
 

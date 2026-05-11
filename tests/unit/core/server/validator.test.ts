@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initValidator, validator } from "../../../../src/core/server/validation";
+import { initValidator } from "../../../../src/core/server/validation";
 import { createMockRED } from "../../../mocks/red";
 
 describe("NodeRedValidator", () => {
@@ -15,7 +15,7 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const result = validator.validate({ transform: () => {} }, schema);
+      const result = RED.validator.validate({ transform: () => {} }, schema);
       expect(result.valid).toBe(true);
     });
   });
@@ -37,7 +37,7 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const result = validator.validate({ server: "node-123" }, schema);
+      const result = RED.validator.validate({ server: "node-123" }, schema);
       expect(result.valid).toBe(true);
     });
 
@@ -58,7 +58,7 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const result = validator.validate({ server: "node-456" }, schema);
+      const result = RED.validator.validate({ server: "node-456" }, schema);
       expect(result.valid).toBe(false);
     });
 
@@ -77,7 +77,7 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const result = validator.validate({ server: "" }, schema);
+      const result = RED.validator.validate({ server: "" }, schema);
       expect(result.valid).toBe(true);
     });
 
@@ -96,7 +96,7 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const result = validator.validate({ server: "nonexistent" }, schema);
+      const result = RED.validator.validate({ server: "nonexistent" }, schema);
       expect(result.valid).toBe(false);
     });
   });
@@ -114,10 +114,10 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const valid = validator.validate({ id: "abc-123_def" }, schema);
+      const valid = RED.validator.validate({ id: "abc-123_def" }, schema);
       expect(valid.valid).toBe(true);
 
-      const invalid = validator.validate({ id: "has spaces!" }, schema);
+      const invalid = RED.validator.validate({ id: "has spaces!" }, schema);
       expect(invalid.valid).toBe(false);
     });
 
@@ -133,10 +133,13 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const valid = validator.validate({ flowId: "abcdef0123456789" }, schema);
+      const valid = RED.validator.validate(
+        { flowId: "abcdef0123456789" },
+        schema,
+      );
       expect(valid.valid).toBe(true);
 
-      const invalid = validator.validate({ flowId: "too-short" }, schema);
+      const invalid = RED.validator.validate({ flowId: "too-short" }, schema);
       expect(invalid.valid).toBe(false);
     });
 
@@ -152,10 +155,13 @@ describe("NodeRedValidator", () => {
         },
       };
 
-      const valid = validator.validate({ topic: "devices/sensor_1/data" }, schema);
+      const valid = RED.validator.validate(
+        { topic: "devices/sensor_1/data" },
+        schema,
+      );
       expect(valid.valid).toBe(true);
 
-      const invalid = validator.validate({ topic: "has spaces!" }, schema);
+      const invalid = RED.validator.validate({ topic: "has spaces!" }, schema);
       expect(invalid.valid).toBe(false);
     });
   });

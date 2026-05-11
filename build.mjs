@@ -9,6 +9,10 @@ import vue from "@vitejs/plugin-vue";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
+// Phase 0: Clean dist
+import { rmSync } from "fs";
+if (existsSync("dist")) rmSync("dist", { recursive: true });
+
 // Phase 1: Build server (CJS)
 execSync(
   "esbuild src/core/server/index.ts --bundle --packages=external --format=cjs --platform=node --outfile=dist/server/index.cjs",
@@ -76,6 +80,8 @@ execSync(
 console.log("✓ Built vite plugin to dist/vite/");
 
 // Phase 5b: Build test utilities (ESM)
+// The validator now lives on the RED object (set by initValidator), so bundling the
+// validation module into the test bundle is safe — there is no singleton to duplicate.
 execSync(
   "esbuild src/test/index.ts --bundle --packages=external --format=esm --platform=node --outdir=dist/test",
   { stdio: "inherit" },
@@ -132,46 +138,8 @@ export interface NodeRedPluginOptions {
 
 export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
 `);
-// Test utilities types
-writeFileSync("dist/types/test.d.ts", `
-export interface CreateNodeOptions {
-  config?: Record<string, any>;
-  credentials?: Record<string, any>;
-  settings?: Record<string, any>;
-  overrides?: Record<string, any>;
-}
-
-type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
-type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
-
-export interface TestNodeHelpers<TInput = any, TOutput = any> {
-  receive(msg: TInput): Promise<void>;
-  close(removed?: boolean): Promise<void>;
-  reset(): void;
-  sent(): TOutput[];
-  sent(port: number): any[];
-  statuses(): any[];
-  logged(level?: "info" | "warn" | "error" | "debug"): string[];
-  warned(): string[];
-  errored(): string[];
-}
-
-export interface CreateNodeResult<T> {
-  node: T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>>;
-  RED: any;
-}
-
-interface NodeClass {
-  readonly type: string;
-  readonly category?: string;
-  readonly configSchema?: any;
-  registered?(RED: any): void | Promise<void>;
-  _registered?(RED: any): void | Promise<void>;
-  new (...args: any[]): any;
-}
-
-export declare function createNode<T extends NodeClass>(NodeClass: T, options?: CreateNodeOptions): Promise<CreateNodeResult<InstanceType<T>>>;
-`);
+// Test utilities types — generated from source
+execSync(`npx dts-bundle-generator -o dist/types/test.d.ts src/test/index.ts ${dtsFlags} --external-types vitest`, { stdio: "inherit" });
 console.log("✓ Generated type declarations to dist/types/");
 
 // Phase 7: Copy shared tsconfigs and client shims

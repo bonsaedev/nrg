@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ConfigNode } from "../../../../../src/core/server/nodes/config-node";
 import { initValidator } from "../../../../../src/core/server/validation";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
@@ -8,9 +8,6 @@ class TestConfigNode extends ConfigNode {
 }
 
 describe("ConfigNode", () => {
-  beforeEach(() => {
-    initValidator(createMockRED());
-  });
 
   describe("constructor", () => {
     it("should set category to config", () => {
@@ -19,8 +16,14 @@ describe("ConfigNode", () => {
 
     it("should set up context with node and global", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
-      const instance = new (TestConfigNode as any)(RED, node, { _users: [] }, {});
+      const instance = new (TestConfigNode as any)(
+        RED,
+        node,
+        { _users: [] },
+        {},
+      );
 
       expect(instance.context).toBeDefined();
       expect(instance.context.node).toBeDefined();
@@ -29,6 +32,7 @@ describe("ConfigNode", () => {
 
     it("should support context as a function with scope", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -46,6 +50,7 @@ describe("ConfigNode", () => {
   describe("userIds", () => {
     it("should return _users from config", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -66,6 +71,7 @@ describe("ConfigNode", () => {
         "user-1": userNode1,
         "user-2": userNode2,
       });
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -85,6 +91,7 @@ describe("ConfigNode", () => {
       const RED = createMockRED({
         "user-1": userNode1,
       });
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -103,6 +110,7 @@ describe("ConfigNode", () => {
     it("should return user at index", () => {
       const userNode = { _node: { id: "user-1", type: "my-node" } };
       const RED = createMockRED({ "user-1": userNode });
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -116,6 +124,7 @@ describe("ConfigNode", () => {
 
     it("should return undefined for out-of-bounds index", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -129,6 +138,7 @@ describe("ConfigNode", () => {
 
     it("should return undefined when node is not found", () => {
       const RED = createMockRED({});
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
@@ -144,6 +154,7 @@ describe("ConfigNode", () => {
   describe("credentials", () => {
     it("should return node.credentials", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode({ credentials: { secret: "abc" } });
       const instance = new (TestConfigNode as any)(
         RED,

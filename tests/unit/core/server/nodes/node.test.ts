@@ -1,7 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Node } from "../../../../../src/core/server/nodes/node";
 import { initValidator } from "../../../../../src/core/server/validation";
-import { defineSchema, SchemaType } from "../../../../../src/core/server/schemas";
+import {
+  defineSchema,
+  SchemaType,
+} from "../../../../../src/core/server/schemas";
 import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
 
 class ConcreteNode extends Node {
@@ -10,13 +13,11 @@ class ConcreteNode extends Node {
 }
 
 describe("Node", () => {
-  beforeEach(() => {
-    initValidator(createMockRED());
-  });
 
   describe("constructor", () => {
     it("should set RED, node, and config", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode({ credentials: { apiKey: "secret" } });
       const config = { name: "test" };
 
@@ -28,6 +29,7 @@ describe("Node", () => {
 
     it("should make config read-only via proxy", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const config = { name: "test" };
 
@@ -50,6 +52,7 @@ describe("Node", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
 
       new (ValidatedNode as any)(RED, node, { name: "ab" }, {});
@@ -69,6 +72,7 @@ describe("Node", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
 
       new (ValidNode as any)(RED, node, { name: "hello" }, {});
@@ -88,6 +92,7 @@ describe("Node", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
 
       new (CredNode as any)(RED, node, {}, { apiKey: "ab" });
@@ -98,6 +103,7 @@ describe("Node", () => {
   describe("i18n", () => {
     it("should call RED._ with node type prefix", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -107,6 +113,7 @@ describe("Node", () => {
 
     it("should pass substitutions", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -121,6 +128,7 @@ describe("Node", () => {
     it("should create and track setTimeout", () => {
       vi.useFakeTimers();
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const fn = vi.fn();
@@ -135,6 +143,7 @@ describe("Node", () => {
     it("should create and track setInterval", () => {
       vi.useFakeTimers();
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const fn = vi.fn();
@@ -149,6 +158,7 @@ describe("Node", () => {
     it("should clear timers on _closed", async () => {
       vi.useFakeTimers();
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const fn = vi.fn();
@@ -166,6 +176,7 @@ describe("Node", () => {
     it("should support manual clearTimeout", () => {
       vi.useFakeTimers();
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const fn = vi.fn();
@@ -181,6 +192,7 @@ describe("Node", () => {
     it("should support manual clearInterval", () => {
       vi.useFakeTimers();
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const fn = vi.fn();
@@ -197,6 +209,7 @@ describe("Node", () => {
   describe("logging", () => {
     it("should delegate log to node.log", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -206,6 +219,7 @@ describe("Node", () => {
 
     it("should delegate warn to node.warn", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -215,6 +229,7 @@ describe("Node", () => {
 
     it("should delegate error to node.error", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -228,6 +243,7 @@ describe("Node", () => {
   describe("credentials", () => {
     it("should return node.credentials", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode({ credentials: { apiKey: "secret" } });
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -238,6 +254,7 @@ describe("Node", () => {
   describe("settings", () => {
     it("should return cached settings", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
 
@@ -312,6 +329,7 @@ describe("Node", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       RED.settings.settingsValidTimeout = 3000;
 
       SettingsValidNode.validateSettings(RED);
@@ -336,6 +354,7 @@ describe("Node", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       DefaultSettingsNode.validateSettings(RED);
 
       const node = createMockNodeRedNode();
@@ -345,6 +364,7 @@ describe("Node", () => {
 
     it("should do nothing when no settingsSchema", () => {
       const RED = createMockRED();
+      initValidator(RED);
       ConcreteNode.validateSettings(RED);
       // Should not throw
     });
@@ -369,6 +389,7 @@ describe("Node", () => {
       }
 
       const RED = createMockRED();
+      initValidator(RED);
       FuncSettingsNode.validateSettings(RED);
 
       const node = createMockNodeRedNode();
@@ -380,6 +401,7 @@ describe("Node", () => {
   describe("on", () => {
     it("should delegate to node.on", () => {
       const RED = createMockRED();
+      initValidator(RED);
       const node = createMockNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const cb = vi.fn();
