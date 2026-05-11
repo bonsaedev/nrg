@@ -51,6 +51,12 @@ function mergeOptions<T extends Record<string, any>>(
     const defaultVal = defaults[key];
     if (
       overrideVal !== undefined &&
+      Array.isArray(overrideVal) &&
+      Array.isArray(defaultVal)
+    ) {
+      result[key] = [...new Set([...defaultVal, ...overrideVal])] as T[keyof T];
+    } else if (
+      overrideVal !== undefined &&
       !Array.isArray(overrideVal) &&
       !Array.isArray(defaultVal) &&
       typeof overrideVal === "object" &&

@@ -27,8 +27,8 @@ async function build(
     licensePath = "./LICENSE",
     locales,
     staticDirs = {},
-    external = ["jquery", "node-red", "vue"],
-    globals = { jquery: "$", "node-red": "RED", vue: "Vue" },
+    external = [],
+    globals = {},
     manualChunks,
   } = clientBuildOptions;
 

@@ -36,10 +36,10 @@ describe("mergeOptions", () => {
     expect(result.client).toEqual({ entry: "index.ts" });
   });
 
-  it("should replace arrays entirely (no merging)", () => {
+  it("should merge arrays with deduplication", () => {
     const defaults = { tags: ["a", "b", "c"] };
-    const result = mergeOptions(defaults, { tags: ["x"] } as any);
-    expect(result.tags).toEqual(["x"]);
+    const result = mergeOptions(defaults, { tags: ["b", "x"] } as any);
+    expect(result.tags).toEqual(["a", "b", "c", "x"]);
   });
 
   it("should not override with undefined values", () => {

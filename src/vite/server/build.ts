@@ -20,6 +20,7 @@ async function build(
     srcDir = "./server",
     entry = "index.ts",
     format = "esm",
+    external = [],
     bundled = [],
     types = true,
     nodeTarget = "node22",
@@ -77,6 +78,7 @@ async function build(
         formats: [isEsm ? "es" : "cjs"],
       },
       rollupOptions: {
+        external,
         output: {
           entryFileNames: isEsm ? "[name].mjs" : "[name].js",
           exports: isEsm ? undefined : "auto",
