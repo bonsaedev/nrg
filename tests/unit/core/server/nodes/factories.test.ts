@@ -12,7 +12,7 @@ import {
   SchemaType,
 } from "../../../../../src/core/server/schemas";
 import { initValidator } from "../../../../../src/core/server/validation";
-import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
+import { createNodeRedRuntime, createNodeRedNode } from "../../../../mocks/red";
 
 describe("defineIONode", () => {
 
@@ -115,9 +115,9 @@ describe("defineIONode", () => {
       input: inputFn,
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
     await instance._input({ payload: "hello" }, vi.fn());
@@ -137,9 +137,9 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
     await instance.created();
@@ -159,9 +159,9 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
     await instance.closed(true);
@@ -179,7 +179,7 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
     await (Node as any)._registered(RED);
 
@@ -192,9 +192,9 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
     await expect(instance.created()).resolves.not.toThrow();
@@ -217,9 +217,9 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (NodeClass as any)(RED, node, {}, {});
 
     expect(instance).toBeInstanceOf(IONode);
@@ -274,9 +274,9 @@ describe("defineConfigNode", () => {
       created: createdFn,
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(
       RED,
       node,
@@ -299,9 +299,9 @@ describe("defineConfigNode", () => {
       closed: closedFn,
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, { _users: [] }, {});
 
     await instance.closed(false);
@@ -317,7 +317,7 @@ describe("defineConfigNode", () => {
       registered: registeredFn,
     });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
     await (Node as any)._registered(RED);
 
@@ -327,9 +327,9 @@ describe("defineConfigNode", () => {
   it("should not throw when optional handlers are not provided", async () => {
     const Node = defineConfigNode({ type: "minimal-config" });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, { _users: [] }, {});
 
     await expect(instance.created()).resolves.not.toThrow();
@@ -346,9 +346,9 @@ describe("defineConfigNode", () => {
   it("should produce instances of ConfigNode with userIds", () => {
     const NodeClass = defineConfigNode({ type: "instance-config" });
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initValidator(RED);
-    const node = createMockNodeRedNode();
+    const node = createNodeRedNode();
     const instance = new (NodeClass as any)(RED, node, { _users: ["u1"] }, {});
 
     expect(instance).toBeInstanceOf(ConfigNode);

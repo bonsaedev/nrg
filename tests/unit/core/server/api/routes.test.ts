@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createMockRED } from "../../../../mocks/red";
+import { createNodeRedRuntime } from "../../../../mocks/red";
 import fs from "fs";
 
 describe("initRoutes", () => {
@@ -15,7 +15,7 @@ describe("initRoutes", () => {
       "../../../../../src/core/server/api/routes"
     );
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initRoutes(RED);
 
     expect(RED.httpAdmin.get).toHaveBeenCalledWith(
@@ -31,7 +31,7 @@ describe("initRoutes", () => {
       "../../../../../src/core/server/api/routes"
     );
 
-    const RED = createMockRED();
+    const RED = createNodeRedRuntime();
     initRoutes(RED);
     initRoutes(RED);
 

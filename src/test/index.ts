@@ -1,6 +1,8 @@
 import { vi } from "vitest";
-import { createMockRED, createMockNodeRedNode } from "./mocks";
+import { createNodeRedRuntime, createNodeRedNode } from "./mocks";
 import { initValidator } from "../core/server/validation";
+import type { RED } from "../core/server/types";
+import type { NodeConstructor as NodeClass } from "../core/server/nodes/types/node";
 import type { MockNodeRedNodeOptions } from "./mocks";
 
 interface CreateNodeOptions {
@@ -27,18 +29,22 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
 
 interface CreateNodeResult<T> {
   node: T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>>;
-  RED: any;
+  RED: RED;
 }
 
-function buildConfig(NodeClass: any, userConfig: Record<string, any> = {}) {
+function buildConfig(
+  NodeClass: NodeClass,
+  userConfig: Record<string, any> = {},
+) {
   const defaults: Record<string, any> = {};
 
   if (NodeClass.configSchema?.properties) {
     for (const [key, prop] of Object.entries(
       NodeClass.configSchema.properties,
     )) {
-      if ((prop as any).default !== undefined) {
-        defaults[key] = (prop as any).default;
+      const schemaProp = prop as { default?: unknown };
+      if (schemaProp.default !== undefined) {
+        defaults[key] = schemaProp.default;
       }
     }
   }
@@ -134,15 +140,6 @@ function isConfigNode(NodeClass: any): boolean {
   return NodeClass.category === "config";
 }
 
-interface NodeClass {
-  readonly type: string;
-  readonly category?: string;
-  readonly configSchema?: any;
-  registered?(RED: any): void | Promise<void>;
-  _registered?(RED: any): void | Promise<void>;
-  new (...args: any[]): any;
-}
-
 async function createNode<T extends NodeClass>(
   NodeClass: T,
   options: CreateNodeOptions = {},
@@ -173,7 +170,7 @@ async function createNode<T extends NodeClass>(
   }
 
   const redNodes = buildNodeRedNodes(configNodes);
-  const RED = createMockRED({ nodes: redNodes, settings });
+  const RED = createNodeRedRuntime({ nodes: redNodes, settings });
   initValidator(RED);
 
   const configDefaults: Record<string, any> = {
@@ -191,7 +188,7 @@ async function createNode<T extends NodeClass>(
     ...resolvedConfig,
   });
 
-  const nodeRedNode = createMockNodeRedNode({
+  const nodeRedNode = createNodeRedNode({
     id: config.id,
     type: NodeClass.type,
     name: config.name ?? "",

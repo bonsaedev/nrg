@@ -1,11 +1,14 @@
 import { vi } from "vitest";
+import type { RED, NodeRedNode } from "../core/server/types";
 
 interface MockREDOptions {
   nodes?: Record<string, any>;
   settings?: Record<string, any>;
 }
 
-function createMockRED(options: MockREDOptions = {}) {
+type MockNodeRedNodeOptions = Partial<NodeRedNode>;
+
+function createNodeRedRuntime(options: MockREDOptions = {}): RED {
   const { nodes = {}, settings = {} } = options;
 
   return {
@@ -14,11 +17,35 @@ function createMockRED(options: MockREDOptions = {}) {
       warn: vi.fn(),
       error: vi.fn(),
       debug: vi.fn(),
+      trace: vi.fn(),
+      log: vi.fn(),
+      metric: vi.fn(() => false),
+      audit: vi.fn(),
+      addHandler: vi.fn(),
+      removeHandler: vi.fn(),
+      FATAL: 10,
+      ERROR: 20,
+      WARN: 30,
+      INFO: 40,
+      DEBUG: 50,
+      TRACE: 60,
+      AUDIT: 98,
+      METRIC: 99,
     },
     nodes: {
       getNode: vi.fn((id: string) => nodes[id]),
       registerType: vi.fn(),
       createNode: vi.fn(),
+      getCredentials: vi.fn(),
+      eachNode: vi.fn(),
+      getType: vi.fn(),
+      getNodeInfo: vi.fn(),
+      getNodeList: vi.fn(() => []),
+      getModuleInfo: vi.fn(),
+      installModule: vi.fn(),
+      uninstallModule: vi.fn(),
+      enableNode: vi.fn(),
+      disableNode: vi.fn(),
     },
     httpAdmin: {
       get: vi.fn(),
@@ -26,7 +53,26 @@ function createMockRED(options: MockREDOptions = {}) {
       put: vi.fn(),
       delete: vi.fn(),
       use: vi.fn(),
+    } as any,
+    httpNode: {
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      use: vi.fn(),
+    } as any,
+    hooks: {
+      add: vi.fn(),
+      remove: vi.fn(),
+      trigger: vi.fn(),
+      has: vi.fn(() => false),
+      clear: vi.fn(),
     },
+    events: {
+      on: vi.fn(),
+      emit: vi.fn(),
+      removeListener: vi.fn(),
+    } as any,
     settings: { ...settings },
     _: vi.fn((key: string, subs?: Record<string, string>) => {
       if (!subs) return key;
@@ -90,31 +136,30 @@ function createMockRED(options: MockREDOptions = {}) {
           }
         },
       ),
-    },
-    events: {
-      on: vi.fn(),
-      emit: vi.fn(),
-    },
-    hooks: {
-      add: vi.fn(),
-      remove: vi.fn(),
+      generateId: vi.fn(() => "mock-id"),
+      cloneMessage: vi.fn((msg: any) => ({ ...msg })),
+      ensureString: vi.fn((o: any) => String(o)),
+      ensureBuffer: vi.fn(),
+      compareObjects: vi.fn(),
+      getMessageProperty: vi.fn(),
+      setMessageProperty: vi.fn(),
+      getObjectProperty: vi.fn(),
+      setObjectProperty: vi.fn(),
+      normalisePropertyExpression: vi.fn(),
+      normaliseNodeTypeName: vi.fn(),
+      prepareJSONataExpression: vi.fn(),
+      evaluateJSONataExpression: vi.fn(),
+      parseContextStore: vi.fn(),
+      getSetting: vi.fn(),
+      encodeObject: vi.fn(),
     },
     version: vi.fn(() => "0.0.0-test"),
-  } as any;
+    validator: undefined as any,
+  } as RED;
 }
 
 function getProperty(obj: any, path: string): any {
   return path.split(".").reduce((acc, key) => acc?.[key], obj);
-}
-
-interface MockNodeRedNodeOptions {
-  id?: string;
-  type?: string;
-  name?: string;
-  z?: string;
-  wires?: string[][];
-  credentials?: Record<string, any>;
-  [key: string]: any;
 }
 
 function createContextStore() {
@@ -145,7 +190,7 @@ function createContextStore() {
   };
 }
 
-function createMockNodeRedNode(options: MockNodeRedNodeOptions = {}) {
+function createNodeRedNode(options: MockNodeRedNodeOptions = {}): NodeRedNode {
   const nodeCtx = createContextStore();
   const flowCtx = createContextStore();
   const globalCtx = createContextStore();
@@ -157,14 +202,14 @@ function createMockNodeRedNode(options: MockNodeRedNodeOptions = {}) {
   };
 
   return {
-    id: options.id ?? `test-${Math.random().toString(36).slice(2, 10)}`,
+    id: options.id ?? `node-${Math.random().toString(36).slice(2, 10)}`,
     type: options.type ?? "test-node",
-    name: options.name ?? "",
+    name: options.name ?? "test-node",
     z: options.z ?? "flow-1",
     x: 100,
     y: 200,
-    g: undefined,
-    wires: options.wires ?? [[]],
+    g: "group-1",
+    wires: options.wires ?? [["node-2"]],
     credentials: options.credentials ?? {},
     log: vi.fn(),
     warn: vi.fn(),
@@ -176,8 +221,8 @@ function createMockNodeRedNode(options: MockNodeRedNodeOptions = {}) {
     receive: vi.fn(),
     context: vi.fn(() => context),
     ...options,
-  } as any;
+  } as NodeRedNode;
 }
 
-export { createMockRED, createMockNodeRedNode };
+export { createNodeRedRuntime, createNodeRedNode, createContextStore };
 export type { MockREDOptions, MockNodeRedNodeOptions };

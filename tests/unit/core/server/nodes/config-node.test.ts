@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ConfigNode } from "../../../../../src/core/server/nodes/config-node";
 import { initValidator } from "../../../../../src/core/server/validation";
-import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
+import { createNodeRedRuntime, createNodeRedNode } from "../../../../mocks/red";
 
 class TestConfigNode extends ConfigNode {
   static override readonly type = "test-config-node";
@@ -15,9 +15,9 @@ describe("ConfigNode", () => {
     });
 
     it("should set up context with node and global", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -31,9 +31,9 @@ describe("ConfigNode", () => {
     });
 
     it("should support context as a function with scope", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -49,9 +49,9 @@ describe("ConfigNode", () => {
 
   describe("userIds", () => {
     it("should return _users from config", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -67,12 +67,11 @@ describe("ConfigNode", () => {
     it("should resolve user IDs to node instances", () => {
       const userNode1 = { _node: { id: "user-1", type: "my-node" } };
       const userNode2 = { _node: { id: "user-2", type: "my-node" } };
-      const RED = createMockRED({
-        "user-1": userNode1,
-        "user-2": userNode2,
+      const RED = createNodeRedRuntime({
+        nodes: { "user-1": userNode1, "user-2": userNode2 },
       });
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -88,11 +87,11 @@ describe("ConfigNode", () => {
 
     it("should filter out missing nodes", () => {
       const userNode1 = { _node: { id: "user-1" } };
-      const RED = createMockRED({
-        "user-1": userNode1,
+      const RED = createNodeRedRuntime({
+        nodes: { "user-1": userNode1 },
       });
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -109,9 +108,9 @@ describe("ConfigNode", () => {
   describe("getUser", () => {
     it("should return user at index", () => {
       const userNode = { _node: { id: "user-1", type: "my-node" } };
-      const RED = createMockRED({ "user-1": userNode });
+      const RED = createNodeRedRuntime({ nodes: { "user-1": userNode } });
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -123,9 +122,9 @@ describe("ConfigNode", () => {
     });
 
     it("should return undefined for out-of-bounds index", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -137,9 +136,9 @@ describe("ConfigNode", () => {
     });
 
     it("should return undefined when node is not found", () => {
-      const RED = createMockRED({});
+      const RED = createNodeRedRuntime({});
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
         RED,
         node,
@@ -153,9 +152,9 @@ describe("ConfigNode", () => {
 
   describe("credentials", () => {
     it("should return node.credentials", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode({ credentials: { secret: "abc" } });
+      const node = createNodeRedNode({ credentials: { secret: "abc" } });
       const instance = new (TestConfigNode as any)(
         RED,
         node,

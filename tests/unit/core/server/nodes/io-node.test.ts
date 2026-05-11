@@ -5,7 +5,7 @@ import {
   defineSchema,
   SchemaType,
 } from "../../../../../src/core/server/schemas";
-import { createMockRED, createMockNodeRedNode } from "../../../../mocks/red";
+import { createNodeRedRuntime, createNodeRedNode } from "../../../../mocks/red";
 
 class TestIONode extends IONode {
   static override readonly type = "test-io-node";
@@ -27,9 +27,9 @@ describe("IONode", () => {
 
   describe("constructor", () => {
     it("should set up context with node, flow, and global", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       expect(instance.context).toBeDefined();
@@ -39,9 +39,9 @@ describe("IONode", () => {
     });
 
     it("should support context as a function with scope", async () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       const nodeCtx = instance.context("node");
@@ -54,9 +54,9 @@ describe("IONode", () => {
 
   describe("properties", () => {
     it("should expose x, y, g, wires from underlying node", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       expect(instance.x).toBe(100);
@@ -68,9 +68,9 @@ describe("IONode", () => {
 
   describe("_input", () => {
     it("should call input method with message", async () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
       const send = vi.fn();
 
@@ -94,9 +94,9 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (ValidatedIONode as any)(RED, node, {}, {});
 
       await expect(instance._input({ payload: "" }, vi.fn())).rejects.toThrow();
@@ -117,9 +117,9 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (NoValidateIONode as any)(RED, node, {}, {});
 
       await expect(
@@ -130,9 +130,9 @@ describe("IONode", () => {
 
   describe("send", () => {
     it("should use _send when inside _input", async () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
 
       class SendingNode extends IONode {
         static override readonly type = "sending-node";
@@ -152,9 +152,9 @@ describe("IONode", () => {
     });
 
     it("should fall back to node.send outside _input", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       instance.send({ payload: "test" });
@@ -180,9 +180,9 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (MultiOutputNode as any)(RED, node, {}, {});
 
       // Valid: first port has data, second is null
@@ -207,9 +207,9 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (SingleSchemaArrayNode as any)(RED, node, {}, {});
 
       // Valid array of messages
@@ -236,9 +236,9 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (ValidatedOutputNode as any)(RED, node, {}, {});
 
       expect(() => instance.send({ result: "" })).toThrow();
@@ -247,9 +247,9 @@ describe("IONode", () => {
 
   describe("status", () => {
     it("should delegate to node.status", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       instance.status({ fill: "green", shape: "dot", text: "connected" });
@@ -263,9 +263,9 @@ describe("IONode", () => {
 
   describe("updateWires", () => {
     it("should delegate to node.updateWires", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       instance.updateWires([["a"], ["b"]]);
@@ -275,9 +275,9 @@ describe("IONode", () => {
 
   describe("receive", () => {
     it("should delegate to node.receive", () => {
-      const RED = createMockRED();
+      const RED = createNodeRedRuntime();
       initValidator(RED);
-      const node = createMockNodeRedNode();
+      const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
 
       instance.receive({ payload: "test" });
