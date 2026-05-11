@@ -41,7 +41,23 @@ interface NrgSchemaOptions extends SchemaOptions, NrgSchemaExtensions {}
 
 type Schema<T extends TProperties = TProperties> = TObject<T>;
 
-export { Infer, ResolveNodeRefs, TNodeRef, TTypedInput, TypedInputType };
+type InferOr<T, Fallback> = T extends TSchema ? Infer<T> : Fallback;
+
+type InferOutputs<T> = T extends readonly TSchema[]
+  ? { [K in keyof T]: T[K] extends TSchema ? Infer<T[K]> : never }
+  : T extends TSchema
+    ? Infer<T>
+    : any;
+
+export {
+  Infer,
+  InferOr,
+  InferOutputs,
+  ResolveNodeRefs,
+  TNodeRef,
+  TTypedInput,
+  TypedInputType,
+};
 export type { NrgSchemaOptions };
 export type { Schema };
 export type {

@@ -1,6 +1,6 @@
 import { getCredentialsFromSchema } from "./utils";
 import { Node } from "./nodes";
-import type { NodeClassBase } from "./nodes/types/factories";
+import type { NodeConstructor } from "./nodes/types";
 import { type RED } from "./types";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
@@ -8,7 +8,7 @@ import { NrgError } from "../errors";
 
 type AnyNodeClass =
   | ((abstract new (...args: any[]) => Node) & Partial<typeof Node>)
-  | NodeClassBase<any>;
+  | NodeConstructor<any>;
 
 /**
  * Registers a custom node with Node-RED.

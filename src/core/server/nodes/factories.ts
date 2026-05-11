@@ -1,12 +1,10 @@
 import { type TSchema } from "@sinclair/typebox";
-import type { Schema } from "../schemas/types";
+import type { Schema, InferOr, InferOutputs } from "../schemas/types";
 import type { RED } from "../types";
 import type {
-  InferOr,
-  InferOutputs,
   IONodeDefinition,
   ConfigNodeDefinition,
-  NodeClassBase,
+  NodeConstructor,
   ConfigNodeInstance,
   IONodeInstance,
   HexColor,
@@ -28,7 +26,7 @@ function defineIONode<
     TInputSchema,
     TOutputsSchema
   >,
-): NodeClassBase<
+): NodeConstructor<
   IONodeInstance<
     InferOr<TConfigSchema, any>,
     InferOr<TCredsSchema, any>,
@@ -88,7 +86,7 @@ function defineIONode<
     configurable: true,
   });
 
-  return NodeClass as unknown as NodeClassBase<
+  return NodeClass as unknown as NodeConstructor<
     IONodeInstance<
       InferOr<TConfigSchema, any>,
       InferOr<TCredsSchema, any>,
@@ -104,7 +102,7 @@ function defineConfigNode<
   TSettingsSchema extends TSchema | undefined = undefined,
 >(
   def: ConfigNodeDefinition<TConfigSchema, TCredsSchema, TSettingsSchema>,
-): NodeClassBase<
+): NodeConstructor<
   ConfigNodeInstance<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
 > {
   const NodeClass = class extends ConfigNode<
@@ -142,7 +140,7 @@ function defineConfigNode<
     configurable: true,
   });
 
-  return NodeClass as unknown as NodeClassBase<
+  return NodeClass as unknown as NodeConstructor<
     ConfigNodeInstance<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
   >;
 }

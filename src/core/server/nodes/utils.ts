@@ -1,4 +1,4 @@
-import type { ResolveNodeRefs } from "../schemas/types";
+import type { ResolveNodeRefs, Schema } from "../schemas/types";
 import type { RED, NodeRedNode, NodeRedContextStore } from "../types";
 import type { NodeContextStore } from "./types";
 import { NrgError } from "../../errors";
@@ -34,7 +34,7 @@ interface SetupConfigProxyOptions<T extends object> {
   RED: RED;
   node: NodeRedNode;
   config: T;
-  schema?: any;
+  schema?: Schema;
 }
 
 function setupConfigProxy<T extends object>(

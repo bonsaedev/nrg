@@ -1,4 +1,5 @@
 import type { Static } from "@sinclair/typebox";
+import type { Schema } from "../../schemas/types";
 import type { NodeConfigSchema } from "../../schemas";
 import type { RED } from "../../../server/types";
 
@@ -10,10 +11,25 @@ interface NodeContextStore {
   keys(): Promise<string[]>;
 }
 
-type NodeConstructor<T = any> = (new (...args: any[]) => T) & {
-  type: string;
+interface NodeConstructor<T = any> {
+  readonly type: string;
+  readonly category: string;
+  readonly color?: string;
+  readonly align?: "left" | "right";
+  readonly inputs?: number;
+  readonly outputs?: number;
+  readonly configSchema?: Schema;
+  readonly credentialsSchema?: Schema;
+  readonly settingsSchema?: Schema;
+  readonly inputSchema?: Schema;
+  readonly outputsSchema?: Schema | Schema[];
+  readonly validateInput?: boolean;
+  readonly validateOutput?: boolean;
+  readonly name: string;
   registered?(RED: RED): void | Promise<void>;
-};
+  _registered?(RED: RED): void | Promise<void>;
+  new (...args: any[]): T;
+}
 
 type NodeConfig<TConfig = any> = TConfig & Static<typeof NodeConfigSchema>;
 
