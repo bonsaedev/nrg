@@ -134,6 +134,8 @@ interface ServerBuildOptions {
   entry?: string;
   /** Output format. "esm" builds to .mjs with a CJS bridge for Node-RED. @default "esm" */
   format?: "cjs" | "esm";
+  /** Packages to keep as external (not bundled). @default [] */
+  external?: string[];
   /** Dependencies to bundle into the output instead of keeping as external. @default [] */
   bundled?: string[];
   /** Generate rolled-up .d.ts type declarations (production only). @default true */
