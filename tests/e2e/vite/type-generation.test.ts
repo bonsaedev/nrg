@@ -229,16 +229,55 @@ describe("type generation — factory-based nodes", () => {
     expect(dtsContent).toContain("IIONode");
   });
 
-  it("should not export schemas not referenced by the node", () => {
-    const schemaExports = dtsContent
-      .split("\n")
-      .filter(
-        (l) =>
-          l.includes("declare const") &&
-          l.includes("Schema"),
-      );
-    for (const line of schemaExports) {
-      expect(line).toContain("CustomNode");
-    }
+  it("should export factory node with NodeConstructor type", () => {
+    expect(dtsContent).toContain("NodeConstructor");
+  });
+
+  // --- defineConfigNode ---
+
+  it("should export factory config node", () => {
+    expect(dtsContent).toContain("ConfigServer");
+  });
+
+  it("should export config node as NodeConstructor<IConfigNode>", () => {
+    expect(dtsContent).toContain("IConfigNode");
+  });
+
+  it("should export config schema for config node", () => {
+    expect(dtsContent).toContain("ConfigServerConfigSchema");
+  });
+
+  it("should export credentials schema for config node", () => {
+    expect(dtsContent).toContain("ConfigServerCredentialsSchema");
+  });
+
+  // --- no schemas ---
+
+  it("should export factory node with no schemas", () => {
+    expect(dtsContent).toContain("NoSchemaNode");
+  });
+
+  it("should type no-schema node with all any args", () => {
+    const match = dtsContent.match(
+      /NoSchemaNode:\s*NodeConstructor<IIONode<any,\s*any,\s*any,\s*any>>/,
+    );
+    expect(match).not.toBeNull();
+  });
+
+  // --- partial schemas (config only) ---
+
+  it("should export factory node with partial schemas", () => {
+    expect(dtsContent).toContain("MinimalNode");
+  });
+
+  it("should export config schema for partial node", () => {
+    expect(dtsContent).toContain("MinimalNodeConfigSchema");
+  });
+
+  it("should type partial node with Infer for config and any for the rest", () => {
+    const match = dtsContent.match(
+      /MinimalNode:\s*NodeConstructor<IIONode<Infer<typeof\s+\w+>,\s*any,\s*any,\s*any>>/,
+    );
+    expect(match).not.toBeNull();
   });
 });
