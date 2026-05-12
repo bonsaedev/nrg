@@ -280,4 +280,22 @@ describe("type generation — factory-based nodes", () => {
     );
     expect(match).not.toBeNull();
   });
+
+  // --- array outputsSchema (tuple) ---
+
+  it("should export factory node with array outputsSchema", () => {
+    expect(dtsContent).toContain("MultiOutputNode");
+  });
+
+  it("should type array outputsSchema as tuple", () => {
+    const match = dtsContent.match(
+      /MultiOutputNode:\s*NodeConstructor<IIONode<any,\s*any,\s*any,\s*\[Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>\]>>/,
+    );
+    expect(match).not.toBeNull();
+  });
+
+  it("should export individual schemas from array outputsSchema", () => {
+    expect(dtsContent).toContain("MultiOutputNodeSuccessSchema");
+    expect(dtsContent).toContain("MultiOutputNodeErrorSchema");
+  });
 });
