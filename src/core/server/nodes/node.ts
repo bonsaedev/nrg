@@ -10,6 +10,13 @@ import type {
 } from "./types";
 import { setupConfigProxy } from "./utils";
 
+/**
+ * Abstract base class for all NRG nodes. Provides lifecycle hooks, config
+ * validation, logging, timers, i18n, and settings management.
+ *
+ * Extend {@link IONode} for message-processing nodes or {@link ConfigNode}
+ * for shared configuration nodes.
+ */
 abstract class Node<
   TConfig = any,
   TCredentials = any,

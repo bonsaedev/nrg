@@ -47,6 +47,7 @@ interface NodeSetting<T = any> {
 
 type NodeSettings = Record<string, NodeSetting>;
 
+/** Public instance interface for all NRG nodes. Implemented by {@link Node}. */
 interface INode<TConfig = any, TCredentials = any, TSettings = any> {
   readonly config: NodeConfig<TConfig>;
   readonly id: string;

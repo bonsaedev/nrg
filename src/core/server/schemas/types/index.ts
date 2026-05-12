@@ -10,6 +10,7 @@ import type { TYPED_INPUT_TYPES } from "../../../constants";
 import type TypedInput from "../../typed-input";
 import type { NrgSchemaExtensions } from "../../schema-options";
 
+/** Schema type representing a reference to a config node. Resolves to the node instance at runtime. */
 interface TNodeRef<T = any> extends TSchema {
   [Kind]: "NodeRef";
   static: T;
@@ -29,10 +30,12 @@ type ResolveNodeRefs<T> =
           ? { [K in keyof T]: ResolveNodeRefs<T[K]> }
           : T;
 
+/** Infers the TypeScript type from a schema, resolving node references to their instance types. */
 type Infer<T extends TSchema> = ResolveNodeRefs<Static<T>>;
 
 type TypedInputType = (typeof TYPED_INPUT_TYPES)[number];
 
+/** Schema type representing a Node-RED TypedInput (value + type pair). */
 interface TTypedInput<T = unknown> extends TSchema {
   [Kind]: "TypedInput";
   static: TypedInput<T>;
@@ -40,6 +43,7 @@ interface TTypedInput<T = unknown> extends TSchema {
 
 interface NrgSchemaOptions extends SchemaOptions, NrgSchemaExtensions {}
 
+/** An NRG object schema created by {@link defineSchema}. */
 type Schema<T extends TProperties = TProperties> = TObject<T>;
 
 type InferOr<T, Fallback> = T extends TSchema ? Infer<T> : Fallback;

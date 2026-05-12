@@ -30,6 +30,7 @@ type BoundConfigNode<
   TS extends TSchema | undefined,
 > = ConfigNode<InferOr<TC, any>, InferOr<TCr, any>, InferOr<TS, any>>;
 
+/** Public instance interface for config nodes. Implemented by {@link ConfigNode}. */
 interface IConfigNode<
   TConfig = any,
   TCredentials = any,

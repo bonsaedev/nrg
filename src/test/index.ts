@@ -124,6 +124,19 @@ function isConfigNode(NodeClass: any): boolean {
   return NodeClass.category === "config";
 }
 
+/**
+ * Creates a node instance for testing, with helpers for sending messages,
+ * inspecting output, and checking status/log calls.
+ *
+ * @example
+ * ```ts
+ * const { node } = await createNode(MyNode, {
+ *   config: { name: "test" },
+ * });
+ * await node.receive({ payload: "hello" });
+ * expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
+ * ```
+ */
 async function createNode<T extends NodeClass>(
   NodeClass: T,
   options: CreateNodeOptions = {},

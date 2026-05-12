@@ -48,6 +48,7 @@ type BoundIONode<
   InferOr<TS, any>
 >;
 
+/** Public instance interface for IO nodes. Implemented by {@link IONode}. */
 interface IIONode<
   TConfig = any,
   TCredentials = any,

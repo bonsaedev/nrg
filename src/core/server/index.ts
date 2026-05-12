@@ -178,10 +178,22 @@ function registerTypes(nodes: NodeConstructor[]): RegistrationFunction {
   return fn as RegistrationFunction;
 }
 
+/** Defines the set of nodes exported by a Node-RED package. */
 interface ModuleDefinition {
   nodes: NodeConstructor[];
 }
 
+/**
+ * Declares the nodes that make up a Node-RED module. The returned object
+ * is used as the default export of `src/server/index.ts`.
+ *
+ * @example
+ * ```ts
+ * export default defineModule({
+ *   nodes: [MyNode, MyConfigNode],
+ * });
+ * ```
+ */
 function defineModule(definition: ModuleDefinition): ModuleDefinition {
   return definition;
 }

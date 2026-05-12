@@ -5,6 +5,7 @@ import { TypedInputSchema } from "./base";
 import type { TNodeRef, TTypedInput } from "./types";
 import { isJSONType } from "ajv/dist/compile/rules";
 
+/** Creates a schema for a reference to a config node by ID. */
 function NodeRef<T extends new (...args: any[]) => any>(
   nodeClass: T,
   options?: NrgSchemaOptions,
@@ -21,6 +22,7 @@ function NodeRef<T extends new (...args: any[]) => any>(
   } as unknown as TNodeRef<InstanceType<T>>;
 }
 
+/** Creates a schema for a Node-RED TypedInput (value + type pair). */
 function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
   return {
     ...TypedInputSchema,
@@ -30,6 +32,10 @@ function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
   } as unknown as TTypedInput<T>;
 }
 
+/**
+ * Extended TypeBox type builder with NRG-specific schema types.
+ * Includes all standard TypeBox types plus {@link NodeRef} and {@link TypedInput}.
+ */
 const SchemaType = Object.assign({}, BaseType, {
   NodeRef,
   TypedInput,
@@ -80,6 +86,18 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
   return schema;
 }
 
+/**
+ * Creates a validated object schema from a set of properties. Automatically
+ * marks non-JSON types (e.g., Function) as non-validatable.
+ *
+ * @example
+ * ```ts
+ * const ConfigsSchema = defineSchema({
+ *   name: SchemaType.String({ default: "" }),
+ *   timeout: SchemaType.Number({ default: 5000 }),
+ * }, { $id: "my-node:configs" });
+ * ```
+ */
 function defineSchema<T extends TProperties>(
   properties: T,
   options?: ObjectOptions & { $id?: string },

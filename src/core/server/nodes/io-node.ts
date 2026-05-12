@@ -15,6 +15,23 @@ import { setupContext } from "./utils";
 /** Reserved config property names for dynamic emit ports */
 const EMIT_PORT_KEYS = ["emitError", "emitComplete", "emitStatus"] as const;
 
+/**
+ * Base class for nodes that process messages. Provides input/output handling,
+ * schema validation, status updates, and emit port management.
+ *
+ * @example
+ * ```ts
+ * export default class MyNode extends IONode<Config, any, Input, Output> {
+ *   static readonly type = "my-node";
+ *   static readonly category = "function";
+ *   static readonly color = "#ffffff" as const;
+ *
+ *   async input(msg: Input) {
+ *     this.send({ payload: msg.payload.toUpperCase() });
+ *   }
+ * }
+ * ```
+ */
 abstract class IONode<
   TConfig = any,
   TCredentials = any,

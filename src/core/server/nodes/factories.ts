@@ -12,6 +12,24 @@ import type {
 import { IONode } from "./io-node";
 import { ConfigNode } from "./config-node";
 
+/**
+ * Creates an IO node class from a definition object. Provides automatic type
+ * inference from schemas, reducing boilerplate compared to the class-based API.
+ *
+ * @example
+ * ```ts
+ * export default defineIONode({
+ *   type: "my-node",
+ *   color: "#ffffff",
+ *   configSchema: ConfigsSchema,
+ *   inputSchema: InputSchema,
+ *   outputsSchema: OutputSchema,
+ *   async input(msg) {
+ *     this.send({ payload: msg.payload.toUpperCase() });
+ *   },
+ * });
+ * ```
+ */
 function defineIONode<
   TConfigSchema extends TSchema | undefined = undefined,
   TCredsSchema extends TSchema | undefined = undefined,
@@ -96,6 +114,18 @@ function defineIONode<
   >;
 }
 
+/**
+ * Creates a config node class from a definition object.
+ *
+ * @example
+ * ```ts
+ * export default defineConfigNode({
+ *   type: "my-server",
+ *   configSchema: ConfigsSchema,
+ *   credentialsSchema: CredsSchema,
+ * });
+ * ```
+ */
 function defineConfigNode<
   TConfigSchema extends TSchema | undefined = undefined,
   TCredsSchema extends TSchema | undefined = undefined,

@@ -9,6 +9,17 @@ import type {
 } from "./types";
 import { setupContext } from "./utils";
 
+/**
+ * Base class for configuration nodes that are shared across multiple nodes
+ * (e.g., server connections, credentials). Registered with `category: "config"`.
+ *
+ * @example
+ * ```ts
+ * export default class MyServer extends ConfigNode<Config> {
+ *   static readonly type = "my-server";
+ * }
+ * ```
+ */
 abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
   extends Node<TConfig, TCredentials, TSettings>
   implements IConfigNode<TConfig, TCredentials, TSettings>

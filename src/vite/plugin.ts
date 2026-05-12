@@ -12,6 +12,21 @@ import { getPackageName, mergeOptions } from "./utils";
 import { NodeRedLauncher } from "./node-red-launcher";
 import { serverPlugin, buildPlugin } from "./plugins";
 
+/**
+ * Vite plugin that builds and serves Node-RED node packages. Handles server
+ * bundling, client compilation, type generation, and dev server integration.
+ *
+ * @example
+ * ```ts
+ * // vite.config.ts
+ * import { defineConfig } from "vite";
+ * import { nodeRed } from "@bonsae/nrg/vite";
+ *
+ * export default defineConfig({
+ *   plugins: [nodeRed()],
+ * });
+ * ```
+ */
 function nodeRed(options: NodeRedPluginOptions = {}): Plugin[] {
   const { outDir = DEFAULT_OUTPUT_DIR } = options;
 
