@@ -9,7 +9,11 @@
     "noEmit": true,
     "noImplicitAny": false,
     "noImplicitOverride": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@mocks/*": ["./tests/mocks/*"]
+    }
   },
   "exclude": ["node_modules", "dist"]
 }
