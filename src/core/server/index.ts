@@ -198,6 +198,6 @@ export {
 export { NrgError } from "../errors";
 export type { RED } from "./types";
 export { SchemaType, defineSchema } from "./schemas";
-export type { Schema, Infer } from "./schemas/types";
+export type { Schema, Infer, TNodeRef, TTypedInput } from "./schemas/types";
 /** @internal — used by @bonsae/nrg/test */
 export { initValidator } from "./validation";
