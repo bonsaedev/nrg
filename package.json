@@ -58,10 +58,10 @@
     "./tsconfig/server.json": "./dist/tsconfig/server.json"
   },
   "peerDependencies": {
-    "vite": "^6.0.0",
-    "vue": "^3.5.14"
+    "vite": "^6.0.0"
   },
   "dependencies": {
+    "vue": "^3.5.14",
     "@clack/prompts": "^1.0.1",
     "@sinclair/typebox": "^0.34.33",
     "@vitejs/plugin-vue": "^5.2.3",

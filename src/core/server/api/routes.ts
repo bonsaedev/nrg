@@ -1,5 +1,5 @@
 import type { RED } from "../types";
-import { initNrgAssetsRoute } from "./nrg-assets";
+import { initAssetsRoutes } from "./assets";
 
 let _initialized = false;
 
@@ -7,7 +7,7 @@ function initRoutes(RED: RED): void {
   if (_initialized) return;
   _initialized = true;
 
-  initNrgAssetsRoute(RED.httpAdmin);
+  initAssetsRoutes(RED.httpAdmin);
 }
 
 export { initRoutes };
