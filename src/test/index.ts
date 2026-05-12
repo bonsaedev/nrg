@@ -1,14 +1,15 @@
 import { vi } from "vitest";
 import { createNodeRedRuntime, createNodeRedNode } from "./mocks";
 import { initValidator } from "../core/server/validation";
+import type { NodeRedNode } from "../core/server/types";
 import type { NodeConstructor as NodeClass } from "../core/server/nodes/types/node";
-import type { MockRED, NodeRedNodeOptions } from "./mocks";
+import type { MockRED } from "./mocks";
 
 interface CreateNodeOptions {
   config?: Record<string, any>;
   credentials?: Record<string, any>;
   settings?: Record<string, any>;
-  overrides?: NodeRedNodeOptions;
+  overrides?: Partial<NodeRedNode>;
 }
 
 type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;

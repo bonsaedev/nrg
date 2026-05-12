@@ -2,18 +2,14 @@ import { vi } from "vitest";
 import type { RED, NodeRedNode } from "../core/server/types";
 import type { INode } from "../core/server/nodes/types";
 
-interface REDOptions {
-  settings?: Record<string, any>;
-}
-
-type NodeRedNodeOptions = Partial<NodeRedNode>;
-
 interface MockRED extends RED {
   registerNode(id: string, nodeRedNode: Partial<NodeRedNode>): void;
   registerNrgNode(id: string, nrgInstance: Partial<INode>): void;
 }
 
-function createNodeRedRuntime(options: REDOptions = {}): MockRED {
+function createNodeRedRuntime(
+  options: { settings?: Record<string, any> } = {},
+): MockRED {
   const { settings = {} } = options;
   const nodes: Record<string, any> = {};
 
@@ -204,7 +200,7 @@ function createContextStore() {
   };
 }
 
-function createNodeRedNode(options: NodeRedNodeOptions = {}): NodeRedNode {
+function createNodeRedNode(options: Partial<NodeRedNode> = {}): NodeRedNode {
   const nodeCtx = createContextStore();
   const flowCtx = createContextStore();
   const globalCtx = createContextStore();
@@ -239,4 +235,4 @@ function createNodeRedNode(options: NodeRedNodeOptions = {}): NodeRedNode {
 }
 
 export { createNodeRedRuntime, createNodeRedNode, createContextStore };
-export type { MockRED, REDOptions, NodeRedNodeOptions };
+export type { MockRED };
