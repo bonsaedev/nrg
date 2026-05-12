@@ -1,15 +1,14 @@
 import { vi } from "vitest";
 import { createNodeRedRuntime, createNodeRedNode } from "./mocks";
 import { initValidator } from "../core/server/validation";
-import type { RED } from "../core/server/types";
 import type { NodeConstructor as NodeClass } from "../core/server/nodes/types/node";
-import type { MockNodeRedNodeOptions } from "./mocks";
+import type { MockRED, NodeRedNodeOptions } from "./mocks";
 
 interface CreateNodeOptions {
   config?: Record<string, any>;
   credentials?: Record<string, any>;
   settings?: Record<string, any>;
-  overrides?: MockNodeRedNodeOptions;
+  overrides?: NodeRedNodeOptions;
 }
 
 type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
@@ -29,7 +28,7 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
 
 interface CreateNodeResult<T> {
   node: T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>>;
-  RED: RED;
+  RED: MockRED;
 }
 
 function buildConfig(
@@ -153,11 +152,11 @@ async function createNode<T extends NodeClass>(
     }
   }
 
-  const { RED, registerNrgNode } = createNodeRedRuntime({ settings });
+  const RED = createNodeRedRuntime({ settings });
   initValidator(RED);
 
   for (const [id, value] of Object.entries(configNodes)) {
-    registerNrgNode(id, value);
+    RED.registerNrgNode(id, value);
   }
 
   const configDefaults: Record<string, any> = {

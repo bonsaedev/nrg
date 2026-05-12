@@ -19,7 +19,15 @@ describe("initRoutes", () => {
     initRoutes(RED);
 
     expect(RED.httpAdmin.get).toHaveBeenCalledWith(
-      "/nrg/assets/*",
+      "/nrg/assets/nrg-client.js",
+      expect.any(Function),
+    );
+    expect(RED.httpAdmin.get).toHaveBeenCalledWith(
+      "/nrg/assets/vue.esm-browser.prod.js",
+      expect.any(Function),
+    );
+    expect(RED.httpAdmin.get).toHaveBeenCalledWith(
+      "/nrg/assets/vue.esm-browser.js",
       expect.any(Function),
     );
   });
@@ -35,6 +43,6 @@ describe("initRoutes", () => {
     initRoutes(RED);
     initRoutes(RED);
 
-    expect(RED.httpAdmin.get).toHaveBeenCalledTimes(1);
+    expect(RED.httpAdmin.get).toHaveBeenCalledTimes(3);
   });
 });
