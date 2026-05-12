@@ -194,18 +194,40 @@ describe("type generation — factory-based nodes", () => {
     expect(fs.existsSync(path.join(outDir, "index.d.ts"))).toBe(true);
   });
 
-  // Factory node types are emitted as `any` because TypeScript declaration
-  // emit cannot resolve the complex inferred return type of defineIONode()
-  // when @bonsae/nrg types come from an external .d.ts package.
-  // Class-based nodes work because the class declaration preserves types directly.
-  it.todo("should export factory-defined node");
-  it.todo("should export config schema for factory node");
-  it.todo("should export input schema for factory node");
-  it.todo("should export output schema for factory node");
-  it.todo("should include schema property types in config schema");
-  it.todo("should include schema property types in input schema");
-  it.todo("should include schema property types in output schema");
-  it.todo("should export factory node as NodeConstructor<IIONode>");
+  it("should export factory-defined node", () => {
+    expect(dtsContent).toContain("CustomNode");
+  });
+
+  it("should export config schema for factory node", () => {
+    expect(dtsContent).toContain("CustomNodeConfigSchema");
+  });
+
+  it("should export input schema for factory node", () => {
+    expect(dtsContent).toContain("CustomNodeInputSchema");
+  });
+
+  it("should export output schema for factory node", () => {
+    expect(dtsContent).toContain("CustomNodeOutputsSchema");
+  });
+
+  it("should include schema property types in config schema", () => {
+    expect(dtsContent).toContain("TString");
+  });
+
+  it("should include schema property types in input schema", () => {
+    const inputMatch = dtsContent.match(
+      /CustomNodeInputSchema.*?Schema<\s*\{[^}]*payload[^}]*\}/s,
+    );
+    expect(inputMatch).not.toBeNull();
+  });
+
+  it("should include schema property types in output schema", () => {
+    expect(dtsContent).toContain("TNumber");
+  });
+
+  it("should export factory node as NodeConstructor<IIONode>", () => {
+    expect(dtsContent).toContain("IIONode");
+  });
 
   it("should not export schemas not referenced by the node", () => {
     const schemaExports = dtsContent

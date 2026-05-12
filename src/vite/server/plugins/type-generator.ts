@@ -294,6 +294,55 @@ function getSchemaReferences(
   return result;
 }
 
+/**
+ * Detect whether a node file uses a factory function (defineIONode/defineConfigNode)
+ * and return the factory name, or null for class-based nodes.
+ */
+function getFactoryInfo(
+  filePath: string,
+): { factoryName: "defineIONode" | "defineConfigNode" } | null {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const source = ts.createSourceFile(
+    filePath,
+    content,
+    ts.ScriptTarget.ESNext,
+    true,
+  );
+
+  for (const stmt of source.statements) {
+    if (
+      ts.isExportAssignment(stmt) &&
+      stmt.expression &&
+      ts.isCallExpression(stmt.expression)
+    ) {
+      const callee = stmt.expression.expression;
+      if (ts.isIdentifier(callee)) {
+        if (
+          callee.text === "defineIONode" ||
+          callee.text === "defineConfigNode"
+        ) {
+          return { factoryName: callee.text };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Build a type argument string from a schema map entry.
+ * Returns "any" if no schema, "Infer<typeof X>" for single, or a tuple for arrays.
+ */
+function buildTypeArg(
+  schemaMap: Map<string, string[]>,
+  semanticName: string,
+): string {
+  const names = schemaMap.get(semanticName);
+  if (!names || names.length === 0) return "any";
+  if (names.length === 1) return `Infer<typeof ${names[0]}>`;
+  return `[${names.map((n) => `Infer<typeof ${n}>`).join(", ")}]`;
+}
+
 function buildNodeReexports(srcDir: string, entryFile: string): string {
   const nodesDir = path.join(srcDir, "nodes");
   const nodeFiles = collectTsFiles(nodesDir);
@@ -306,23 +355,98 @@ function buildNodeReexports(srcDir: string, entryFile: string): string {
       const specifier = relPath.replace(/\.ts$/, "");
       const ns = toPascalCase(path.basename(file, ".ts"));
 
-      const lines = [`export { default as ${ns} } from "${specifier}";`];
+      const schemaRefs = getSchemaReferences(file);
+      const factoryInfo = getFactoryInfo(file);
 
-      // Re-export type aliases from the node file (class-based nodes)
-      const typePairs = getNodeTypeExports(file);
-      if (typePairs.length > 0) {
-        const prefixed = typePairs
-          .map(
-            ({ localName, semanticName }) =>
-              `${localName} as ${ns}${semanticName}`,
-          )
-          .join(", ");
-        lines.push(`export type { ${prefixed} } from "${specifier}";`);
+      const lines: string[] = [];
+
+      if (factoryInfo) {
+        // Factory-based: emit an explicitly typed re-export to avoid
+        // TypeScript declaration emit collapsing the type to `any`.
+        const interfaceName =
+          factoryInfo.factoryName === "defineIONode"
+            ? "IIONode"
+            : "IConfigNode";
+
+        lines.push(`import _${ns} from "${specifier}";`);
+
+        // Build schema map: semantic name → local identifiers
+        const schemaMap = new Map<string, string[]>();
+        for (const ref of schemaRefs) {
+          const key = ref.tupleProp ?? ref.semanticName;
+          if (!schemaMap.has(key)) schemaMap.set(key, []);
+          schemaMap.get(key)!.push(ref.localName);
+        }
+
+        const hasSchemas = schemaMap.size > 0;
+
+        // NRG type imports
+        const nrgImports = ["NodeConstructor", interfaceName];
+        if (hasSchemas) nrgImports.push("Infer");
+        lines.push(
+          `import type { ${nrgImports.join(", ")} } from "@bonsae/nrg/server";`,
+        );
+
+        // Schema type imports (grouped by resolved source)
+        if (hasSchemas) {
+          const bySource = new Map<string, string[]>();
+          for (const ref of schemaRefs) {
+            const resolvedSource = path
+              .relative(
+                path.dirname(entryFile),
+                path.resolve(path.dirname(file), ref.importSource),
+              )
+              .replace(/\\/g, "/");
+            const sourceSpecifier = resolvedSource.startsWith(".")
+              ? resolvedSource
+              : `./${resolvedSource}`;
+            if (!bySource.has(sourceSpecifier))
+              bySource.set(sourceSpecifier, []);
+            const list = bySource.get(sourceSpecifier)!;
+            if (!list.includes(ref.localName)) list.push(ref.localName);
+          }
+          for (const [source, names] of bySource) {
+            lines.push(`import type { ${names.join(", ")} } from "${source}";`);
+          }
+        }
+
+        // Build generic type arguments
+        let typeArgs: string;
+        if (factoryInfo.factoryName === "defineIONode") {
+          typeArgs = [
+            buildTypeArg(schemaMap, "ConfigSchema"),
+            buildTypeArg(schemaMap, "CredentialsSchema"),
+            buildTypeArg(schemaMap, "InputSchema"),
+            buildTypeArg(schemaMap, "OutputsSchema"),
+          ].join(", ");
+        } else {
+          typeArgs = [
+            buildTypeArg(schemaMap, "ConfigSchema"),
+            buildTypeArg(schemaMap, "CredentialsSchema"),
+          ].join(", ");
+        }
+
+        lines.push(
+          `export const ${ns}: NodeConstructor<${interfaceName}<${typeArgs}>> = _${ns};`,
+        );
+      } else {
+        // Class-based: standard re-export preserves types directly
+        lines.push(`export { default as ${ns} } from "${specifier}";`);
+
+        // Re-export type aliases from the node file
+        const typePairs = getNodeTypeExports(file);
+        if (typePairs.length > 0) {
+          const prefixed = typePairs
+            .map(
+              ({ localName, semanticName }) =>
+                `${localName} as ${ns}${semanticName}`,
+            )
+            .join(", ");
+          lines.push(`export type { ${prefixed} } from "${specifier}";`);
+        }
       }
 
-      // Re-export schemas referenced by the node definition (class or factory)
-      const schemaRefs = getSchemaReferences(file);
-      // Group by import source for cleaner re-exports
+      // Re-export schemas referenced by the node definition (both paths)
       const bySource = new Map<string, string[]>();
       for (const ref of schemaRefs) {
         const resolvedSource = path
