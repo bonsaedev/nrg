@@ -23,7 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DIST = path.resolve(__dirname, "dist");
 const DTS_FLAGS =
-  "--no-check --project tsconfig.build.json --external-inlines @sinclair/typebox --export-referenced-types=false";
+  "--no-check --project tsconfig.build.json --export-referenced-types=false";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,19 +35,6 @@ function esbuild(entry, { format, platform = "node", outfile, outdir }) {
     `esbuild ${entry} --bundle --packages=external --format=${format} --platform=${platform} ${out}`,
     { stdio: "inherit" },
   );
-}
-
-function extractInterfaceBody(source, interfaceName) {
-  const start = source.indexOf(`interface ${interfaceName} {`);
-  const bodyStart = source.indexOf("{", start) + 1;
-  let braceCount = 1;
-  let i = bodyStart;
-  while (braceCount > 0 && i < source.length) {
-    if (source[i] === "{") braceCount++;
-    if (source[i] === "}") braceCount--;
-    i++;
-  }
-  return source.slice(bodyStart, i - 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -124,18 +111,9 @@ function generateTypes() {
   execSync(`npx dts-bundle-generator -o dist/types/index.d.ts src/index.ts ${DTS_FLAGS}`, { stdio: "inherit" });
   execSync(`npx dts-bundle-generator -o dist/types/server.d.ts src/core/server/index.ts ${DTS_FLAGS}`, { stdio: "inherit" });
 
-  // Inject NRG schema extensions into the inlined SchemaOptions interface.
-  // Because typebox is inlined (--external-inlines), its SchemaOptions interface
-  // becomes a local declaration disconnected from the real module. The module
-  // augmentation in src/core/server/typebox.d.ts doesn't reach consumers, so we
-  // inject the properties directly. Source of truth: src/core/server/schema-options.ts
+  // Prepend reference to typebox module augmentation so consumers get NRG schema extensions
   const serverDts = readFileSync("dist/types/server.d.ts", "utf-8");
-  const schemaOpts = readFileSync("src/core/server/schema-options.ts", "utf-8");
-  const shimProps = extractInterfaceBody(schemaOpts, "NrgSchemaExtensions");
-  writeFileSync(
-    "dist/types/server.d.ts",
-    serverDts.replace(/(export interface SchemaOptions \{)/, `$1${shimProps}`),
-  );
+  writeFileSync("dist/types/server.d.ts", `/// <reference path="./typebox.d.ts" />\n${serverDts}`);
 
   // Client types — generated from interfaces only. Function declarations are
   // appended because registration.ts imports .vue files that dts-bundle-generator
@@ -169,6 +147,9 @@ function copyAssets() {
   copyFileSync("src/core/client/shims-vue.d.ts", "dist/types/shims/shims-vue.d.ts");
   copyFileSync("src/core/client/components.d.ts", "dist/types/shims/components.d.ts");
   copyFileSync("src/core/client/globals.d.ts", "dist/types/shims/globals.d.ts");
+
+  copyFileSync("src/core/server/typebox.d.ts", "dist/types/typebox.d.ts");
+  copyFileSync("src/core/server/schema-options.ts", "dist/types/schema-options.d.ts");
 
   cpSync("src/schemas", "dist/schemas", { recursive: true });
 
