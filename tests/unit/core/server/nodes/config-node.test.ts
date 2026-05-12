@@ -15,7 +15,7 @@ describe("ConfigNode", () => {
     });
 
     it("should set up context with node and global", () => {
-      const RED = createNodeRedRuntime();
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -31,7 +31,7 @@ describe("ConfigNode", () => {
     });
 
     it("should support context as a function with scope", () => {
-      const RED = createNodeRedRuntime();
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -49,7 +49,7 @@ describe("ConfigNode", () => {
 
   describe("userIds", () => {
     it("should return _users from config", () => {
-      const RED = createNodeRedRuntime();
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -65,11 +65,11 @@ describe("ConfigNode", () => {
 
   describe("users", () => {
     it("should resolve user IDs to node instances", () => {
-      const userNode1 = { _node: { id: "user-1", type: "my-node" } };
-      const userNode2 = { _node: { id: "user-2", type: "my-node" } };
-      const RED = createNodeRedRuntime({
-        nodes: { "user-1": userNode1, "user-2": userNode2 },
-      });
+      const nrgNode1 = { id: "user-1", type: "my-node" };
+      const nrgNode2 = { id: "user-2", type: "my-node" };
+      const { RED, registerNrgNode } = createNodeRedRuntime();
+      registerNrgNode("user-1", nrgNode1);
+      registerNrgNode("user-2", nrgNode2);
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -81,15 +81,14 @@ describe("ConfigNode", () => {
 
       const users = instance.users;
       expect(users).toHaveLength(2);
-      expect(users[0]).toBe(userNode1._node);
-      expect(users[1]).toBe(userNode2._node);
+      expect(users[0]).toBe(nrgNode1);
+      expect(users[1]).toBe(nrgNode2);
     });
 
     it("should filter out missing nodes", () => {
-      const userNode1 = { _node: { id: "user-1" } };
-      const RED = createNodeRedRuntime({
-        nodes: { "user-1": userNode1 },
-      });
+      const nrgNode1 = { id: "user-1" };
+      const { RED, registerNrgNode } = createNodeRedRuntime();
+      registerNrgNode("user-1", nrgNode1);
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -101,14 +100,15 @@ describe("ConfigNode", () => {
 
       const users = instance.users;
       expect(users).toHaveLength(1);
-      expect(users[0]).toBe(userNode1._node);
+      expect(users[0]).toBe(nrgNode1);
     });
   });
 
   describe("getUser", () => {
     it("should return user at index", () => {
-      const userNode = { _node: { id: "user-1", type: "my-node" } };
-      const RED = createNodeRedRuntime({ nodes: { "user-1": userNode } });
+      const nrgNode = { id: "user-1", type: "my-node" };
+      const { RED, registerNrgNode } = createNodeRedRuntime();
+      registerNrgNode("user-1", nrgNode);
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -118,11 +118,11 @@ describe("ConfigNode", () => {
         {},
       );
 
-      expect(instance.getUser(0)).toBe(userNode._node);
+      expect(instance.getUser(0)).toBe(nrgNode);
     });
 
     it("should return undefined for out-of-bounds index", () => {
-      const RED = createNodeRedRuntime();
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -136,7 +136,7 @@ describe("ConfigNode", () => {
     });
 
     it("should return undefined when node is not found", () => {
-      const RED = createNodeRedRuntime({});
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestConfigNode as any)(
@@ -152,7 +152,7 @@ describe("ConfigNode", () => {
 
   describe("credentials", () => {
     it("should return node.credentials", () => {
-      const RED = createNodeRedRuntime();
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode({ credentials: { secret: "abc" } });
       const instance = new (TestConfigNode as any)(

@@ -52,22 +52,6 @@ function buildConfig(
   return { ...defaults, ...userConfig };
 }
 
-function buildNodeRedNodes(
-  configNodes: Record<string, any>,
-): Record<string, any> {
-  const nodes: Record<string, any> = {};
-
-  for (const [id, value] of Object.entries(configNodes)) {
-    if (value && typeof value === "object" && "id" in value) {
-      nodes[id] = { _node: value };
-    } else {
-      nodes[id] = value;
-    }
-  }
-
-  return nodes;
-}
-
 function attachHelpers<T>(
   node: T,
   nodeRedNode: any,
@@ -169,9 +153,12 @@ async function createNode<T extends NodeClass>(
     }
   }
 
-  const redNodes = buildNodeRedNodes(configNodes);
-  const RED = createNodeRedRuntime({ nodes: redNodes, settings });
+  const { RED, registerNrgNode } = createNodeRedRuntime({ settings });
   initValidator(RED);
+
+  for (const [id, value] of Object.entries(configNodes)) {
+    registerNrgNode(id, value);
+  }
 
   const configDefaults: Record<string, any> = {
     id: overrideOpts.id ?? `test-${Math.random().toString(36).slice(2, 10)}`,

@@ -1,17 +1,24 @@
 import { vi } from "vitest";
 import type { RED, NodeRedNode } from "../core/server/types";
+import type { INode } from "../core/server/nodes/types";
 
 interface MockREDOptions {
-  nodes?: Record<string, any>;
   settings?: Record<string, any>;
 }
 
 type MockNodeRedNodeOptions = Partial<NodeRedNode>;
 
-function createNodeRedRuntime(options: MockREDOptions = {}): RED {
-  const { nodes = {}, settings = {} } = options;
+interface MockREDResult {
+  RED: RED;
+  registerNode(id: string, nodeRedNode: Partial<NodeRedNode>): void;
+  registerNrgNode(id: string, nrgInstance: Partial<INode>): void;
+}
 
-  return {
+function createNodeRedRuntime(options: MockREDOptions = {}): MockREDResult {
+  const { settings = {} } = options;
+  const nodes: Record<string, any> = {};
+
+  const red = {
     log: {
       info: vi.fn(),
       warn: vi.fn(),
@@ -156,6 +163,16 @@ function createNodeRedRuntime(options: MockREDOptions = {}): RED {
     version: vi.fn(() => "0.0.0-test"),
     validator: undefined as any,
   } as RED;
+
+  return {
+    RED: red,
+    registerNode(id: string, nodeRedNode: Partial<NodeRedNode>) {
+      nodes[id] = nodeRedNode;
+    },
+    registerNrgNode(id: string, nrgInstance: Partial<INode>) {
+      nodes[id] = createNodeRedNode({ id, _node: nrgInstance as INode });
+    },
+  };
 }
 
 function getProperty(obj: any, path: string): any {
@@ -225,4 +242,4 @@ function createNodeRedNode(options: MockNodeRedNodeOptions = {}): NodeRedNode {
 }
 
 export { createNodeRedRuntime, createNodeRedNode, createContextStore };
-export type { MockREDOptions, MockNodeRedNodeOptions };
+export type { MockREDResult, MockREDOptions, MockNodeRedNodeOptions };

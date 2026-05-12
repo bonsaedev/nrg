@@ -13,7 +13,7 @@ async function getModules() {
 describe("registerType validation", () => {
   it("should throw NrgError when class does not extend Node", async () => {
     const { registerType } = await getModules();
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
 
     class NotANode {
       static type = "bad-node";
@@ -27,7 +27,7 @@ describe("registerType validation", () => {
 
   it("should throw NrgError when type is not defined", async () => {
     const { IONode, registerType } = await getModules();
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
 
     class NoType extends IONode {
       // missing static type
@@ -41,7 +41,7 @@ describe("registerType validation", () => {
 
   it("should throw NrgError for invalid color format", async () => {
     const { IONode, registerType } = await getModules();
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
 
     class BadColor extends IONode {
       static override readonly type = "bad-color";
@@ -57,7 +57,7 @@ describe("registerType validation", () => {
 
   it("should accept valid hex color", async () => {
     const { IONode, registerType } = await getModules();
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
 
     class GoodColor extends IONode {
       static override readonly type = "good-color";

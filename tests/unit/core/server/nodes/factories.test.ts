@@ -115,7 +115,7 @@ describe("defineIONode", () => {
       input: inputFn,
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
@@ -137,7 +137,7 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
@@ -159,7 +159,7 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
@@ -179,7 +179,7 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     await (Node as any)._registered(RED);
 
@@ -192,7 +192,7 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
@@ -217,7 +217,7 @@ describe("defineIONode", () => {
       input() {},
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (NodeClass as any)(RED, node, {}, {});
@@ -274,7 +274,7 @@ describe("defineConfigNode", () => {
       created: createdFn,
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(
@@ -299,7 +299,7 @@ describe("defineConfigNode", () => {
       closed: closedFn,
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, { _users: [] }, {});
@@ -317,7 +317,7 @@ describe("defineConfigNode", () => {
       registered: registeredFn,
     });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     await (Node as any)._registered(RED);
 
@@ -327,7 +327,7 @@ describe("defineConfigNode", () => {
   it("should not throw when optional handlers are not provided", async () => {
     const Node = defineConfigNode({ type: "minimal-config" });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, { _users: [] }, {});
@@ -346,7 +346,7 @@ describe("defineConfigNode", () => {
   it("should produce instances of ConfigNode with userIds", () => {
     const NodeClass = defineConfigNode({ type: "instance-config" });
 
-    const RED = createNodeRedRuntime();
+    const { RED } = createNodeRedRuntime();
     initValidator(RED);
     const node = createNodeRedNode();
     const instance = new (NodeClass as any)(RED, node, { _users: ["u1"] }, {});

@@ -234,7 +234,7 @@ describe("defineSchema", () => {
     });
 
     it("should work with the validator without $id", () => {
-      const RED = createNodeRedRuntime();
+      const { RED } = createNodeRedRuntime();
       initValidator(RED);
 
       const schema = defineSchema({
