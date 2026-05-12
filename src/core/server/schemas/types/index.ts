@@ -14,6 +14,7 @@ interface TNodeRef<T = any> extends TSchema {
   [Kind]: "NodeRef";
   static: T;
   type: "string";
+  format: "node-id";
   "x-nrg-node-type"?: string;
 }
 
