@@ -228,8 +228,8 @@ describe("type generation — factory-based nodes", () => {
     expect(dtsContent).toContain("TNumber");
   });
 
-  it("should export factory node as NodeClassBase", () => {
-    expect(dtsContent).toContain("NodeClassBase");
+  it("should export factory node as NodeConstructor<IIONode>", () => {
+    expect(dtsContent).toContain("IIONode");
   });
 
   it("should not export schemas not referenced by the node", () => {

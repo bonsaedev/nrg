@@ -5,8 +5,8 @@ import type {
   IONodeDefinition,
   ConfigNodeDefinition,
   NodeConstructor,
-  ConfigNodeInstance,
-  IONodeInstance,
+  IConfigNode,
+  IIONode,
   HexColor,
 } from "./types";
 import { IONode } from "./io-node";
@@ -27,7 +27,7 @@ function defineIONode<
     TOutputsSchema
   >,
 ): NodeConstructor<
-  IONodeInstance<
+  IIONode<
     InferOr<TConfigSchema, any>,
     InferOr<TCredsSchema, any>,
     InferOr<TInputSchema, any>,
@@ -87,7 +87,7 @@ function defineIONode<
   });
 
   return NodeClass as unknown as NodeConstructor<
-    IONodeInstance<
+    IIONode<
       InferOr<TConfigSchema, any>,
       InferOr<TCredsSchema, any>,
       InferOr<TInputSchema, any>,
@@ -103,7 +103,7 @@ function defineConfigNode<
 >(
   def: ConfigNodeDefinition<TConfigSchema, TCredsSchema, TSettingsSchema>,
 ): NodeConstructor<
-  ConfigNodeInstance<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
+  IConfigNode<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
 > {
   const NodeClass = class extends ConfigNode<
     InferOr<TConfigSchema, any>,
@@ -141,7 +141,7 @@ function defineConfigNode<
   });
 
   return NodeClass as unknown as NodeConstructor<
-    ConfigNodeInstance<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
+    IConfigNode<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
   >;
 }
 

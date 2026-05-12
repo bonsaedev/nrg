@@ -1,8 +1,9 @@
 import type { Schema } from "../schemas/types";
-import type { RED } from "../../server/types";
+import type { RED, NodeRedNode } from "../../server/types";
 import { Node } from "./node";
 import type {
   HexColor,
+  IIONode,
   IONodeContext,
   IONodeContextScope,
   IONodeStatus,
@@ -20,7 +21,10 @@ abstract class IONode<
   TInput = any,
   TOutput = any,
   TSettings = any,
-> extends Node<TConfig, TCredentials, TSettings> {
+>
+  extends Node<TConfig, TCredentials, TSettings>
+  implements IIONode<TConfig, TCredentials, TInput, TOutput, TSettings>
+{
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
   public static readonly inputSchema?: Schema;
@@ -52,7 +56,7 @@ abstract class IONode<
 
   constructor(
     RED: RED,
-    node: any,
+    node: NodeRedNode,
     config: IONodeConfig<TConfig>,
     credentials: IONodeCredentials<TCredentials>,
   ) {

@@ -2,6 +2,7 @@ import type { Schema } from "../schemas/types";
 import { type RED, type NodeRedNode } from "../../server/types";
 import type {
   ConfigNodeContext,
+  INode,
   IONodeContext,
   NodeConfig,
   NodeCredentials,
@@ -9,7 +10,11 @@ import type {
 } from "./types";
 import { setupConfigProxy } from "./utils";
 
-abstract class Node<TConfig = any, TCredentials = any, TSettings = any> {
+abstract class Node<
+  TConfig = any,
+  TCredentials = any,
+  TSettings = any,
+> implements INode<TConfig, TCredentials, TSettings> {
   public static readonly type: string;
   public static readonly category: "config" | string;
   public static readonly configSchema?: Schema;

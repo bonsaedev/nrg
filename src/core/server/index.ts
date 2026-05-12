@@ -1,7 +1,7 @@
 import { getCredentialsFromSchema } from "./utils";
 import { Node } from "./nodes";
 import type { NodeConstructor } from "./nodes/types";
-import { type RED } from "./types";
+import { type RED, type NodeRedNode } from "./types";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
 import { NrgError } from "../errors";
@@ -33,7 +33,7 @@ async function registerType(RED: RED, NodeClass: NodeConstructor) {
 
   RED.nodes.registerType(
     NC.type,
-    function (this: any, config: any) {
+    function (this: NodeRedNode, config: Record<string, any>) {
       RED.nodes.createNode(this, config);
       const node = new NC(RED, this, config, this.credentials);
       // NOTE: save node instance inside node-red's node so that the proxy can resolve it lazily.

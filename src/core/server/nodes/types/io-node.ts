@@ -3,6 +3,7 @@ import type { IONodeConfigSchema } from "../../schemas";
 import type { RED } from "../../../server/types";
 import type { IONode } from "../io-node";
 import type {
+  INode,
   NodeConfig,
   NodeCredentials,
   NodeContextStore,
@@ -47,30 +48,42 @@ type BoundIONode<
   InferOr<TS, any>
 >;
 
-interface IONodeInstance<
+interface IIONode<
   TConfig = any,
   TCredentials = any,
   TInput = any,
   TOutput = any,
-> {
+  TSettings = any,
+> extends INode<TConfig, TCredentials, TSettings> {
   readonly config: IONodeConfig<TConfig>;
   readonly credentials: IONodeCredentials<TCredentials> | undefined;
-  readonly id: string;
-  readonly name: string | undefined;
-  created?(): void | Promise<void>;
-  closed?(removed?: boolean): void | Promise<void>;
+  readonly x: number;
+  readonly y: number;
+  readonly g: string | undefined;
+  readonly wires: string[][];
+
   input(msg: TInput): void | Promise<void>;
   send(msg: TOutput): void;
+  status(status: IONodeStatus): void;
+  updateWires(wires: string[][]): void;
+  receive(msg: TInput): void;
+
   /** @internal */
   readonly _baseOutputs: number;
   /** @internal */
   readonly _totalOutputs: number;
+  /** @internal */
+  _sendToPort(portIndex: number, msg: any): void;
   /** @internal */
   _getErrorPortIndex(): number | null;
   /** @internal */
   _getCompletePortIndex(): number | null;
   /** @internal */
   _getStatusPortIndex(): number | null;
+  /** @internal */
+  _input(msg: TInput, send: (msg: any) => void): Promise<void>;
+  /** @internal */
+  _closed(removed?: boolean): Promise<void>;
 }
 
 interface IONodeDefinition<
@@ -129,11 +142,11 @@ interface IONodeDefinition<
 export {
   BoundIONode,
   HexColor,
+  IIONode,
   IONodeConfig,
   IONodeContext,
   IONodeContextScope,
   IONodeCredentials,
   IONodeDefinition,
-  IONodeInstance,
   IONodeStatus,
 };

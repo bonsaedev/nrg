@@ -47,7 +47,30 @@ interface NodeSetting<T = any> {
 
 type NodeSettings = Record<string, NodeSetting>;
 
+interface INode<TConfig = any, TCredentials = any, TSettings = any> {
+  readonly config: NodeConfig<TConfig>;
+  readonly id: string;
+  readonly name: string | undefined;
+  readonly z: string | undefined;
+  readonly credentials: NodeCredentials<TCredentials> | undefined;
+  readonly settings: TSettings;
+
+  i18n(key: string, substitutions?: Record<string, string>): string;
+  setTimeout(fn: () => void, ms: number): NodeJS.Timeout;
+  setInterval(fn: () => void, ms: number): NodeJS.Timeout;
+  clearTimeout(timer: NodeJS.Timeout): void;
+  clearInterval(interval: NodeJS.Timeout): void;
+  on(event: string, callback: (...args: any[]) => void): void;
+  log(msg: any): void;
+  warn(message: string): void;
+  error(message: string, msg?: any): void;
+
+  created?(): void | Promise<void>;
+  closed?(removed?: boolean): void | Promise<void>;
+}
+
 export {
+  INode,
   NodeConfig,
   NodeContextStore,
   NodeContextScope,

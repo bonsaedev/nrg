@@ -1,6 +1,7 @@
 import type { EventEmitter } from "events";
 import type { Express, RequestHandler } from "express";
 import type { NodeRedRuntimeSettings } from "../../../types";
+import type { INode } from "../nodes/types";
 import type { Validator } from "../../validator";
 
 interface NodeRedLog {
@@ -34,7 +35,7 @@ interface NodeRedNode {
   g?: string;
   wires: string[][];
   credentials: any;
-  _node?: any;
+  _node?: INode;
   send(msg: any): void;
   receive(msg: any): void;
   status(
@@ -56,7 +57,7 @@ interface NodeRedNodeContext extends NodeRedContextStore {
 
 interface NodeRedNodes {
   registerType(type: string, constructor: any, opts?: any): void;
-  getNode(id: string): (NodeRedNode & { _node?: any }) | undefined;
+  getNode(id: string): (NodeRedNode & { _node?: INode }) | undefined;
   createNode(node: NodeRedNode, config: Record<string, any>): void;
   getCredentials(id: string): Record<string, any> | undefined;
   eachNode(callback: (node: any) => void): void;

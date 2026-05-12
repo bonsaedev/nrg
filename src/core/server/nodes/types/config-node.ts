@@ -2,6 +2,7 @@ import type { Static, TSchema } from "@sinclair/typebox";
 import type { RED } from "../../../server/types";
 import type { ConfigNode } from "../config-node";
 import type {
+  INode,
   NodeConfig,
   NodeCredentials,
   NodeContextScope,
@@ -29,13 +30,19 @@ type BoundConfigNode<
   TS extends TSchema | undefined,
 > = ConfigNode<InferOr<TC, any>, InferOr<TCr, any>, InferOr<TS, any>>;
 
-interface ConfigNodeInstance<TConfig = any, TCredentials = any> {
+interface IConfigNode<
+  TConfig = any,
+  TCredentials = any,
+  TSettings = any,
+> extends INode<TConfig, TCredentials, TSettings> {
   readonly config: ConfigNodeConfig<TConfig>;
   readonly credentials: ConfigNodeCredentials<TCredentials> | undefined;
-  readonly id: string;
-  readonly name: string | undefined;
-  created?(): void | Promise<void>;
-  closed?(removed?: boolean): void | Promise<void>;
+  readonly userIds: string[];
+  readonly users: INode[];
+  getUser<T extends INode = INode>(index: number): T | undefined;
+
+  /** @internal */
+  _closed(removed?: boolean): Promise<void>;
 }
 
 interface ConfigNodeDefinition<
@@ -66,5 +73,5 @@ export {
   ConfigNodeCredentials,
   ConfigNodeContextScope,
   ConfigNodeDefinition,
-  ConfigNodeInstance,
+  IConfigNode,
 };

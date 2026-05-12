@@ -1,17 +1,18 @@
-import type { RED } from "../../server/types";
+import type { RED, NodeRedNode } from "../../server/types";
 import { Node } from "./node";
 import type {
   ConfigNodeConfig,
   ConfigNodeContext,
   ConfigNodeCredentials,
+  IConfigNode,
+  INode,
 } from "./types";
 import { setupContext } from "./utils";
 
-abstract class ConfigNode<
-  TConfig = any,
-  TCredentials = any,
-  TSettings = any,
-> extends Node<TConfig, TCredentials, TSettings> {
+abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
+  extends Node<TConfig, TCredentials, TSettings>
+  implements IConfigNode<TConfig, TCredentials, TSettings>
+{
   public static override readonly category: string = "config";
   declare public readonly config: ConfigNodeConfig<TConfig>;
 
@@ -26,7 +27,7 @@ abstract class ConfigNode<
 
   constructor(
     RED: RED,
-    node: any,
+    node: NodeRedNode,
     config: ConfigNodeConfig<TConfig>,
     credentials: ConfigNodeCredentials<TCredentials>,
   ) {
@@ -47,13 +48,13 @@ abstract class ConfigNode<
     return this.config._users;
   }
 
-  get users(): Node[] {
+  get users(): INode[] {
     return this.userIds
       .map((id) => this.RED.nodes.getNode(id)?._node)
-      .filter((node): node is Node => node != null);
+      .filter((node): node is INode => node != null);
   }
 
-  getUser<T extends Node = Node>(index: number): T | undefined {
+  getUser<T extends INode = INode>(index: number): T | undefined {
     const id = this.userIds[index];
     if (!id) return undefined;
     return this.RED.nodes.getNode(id)?._node as T | undefined;
