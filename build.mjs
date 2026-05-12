@@ -23,7 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DIST = path.resolve(__dirname, "dist");
 const DTS_FLAGS =
-  "--no-check --project tsconfig.build.json --external-inlines @sinclair/typebox";
+  "--no-check --project tsconfig.build.json --external-inlines @sinclair/typebox --export-referenced-types=false";
 
 // ---------------------------------------------------------------------------
 // Helpers
