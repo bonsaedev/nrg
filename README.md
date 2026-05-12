@@ -17,10 +17,10 @@ Build Node-RED nodes with Vue 3, TypeScript, and JSON Schema validation.
 
 ```bash
 pnpm add @bonsae/nrg
-pnpm add -D vite vue
+pnpm add -D vite
 ```
 
-> `vite` and `vue` are dev dependencies because they are only needed at build time. The Vue runtime is bundled by nrg and served automatically — your published package does not need them at runtime.
+> `vite` is a dev dependency because it is only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
 
 ## Package Exports
 
@@ -37,7 +37,7 @@ pnpm add -D vite vue
 ```bash
 # In your Node-RED package project
 pnpm add @bonsae/nrg
-pnpm add -D vite vue
+pnpm add -D vite
 ```
 
 **vite.config.ts**
@@ -134,43 +134,6 @@ export default defineModule({
 ```
 
 See the [consumer template](https://github.com/AllanOricil/node-red-vue-template) for a complete example.
-
-## Project Structure
-
-```
-src/
-├── core/                        # Runtime framework
-│   ├── client/                  # Vue 3 editor components
-│   │   ├── app.vue              # Root form wrapper (validation, toggles)
-│   │   ├── components/          # Reusable form inputs
-│   │   │   ├── node-red-input.vue
-│   │   │   ├── node-red-typed-input.vue
-│   │   │   ├── node-red-config-input.vue
-│   │   │   ├── node-red-select-input.vue
-│   │   │   ├── node-red-editor-input.vue
-│   │   │   └── node-red-json-schema-form.vue
-│   │   └── index.ts             # registerType, defineNode
-│   ├── server/                  # Node.js server runtime
-│   │   ├── nodes/               # Node, IONode, ConfigNode classes
-│   │   ├── schemas/             # TypeBox schema system
-│   │   ├── types/               # RED, context store types
-│   │   └── index.ts             # registerTypes, exports
-│   ├── constants.ts
-│   └── validator.ts             # AJV-based validation
-├── test/                        # Test utilities for consumers
-│   ├── index.ts                 # createNode, receive, close, reset
-│   └── mocks.ts                 # RED and Node-RED node mocks
-├── vite/                        # Build tooling
-│   ├── plugin.ts                # Vite plugin factory
-│   ├── plugins/                 # Dev server, build orchestration
-│   ├── server/                  # Server build (CJS/ESM + bridge)
-│   ├── client/                  # Client build (Vue + auto-wiring)
-│   └── index.ts                 # nodeRed(), defineRuntimeSettings()
-└── tsconfig/                    # Shared configs for consumers
-    ├── base.json
-    ├── client.json
-    └── server.json
-```
 
 ## Testing
 

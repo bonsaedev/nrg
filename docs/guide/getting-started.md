@@ -30,7 +30,7 @@ If you prefer to add NRG to an existing project:
 
 ```bash
 pnpm add @bonsae/nrg
-pnpm add -D vite vue
+pnpm add -D vite
 ```
 
 ### 2. Configure Vite
