@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { createNode } from "../../../../../src/test";
-import { defineIONode } from "../../../../../src/core/server/nodes";
+import { createNode } from "@/test";
+import { defineIONode } from "@/core/server/nodes";
 import {
   defineSchema,
   SchemaType,
-} from "../../../../../src/core/server/schemas";
+} from "@/core/server/schemas";
 
 const ConfigSchema = defineSchema(
   {

@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { NrgError } from "../../../../src/core/errors";
-import { createNodeRedRuntime } from "../../../mocks/red";
+import { NrgError } from "@/core/errors";
+import { createNodeRedRuntime } from "@mocks/red";
 
 async function getModules() {
   const { Node, IONode, ConfigNode } = await import(
-    "../../../../src/core/server/nodes"
+    "@/core/server/nodes"
   );
-  const { registerType } = await import("../../../../src/core/server/index");
+  const { registerType } = await import("@/core/server/index");
   return { Node, IONode, ConfigNode, registerType };
 }
 
@@ -73,7 +73,7 @@ describe("registerType validation", () => {
   it("should derive inputs from inputSchema presence", async () => {
     const { IONode } = await getModules();
     const { SchemaType } = await import(
-      "../../../../src/core/server/schemas"
+      "@/core/server/schemas"
     );
 
     class WithInput extends IONode {
@@ -94,7 +94,7 @@ describe("registerType validation", () => {
   it("should derive outputs from outputsSchema", async () => {
     const { IONode } = await getModules();
     const { SchemaType } = await import(
-      "../../../../src/core/server/schemas"
+      "@/core/server/schemas"
     );
 
     class SingleOutput extends IONode {

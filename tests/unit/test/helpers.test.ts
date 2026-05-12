@@ -8,9 +8,9 @@ import {
   type Schema,
   type Infer,
   type RED,
-} from "../../../src/core/server";
-import { defineSchema } from "../../../src/core/server/schemas";
-import { createNode } from "../../../src/test";
+} from "@/core/server";
+import { defineSchema } from "@/core/server/schemas";
+import { createNode } from "@/test";
 
 // --- Test fixtures ---
 

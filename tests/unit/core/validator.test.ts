@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Validator, ValidationError } from "../../../src/core/validator";
+import { Validator, ValidationError } from "@/core/validator";
 
 describe("Validator", () => {
   describe("validate", () => {

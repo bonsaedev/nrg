@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { debounce, withTimeout, retry } from "../../../src/vite/async-utils";
+import { debounce, withTimeout, retry } from "@/vite/async-utils";
 
 describe("debounce", () => {
   it("should delay execution", async () => {

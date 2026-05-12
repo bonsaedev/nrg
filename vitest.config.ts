@@ -1,6 +1,13 @@
 import { defineConfig } from "vitest/config";
+import path from "path";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      "@mocks": path.resolve(__dirname, "tests/mocks"),
+    },
+  },
   test: {
     include: ["tests/unit/**/*.test.ts"],
     coverage: {

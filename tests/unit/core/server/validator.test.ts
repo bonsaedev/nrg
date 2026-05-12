@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { initValidator } from "../../../../src/core/server/validation";
-import { createNodeRedRuntime } from "../../../mocks/red";
+import { initValidator } from "@/core/server/validation";
+import { createNodeRedRuntime } from "@mocks/red";
 
 describe("NodeRedValidator", () => {
   describe("x-nrg-skip-validation keyword", () => {

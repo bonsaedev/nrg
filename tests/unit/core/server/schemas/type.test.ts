@@ -3,9 +3,9 @@ import { Kind } from "@sinclair/typebox";
 import {
   SchemaType,
   defineSchema,
-} from "../../../../../src/core/server/schemas";
-import { initValidator } from "../../../../../src/core/server/validation";
-import { createNodeRedRuntime } from "../../../../mocks/red";
+} from "@/core/server/schemas";
+import { initValidator } from "@/core/server/validation";
+import { createNodeRedRuntime } from "@mocks/red";
 
 describe("SchemaType", () => {
   describe("primitive types", () => {

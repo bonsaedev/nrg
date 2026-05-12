@@ -2,15 +2,15 @@ import { describe, it, expect, vi } from "vitest";
 import {
   setupConfigProxy,
   setupContext,
-} from "../../../../../src/core/server/nodes/utils";
+} from "@/core/server/nodes/utils";
 import {
   defineSchema,
   SchemaType,
-} from "../../../../../src/core/server/schemas";
-import { defineConfigNode } from "../../../../../src/core/server/nodes/factories";
-import type TypedInput from "../../../../../src/core/server/typed-input";
-import { NrgError } from "../../../../../src/core/errors";
-import { createNodeRedRuntime, createNodeRedNode, createContextStore } from "../../../../mocks/red";
+} from "@/core/server/schemas";
+import { defineConfigNode } from "@/core/server/nodes/factories";
+import type TypedInput from "@/core/server/typed-input";
+import { NrgError } from "@/core/errors";
+import { createNodeRedRuntime, createNodeRedNode, createContextStore } from "@mocks/red";
 
 const RemoteServer = defineConfigNode({ type: "remote-server" });
 const SomeNode = defineConfigNode({ type: "something" });

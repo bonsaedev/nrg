@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import fs from "fs";
-import { serveFile } from "../../../../../src/core/server/api/assets";
+import { serveFile } from "@/core/server/api/assets";
 
 function createMockRes() {
   return { setHeader: vi.fn() } as any;
@@ -55,7 +55,7 @@ describe("initAssetsRoutes", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
     const { initAssetsRoutes } = await import(
-      "../../../../../src/core/server/api/assets"
+      "@/core/server/api/assets"
     );
 
     const router = { get: vi.fn() } as any;
@@ -80,7 +80,7 @@ describe("initAssetsRoutes", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(false);
 
     const { initAssetsRoutes } = await import(
-      "../../../../../src/core/server/api/assets"
+      "@/core/server/api/assets"
     );
 
     const router = { get: vi.fn() } as any;
@@ -98,7 +98,7 @@ describe("initAssetsRoutes", () => {
     vi.spyOn(fs, "createReadStream").mockReturnValue(mockStream as any);
 
     const { initAssetsRoutes } = await import(
-      "../../../../../src/core/server/api/assets"
+      "@/core/server/api/assets"
     );
 
     const router = { get: vi.fn() } as any;
@@ -126,7 +126,7 @@ describe("initAssetsRoutes", () => {
     vi.spyOn(fs, "createReadStream").mockReturnValue(mockStream as any);
 
     const { initAssetsRoutes } = await import(
-      "../../../../../src/core/server/api/assets"
+      "@/core/server/api/assets"
     );
 
     const router = { get: vi.fn() } as any;

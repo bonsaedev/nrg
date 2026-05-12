@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { mergeOptions, cleanDir, copyFiles, getPackageName } from "../../../src/vite/utils";
+import { mergeOptions, cleanDir, copyFiles, getPackageName } from "@/vite/utils";
 
 describe("mergeOptions", () => {
   it("should return a copy of defaults when no overrides", () => {

@@ -3,8 +3,8 @@ import {
   buildPropertyRow,
   generateSchemaSection,
   generateHelpDoc,
-} from "../../../src/vite/client/plugins/help-generator";
-import { getHelpTranslations } from "../../../src/vite/client/plugins/help-i18n";
+} from "@/vite/client/plugins/help-generator";
+import { getHelpTranslations } from "@/vite/client/plugins/help-i18n";
 
 const enUS = getHelpTranslations("en-US");
 const ptBR = getHelpTranslations("pt-BR");

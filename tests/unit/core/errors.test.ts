@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NrgError } from "../../../src/core/errors";
+import { NrgError } from "@/core/errors";
 
 describe("NrgError", () => {
   it("should be an instance of Error", () => {

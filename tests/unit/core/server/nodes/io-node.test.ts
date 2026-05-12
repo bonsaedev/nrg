@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { IONode } from "../../../../../src/core/server/nodes/io-node";
-import { initValidator } from "../../../../../src/core/server/validation";
+import { IONode } from "@/core/server/nodes/io-node";
+import { initValidator } from "@/core/server/validation";
 import {
   defineSchema,
   SchemaType,
-} from "../../../../../src/core/server/schemas";
-import { createNodeRedRuntime, createNodeRedNode } from "../../../../mocks/red";
+} from "@/core/server/schemas";
+import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
 
 class TestIONode extends IONode {
   static override readonly type = "test-io-node";

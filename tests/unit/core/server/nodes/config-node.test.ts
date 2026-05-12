@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { ConfigNode } from "../../../../../src/core/server/nodes/config-node";
-import { initValidator } from "../../../../../src/core/server/validation";
-import { createNodeRedRuntime, createNodeRedNode } from "../../../../mocks/red";
+import { ConfigNode } from "@/core/server/nodes/config-node";
+import { initValidator } from "@/core/server/validation";
+import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
 
 class TestConfigNode extends ConfigNode {
   static override readonly type = "test-config-node";

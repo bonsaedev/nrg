@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createNodeRedRuntime } from "../../../../mocks/red";
+import { createNodeRedRuntime } from "@mocks/red";
 import fs from "fs";
 
 describe("initRoutes", () => {
@@ -12,7 +12,7 @@ describe("initRoutes", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
     const { initRoutes } = await import(
-      "../../../../../src/core/server/api/routes"
+      "@/core/server/api/routes"
     );
 
     const RED = createNodeRedRuntime();
@@ -36,7 +36,7 @@ describe("initRoutes", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
     const { initRoutes } = await import(
-      "../../../../../src/core/server/api/routes"
+      "@/core/server/api/routes"
     );
 
     const RED = createNodeRedRuntime();
