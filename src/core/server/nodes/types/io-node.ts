@@ -73,14 +73,15 @@ interface IIONode<
   readonly _baseOutputs: number;
   /** @internal */
   readonly _totalOutputs: number;
+  sendToPort(
+    port: number | "error" | "complete" | "status",
+    msg: TOutput,
+  ): void;
   /** @internal */
-  _sendToPort(portIndex: number, msg: any): void;
-  /** @internal */
-  _getErrorPortIndex(): number | null;
-  /** @internal */
-  _getCompletePortIndex(): number | null;
-  /** @internal */
-  _getStatusPortIndex(): number | null;
+  _sendToPort(
+    port: number | "error" | "complete" | "status",
+    msg: unknown,
+  ): void;
   /** @internal */
   _input(msg: TInput, send: (msg: any) => void): Promise<void>;
   /** @internal */

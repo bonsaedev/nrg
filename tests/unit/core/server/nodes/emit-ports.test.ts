@@ -40,7 +40,7 @@ const TestNode = defineIONode({
 
 describe("emit ports", () => {
   describe("port index calculation", () => {
-    it("returns null for all ports when emit flags are false", async () => {
+    it("has only base output when all emit flags are false", async () => {
       const { node } = await createNode(TestNode, {
         config: {
           emitError: false,
@@ -49,14 +49,11 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._getErrorPortIndex()).toBeNull();
-      expect(node._getCompletePortIndex()).toBeNull();
-      expect(node._getStatusPortIndex()).toBeNull();
       expect(node._baseOutputs).toBe(1);
       expect(node._totalOutputs).toBe(1);
     });
 
-    it("calculates error port index", async () => {
+    it("adds one port when error is enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
           emitError: true,
@@ -65,13 +62,10 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._getErrorPortIndex()).toBe(1);
-      expect(node._getCompletePortIndex()).toBeNull();
-      expect(node._getStatusPortIndex()).toBeNull();
       expect(node._totalOutputs).toBe(2);
     });
 
-    it("calculates all port indices correctly", async () => {
+    it("adds three ports when all emit flags are enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
           emitError: true,
@@ -80,13 +74,10 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._getErrorPortIndex()).toBe(1);
-      expect(node._getCompletePortIndex()).toBe(2);
-      expect(node._getStatusPortIndex()).toBe(3);
       expect(node._totalOutputs).toBe(4);
     });
 
-    it("skips error port when only complete and status are enabled", async () => {
+    it("adds two ports when only complete and status are enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
           emitError: false,
@@ -95,9 +86,6 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._getErrorPortIndex()).toBeNull();
-      expect(node._getCompletePortIndex()).toBe(1);
-      expect(node._getStatusPortIndex()).toBe(2);
       expect(node._totalOutputs).toBe(3);
     });
   });
@@ -303,7 +291,7 @@ describe("emit ports", () => {
   });
 
   describe("only status port enabled", () => {
-    it("calculates status port at base index when error and complete are off", async () => {
+    it("adds one port when only status is enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
           emitError: false,
@@ -312,13 +300,12 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._getStatusPortIndex()).toBe(1);
       expect(node._totalOutputs).toBe(2);
     });
   });
 
   describe("only complete port enabled", () => {
-    it("calculates complete port at base index when error is off", async () => {
+    it("adds one port when only complete is enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
           emitError: false,
@@ -327,8 +314,119 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._getCompletePortIndex()).toBe(1);
       expect(node._totalOutputs).toBe(2);
+    });
+  });
+
+  describe("sendToPort", () => {
+    it("sends to a named port by string", async () => {
+      const SendToPortNode = defineIONode({
+        type: "sendtoport-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input(msg) {
+          this.sendToPort("complete", { ...msg, payload: "done" });
+        },
+      });
+
+      const { node } = await createNode(SendToPortNode, {
+        config: {
+          emitError: false,
+          emitComplete: true,
+          emitStatus: false,
+        },
+      });
+
+      await node.receive({ payload: "go" });
+
+      const sent = node.sent();
+      expect(sent).toHaveLength(1);
+      const completeSend = sent[0] as any[];
+      expect(completeSend[0]).toBeNull();
+      expect(completeSend[1].payload).toBe("done");
+    });
+
+    it("does not send when named port is disabled", async () => {
+      const SendToPortNode = defineIONode({
+        type: "sendtoport-disabled-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input(msg) {
+          this.sendToPort("complete", { ...msg, payload: "done" });
+        },
+      });
+
+      const { node } = await createNode(SendToPortNode, {
+        config: {
+          emitError: false,
+          emitComplete: false,
+          emitStatus: false,
+        },
+      });
+
+      await node.receive({ payload: "go" });
+
+      const sent = node.sent();
+      expect(sent).toHaveLength(0);
+    });
+
+    it("sends to a numeric port index", async () => {
+      const SendToPortNode = defineIONode({
+        type: "sendtoport-numeric-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input(msg) {
+          this.sendToPort(0, { ...msg, payload: "record" });
+        },
+      });
+
+      const { node } = await createNode(SendToPortNode, {
+        config: {
+          emitError: false,
+          emitComplete: false,
+          emitStatus: false,
+        },
+      });
+
+      await node.receive({ payload: "go" });
+
+      const sent = node.sent();
+      expect(sent).toHaveLength(1);
+      expect((sent[0] as any[])[0].payload).toBe("record");
+    });
+
+    it("sends to all three named ports in correct order", async () => {
+      const SendToPortNode = defineIONode({
+        type: "sendtoport-all-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input(msg) {
+          this.sendToPort("error", { ...msg, payload: "err" });
+          this.sendToPort("complete", { ...msg, payload: "done" });
+          this.sendToPort("status", { ...msg, payload: "stat" });
+        },
+      });
+
+      const { node } = await createNode(SendToPortNode, {
+        config: {
+          emitError: true,
+          emitComplete: true,
+          emitStatus: true,
+        },
+      });
+
+      await node.receive({ payload: "go" });
+
+      const sent = node.sent();
+      expect(sent).toHaveLength(3);
+      // error → port 1, complete → port 2, status → port 3
+      expect((sent[0] as any[])[1].payload).toBe("err");
+      expect((sent[1] as any[])[2].payload).toBe("done");
+      expect((sent[2] as any[])[3].payload).toBe("stat");
     });
   });
 

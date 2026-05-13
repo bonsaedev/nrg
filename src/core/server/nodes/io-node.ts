@@ -181,34 +181,50 @@ abstract class IONode<
     return count;
   }
 
+  /**
+   * Send a message to a specific output port by index or name.
+   * Named ports: `"error"`, `"complete"`, `"status"` — resolved automatically
+   * based on the node's emit port configuration.
+   * Numeric indices refer to the base output ports (0-based).
+   */
+  public sendToPort(
+    port: number | "error" | "complete" | "status",
+    msg: TOutput,
+  ) {
+    this._sendToPort(port, msg);
+  }
+
   /** @internal */
-  public _sendToPort(portIndex: number, msg: any) {
+  public _sendToPort(
+    port: number | "error" | "complete" | "status",
+    msg: unknown,
+  ) {
+    let portIndex: number | null;
+    if (typeof port === "number") {
+      portIndex = port;
+    } else {
+      portIndex = this._getEmitPortIndex(port);
+      if (portIndex === null) return;
+    }
     const out: (any | null)[] = Array(this._totalOutputs).fill(null);
     out[portIndex] = msg;
     this.node.send(out);
   }
 
-  /** @internal */
-  public _getErrorPortIndex(): number | null {
-    if (!(this.config as any).emitError) return null;
-    return this._baseOutputs;
-  }
-
-  /** @internal */
-  public _getCompletePortIndex(): number | null {
-    if (!(this.config as any).emitComplete) return null;
+  private _getEmitPortIndex(
+    name: "error" | "complete" | "status",
+  ): number | null {
+    const config = this.config as any;
+    if (name === "error") {
+      return config.emitError ? this._baseOutputs : null;
+    }
     let idx = this._baseOutputs;
-    if ((this.config as any).emitError) idx++;
-    return idx;
-  }
-
-  /** @internal */
-  public _getStatusPortIndex(): number | null {
-    if (!(this.config as any).emitStatus) return null;
-    let idx = this._baseOutputs;
-    if ((this.config as any).emitError) idx++;
-    if ((this.config as any).emitComplete) idx++;
-    return idx;
+    if (config.emitError) idx++;
+    if (name === "complete") {
+      return config.emitComplete ? idx : null;
+    }
+    if (config.emitComplete) idx++;
+    return config.emitStatus ? idx : null;
   }
 
   private _nodeSource() {
@@ -221,20 +237,16 @@ abstract class IONode<
 
   public status(status: IONodeStatus) {
     this.node.status(status);
-    const portIdx = this._getStatusPortIndex();
-    if (portIdx !== null) {
-      this._sendToPort(portIdx, {
-        status,
-        source: this._nodeSource(),
-      });
-    }
+    this._sendToPort("status", {
+      status,
+      source: this._nodeSource(),
+    });
   }
 
   public override error(message: string, msg?: any) {
     super.error(message, msg);
-    const portIdx = this._getErrorPortIndex();
-    if (portIdx !== null && msg) {
-      this._sendToPort(portIdx, {
+    if (msg) {
+      this._sendToPort("error", {
         ...msg,
         error: {
           message,

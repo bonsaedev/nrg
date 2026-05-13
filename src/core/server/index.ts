@@ -72,15 +72,12 @@ async function registerType(RED: RED, NodeClass: NodeConstructor) {
             await Promise.resolve(node._input(msg, send));
 
             // Send to complete port if enabled
-            const completeIdx = node._getCompletePortIndex();
-            if (completeIdx !== null) {
-              node._sendToPort(completeIdx, {
-                ...(msg as any),
-                complete: {
-                  source: { id: node.id, type: NC.type, name: node.name },
-                },
-              });
-            }
+            node._sendToPort("complete", {
+              ...(msg as any),
+              complete: {
+                source: { id: node.id, type: NC.type, name: node.name },
+              },
+            });
 
             done();
             this.log("Input processed");
