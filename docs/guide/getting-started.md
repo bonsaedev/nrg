@@ -30,8 +30,18 @@ If you prefer to add NRG to an existing project:
 
 ```bash
 pnpm add @bonsae/nrg
-pnpm add -D vite
+pnpm add -D vite vue
 ```
+
+::: info Why is `vue` a dev dependency?
+`@bonsae/nrg` already ships Vue as a runtime dependency and serves the Vue browser build to the Node-RED editor automatically — your project does not bundle or deploy Vue itself. However, `vue` must also be installed in your project as a dev dependency for two reasons:
+
+1. **Editor autocompletion** — NRG ships `.d.ts` type declarations for its built-in form components (`NodeRedInput`, `NodeRedTypedInput`, etc.). These declarations reference `import("vue").DefineComponent` to provide prop autocompletion and type-checking in your `.vue` templates. The Vue Language Server (Volar) needs `vue` installed in your project's `node_modules` to resolve these types. Without it, all component types resolve to `any` and you lose autocompletion.
+
+2. **pnpm strict isolation** — pnpm does not hoist transitive dependencies to the root `node_modules`. Even though `@bonsae/nrg` has `vue` in its own dependencies, Volar cannot see it because it resolves types from your project root, not from inside `@bonsae/nrg`'s isolated dependency tree. Adding `vue` as a dev dependency makes it directly visible.
+
+This is only needed during development. The `vue` package is not included in your published Node-RED node package.
+:::
 
 ### 2. Configure Vite
 
