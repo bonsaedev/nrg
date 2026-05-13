@@ -184,7 +184,12 @@ const SCHEMA_PROP_SEMANTICS: Record<string, string> = {
  */
 function getSchemaReferences(
   filePath: string,
-): Array<{ localName: string; semanticName: string; importSource: string }> {
+): Array<{
+  localName: string;
+  semanticName: string;
+  importSource: string;
+  tupleProp?: string;
+}> {
   const content = fs.readFileSync(filePath, "utf-8");
   const source = ts.createSourceFile(
     filePath,
