@@ -2,7 +2,7 @@
 
 This guide walks through creating a complete Node-RED node — from schema definition to server logic to the Vue 3 editor form.
 
-## 1. Define the Schema
+## Define a Schema
 
 Schemas define the shape of your node's configuration. They're used for runtime validation and to auto-generate editor defaults.
 
@@ -548,9 +548,9 @@ export type Credentials = Infer<typeof CredentialsSchema>;
 export type Settings = Infer<typeof SettingsSchema>;
 ```
 
-## 2. Create the Server Node
+## Define the Node
 
-Server nodes handle runtime logic. Create `src/server/nodes/my-node.ts`:
+Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
 ```typescript
 import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
@@ -759,7 +759,7 @@ If the user enables both `emitError` and `emitStatus`, the node gets 3 outputs: 
 Emit ports work alongside Node-RED's built-in `catch`, `complete`, and `status` nodes. Enabling an emit port doesn't disable the implicit behavior — both work simultaneously.
 :::
 
-## 3. Register the Server Entry
+## Register the Node
 
 Export all nodes from `src/server/index.ts` using `defineModule`:
 
@@ -774,7 +774,7 @@ export default defineModule({
 
 `defineModule` creates a typed module manifest that NRG uses to register your nodes with Node-RED. Use it instead of exporting a plain object — it provides type checking on the `nodes` array and will support additional fields (like `plugins`) in future releases.
 
-## 4. Client-Side Files (All Optional)
+## Client-Side Files
 
 NRG auto-generates everything needed for the Node-RED editor from your server-side schema. You don't need to write any client-side code for a basic node. The files below are **all optional** and exist for when you need more control.
 
@@ -1097,7 +1097,7 @@ Config nodes have `category` set to `"config"` and expose:
 - `this.users` — array of node instances using this config
 - `this.getUser(index)` — get a specific user node by index
 
-## Functional API: `defineIONode` and `defineConfigNode`
+## Functional API
 
 As an alternative to extending classes, NRG provides a functional API for defining nodes. Instead of writing a class with static properties, generics, and `Infer` types, you pass a plain object and get full type inference automatically.
 
