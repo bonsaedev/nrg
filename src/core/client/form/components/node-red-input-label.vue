@@ -39,6 +39,7 @@ export default defineComponent({
 .nrg-label {
   display: inline-block;
   width: 100%;
+  margin-bottom: 4px;
   cursor: default;
 }
 
