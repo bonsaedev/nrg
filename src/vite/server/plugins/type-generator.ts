@@ -182,9 +182,7 @@ const SCHEMA_PROP_SEMANTICS: Record<string, string> = {
  * - semanticName: the semantic slot name (e.g., "ConfigSchema")
  * - importSource: the relative import path (e.g., "../schemas/my-node")
  */
-function getSchemaReferences(
-  filePath: string,
-): Array<{
+function getSchemaReferences(filePath: string): Array<{
   localName: string;
   semanticName: string;
   importSource: string;
