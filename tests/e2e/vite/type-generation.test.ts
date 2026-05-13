@@ -58,11 +58,11 @@ describe("type generation — class-based nodes", () => {
   });
 
   it("should export config schema for class-based node", () => {
-    expect(dtsContent).toContain("TestNodeConfigSchema");
+    expect(dtsContent).toMatch(/declare const TestNodeConfigSchema/);
   });
 
   it("should export credentials schema for class-based node", () => {
-    expect(dtsContent).toContain("TestNodeCredentialsSchema");
+    expect(dtsContent).toMatch(/declare const TestNodeCredentialsSchema/);
   });
 
   // --- Config nodes ---
@@ -72,30 +72,30 @@ describe("type generation — class-based nodes", () => {
   });
 
   it("should export config schema for config node", () => {
-    expect(dtsContent).toContain("ConfigServerConfigSchema");
+    expect(dtsContent).toMatch(/declare const ConfigServerConfigSchema/);
   });
 
   // --- Multiple nodes ---
 
-  it("should export second node", () => {
-    expect(dtsContent).toContain("SecondNode");
+  it("should export second node as a named class", () => {
+    expect(dtsContent).toContain("export declare class SecondNode");
   });
 
   it("should export second node config schema", () => {
-    expect(dtsContent).toContain("SecondNodeConfigSchema");
+    expect(dtsContent).toMatch(/declare const SecondNodeConfigSchema/);
   });
 
   // --- Schema content ---
 
-  it("should include schema property types", () => {
+  it("should include schema property types in TestNode config", () => {
     // TestNode has name (string), timeout (number), enabled (boolean), server (NodeRef)
-    expect(dtsContent).toContain("TString");
-    expect(dtsContent).toContain("TNumber");
-    expect(dtsContent).toContain("TBoolean");
+    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TString/s);
+    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TNumber/s);
+    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TBoolean/s);
   });
 
-  it("should include NodeRef in schema types", () => {
-    expect(dtsContent).toContain("TNodeRef");
+  it("should include NodeRef type in TestNode config schema", () => {
+    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TNodeRef/s);
   });
 
   // --- NodeRef ---
@@ -194,108 +194,86 @@ describe("type generation — factory-based nodes", () => {
     expect(fs.existsSync(path.join(outDir, "index.d.ts"))).toBe(true);
   });
 
-  it("should export factory-defined node", () => {
-    expect(dtsContent).toContain("CustomNode");
+  // --- defineIONode (all schemas) ---
+
+  it("should export factory IO node with correct type", () => {
+    expect(dtsContent).toMatch(
+      /CustomNode:\s*NodeConstructor<IIONode<Infer<typeof\s+\w+>,\s*any,\s*Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>>>/,
+    );
   });
 
   it("should export config schema for factory node", () => {
-    expect(dtsContent).toContain("CustomNodeConfigSchema");
+    expect(dtsContent).toMatch(/declare const CustomNodeConfigSchema/);
   });
 
   it("should export input schema for factory node", () => {
-    expect(dtsContent).toContain("CustomNodeInputSchema");
+    expect(dtsContent).toMatch(/declare const CustomNodeInputSchema/);
   });
 
   it("should export output schema for factory node", () => {
-    expect(dtsContent).toContain("CustomNodeOutputsSchema");
+    expect(dtsContent).toMatch(/declare const CustomNodeOutputsSchema/);
   });
 
   it("should include schema property types in config schema", () => {
-    expect(dtsContent).toContain("TString");
+    expect(dtsContent).toMatch(/CustomNodeConfigSchema.*TString/s);
   });
 
   it("should include schema property types in input schema", () => {
-    const inputMatch = dtsContent.match(
+    expect(dtsContent).toMatch(
       /CustomNodeInputSchema.*?Schema<\s*\{[^}]*payload[^}]*\}/s,
     );
-    expect(inputMatch).not.toBeNull();
   });
 
   it("should include schema property types in output schema", () => {
-    expect(dtsContent).toContain("TNumber");
-  });
-
-  it("should export factory node as NodeConstructor<IIONode>", () => {
-    expect(dtsContent).toContain("IIONode");
-  });
-
-  it("should export factory node with NodeConstructor type", () => {
-    expect(dtsContent).toContain("NodeConstructor");
+    expect(dtsContent).toMatch(/CustomNodeOutputsSchema.*TNumber/s);
   });
 
   // --- defineConfigNode ---
 
-  it("should export factory config node", () => {
-    expect(dtsContent).toContain("ConfigServer");
-  });
-
-  it("should export config node as NodeConstructor<IConfigNode>", () => {
-    expect(dtsContent).toContain("IConfigNode");
+  it("should export factory config node with correct type", () => {
+    expect(dtsContent).toMatch(
+      /ConfigServer:\s*NodeConstructor<IConfigNode<Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>>>/,
+    );
   });
 
   it("should export config schema for config node", () => {
-    expect(dtsContent).toContain("ConfigServerConfigSchema");
+    expect(dtsContent).toMatch(/declare const ConfigServerConfigSchema/);
   });
 
   it("should export credentials schema for config node", () => {
-    expect(dtsContent).toContain("ConfigServerCredentialsSchema");
+    expect(dtsContent).toMatch(/declare const ConfigServerCredentialsSchema/);
   });
 
   // --- no schemas ---
 
-  it("should export factory node with no schemas", () => {
-    expect(dtsContent).toContain("NoSchemaNode");
-  });
-
   it("should type no-schema node with all any args", () => {
-    const match = dtsContent.match(
+    expect(dtsContent).toMatch(
       /NoSchemaNode:\s*NodeConstructor<IIONode<any,\s*any,\s*any,\s*any>>/,
     );
-    expect(match).not.toBeNull();
   });
 
   // --- partial schemas (config only) ---
 
-  it("should export factory node with partial schemas", () => {
-    expect(dtsContent).toContain("MinimalNode");
-  });
-
   it("should export config schema for partial node", () => {
-    expect(dtsContent).toContain("MinimalNodeConfigSchema");
+    expect(dtsContent).toMatch(/declare const MinimalNodeConfigSchema/);
   });
 
   it("should type partial node with Infer for config and any for the rest", () => {
-    const match = dtsContent.match(
+    expect(dtsContent).toMatch(
       /MinimalNode:\s*NodeConstructor<IIONode<Infer<typeof\s+\w+>,\s*any,\s*any,\s*any>>/,
     );
-    expect(match).not.toBeNull();
   });
 
   // --- array outputsSchema (tuple) ---
 
-  it("should export factory node with array outputsSchema", () => {
-    expect(dtsContent).toContain("MultiOutputNode");
-  });
-
   it("should type array outputsSchema as tuple", () => {
-    const match = dtsContent.match(
+    expect(dtsContent).toMatch(
       /MultiOutputNode:\s*NodeConstructor<IIONode<any,\s*any,\s*any,\s*\[Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>\]>>/,
     );
-    expect(match).not.toBeNull();
   });
 
   it("should export individual schemas from array outputsSchema", () => {
-    expect(dtsContent).toContain("MultiOutputNodeSuccessSchema");
-    expect(dtsContent).toContain("MultiOutputNodeErrorSchema");
+    expect(dtsContent).toMatch(/declare const MultiOutputNodeSuccessSchema/);
+    expect(dtsContent).toMatch(/declare const MultiOutputNodeErrorSchema/);
   });
 });
