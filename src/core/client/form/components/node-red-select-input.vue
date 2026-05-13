@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, type PropType } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
@@ -31,9 +31,9 @@ export default defineComponent({
       default: () => "",
     },
     options: {
-      type: Array,
+      type: Array as PropType<Array<{ value: string; label: string }>>,
       required: true,
-      validator: function (value) {
+      validator: function (value: Array<{ value: string; label: string }>) {
         if (!Array.isArray(value)) {
           console.warn(
             "[WARN] Invalid value for 'options' property. It must be an array.",
@@ -82,7 +82,7 @@ export default defineComponent({
   },
   emits: ["update:value"],
   mounted() {
-    const inputElement = this.$refs.selectInput;
+    const inputElement = this.$refs.selectInput as HTMLInputElement;
     const $selectInput = $(inputElement);
     $selectInput.typedInput({
       types: [

@@ -38,7 +38,7 @@ export default defineComponent({
     language: {
       type: String,
       default: "json",
-      validator: function (value) {
+      validator: function (value: string) {
         const allowedLanguages = [
           "abap",
           "apex",
@@ -151,6 +151,9 @@ export default defineComponent({
     },
   },
   emits: ["update:value"],
+  // Non-reactive instance property — must NOT be in data() because Vue's
+  // reactivity proxy breaks Monaco editor and jQuery widgets. markRaw() was
+  // tested and also does not work. Declared here so Vue ignores it.
   editor: null,
   data() {
     const stateId = Math.random().toString(36).substring(2, 9);
@@ -161,7 +164,7 @@ export default defineComponent({
   },
   mounted() {
     // NOTE: jquery wrapper is used because RED.popover.tooltip needs it
-    const expandButton = $(this.$refs["expand-button"]);
+    const expandButton = $(this.$refs["expand-button"] as HTMLElement);
     RED.popover.tooltip(expandButton, RED._("node-red:common.label.expand"));
     this.mountEditor();
     this.createExpandeEditorTray();
@@ -179,8 +182,8 @@ export default defineComponent({
   methods: {
     mountEditor() {
       this.$nextTick(() => {
-        const containerEl = this.$refs.container;
-        const editorEl = this.$refs.editor;
+        const containerEl = this.$refs.container as HTMLElement | undefined;
+        const editorEl = this.$refs.editor as HTMLElement | undefined;
 
         if (containerEl && editorEl) {
           try {
@@ -227,7 +230,7 @@ export default defineComponent({
       });
     },
     createExpandeEditorTray() {
-      let expandedEditor;
+      let expandedEditor: any;
 
       const onCancel = () => {
         setTimeout(() => {

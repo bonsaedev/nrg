@@ -176,7 +176,7 @@ declare namespace NodeRED {
     (typeof import("../constants").TYPED_INPUT_TYPES)[number];
 
   interface TypedInputTypeDefinition {
-    value: string;
+    value?: string;
     label?: string;
     icon?: string;
     hasValue?: boolean;

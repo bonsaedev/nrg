@@ -188,7 +188,10 @@ const EMIT_PORT_FIELDS = new Set(["emitError", "emitComplete", "emitStatus"]);
 
 interface NrgFormOptions {
   icon?: string;
-  typedInputTypes?: string[];
+  typedInputTypes?: (
+    | NodeRED.DefaultTypedInputType
+    | NodeRED.TypedInputTypeDefinition
+  )[];
   editorLanguage?: string;
   toggle?: boolean;
 }
@@ -225,7 +228,7 @@ interface FormField {
   htmlType?: "text" | "number" | "password";
   options?: Array<{ value: string; label: string }>;
   multiple?: boolean;
-  types?: string[];
+  types?: (NodeRED.DefaultTypedInputType | NodeRED.TypedInputTypeDefinition)[];
   configType?: string;
   language?: string;
   toggle?: boolean;
@@ -426,7 +429,7 @@ export default defineComponent({
   },
   props: {
     node: {
-      type: Object as PropType<Record<string, any>>,
+      type: Object as PropType<NodeRED.BaseNode>,
       required: true,
     },
     schema: {

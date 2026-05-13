@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, type PropType } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 import { TYPED_INPUT_TYPES } from "../../../constants";
 
@@ -31,7 +31,7 @@ export default defineComponent({
     value: {
       type: Object,
       required: true,
-      validator: function (obj) {
+      validator: function (obj: { value: string; type: string }) {
         if (typeof obj !== "object" || obj === null) {
           console.warn(
             "[WARN] Invalid value for 'value' property. It must be an object.",
@@ -39,7 +39,7 @@ export default defineComponent({
           return false;
         }
         const isValid =
-          typeof obj?.value === "string" && typeof obj?.type === "string";
+          typeof obj.value === "string" && typeof obj.type === "string";
         if (!isValid) {
           console.warn(
             "[WARN] Invalid value for 'value' property. It must be an object with 'value' and 'type' properties being strings.",
@@ -50,7 +50,9 @@ export default defineComponent({
       },
     },
     types: {
-      type: Array,
+      type: Array as PropType<
+        (NodeRED.DefaultTypedInputType | NodeRED.TypedInputTypeDefinition)[]
+      >,
       default: () => TYPED_INPUT_TYPES,
     },
     label: {
@@ -71,6 +73,9 @@ export default defineComponent({
     },
   },
   emits: ["update:value"],
+  // $input and mutationObserver are assigned directly on `this` in mounted().
+  // They must NOT be in data() because Vue's reactivity proxy breaks jQuery
+  // widgets. markRaw() was tested and also does not work.
   computed: {
     isProvidedValueTypeValid() {
       const type = this.value.type;
@@ -128,7 +133,7 @@ export default defineComponent({
         attributeFilter: ["value"],
       });
 
-      this._observer = observer;
+      this.mutationObserver = observer;
     });
 
     // NOTE: this emits changes to all types that lose focus when choosing a value, but text inputs
@@ -137,9 +142,9 @@ export default defineComponent({
     });
   },
   beforeUnmount() {
-    if (this._observer) {
-      this._observer.disconnect();
-      this._observer = null;
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+      this.mutationObserver = null;
     }
   },
   methods: {

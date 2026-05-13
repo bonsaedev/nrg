@@ -30,7 +30,7 @@ export default defineComponent({
       required: true,
     },
     node: {
-      type: Object,
+      type: Object as () => NodeRED.BaseNode,
       required: true,
     },
     propName: {
