@@ -1,5 +1,26 @@
 # Changelog
 
+# [0.14.0](https://github.com/bonsaedev/nrg/compare/v0.13.1...v0.14.0) (2026-05-13)
+
+
+### Bug Fixes
+
+* add format property to TNodeRef and NRG schema extensions ([9a9894c](https://github.com/bonsaedev/nrg/commit/9a9894c51a70d596fb87c4e0686799471fa0d38d))
+* add spacing between labels and inputs ([61813cc](https://github.com/bonsaedev/nrg/commit/61813ccd225842d1d9cf1e746786937a67c17e15))
+* add tupleProp to getSchemaReferences return type ([d909cbb](https://github.com/bonsaedev/nrg/commit/d909cbbf0502ba5377945120f833ecfd296709df))
+* add TypeScript types to Vue form components ([1bbd14e](https://github.com/bonsaedev/nrg/commit/1bbd14ea3c4efab16f328d80d45cfb160951329b))
+* emit explicit types for factory-based node declarations ([8503852](https://github.com/bonsaedev/nrg/commit/850385296ec035c27f502fd9710c9485949debdc))
+* export TNodeRef and TTypedInput from server entry ([6f5e25a](https://github.com/bonsaedev/nrg/commit/6f5e25a78777bd08c861e56ed5b6ad4f4afd1b21))
+* merge array options instead of replacing them ([0e7061a](https://github.com/bonsaedev/nrg/commit/0e7061a23813854b32c685d1ab73ea413c0cb1da))
+* restore external option on ServerBuildOptions ([94f7f9d](https://github.com/bonsaedev/nrg/commit/94f7f9df9e8cd16056c291920ce389767e625bda))
+
+
+### Features
+
+* add i18n support for framework toggle labels ([85f837d](https://github.com/bonsaedev/nrg/commit/85f837d9e37381ad4cb7940c2e58a9ee46e43a6b))
+* add public sendToPort API for emit port messaging ([f20edcd](https://github.com/bonsaedev/nrg/commit/f20edcd57c6fcbdaba3a24e3ccf602c32fb1b427))
+* auto-generate component type declarations for Volar ([2e40be7](https://github.com/bonsaedev/nrg/commit/2e40be7d1d0594d484d667353d855a74e41714a9))
+
 ## [0.13.1](https://github.com/bonsaedev/nrg/compare/v0.13.0...v0.13.1) (2026-05-10)
 
 
