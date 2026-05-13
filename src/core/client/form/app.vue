@@ -6,14 +6,14 @@
     <div v-if="features.hasInputSchema">
       <NodeRedToggle
         :model-value="localNode.validateInput"
-        label="Validate Input"
+        :label="resolveLabel('toggles.validateInput', 'Validate Input')"
         @update:model-value="localNode.validateInput = $event"
       />
     </div>
     <div v-if="features.hasOutputSchema">
       <NodeRedToggle
         :model-value="localNode.validateOutput"
-        label="Validate Output"
+        :label="resolveLabel('toggles.validateOutput', 'Validate Output')"
         @update:model-value="localNode.validateOutput = $event"
       />
     </div>
@@ -22,7 +22,7 @@
     <div v-if="hasEmitError">
       <NodeRedToggle
         :model-value="localNode.emitError"
-        label="Emit Error"
+        :label="resolveLabel('toggles.errorPort', 'Error Port')"
         @update:model-value="
           (val: boolean) => {
             localNode.emitError = val;
@@ -34,7 +34,7 @@
     <div v-if="hasEmitComplete">
       <NodeRedToggle
         :model-value="localNode.emitComplete"
-        label="Emit Complete"
+        :label="resolveLabel('toggles.completePort', 'Complete Port')"
         @update:model-value="
           (val: boolean) => {
             localNode.emitComplete = val;
@@ -46,7 +46,7 @@
     <div v-if="hasEmitStatus">
       <NodeRedToggle
         :model-value="localNode.emitStatus"
-        label="Emit Status"
+        :label="resolveLabel('toggles.statusPort', 'Status Port')"
         @update:model-value="
           (val: boolean) => {
             localNode.emitStatus = val;
@@ -205,6 +205,14 @@ export default defineComponent({
   methods: {
     validate() {
       this.errors = validateForm(this.localNode, this.schema);
+    },
+    resolveLabel(key: string, fallback: string): string {
+      const resolved = this.$i18n(key);
+      const fullKey = `${this.localNode.type}.${key}`;
+      if (resolved && resolved !== fullKey && resolved !== key) {
+        return resolved;
+      }
+      return fallback;
     },
     recalculateOutputs() {
       const baseOutputs = this.localNode._def?.outputs ?? 0;

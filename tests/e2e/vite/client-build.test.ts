@@ -237,4 +237,43 @@ describe("client build", () => {
     // config-server label file has description field
     expect(indexHtml).toContain("Test config server for broker connections");
   });
+
+  it("should inject framework labels into node type locales", () => {
+    const labels = JSON.parse(
+      fs.readFileSync(
+        path.join(outDir, "locales", "en-US", "index.json"),
+        "utf-8",
+      ),
+    );
+    // config-server has user labels but no configs.name — framework should inject it
+    expect(labels["config-server"].configs.name).toBe("Name");
+    expect(labels["config-server"].toggles.validateInput).toBe(
+      "Validate Input",
+    );
+    expect(labels["config-server"].toggles.errorPort).toBe("Error Port");
+  });
+
+  it("should not overwrite user labels with framework defaults", () => {
+    const labels = JSON.parse(
+      fs.readFileSync(
+        path.join(outDir, "locales", "en-US", "index.json"),
+        "utf-8",
+      ),
+    );
+    // test-node has its own configs.name — should not be overwritten
+    expect(labels["test-node"].configs.name).toBe("Name");
+    // test-node user labels should be preserved
+    expect(labels["test-node"].configs.timeout).toBe("Timeout");
+    expect(labels["test-node"].configs.enabled).toBe("Enabled");
+  });
+
+  it("should inject translated framework labels for other languages", () => {
+    const dePath = path.join(outDir, "locales", "de", "index.json");
+    if (!fs.existsSync(dePath)) return;
+    const labels = JSON.parse(fs.readFileSync(dePath, "utf-8"));
+    expect(labels["config-server"].configs.name).toBe("Name");
+    expect(labels["config-server"].toggles.validateInput).toBe(
+      "Eingabe validieren",
+    );
+  });
 });

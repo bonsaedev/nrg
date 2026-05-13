@@ -1,6 +1,7 @@
 import type { Plugin } from "vite";
 import fs from "fs";
 import path from "path";
+import { merge } from "es-toolkit";
 
 function localesGenerator(options: {
   outDir: string;
@@ -20,6 +21,112 @@ function localesGenerator(options: {
     "zh-CN",
     "zh-TW",
   ];
+
+  // Framework labels injected into every node type's locale.
+  // Uses the same nested structure that Node-RED's i18next expects.
+  // Users can override any key in their own label files.
+  const frameworkLabels: Record<string, Record<string, unknown>> = {
+    "en-US": {
+      configs: { name: "Name" },
+      toggles: {
+        validateInput: "Validate Input",
+        validateOutput: "Validate Output",
+        errorPort: "Error Port",
+        completePort: "Complete Port",
+        statusPort: "Status Port",
+      },
+    },
+    de: {
+      configs: { name: "Name" },
+      toggles: {
+        validateInput: "Eingabe validieren",
+        validateOutput: "Ausgabe validieren",
+        errorPort: "Fehler-Port",
+        completePort: "Abschluss-Port",
+        statusPort: "Status-Port",
+      },
+    },
+    "es-ES": {
+      configs: { name: "Nombre" },
+      toggles: {
+        validateInput: "Validar entrada",
+        validateOutput: "Validar salida",
+        errorPort: "Puerto de error",
+        completePort: "Puerto de completado",
+        statusPort: "Puerto de estado",
+      },
+    },
+    fr: {
+      configs: { name: "Nom" },
+      toggles: {
+        validateInput: "Valider l'entrée",
+        validateOutput: "Valider la sortie",
+        errorPort: "Port d'erreur",
+        completePort: "Port de complétion",
+        statusPort: "Port de statut",
+      },
+    },
+    ko: {
+      configs: { name: "이름" },
+      toggles: {
+        validateInput: "입력 검증",
+        validateOutput: "출력 검증",
+        errorPort: "오류 포트",
+        completePort: "완료 포트",
+        statusPort: "상태 포트",
+      },
+    },
+    "pt-BR": {
+      configs: { name: "Nome" },
+      toggles: {
+        validateInput: "Validar Entrada",
+        validateOutput: "Validar Saída",
+        errorPort: "Porta de Erro",
+        completePort: "Porta de Conclusão",
+        statusPort: "Porta de Status",
+      },
+    },
+    ru: {
+      configs: { name: "Имя" },
+      toggles: {
+        validateInput: "Проверить вход",
+        validateOutput: "Проверить выход",
+        errorPort: "Порт ошибки",
+        completePort: "Порт завершения",
+        statusPort: "Порт статуса",
+      },
+    },
+    ja: {
+      configs: { name: "名前" },
+      toggles: {
+        validateInput: "入力検証",
+        validateOutput: "出力検証",
+        errorPort: "エラーポート",
+        completePort: "完了ポート",
+        statusPort: "ステータスポート",
+      },
+    },
+    "zh-CN": {
+      configs: { name: "名称" },
+      toggles: {
+        validateInput: "验证输入",
+        validateOutput: "验证输出",
+        errorPort: "错误端口",
+        completePort: "完成端口",
+        statusPort: "状态端口",
+      },
+    },
+    "zh-TW": {
+      configs: { name: "名稱" },
+      toggles: {
+        validateInput: "驗證輸入",
+        validateOutput: "驗證輸出",
+        errorPort: "錯誤端口",
+        completePort: "完成端口",
+        statusPort: "狀態端口",
+      },
+    },
+  };
 
   return {
     name: "vite-plugin-node-red:client:locales-generator",
@@ -138,6 +245,18 @@ function localesGenerator(options: {
           return parsed;
         },
       );
+
+      // Inject framework labels as defaults for every node type.
+      // User-provided labels take precedence over framework defaults.
+      for (const [lang, nodeTypes] of labelLangs.entries()) {
+        const defaults = frameworkLabels[lang] ?? frameworkLabels["en-US"];
+        for (const nodeType of Object.keys(nodeTypes)) {
+          nodeTypes[nodeType] = merge(
+            structuredClone(defaults),
+            nodeTypes[nodeType],
+          );
+        }
+      }
 
       writeOutput(labelLangs, "index.json", (value) =>
         JSON.stringify(value, null, 2),
