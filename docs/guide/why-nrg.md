@@ -70,8 +70,6 @@ export default defineIONode({
   type: "my-node",
   category: "my-category",
   color: "#FFFFFF",
-  inputs: 1,
-  outputs: 1,
   configSchema: ConfigsSchema,
 
   async input(msg) {
@@ -91,8 +89,6 @@ export default class MyNode extends IONode<Config> {
   static readonly type = "my-node";
   static readonly category = "my-category";
   static readonly color: `#${string}` = "#FFFFFF";
-  static readonly inputs = 1;
-  static readonly outputs = 1;
   static readonly configSchema: Schema = ConfigsSchema;
 
   async input(msg: any) {
@@ -101,6 +97,10 @@ export default class MyNode extends IONode<Config> {
 }
 ```
 
+:::
+
+::: tip
+`inputs` and `outputs` are set automatically — `1` input if `inputSchema` is defined, and the number of outputs matches the `outputsSchema` array length. You don't need to specify them manually.
 :::
 
 ```typescript
