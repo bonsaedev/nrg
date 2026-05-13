@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "rootDir": "src/core/client/form/components",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmitOnError": false,
+    "outDir": "dist/types/shims/form/components"
+  },
+  "files": [
+    "src/core/client/globals.d.ts",
+    "src/core/client/components.d.ts"
+  ],
+  "include": ["src/core/client/form/components/*.vue"],
+  "exclude": ["node_modules"]
+}

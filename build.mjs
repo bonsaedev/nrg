@@ -4,6 +4,7 @@ import {
   copyFileSync,
   cpSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
   appendFileSync,
   unlinkSync,
@@ -113,7 +114,7 @@ function generateTypes() {
 
   // Prepend reference to typebox module augmentation so consumers get NRG schema extensions
   const serverDts = readFileSync("dist/types/server.d.ts", "utf-8");
-  writeFileSync("dist/types/server.d.ts", `/// <reference path="./typebox.d.ts" />\n${serverDts}`);
+  writeFileSync("dist/types/server.d.ts", `/// <reference path="./shims/typebox.d.ts" />\n${serverDts}`);
 
   // Client types — generated from interfaces only. Function declarations are
   // appended because registration.ts imports .vue files that dts-bundle-generator
@@ -139,17 +140,75 @@ export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
   console.log("✓ Generated type declarations to dist/types/");
 }
 
+function generateComponentTypes() {
+  // Emit .vue.d.ts declarations for each component via vue-tsc.
+  // Some components use non-reactive instance properties (this.$input, this.editorInstance)
+  // that vue-tsc reports as errors, but noEmitOnError:false still emits correct declarations.
+  try {
+    execSync("npx vue-tsc -p tsconfig.components.json", { stdio: "inherit" });
+  } catch {
+    // vue-tsc exits non-zero on type errors even with noEmitOnError:false
+  }
+
+  // Post-process vue-tsc output: inline the type to remove the
+  // `typeof __VLS_export` indirection that Volar can't resolve in consumers.
+  const componentsDir = "dist/types/shims/form/components";
+  const vueFiles = readdirSync(componentsDir).filter((f) => f.endsWith(".vue.d.ts"));
+
+  for (const file of vueFiles) {
+    const filePath = path.join(componentsDir, file);
+    let content = readFileSync(filePath, "utf-8");
+    const match = content.match(
+      /declare const __VLS_export:\s*([\s\S]+)$/
+    );
+    if (match) {
+      const actualType = match[1].trimEnd().replace(/;$/, "");
+      content = `declare const _default: ${actualType};\nexport default _default;\n`;
+      writeFileSync(filePath, content);
+    }
+  }
+
+  const entries = vueFiles.map((file) => {
+    const baseName = file.replace(".vue.d.ts", "");
+    const componentName = baseName
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("");
+    return `    ${componentName}: (typeof import("./form/components/${baseName}.vue"))["default"];`;
+  });
+
+  const componentsDts = `/**
+ * Global component type declarations for Volar / Vue Language Server.
+ * Auto-generated during build — do not edit manually.
+ */
+
+export {};
+
+declare module "vue" {
+  export interface ComponentCustomProperties {
+    $i18n: (label: string) => string;
+  }
+
+  export interface GlobalComponents {
+${entries.join("\n")}
+  }
+}
+`;
+
+  writeFileSync("dist/types/shims/components.d.ts", componentsDts);
+  console.log("✓ Generated component type declarations to dist/types/shims/");
+}
+
 function copyAssets() {
   mkdirSync("dist/tsconfig", { recursive: true });
   cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
 
   mkdirSync("dist/types/shims", { recursive: true });
   copyFileSync("src/core/client/shims-vue.d.ts", "dist/types/shims/shims-vue.d.ts");
-  copyFileSync("src/core/client/components.d.ts", "dist/types/shims/components.d.ts");
   copyFileSync("src/core/client/globals.d.ts", "dist/types/shims/globals.d.ts");
 
-  copyFileSync("src/core/server/typebox.d.ts", "dist/types/typebox.d.ts");
-  copyFileSync("src/core/server/schema-options.ts", "dist/types/schema-options.d.ts");
+  copyFileSync("src/core/server/typebox.d.ts", "dist/types/shims/typebox.d.ts");
+  copyFileSync("src/core/server/schema-options.ts", "dist/types/shims/schema-options.d.ts");
 
   cpSync("src/schemas", "dist/schemas", { recursive: true });
 
@@ -217,4 +276,5 @@ buildVitePlugin();
 buildTestUtils();
 generateTypes();
 copyAssets();
+generateComponentTypes();
 generatePackageJson();
