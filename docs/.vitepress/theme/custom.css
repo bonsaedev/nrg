@@ -232,7 +232,15 @@
   width: 100%;
 }
 
-.vp-doc :not(pre) > code {
+.vp-doc :not(pre) > code,
+.custom-block.info code,
+.custom-block.note code,
+.custom-block.tip code,
+.custom-block.important code,
+.custom-block.warning code,
+.custom-block.danger code,
+.custom-block.caution code,
+.custom-block.details code {
   font-weight: bold;
   color: var(--vp-code-color);
 }

@@ -722,6 +722,7 @@ Use named ports whenever your node has multiple outputs with distinct purposes. 
 | Method | Description |
 | --- | --- |
 | `this.send(msg)` | Send a message to the next node |
+| `this.sendToPort(port, msg)` | Send a message to a specific output port by index or name |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
