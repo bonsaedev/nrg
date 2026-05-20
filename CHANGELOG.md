@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.1](https://github.com/bonsaedev/nrg/compare/v0.15.0...v0.15.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* attach test helpers before created() to capture lifecycle calls ([4ac6353](https://github.com/bonsaedev/nrg/commit/4ac63539f6eb1a6315ce44d1e68e40a9e426e1c1))
+* use global symbol for WIRE_HANDLERS to fix cross-bundle resolution ([26a6cd0](https://github.com/bonsaedev/nrg/commit/26a6cd070f2b5cb33395afbc5d9fed646798d84e))
+
 # [0.15.0](https://github.com/bonsaedev/nrg/compare/v0.14.0...v0.15.0) (2026-05-20)
 
 
