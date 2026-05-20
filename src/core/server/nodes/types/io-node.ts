@@ -69,23 +69,12 @@ interface IIONode<
   updateWires(wires: string[][]): void;
   receive(msg: TInput): void;
 
-  /** @internal */
-  readonly _baseOutputs: number;
-  /** @internal */
-  readonly _totalOutputs: number;
+  readonly baseOutputs: number;
+  readonly totalOutputs: number;
   sendToPort(
     port: number | "error" | "complete" | "status",
     msg: TOutput,
   ): void;
-  /** @internal */
-  _sendToPort(
-    port: number | "error" | "complete" | "status",
-    msg: unknown,
-  ): void;
-  /** @internal */
-  _input(msg: TInput, send: (msg: any) => void): Promise<void>;
-  /** @internal */
-  _closed(removed?: boolean): Promise<void>;
 }
 
 interface IONodeDefinition<

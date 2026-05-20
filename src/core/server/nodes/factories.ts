@@ -79,8 +79,7 @@ function defineIONode<
     static override readonly validateOutput: boolean =
       def.validateOutput ?? false;
 
-    static override _registered(RED: RED) {
-      this.validateSettings(RED);
+    static override registered(RED: RED) {
       return def.registered?.(RED);
     }
 
@@ -149,8 +148,7 @@ function defineConfigNode<
     static override readonly settingsSchema: Schema | undefined =
       def.settingsSchema as Schema | undefined;
 
-    static override _registered(RED: RED) {
-      this.validateSettings(RED);
+    static override registered(RED: RED) {
       return def.registered?.(RED);
     }
 

@@ -41,9 +41,6 @@ interface IConfigNode<
   readonly userIds: string[];
   readonly users: INode[];
   getUser<T extends INode = INode>(index: number): T | undefined;
-
-  /** @internal */
-  _closed(removed?: boolean): Promise<void>;
 }
 
 interface ConfigNodeDefinition<

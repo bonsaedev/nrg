@@ -1,21 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  defineIONode,
-  defineConfigNode,
-} from "@/core/server/nodes/factories";
+import { defineIONode, defineConfigNode } from "@/core/server/nodes/factories";
 import { defineModule } from "@/core/server/index";
 import { IONode } from "@/core/server/nodes/io-node";
 import { ConfigNode } from "@/core/server/nodes/config-node";
 import { Node } from "@/core/server/nodes/node";
-import {
-  defineSchema,
-  SchemaType,
-} from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/server/schemas";
 import { initValidator } from "@/core/server/validation";
 import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
+import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 describe("defineIONode", () => {
-
   it("should create a class with the correct static type", () => {
     const Node = defineIONode({
       type: "test-io",
@@ -120,7 +114,13 @@ describe("defineIONode", () => {
     const node = createNodeRedNode();
     const instance = new (Node as any)(RED, node, {}, {});
 
-    await instance._input({ payload: "hello" }, vi.fn());
+    // Wire up handlers and trigger input event
+    const createdPromise = Promise.resolve();
+    instance[WIRE_HANDLERS](node, createdPromise);
+
+    const send = vi.fn();
+    const done = vi.fn();
+    await node.emit("input", { payload: "hello" }, send, done);
 
     expect(inputFn).toHaveBeenCalledOnce();
     expect(node.log).toHaveBeenCalledWith("received: hello");
@@ -181,7 +181,7 @@ describe("defineIONode", () => {
 
     const RED = createNodeRedRuntime();
     initValidator(RED);
-    await (Node as any)._registered(RED);
+    await Promise.resolve((Node as any).registered?.(RED));
 
     expect(registeredFn).toHaveBeenCalledWith(RED);
   });
@@ -228,7 +228,6 @@ describe("defineIONode", () => {
 });
 
 describe("defineConfigNode", () => {
-
   it("should create a class with the correct static type", () => {
     const Node = defineConfigNode({ type: "test-config" });
     expect(Node.type).toBe("test-config");
@@ -319,7 +318,7 @@ describe("defineConfigNode", () => {
 
     const RED = createNodeRedRuntime();
     initValidator(RED);
-    await (Node as any)._registered(RED);
+    await Promise.resolve((Node as any).registered?.(RED));
 
     expect(registeredFn).toHaveBeenCalledWith(RED);
   });

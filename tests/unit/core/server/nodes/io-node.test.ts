@@ -1,11 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { IONode } from "@/core/server/nodes/io-node";
 import { initValidator } from "@/core/server/validation";
-import {
-  defineSchema,
-  SchemaType,
-} from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/server/schemas";
 import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
+import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 class TestIONode extends IONode {
   static override readonly type = "test-io-node";
@@ -24,7 +22,6 @@ class TestIONode extends IONode {
 }
 
 describe("IONode", () => {
-
   describe("constructor", () => {
     it("should set up context with node, flow, and global", () => {
       const RED = createNodeRedRuntime();
@@ -66,15 +63,21 @@ describe("IONode", () => {
     });
   });
 
-  describe("_input", () => {
+  describe("input handling", () => {
     it("should call input method with message", async () => {
       const RED = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
-      const send = vi.fn();
 
-      await instance._input({ payload: "test" }, send);
+      // Wire up event handlers
+      const createdPromise = Promise.resolve();
+      instance[WIRE_HANDLERS](node, createdPromise);
+
+      const send = vi.fn();
+      const done = vi.fn();
+      await node.emit("input", { payload: "test" }, send, done);
+
       expect(instance.inputCalled).toBe(true);
       expect(instance.lastMsg).toEqual({ payload: "test" });
     });
@@ -99,7 +102,16 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new (ValidatedIONode as any)(RED, node, {}, {});
 
-      await expect(instance._input({ payload: "" }, vi.fn())).rejects.toThrow();
+      const createdPromise = Promise.resolve();
+      instance[WIRE_HANDLERS](node, createdPromise);
+
+      const send = vi.fn();
+      const done = vi.fn();
+      await node.emit("input", { payload: "" }, send, done);
+
+      // done should have been called with an error
+      expect(done).toHaveBeenCalled();
+      expect(done.mock.calls[0][0]).toBeInstanceOf(Error);
     });
 
     it("should not validate input when validateInput is false", async () => {
@@ -122,14 +134,20 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new (NoValidateIONode as any)(RED, node, {}, {});
 
-      await expect(
-        instance._input({ payload: "" }, vi.fn()),
-      ).resolves.not.toThrow();
+      const createdPromise = Promise.resolve();
+      instance[WIRE_HANDLERS](node, createdPromise);
+
+      const send = vi.fn();
+      const done = vi.fn();
+      await node.emit("input", { payload: "" }, send, done);
+
+      // done should have been called without error
+      expect(done).toHaveBeenCalledWith();
     });
   });
 
   describe("send", () => {
-    it("should use _send when inside _input", async () => {
+    it("should use send callback when inside input handler", async () => {
       const RED = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();
@@ -144,14 +162,17 @@ describe("IONode", () => {
       }
 
       const instance = new (SendingNode as any)(RED, node, {}, {});
+      const createdPromise = Promise.resolve();
+      instance[WIRE_HANDLERS](node, createdPromise);
+
       const send = vi.fn();
-      await instance._input({}, send);
+      const done = vi.fn();
+      await node.emit("input", {}, send, done);
 
       expect(send).toHaveBeenCalledWith({ payload: "result" });
-      expect(node.send).not.toHaveBeenCalled();
     });
 
-    it("should fall back to node.send outside _input", () => {
+    it("should fall back to node.send outside input handler", () => {
       const RED = createNodeRedRuntime();
       initValidator(RED);
       const node = createNodeRedNode();

@@ -1,11 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { Node } from "@/core/server/nodes/node";
 import { initValidator } from "@/core/server/validation";
-import {
-  defineSchema,
-  SchemaType,
-} from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/server/schemas";
 import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
+import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 class ConcreteNode extends Node {
   static override readonly type = "test-node";
@@ -13,7 +11,6 @@ class ConcreteNode extends Node {
 }
 
 describe("Node", () => {
-
   describe("constructor", () => {
     it("should set RED, node, and config", () => {
       const RED = createNodeRedRuntime();
@@ -155,7 +152,7 @@ describe("Node", () => {
       vi.useRealTimers();
     });
 
-    it("should clear timers on _closed", async () => {
+    it("should clear timers on close", async () => {
       vi.useFakeTimers();
       const RED = createNodeRedRuntime();
       initValidator(RED);
@@ -163,10 +160,15 @@ describe("Node", () => {
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
       const fn = vi.fn();
 
+      // Wire up close handler via the template method
+      const createdPromise = Promise.resolve();
+      instance[WIRE_HANDLERS](node, createdPromise);
+
       instance.setTimeout(fn, 1000);
       instance.setInterval(fn, 1000);
 
-      await instance._closed();
+      const done = vi.fn();
+      await node.emit("close", false, done);
       vi.advanceTimersByTime(2000);
       expect(fn).not.toHaveBeenCalled();
 
@@ -263,12 +265,17 @@ describe("Node", () => {
     });
   });
 
-  describe("_settings static method", () => {
-    it("should return undefined when no settingsSchema", () => {
-      expect(ConcreteNode._settings()).toBeUndefined();
+  describe("settings registration", () => {
+    it("should not pass settings when no settingsSchema", async () => {
+      const RED = createNodeRedRuntime();
+      initValidator(RED);
+      await ConcreteNode.register(RED);
+
+      const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
+      expect(registerCall[2].settings).toBeUndefined();
     });
 
-    it("should generate prefixed settings keys", () => {
+    it("should generate prefixed settings keys", async () => {
       const settingsSchema = defineSchema(
         {
           apiEndpoint: SchemaType.String({
@@ -286,8 +293,12 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const result = SettingsNode._settings();
-      expect(result).toEqual({
+      const RED = createNodeRedRuntime();
+      initValidator(RED);
+      await SettingsNode.register(RED);
+
+      const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
+      expect(registerCall[2].settings).toEqual({
         myNodeApiEndpoint: {
           value: "https://example.com",
           exportable: true,
@@ -296,7 +307,7 @@ describe("Node", () => {
       });
     });
 
-    it("should handle hyphenated type names", () => {
+    it("should handle hyphenated type names", async () => {
       const settingsSchema = defineSchema(
         { timeout: SchemaType.Number({ default: 5000 }) },
         { $id: "settings-hyphen-test" },
@@ -308,8 +319,12 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const result = HyphenNode._settings();
-      expect(result).toHaveProperty("myCustomNodeTimeout");
+      const RED = createNodeRedRuntime();
+      initValidator(RED);
+      await HyphenNode.register(RED);
+
+      const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
+      expect(registerCall[2].settings).toHaveProperty("myCustomNodeTimeout");
     });
   });
 

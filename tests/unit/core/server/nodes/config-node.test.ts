@@ -8,7 +8,6 @@ class TestConfigNode extends ConfigNode {
 }
 
 describe("ConfigNode", () => {
-
   describe("constructor", () => {
     it("should set category to config", () => {
       expect(TestConfigNode.category).toBe("config");

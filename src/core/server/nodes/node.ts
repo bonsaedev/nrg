@@ -5,10 +5,17 @@ import type {
   INode,
   IONodeContext,
   NodeConfig,
+  NodeConstructor,
   NodeCredentials,
   NodeSettings,
 } from "./types";
 import { setupConfigProxy } from "./utils";
+import { getCredentialsFromSchema } from "../utils";
+import { WIRE_HANDLERS } from "./symbols";
+import { NrgError } from "../../errors";
+
+/** Module-scoped cache for validated settings, keyed by constructor. */
+const cachedSettingsMap = new WeakMap<typeof Node, unknown>();
 
 /**
  * Abstract base class for all NRG nodes. Provides lifecycle hooks, config
@@ -28,30 +35,8 @@ abstract class Node<
   public static readonly credentialsSchema?: Schema;
   public static readonly settingsSchema?: Schema;
 
-  private static _cachedSettings: any = null;
-
   public static registered?(RED: RED): void | Promise<void>;
 
-  /** @internal */
-  public static _registered?(RED: RED): void | Promise<void>;
-
-  /** @internal */
-  public static _settings(): NodeSettings | undefined {
-    if (!this.settingsSchema) return;
-
-    const settings: NodeSettings = {};
-    const prefix = this.type.replace(/-./g, (x) => x[1].toUpperCase());
-    for (const [key, prop] of Object.entries(this.settingsSchema.properties)) {
-      const settingKey = prefix + key.charAt(0).toUpperCase() + key.slice(1);
-      settings[settingKey] = {
-        value: prop.default,
-        exportable: prop.exportable ?? false,
-      };
-    }
-    return settings;
-  }
-
-  // NOTE:
   public static validateSettings(RED: RED): void {
     if (!this.settingsSchema) return;
 
@@ -70,7 +55,10 @@ abstract class Node<
     }
 
     // NOTE: assign defaults manually to avoid ajv errors for non json types (eg. Function, Constructor)
-    for (const [key, prop] of Object.entries(properties) as [string, any][]) {
+    for (const [key, prop] of Object.entries(properties) as [
+      string,
+      Record<string, unknown>,
+    ][]) {
       if (settings[key] === undefined) {
         // NOTE: here I need to use _default when it is a non validatable type (eg. Function, Constructor...)
         const defaultValue = prop.default ?? prop._default;
@@ -85,10 +73,77 @@ abstract class Node<
       throwOnError: true,
     });
 
-    this._cachedSettings = settings;
+    cachedSettingsMap.set(this, settings);
 
     RED.log.info("Settings are valid");
   }
+
+  static #buildSettings(NC: typeof Node): NodeSettings | undefined {
+    if (!NC.settingsSchema) return;
+
+    const settings: NodeSettings = {};
+    const prefix = NC.type.replace(/-./g, (x) => x[1].toUpperCase());
+    for (const [key, prop] of Object.entries(NC.settingsSchema.properties)) {
+      const settingKey = prefix + key.charAt(0).toUpperCase() + key.slice(1);
+      settings[settingKey] = {
+        value: prop.default,
+        exportable: prop.exportable ?? false,
+      };
+    }
+    return settings;
+  }
+
+  /**
+   * Registers this node class with Node-RED. Handles instance creation,
+   * event handler wiring, settings validation, and the user's registered() hook.
+   */
+  static async register(RED: RED) {
+    const NodeClass = this as unknown as NodeConstructor;
+
+    if (NodeClass.color && !/^#[0-9A-Fa-f]{6}$/.test(NodeClass.color)) {
+      throw new NrgError(
+        `Invalid color for ${NodeClass.type}: ${NodeClass.color} color must be in hex format`,
+      );
+    }
+
+    RED.nodes.registerType(
+      NodeClass.type,
+      function (this: NodeRedNode, config: Record<string, any>) {
+        RED.nodes.createNode(this, config);
+        const node = new NodeClass(RED, this, config, this.credentials);
+        // NOTE: save node instance inside node-red's node so that the proxy can resolve it lazily.
+        // Non-writable to prevent accidental clobbering by other code in the process.
+        Object.defineProperty(this, "_node", {
+          value: node,
+          writable: false,
+          configurable: false,
+          enumerable: false,
+        });
+
+        // NOTE: created promise must be here because we only want it to start after the whole object creation chain has been completed: child -> IONode -> Node -> IONode -> child -> done
+        const createdPromise = Promise.resolve(node.created?.()).catch(
+          (error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            this.error("Error during created hook: " + message);
+            throw error;
+          },
+        );
+
+        node[WIRE_HANDLERS](this, createdPromise);
+      },
+      {
+        credentials: NodeClass.credentialsSchema
+          ? getCredentialsFromSchema(NodeClass.credentialsSchema)
+          : {},
+        settings: Node.#buildSettings(this),
+      },
+    );
+
+    NodeClass.validateSettings(RED);
+    await Promise.resolve(NodeClass.registered?.(RED));
+  }
+
   protected readonly RED: RED;
   protected readonly node: NodeRedNode;
   protected readonly context!: ConfigNodeContext | IONodeContext;
@@ -152,6 +207,41 @@ abstract class Node<
     }
   }
 
+  [WIRE_HANDLERS](nodeRedNode: NodeRedNode, createdPromise: Promise<void>) {
+    nodeRedNode.on(
+      "close",
+      async (removed: boolean, done: (err?: Error) => void) => {
+        try {
+          this.log("Calling closed");
+          await this.#closed(removed);
+          this.log("Node was closed");
+          done();
+        } catch (error) {
+          if (error instanceof Error) {
+            this.error("Error while closing node: " + error.message);
+            done(error);
+          } else {
+            this.error("Unknown error occurred while closing node");
+            done(new Error("Unknown error occurred while closing node"));
+          }
+        }
+      },
+    );
+  }
+
+  async #closed(removed?: boolean) {
+    try {
+      await Promise.resolve(this.closed?.(removed));
+    } finally {
+      this.log("clearing timers and intervals");
+      this.timers.forEach((t) => clearTimeout(t));
+      this.intervals.forEach((i) => clearInterval(i));
+      this.timers.clear();
+      this.intervals.clear();
+      this.log("timers and intervals cleared");
+    }
+  }
+
   public i18n(key: string, substitutions?: Record<string, string>): string {
     const nodeType = (this.constructor as typeof Node).type;
     return this.RED._(`${nodeType}.${key}`, substitutions);
@@ -184,21 +274,6 @@ abstract class Node<
 
   public created?(): void | Promise<void>;
   public closed?(removed?: boolean): void | Promise<void>;
-
-  // NOTE: used by the registered function. Had to be a different one to avoid calling the parent's closed again
-  /** @internal */
-  public async _closed(removed?: boolean) {
-    try {
-      await Promise.resolve(this.closed?.(removed));
-    } finally {
-      this.log("clearing timers and intervals");
-      this.timers.forEach((t) => clearTimeout(t));
-      this.intervals.forEach((i) => clearInterval(i));
-      this.timers.clear();
-      this.intervals.clear();
-      this.log("timers and intervals cleared");
-    }
-  }
 
   public on(event: string, callback: (...args: any[]) => void) {
     this.node.on(event, callback);
@@ -234,7 +309,9 @@ abstract class Node<
 
   public get settings(): TSettings {
     const constructor = this.constructor as typeof Node;
-    return (constructor._cachedSettings as TSettings) ?? ({} as TSettings);
+    return (
+      (cachedSettingsMap.get(constructor) as TSettings) ?? ({} as TSettings)
+    );
   }
 }
 

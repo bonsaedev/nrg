@@ -27,7 +27,8 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   readonly validateOutput?: boolean;
   readonly name: string;
   registered?(RED: RED): void | Promise<void>;
-  _registered?(RED: RED): void | Promise<void>;
+  register(RED: RED): void | Promise<void>;
+  validateSettings(RED: RED): void;
   new (
     RED: RED,
     node: NodeRedNode,

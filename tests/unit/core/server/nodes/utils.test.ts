@@ -1,16 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  setupConfigProxy,
-  setupContext,
-} from "@/core/server/nodes/utils";
-import {
-  defineSchema,
-  SchemaType,
-} from "@/core/server/schemas";
+import { setupConfigProxy, setupContext } from "@/core/server/nodes/utils";
+import { defineSchema, SchemaType } from "@/core/server/schemas";
 import { defineConfigNode } from "@/core/server/nodes/factories";
 import type TypedInput from "@/core/server/typed-input";
 import { NrgError } from "@/core/errors";
-import { createNodeRedRuntime, createNodeRedNode, createContextStore } from "@mocks/red";
+import {
+  createNodeRedRuntime,
+  createNodeRedNode,
+  createContextStore,
+} from "@mocks/red";
 
 const RemoteServer = defineConfigNode({ type: "remote-server" });
 const SomeNode = defineConfigNode({ type: "something" });
@@ -18,10 +16,17 @@ const SomeNode = defineConfigNode({ type: "something" });
 describe("setupConfigProxy", () => {
   describe("node reference resolution", () => {
     it("should resolve node references marked with x-nrg-node-type", () => {
-      const nrgInstance = { id: "server-1", type: "remote-server", config: { host: "localhost" } } as any;
+      const nrgInstance = {
+        id: "server-1",
+        type: "remote-server",
+        config: { host: "localhost" },
+      } as any;
       const RED = createNodeRedRuntime();
       RED.registerNrgNode("server-1", nrgInstance);
-      const nodeRedNode = createNodeRedNode({ id: "server-1", type: "remote-server" });
+      const nodeRedNode = createNodeRedNode({
+        id: "server-1",
+        type: "remote-server",
+      });
 
       const config = { server: "server-1", name: "test" };
       const schema = defineSchema({
@@ -29,7 +34,12 @@ describe("setupConfigProxy", () => {
         name: SchemaType.String(),
       });
 
-      const proxy = setupConfigProxy({ RED, node: nodeRedNode, config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: nodeRedNode,
+        config,
+        schema,
+      });
       expect(proxy.server).toBe(nrgInstance);
     });
 
@@ -41,7 +51,12 @@ describe("setupConfigProxy", () => {
         name: SchemaType.String(),
       });
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       expect(proxy.server).toBe("some-string");
       expect(proxy.name).toBe("my-node");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
@@ -54,7 +69,12 @@ describe("setupConfigProxy", () => {
         server: SchemaType.NodeRef(RemoteServer),
       });
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       expect(proxy.server).toBe("missing-id");
     });
 
@@ -65,7 +85,12 @@ describe("setupConfigProxy", () => {
         server: SchemaType.NodeRef(RemoteServer),
       });
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       expect(proxy.server).toBe("");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
     });
@@ -77,7 +102,11 @@ describe("setupConfigProxy", () => {
       const nested = { value: "str", type: "str" };
       const config = { myProp: nested };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.myProp).toBe(proxy.myProp);
     });
 
@@ -85,7 +114,11 @@ describe("setupConfigProxy", () => {
       const RED = createNodeRedRuntime();
       const config = { tags: ["a", "b", "c"] };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.tags).toBe(proxy.tags);
     });
   });
@@ -94,7 +127,11 @@ describe("setupConfigProxy", () => {
     it("should throw NrgError when setting a property", () => {
       const RED = createNodeRedRuntime();
       const config = { name: "test" };
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
 
       expect(() => {
         (proxy as any).name = "changed";
@@ -104,7 +141,11 @@ describe("setupConfigProxy", () => {
     it("should include property name in error message", () => {
       const RED = createNodeRedRuntime();
       const config = { name: "test" };
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
 
       expect(() => {
         (proxy as any).name = "changed";
@@ -120,7 +161,12 @@ describe("setupConfigProxy", () => {
         id: SchemaType.NodeRef(SomeNode),
       });
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       expect(proxy.id).toBe("node-123");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
     });
@@ -129,7 +175,11 @@ describe("setupConfigProxy", () => {
       const RED = createNodeRedRuntime();
       const config = { _id: "abc", _users: ["u1", "u2"] } as any;
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy._id).toBe("abc");
       expect(proxy._users).toEqual(["u1", "u2"]);
     });
@@ -140,7 +190,11 @@ describe("setupConfigProxy", () => {
       const RED = createNodeRedRuntime();
       const config = { settings: { timeout: 5000 } };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.settings.timeout).toBe(5000);
     });
 
@@ -148,7 +202,11 @@ describe("setupConfigProxy", () => {
       const RED = createNodeRedRuntime();
       const config = { items: [{ name: "a" }, { name: "b" }] };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.items[0].name).toBe("a");
       expect(proxy.items[1].name).toBe("b");
     });
@@ -157,7 +215,11 @@ describe("setupConfigProxy", () => {
       const RED = createNodeRedRuntime();
       const config = { tags: ["alpha", "beta"] };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.tags).toEqual(["alpha", "beta"]);
     });
 
@@ -165,7 +227,11 @@ describe("setupConfigProxy", () => {
       const RED = createNodeRedRuntime();
       const config = { count: 42, enabled: true, label: null };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.count).toBe(42);
       expect(proxy.enabled).toBe(true);
       expect(proxy.label).toBeNull();
@@ -178,7 +244,11 @@ describe("setupConfigProxy", () => {
       RED.registerNrgNode("test", {});
       const config = { name: "test" };
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+      });
       expect(proxy.name).toBe("test");
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
     });
@@ -200,7 +270,12 @@ describe("setupConfigProxy", () => {
       };
       const schema = makeTypedInputSchema();
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       const ref = proxy.target;
       expect(ref).toBeDefined();
       expect(ref.type).toBe("msg");
@@ -212,7 +287,12 @@ describe("setupConfigProxy", () => {
       const config = { target: { value: "x", type: "str" }, name: "test" };
       const schema = makeTypedInputSchema();
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       expect(proxy.target).toBe(proxy.target);
     });
 
@@ -227,7 +307,9 @@ describe("setupConfigProxy", () => {
       const schema = makeTypedInputSchema();
 
       const proxy = setupConfigProxy({ RED, node, config, schema });
-      const result = await (proxy.target as TypedInput<any>).resolve({ payload: "hello" });
+      const result = await (proxy.target as TypedInput<any>).resolve({
+        payload: "hello",
+      });
       expect(result).toBe("resolved-value");
       expect(RED.util.evaluateNodeProperty).toHaveBeenCalledWith(
         "payload",
@@ -247,8 +329,15 @@ describe("setupConfigProxy", () => {
       const config = { target: { value: "x", type: "str" } };
       const schema = makeTypedInputSchema();
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
-      await expect((proxy.target as TypedInput<any>).resolve()).rejects.toThrow("eval failed");
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
+      await expect((proxy.target as TypedInput<any>).resolve()).rejects.toThrow(
+        "eval failed",
+      );
     });
 
     it("should resolve node ID to NRG node instance for node-type inputs", async () => {
@@ -263,7 +352,12 @@ describe("setupConfigProxy", () => {
       const config = { target: { value: "n1", type: "node" } };
       const schema = makeTypedInputSchema();
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       const result = await (proxy.target as TypedInput<any>).resolve();
       expect(result).toBe(nrgInstance);
       expect(RED.nodes.getNode).toHaveBeenCalledWith("n1");
@@ -280,7 +374,12 @@ describe("setupConfigProxy", () => {
       const config = { target: { value: "n2", type: "node" } };
       const schema = makeTypedInputSchema();
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       const result = await (proxy.target as TypedInput<any>).resolve();
       expect(result).toBe(rawNode);
     });
@@ -294,7 +393,12 @@ describe("setupConfigProxy", () => {
       const config = { target: { value: "missing-id", type: "node" } };
       const schema = makeTypedInputSchema();
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       const result = await (proxy.target as TypedInput<any>).resolve();
       expect(result).toBe("missing-id");
     });
@@ -307,7 +411,12 @@ describe("setupConfigProxy", () => {
         name: SchemaType.String(),
       });
 
-      const proxy = setupConfigProxy({ RED, node: createNodeRedNode(), config, schema });
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      });
       expect(proxy.settings.value).toBe("x");
       expect(typeof (proxy.settings as any).resolve).toBe("undefined");
     });

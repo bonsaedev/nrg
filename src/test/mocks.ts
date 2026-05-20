@@ -211,6 +211,8 @@ function createNodeRedNode(options: Partial<NodeRedNode> = {}): NodeRedNode {
     global: globalCtx,
   };
 
+  const handlers = new Map<string, ((...args: unknown[]) => void)[]>();
+
   return {
     id: options.id ?? `node-${Math.random().toString(36).slice(2, 10)}`,
     type: options.type ?? "test-node",
@@ -224,7 +226,15 @@ function createNodeRedNode(options: Partial<NodeRedNode> = {}): NodeRedNode {
     log: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    on: vi.fn(),
+    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+      if (!handlers.has(event)) handlers.set(event, []);
+      handlers.get(event)!.push(handler);
+    }),
+    emit: vi.fn(async (event: string, ...args: any[]) => {
+      for (const handler of handlers.get(event) ?? []) {
+        await handler(...args);
+      }
+    }),
     send: vi.fn(),
     status: vi.fn(),
     updateWires: vi.fn(),

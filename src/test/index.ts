@@ -4,6 +4,7 @@ import { initValidator } from "../core/server/validation";
 import type { NodeRedNode } from "../core/server/types";
 import type { NodeConstructor as NodeClass } from "../core/server/nodes/types/node";
 import type { MockRED } from "./mocks";
+import { WIRE_HANDLERS } from "../core/server/nodes/symbols";
 
 interface CreateNodeOptions {
   config?: Record<string, any>;
@@ -67,17 +68,23 @@ function attachHelpers<T>(
     statusCalls.push(status);
   });
 
-  const nodeRef = node as any;
-
   const helpers: TestNodeHelpers = {
     async receive(msg: any): Promise<void> {
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
       });
-      await nodeRef._input(msg, sendFn);
+      const doneFn = vi.fn();
+      await nodeRedNode.emit("input", msg, sendFn, doneFn);
+      if (doneFn.mock.calls[0]?.[0] instanceof Error) {
+        throw doneFn.mock.calls[0][0];
+      }
     },
     async close(removed = false): Promise<void> {
-      await nodeRef._closed(removed);
+      const doneFn = vi.fn();
+      await nodeRedNode.emit("close", removed, doneFn);
+      if (doneFn.mock.calls[0]?.[0] instanceof Error) {
+        throw doneFn.mock.calls[0][0];
+      }
     },
     reset(): void {
       sentMessages.length = 0;
@@ -196,15 +203,18 @@ async function createNode<T extends NodeClass>(
     ...overrideOpts,
   });
 
-  // Call the static registered() hook (mirrors what registerType does)
-  await Promise.resolve(
-    NodeClass._registered?.(RED) ?? NodeClass.registered?.(RED),
-  );
+  // Validate settings and call registered hook (mirrors what Node.register does)
+  NodeClass.validateSettings(RED);
+  await Promise.resolve(NodeClass.registered?.(RED));
 
   const node = new (NodeClass as any)(RED, nodeRedNode, config, credentials);
-  const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);
 
-  await Promise.resolve(augmented.created?.());
+  // Wire up event handlers (same path as production)
+  const createdPromise = Promise.resolve(node.created?.());
+  node[WIRE_HANDLERS](nodeRedNode, createdPromise);
+  await createdPromise;
+
+  const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);
 
   return { node: augmented, RED };
 }

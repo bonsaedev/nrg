@@ -1,10 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createNode } from "@/test";
 import { defineIONode } from "@/core/server/nodes";
-import {
-  defineSchema,
-  SchemaType,
-} from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/server/schemas";
 
 const ConfigSchema = defineSchema(
   {
@@ -49,8 +46,8 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._baseOutputs).toBe(1);
-      expect(node._totalOutputs).toBe(1);
+      expect(node.baseOutputs).toBe(1);
+      expect(node.totalOutputs).toBe(1);
     });
 
     it("adds one port when error is enabled", async () => {
@@ -62,7 +59,7 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._totalOutputs).toBe(2);
+      expect(node.totalOutputs).toBe(2);
     });
 
     it("adds three ports when all emit flags are enabled", async () => {
@@ -74,7 +71,7 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._totalOutputs).toBe(4);
+      expect(node.totalOutputs).toBe(4);
     });
 
     it("adds two ports when only complete and status are enabled", async () => {
@@ -86,7 +83,7 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._totalOutputs).toBe(3);
+      expect(node.totalOutputs).toBe(3);
     });
   });
 
@@ -300,7 +297,7 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._totalOutputs).toBe(2);
+      expect(node.totalOutputs).toBe(2);
     });
   });
 
@@ -314,7 +311,7 @@ describe("emit ports", () => {
         },
       });
 
-      expect(node._totalOutputs).toBe(2);
+      expect(node.totalOutputs).toBe(2);
     });
   });
 
@@ -341,7 +338,8 @@ describe("emit ports", () => {
       await node.receive({ payload: "go" });
 
       const sent = node.sent();
-      expect(sent).toHaveLength(1);
+      // 2 messages: user's sendToPort("complete") + framework's automatic complete port
+      expect(sent).toHaveLength(2);
       const completeSend = sent[0] as any[];
       expect(completeSend[0]).toBeNull();
       expect(completeSend[1].payload).toBe("done");
@@ -422,7 +420,8 @@ describe("emit ports", () => {
       await node.receive({ payload: "go" });
 
       const sent = node.sent();
-      expect(sent).toHaveLength(3);
+      // 4 messages: user's 3 sendToPort calls + framework's automatic complete port
+      expect(sent).toHaveLength(4);
       // error → port 1, complete → port 2, status → port 3
       expect((sent[0] as any[])[1].payload).toBe("err");
       expect((sent[1] as any[])[2].payload).toBe("done");

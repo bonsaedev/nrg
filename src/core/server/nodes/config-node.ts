@@ -29,13 +29,6 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
 
   protected override readonly context: ConfigNodeContext;
 
-  // NOTE: used by the registered function. Had to be a different one to avoid calling the parent's input again
-  /** @internal */
-  public static override _registered(RED: RED): void | Promise<void> {
-    this.validateSettings(RED);
-    return this.registered?.(RED);
-  }
-
   constructor(
     RED: RED,
     node: NodeRedNode,

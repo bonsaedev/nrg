@@ -11,9 +11,16 @@ import type {
   IONodeCredentials,
 } from "./types";
 import { setupContext } from "./utils";
+import { WIRE_HANDLERS } from "./symbols";
 
 /** Reserved config property names for dynamic emit ports */
 const EMIT_PORT_KEYS = ["emitError", "emitComplete", "emitStatus"] as const;
+
+interface EmitPortFlags {
+  emitError?: boolean;
+  emitComplete?: boolean;
+  emitStatus?: boolean;
+}
 
 /**
  * Base class for nodes that process messages. Provides input/output handling,
@@ -59,17 +66,10 @@ abstract class IONode<
     return Array.isArray(s) ? s.length : 1;
   }
 
-  private _send: ((msg: any) => void) | undefined;
+  #send: ((msg: any) => void) | undefined;
 
   declare public readonly config: IONodeConfig<TConfig>;
   protected override readonly context: IONodeContext;
-
-  // NOTE: used by the registered function. Had to be a different one to avoid calling the parent's input again
-  /** @internal */
-  public static override _registered(RED: RED): void | Promise<void> {
-    this.validateSettings(RED);
-    return this.registered?.(RED);
-  }
 
   constructor(
     RED: RED,
@@ -97,11 +97,78 @@ abstract class IONode<
     this.context = fn as any;
   }
 
+  override [WIRE_HANDLERS](
+    nodeRedNode: NodeRedNode,
+    createdPromise: Promise<void>,
+  ) {
+    super[WIRE_HANDLERS](nodeRedNode, createdPromise);
+
+    const NC = this.constructor as typeof IONode;
+
+    nodeRedNode.on(
+      "input",
+      async (
+        msg: unknown,
+        send: (msg: unknown) => void,
+        done: (err?: Error) => void,
+      ) => {
+        try {
+          await createdPromise;
+        } catch {
+          done(new Error("Node failed to initialize"));
+          return;
+        }
+
+        try {
+          nodeRedNode.log("Calling input");
+          await Promise.resolve(this.#input(msg as TInput, send));
+
+          // Send to complete port if enabled
+          this.#sendToPort("complete", {
+            ...(msg as Record<string, unknown>),
+            complete: {
+              source: this.#nodeSource(),
+            },
+          });
+
+          done();
+          nodeRedNode.log("Input processed");
+        } catch (error) {
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : "Unknown error during input handling";
+
+          // Send to error port if enabled
+          this.#sendToPort("error", {
+            ...(msg as Record<string, unknown>),
+            error: {
+              message: errorMsg,
+              source: this.#nodeSource(),
+            },
+          });
+
+          if (error instanceof Error) {
+            nodeRedNode.error(
+              "Error while processing input: " + error.message,
+              msg,
+            );
+            done(error);
+          } else {
+            nodeRedNode.error(
+              "Unknown error occurred during input handling",
+              msg,
+            );
+            done(new Error(errorMsg));
+          }
+        }
+      },
+    );
+  }
+
   public input(msg: TInput): void | Promise<void> {}
 
-  // NOTE: used by the registered function. Had to be a different one to avoid calling the parent's input again
-  /** @internal */
-  public async _input(msg: TInput, send: (msg: any) => void) {
+  async #input(msg: TInput, send: (msg: any) => void) {
     const NodeClass = this.constructor as typeof IONode;
     const shouldValidateInput =
       this.config.validateInput ?? NodeClass.validateInput;
@@ -113,11 +180,11 @@ abstract class IONode<
       });
       this.log("Input is valid");
     }
-    this._send = send;
+    this.#send = send;
     try {
       await Promise.resolve(this.input(msg));
     } finally {
-      this._send = undefined;
+      this.#send = undefined;
     }
   }
 
@@ -131,7 +198,7 @@ abstract class IONode<
 
       if (Array.isArray(schemas)) {
         // Per-port validation: schemas[i] validates msg[i]
-        const msgs = msg as any[];
+        const msgs = msg as unknown[];
         for (let i = 0; i < schemas.length; i++) {
           if (msgs[i] == null) continue;
           this.RED.validator.validate(msgs[i], schemas[i], {
@@ -141,9 +208,10 @@ abstract class IONode<
         }
       } else if (Array.isArray(msg)) {
         // Single schema, array of messages: validate each non-null element
-        for (let i = 0; i < (msg as any[]).length; i++) {
-          if ((msg as any[])[i] == null) continue;
-          this.RED.validator.validate((msg as any[])[i], schemas, {
+        const msgs = msg as unknown[];
+        for (let i = 0; i < msgs.length; i++) {
+          if (msgs[i] == null) continue;
+          this.RED.validator.validate(msgs[i], schemas, {
             cacheKey: schemas.$id || `${NodeClass.type}:output-schema`,
             throwOnError: true,
           });
@@ -158,8 +226,8 @@ abstract class IONode<
       this.log("Output is valid");
     }
 
-    if (this._send) {
-      this._send(msg);
+    if (this.#send) {
+      this.#send(msg);
     } else {
       this.node.send(msg);
     }
@@ -167,17 +235,16 @@ abstract class IONode<
 
   // --- Emit port management ---
 
-  /** @internal */
-  public get _baseOutputs(): number {
+  public get baseOutputs(): number {
     return (this.constructor as typeof IONode).outputs ?? 0;
   }
 
-  /** @internal */
-  public get _totalOutputs(): number {
-    let count = this._baseOutputs;
-    if ((this.config as any).emitError) count++;
-    if ((this.config as any).emitComplete) count++;
-    if ((this.config as any).emitStatus) count++;
+  public get totalOutputs(): number {
+    const config = this.config as unknown as EmitPortFlags;
+    let count = this.baseOutputs;
+    if (config.emitError) count++;
+    if (config.emitComplete) count++;
+    if (config.emitStatus) count++;
     return count;
   }
 
@@ -191,34 +258,28 @@ abstract class IONode<
     port: number | "error" | "complete" | "status",
     msg: TOutput,
   ) {
-    this._sendToPort(port, msg);
+    this.#sendToPort(port, msg);
   }
 
-  /** @internal */
-  public _sendToPort(
-    port: number | "error" | "complete" | "status",
-    msg: unknown,
-  ) {
+  #sendToPort(port: number | "error" | "complete" | "status", msg: unknown) {
     let portIndex: number | null;
     if (typeof port === "number") {
       portIndex = port;
     } else {
-      portIndex = this._getEmitPortIndex(port);
+      portIndex = this.#getEmitPortIndex(port);
       if (portIndex === null) return;
     }
-    const out: (any | null)[] = Array(this._totalOutputs).fill(null);
+    const out: (unknown | null)[] = Array(this.totalOutputs).fill(null);
     out[portIndex] = msg;
     this.node.send(out);
   }
 
-  private _getEmitPortIndex(
-    name: "error" | "complete" | "status",
-  ): number | null {
-    const config = this.config as any;
+  #getEmitPortIndex(name: "error" | "complete" | "status"): number | null {
+    const config = this.config as unknown as EmitPortFlags;
     if (name === "error") {
-      return config.emitError ? this._baseOutputs : null;
+      return config.emitError ? this.baseOutputs : null;
     }
-    let idx = this._baseOutputs;
+    let idx = this.baseOutputs;
     if (config.emitError) idx++;
     if (name === "complete") {
       return config.emitComplete ? idx : null;
@@ -227,7 +288,7 @@ abstract class IONode<
     return config.emitStatus ? idx : null;
   }
 
-  private _nodeSource() {
+  #nodeSource() {
     return {
       id: this.id,
       type: (this.constructor as typeof IONode).type,
@@ -237,20 +298,20 @@ abstract class IONode<
 
   public status(status: IONodeStatus) {
     this.node.status(status);
-    this._sendToPort("status", {
+    this.#sendToPort("status", {
       status,
-      source: this._nodeSource(),
+      source: this.#nodeSource(),
     });
   }
 
   public override error(message: string, msg?: any) {
     super.error(message, msg);
     if (msg) {
-      this._sendToPort("error", {
+      this.#sendToPort("error", {
         ...msg,
         error: {
           message,
-          source: this._nodeSource(),
+          source: this.#nodeSource(),
         },
       });
     }
