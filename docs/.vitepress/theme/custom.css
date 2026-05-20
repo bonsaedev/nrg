@@ -232,6 +232,11 @@
   width: 100%;
 }
 
+.vp-doc :not(pre) > code {
+  font-weight: bold;
+  color: var(--vp-code-color);
+}
+
 .vp-doc table code {
   white-space: nowrap;
 }
