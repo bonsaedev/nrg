@@ -35,7 +35,11 @@ function defineIONode<
   TCredsSchema extends TSchema | undefined = undefined,
   TSettingsSchema extends TSchema | undefined = undefined,
   TInputSchema extends TSchema | undefined = undefined,
-  TOutputsSchema extends TSchema | readonly TSchema[] | undefined = undefined,
+  TOutputsSchema extends
+    | TSchema
+    | readonly TSchema[]
+    | Record<string, TSchema>
+    | undefined = undefined,
 >(
   def: IONodeDefinition<
     TConfigSchema,
@@ -72,8 +76,15 @@ function defineIONode<
       def.settingsSchema as Schema | undefined;
     static override readonly inputSchema: Schema | undefined =
       def.inputSchema as Schema | undefined;
-    static override readonly outputsSchema: Schema | Schema[] | undefined =
-      def.outputsSchema as Schema | Schema[] | undefined;
+    static override readonly outputsSchema:
+      | Schema
+      | Schema[]
+      | Record<string, Schema>
+      | undefined = def.outputsSchema as
+      | Schema
+      | Schema[]
+      | Record<string, Schema>
+      | undefined;
     static override readonly validateInput: boolean =
       def.validateInput ?? false;
     static override readonly validateOutput: boolean =

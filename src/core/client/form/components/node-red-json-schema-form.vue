@@ -20,7 +20,7 @@
           @update:model-value="
             (val: boolean) => {
               node[field.key] = val;
-              if (field.isEmitPort) recalculateOutputs();
+              if (field.isBuiltinPort) recalculateOutputs();
             }
           "
         />
@@ -39,7 +39,7 @@
           @change="
             (e) => {
               node[field.key] = (e.target as HTMLInputElement).checked;
-              if (field.isEmitPort) recalculateOutputs();
+              if (field.isBuiltinPort) recalculateOutputs();
             }
           "
         />
@@ -164,6 +164,7 @@ import NodeRedSelectInput from "./node-red-select-input.vue";
 import NodeRedTypedInput from "./node-red-typed-input.vue";
 import NodeRedConfigInput from "./node-red-config-input.vue";
 import NodeRedEditorInput from "./node-red-editor-input.vue";
+import { BUILTIN_PORT_KEYS } from "../../../constants";
 
 // System fields managed by Node-RED — not shown in the editor form.
 const SKIP_FIELDS = new Set([
@@ -179,12 +180,10 @@ const SKIP_FIELDS = new Set([
   "validateInput",
   "validateOutput",
   "outputs",
-  "emitError",
-  "emitComplete",
-  "emitStatus",
+  ...BUILTIN_PORT_KEYS,
 ]);
 
-const EMIT_PORT_FIELDS = new Set(["emitError", "emitComplete", "emitStatus"]);
+const BUILTIN_PORT_FIELDS = new Set<string>(BUILTIN_PORT_KEYS);
 
 interface NrgFormOptions {
   icon?: string;
@@ -232,7 +231,7 @@ interface FormField {
   configType?: string;
   language?: string;
   toggle?: boolean;
-  isEmitPort?: boolean;
+  isBuiltinPort?: boolean;
 }
 
 function formatLabel(key: string): string {
@@ -343,7 +342,7 @@ function buildField(
         inputType: "boolean",
         required,
         toggle: form.toggle,
-        isEmitPort: EMIT_PORT_FIELDS.has(key),
+        isBuiltinPort: BUILTIN_PORT_FIELDS.has(key),
       };
 
     case "number":
@@ -487,17 +486,17 @@ export default defineComponent({
   methods: {
     recalculateOutputs() {
       if (!this.schema?.properties) return;
-      const hasEmitFields = Object.keys(this.schema.properties).some((k) =>
-        EMIT_PORT_FIELDS.has(k),
+      const hasBuiltinFields = Object.keys(this.schema.properties).some((k) =>
+        BUILTIN_PORT_FIELDS.has(k),
       );
-      if (!hasEmitFields) return;
+      if (!hasBuiltinFields) return;
 
       // Find base outputs from the node definition (static outputs count)
       const baseOutputs = this.node._def?.outputs ?? 0;
       let count = baseOutputs;
-      if (this.node.emitError) count++;
-      if (this.node.emitComplete) count++;
-      if (this.node.emitStatus) count++;
+      if (this.node.errorPort) count++;
+      if (this.node.completePort) count++;
+      if (this.node.statusPort) count++;
       this.node.outputs = count;
     },
     resolveI18n(prefix: string, key: string): string | undefined {

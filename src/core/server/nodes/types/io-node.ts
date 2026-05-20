@@ -39,7 +39,11 @@ type BoundIONode<
   TCr extends TSchema | undefined,
   TS extends TSchema | undefined,
   TIn extends TSchema | undefined,
-  TOut extends TSchema | readonly TSchema[] | undefined,
+  TOut extends
+    | TSchema
+    | readonly TSchema[]
+    | Record<string, TSchema>
+    | undefined,
 > = IONode<
   InferOr<TC, any>,
   InferOr<TCr, any>,
@@ -71,9 +75,16 @@ interface IIONode<
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
-  sendToPort(
-    port: number | "error" | "complete" | "status",
-    msg: TOutput,
+  sendToPort<
+    P extends
+      | (keyof TOutput & string)
+      | number
+      | "error"
+      | "complete"
+      | "status",
+  >(
+    port: P,
+    msg: P extends keyof TOutput ? TOutput[P] : unknown,
   ): void;
 }
 
@@ -82,7 +93,11 @@ interface IONodeDefinition<
   TCredsSchema extends TSchema | undefined = undefined,
   TSettingsSchema extends TSchema | undefined = undefined,
   TInputSchema extends TSchema | undefined = undefined,
-  TOutputsSchema extends TSchema | readonly TSchema[] | undefined = undefined,
+  TOutputsSchema extends
+    | TSchema
+    | readonly TSchema[]
+    | Record<string, TSchema>
+    | undefined = undefined,
 > {
   type: string;
   category?: string;

@@ -30,8 +30,22 @@ type ResolveNodeRefs<T> =
           ? { [K in keyof T]: ResolveNodeRefs<T[K]> }
           : T;
 
-/** Infers the TypeScript type from a schema, resolving node references to their instance types. */
-type Infer<T extends TSchema> = ResolveNodeRefs<Static<T>>;
+/**
+ * Infers the TypeScript type from a schema or a record of schemas.
+ *
+ * - Single schema: `Infer<typeof MySchema>` → the inferred message type
+ * - Record of schemas: `Infer<typeof outputsSchema>` → `{ portName: InferredType }` port map
+ *
+ * The record form produces a simple mapped type that resolves eagerly,
+ * giving `sendToPort()` proper autocomplete in class-based nodes.
+ */
+type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
+  ? ResolveNodeRefs<Static<T>>
+  : {
+      [K in keyof T & string]: T[K] extends TSchema
+        ? ResolveNodeRefs<Static<T[K]>>
+        : never;
+    };
 
 type TypedInputType = (typeof TYPED_INPUT_TYPES)[number];
 
@@ -52,7 +66,9 @@ type InferOutputs<T> = T extends readonly TSchema[]
   ? { [K in keyof T]: T[K] extends TSchema ? Infer<T[K]> : never }
   : T extends TSchema
     ? Infer<T>
-    : any;
+    : T extends Record<string, TSchema>
+      ? { [K in keyof T & string]: Infer<T[K]> }
+      : any;
 
 export {
   Infer,

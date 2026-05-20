@@ -22,7 +22,7 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   readonly credentialsSchema?: Schema;
   readonly settingsSchema?: Schema;
   readonly inputSchema?: Schema;
-  readonly outputsSchema?: Schema | Schema[];
+  readonly outputsSchema?: Schema | Schema[] | Record<string, Schema>;
   readonly validateInput?: boolean;
   readonly validateOutput?: boolean;
   readonly name: string;

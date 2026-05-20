@@ -58,9 +58,53 @@ const TypedInputSchema = SchemaType.Object(
   },
 );
 
+// --- Built-in port schemas ---
+// These match the message shapes constructed by IONode at runtime.
+
+const NodeSourceSchema = SchemaType.Object({
+  id: SchemaType.String(),
+  type: SchemaType.String(),
+  name: SchemaType.String(),
+});
+
+const ErrorPortSchema = SchemaType.Object({
+  error: SchemaType.Object({
+    message: SchemaType.String(),
+    source: NodeSourceSchema,
+  }),
+});
+
+const CompletePortSchema = SchemaType.Object({
+  complete: SchemaType.Object({
+    source: NodeSourceSchema,
+  }),
+});
+
+const StatusPortSchema = SchemaType.Object({
+  status: SchemaType.Object({
+    fill: SchemaType.Optional(
+      SchemaType.Union([
+        SchemaType.Literal("red"),
+        SchemaType.Literal("green"),
+      ]),
+    ),
+    shape: SchemaType.Optional(
+      SchemaType.Union([
+        SchemaType.Literal("dot"),
+        SchemaType.Literal("string"),
+      ]),
+    ),
+    text: SchemaType.Optional(SchemaType.String()),
+  }),
+  source: NodeSourceSchema,
+});
+
 export {
+  CompletePortSchema,
   ConfigNodeConfigSchema,
+  ErrorPortSchema,
   IONodeConfigSchema,
   NodeConfigSchema,
+  StatusPortSchema,
   TypedInputSchema,
 };

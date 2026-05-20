@@ -210,9 +210,10 @@ function generateHelpDoc(
 
   // Output(s) — no Default column
   if (nodeClass.outputsSchema) {
-    if (Array.isArray(nodeClass.outputsSchema)) {
+    const os = nodeClass.outputsSchema;
+    if (Array.isArray(os)) {
       const portSections: string[] = [];
-      nodeClass.outputsSchema.forEach((schema: any, i: number) => {
+      os.forEach((schema: any, i: number) => {
         const title = `${t.sections.port} ${i + 1}`;
         const portPropLabels = labels.outputs?.[i];
         const section = generateSchemaSection({
@@ -230,11 +231,31 @@ function generateHelpDoc(
           `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
         );
       }
+    } else if (!("type" in os || "properties" in os)) {
+      // Record of named port schemas: { portName: Schema, ... }
+      const portSections: string[] = [];
+      for (const [portName, schema] of Object.entries(os)) {
+        const portPropLabels = (labels.outputs as any)?.[portName];
+        const section = generateSchemaSection({
+          title: portName,
+          schema: schema as any,
+          t,
+          labels: portPropLabels,
+          heading: "####",
+          includeDefault: false,
+        });
+        if (section) portSections.push(section);
+      }
+      if (portSections.length) {
+        lines.push(
+          `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
+        );
+      }
     } else {
       const outputPropLabels = labels.outputs?.[0];
       const section = generateSchemaSection({
         title: t.sections.output,
-        schema: nodeClass.outputsSchema,
+        schema: os,
         t,
         labels: outputPropLabels,
         includeDefault: false,

@@ -30,7 +30,14 @@ export {
   defineIONode,
   defineConfigNode,
 } from "./nodes";
+export type { NodeConstructor, IIONode, IConfigNode } from "./nodes/types";
 export { NrgError } from "../errors";
 export type { RED } from "./types";
-export { SchemaType, defineSchema } from "./schemas";
+export {
+  SchemaType,
+  defineSchema,
+  ErrorPortSchema,
+  CompletePortSchema,
+  StatusPortSchema,
+} from "./schemas";
 export type { Schema, Infer, TNodeRef, TTypedInput } from "./schemas/types";

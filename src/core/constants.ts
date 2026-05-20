@@ -15,4 +15,7 @@ const TYPED_INPUT_TYPES = [
   "cred",
 ] as const;
 
-export { TYPED_INPUT_TYPES };
+/** Reserved config property names for built-in ports (error, complete, status) */
+const BUILTIN_PORT_KEYS = ["errorPort", "completePort", "statusPort"] as const;
+
+export { BUILTIN_PORT_KEYS, TYPED_INPUT_TYPES };

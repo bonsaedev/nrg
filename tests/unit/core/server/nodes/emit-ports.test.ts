@@ -6,9 +6,9 @@ import { defineSchema, SchemaType } from "@/core/server/schemas";
 const ConfigSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
-    emitError: SchemaType.Boolean({ default: false }),
-    emitComplete: SchemaType.Boolean({ default: false }),
-    emitStatus: SchemaType.Boolean({ default: false }),
+    errorPort: SchemaType.Boolean({ default: false }),
+    completePort: SchemaType.Boolean({ default: false }),
+    statusPort: SchemaType.Boolean({ default: false }),
   },
   { $id: "emit-test:config" },
 );
@@ -37,12 +37,12 @@ const TestNode = defineIONode({
 
 describe("emit ports", () => {
   describe("port index calculation", () => {
-    it("has only base output when all emit flags are false", async () => {
+    it("has only base output when all built-in port flags are false", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -53,21 +53,21 @@ describe("emit ports", () => {
     it("adds one port when error is enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: true,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: true,
+          completePort: false,
+          statusPort: false,
         },
       });
 
       expect(node.totalOutputs).toBe(2);
     });
 
-    it("adds three ports when all emit flags are enabled", async () => {
+    it("adds three ports when all built-in port flags are enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: true,
-          emitComplete: true,
-          emitStatus: true,
+          errorPort: true,
+          completePort: true,
+          statusPort: true,
         },
       });
 
@@ -77,9 +77,9 @@ describe("emit ports", () => {
     it("adds two ports when only complete and status are enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: true,
-          emitStatus: true,
+          errorPort: false,
+          completePort: true,
+          statusPort: true,
         },
       });
 
@@ -91,9 +91,9 @@ describe("emit ports", () => {
     it("sends exactly one message to error port on explicit error() call", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: true,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: true,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -112,9 +112,9 @@ describe("emit ports", () => {
     it("does not send to error port when disabled but still logs error", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -136,9 +136,9 @@ describe("emit ports", () => {
     it("sends exactly one message to status port on status() call", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: true,
+          errorPort: false,
+          completePort: false,
+          statusPort: true,
         },
       });
 
@@ -159,9 +159,9 @@ describe("emit ports", () => {
     it("does not send to status port when disabled but still updates UI status", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -182,9 +182,9 @@ describe("emit ports", () => {
     it("includes source metadata in error message", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: true,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: true,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -213,9 +213,9 @@ describe("emit ports", () => {
 
       const { node } = await createNode(NodeWithLogError, {
         config: {
-          emitError: true,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: true,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -233,9 +233,9 @@ describe("emit ports", () => {
     it("includes source metadata in status message", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: true,
+          errorPort: false,
+          completePort: false,
+          statusPort: true,
         },
       });
 
@@ -268,9 +268,9 @@ describe("emit ports", () => {
 
       const { node } = await createNode(MultiStatusNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: true,
+          errorPort: false,
+          completePort: false,
+          statusPort: true,
         },
       });
 
@@ -291,9 +291,9 @@ describe("emit ports", () => {
     it("adds one port when only status is enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: true,
+          errorPort: false,
+          completePort: false,
+          statusPort: true,
         },
       });
 
@@ -305,9 +305,9 @@ describe("emit ports", () => {
     it("adds one port when only complete is enabled", async () => {
       const { node } = await createNode(TestNode, {
         config: {
-          emitError: false,
-          emitComplete: true,
-          emitStatus: false,
+          errorPort: false,
+          completePort: true,
+          statusPort: false,
         },
       });
 
@@ -329,9 +329,9 @@ describe("emit ports", () => {
 
       const { node } = await createNode(SendToPortNode, {
         config: {
-          emitError: false,
-          emitComplete: true,
-          emitStatus: false,
+          errorPort: false,
+          completePort: true,
+          statusPort: false,
         },
       });
 
@@ -358,9 +358,9 @@ describe("emit ports", () => {
 
       const { node } = await createNode(SendToPortNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -383,9 +383,9 @@ describe("emit ports", () => {
 
       const { node } = await createNode(SendToPortNode, {
         config: {
-          emitError: false,
-          emitComplete: false,
-          emitStatus: false,
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
         },
       });
 
@@ -411,9 +411,9 @@ describe("emit ports", () => {
 
       const { node } = await createNode(SendToPortNode, {
         config: {
-          emitError: true,
-          emitComplete: true,
-          emitStatus: true,
+          errorPort: true,
+          completePort: true,
+          statusPort: true,
         },
       });
 
@@ -429,7 +429,7 @@ describe("emit ports", () => {
     });
   });
 
-  describe("no emit flags in schema", () => {
+  describe("no built-in port flags in schema", () => {
     const SimpleNode = defineIONode({
       type: "simple-test",
       inputSchema: SchemaType.Object({}),
@@ -439,7 +439,7 @@ describe("emit ports", () => {
       },
     });
 
-    it("works normally without emit flags", async () => {
+    it("works normally without built-in port flags", async () => {
       const { node } = await createNode(SimpleNode, {});
 
       await node.receive({ payload: "hello" });

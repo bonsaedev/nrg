@@ -127,17 +127,17 @@ async function registerType(definition: NodeDefinition): Promise<void> {
           }
         : nodeDefinition.configSchema;
 
-    const hasEmitPorts =
+    const hasBuiltinPorts =
       defaults &&
-      ("emitError" in defaults ||
-        "emitComplete" in defaults ||
-        "emitStatus" in defaults);
+      ("errorPort" in defaults ||
+        "completePort" in defaults ||
+        "statusPort" in defaults);
     const baseOutputs = nodeDefinition.outputs || 0;
-    if (hasEmitPorts && defaults && !("outputs" in defaults)) {
+    if (hasBuiltinPorts && defaults && !("outputs" in defaults)) {
       let initialOutputs = baseOutputs;
-      if (defaults.emitError?.value) initialOutputs++;
-      if (defaults.emitComplete?.value) initialOutputs++;
-      if (defaults.emitStatus?.value) initialOutputs++;
+      if (defaults.errorPort?.value) initialOutputs++;
+      if (defaults.completePort?.value) initialOutputs++;
+      if (defaults.statusPort?.value) initialOutputs++;
       defaults.outputs = { value: initialOutputs };
     }
 
@@ -286,17 +286,28 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       outputLabels:
         nodeDefinition.outputLabels ||
         function (this: NodeRedNode, index: number) {
-          if (hasEmitPorts) {
+          // Named output ports from record-based outputsSchema
+          const os = nodeDefinition.outputsSchema;
+          if (
+            os &&
+            typeof os === "object" &&
+            !Array.isArray(os) &&
+            !("type" in os || "properties" in os)
+          ) {
+            const portNames = Object.keys(os);
+            if (index < portNames.length) return portNames[index];
+          }
+          if (hasBuiltinPorts) {
             let extraIdx = baseOutputs;
-            if (this.emitError) {
+            if (this.errorPort) {
               if (index === extraIdx) return "Error";
               extraIdx++;
             }
-            if (this.emitComplete) {
+            if (this.completePort) {
               if (index === extraIdx) return "Complete";
               extraIdx++;
             }
-            if (this.emitStatus) {
+            if (this.statusPort) {
               if (index === extraIdx) return "Status";
               extraIdx++;
             }

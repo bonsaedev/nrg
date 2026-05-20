@@ -187,6 +187,7 @@ function getSchemaReferences(filePath: string): Array<{
   semanticName: string;
   importSource: string;
   tupleProp?: string;
+  recordPortName?: string;
 }> {
   const content = fs.readFileSync(filePath, "utf-8");
   const source = ts.createSourceFile(
@@ -213,12 +214,42 @@ function getSchemaReferences(filePath: string): Array<{
   // Collect schema property assignments: { propName → identifiers[] }
   const schemaRefs = new Map<string, string[]>();
 
-  // Extract identifier(s) from an initializer — handles both single identifiers
-  // and array literals like [Output1Schema, Output2Schema].
-  function extractIdentifiers(node: ts.Expression): string[] {
+  // Track record-shaped outputsSchema: maps schema identifier → port name
+  const recordPortNames = new Map<string, string>();
+  let outputsSchemaIsRecord = false;
+
+  // Extract identifier(s) from an initializer — handles single identifiers,
+  // array literals like [Output1Schema, Output2Schema], and record literals
+  // like { success: SuccessSchema, failure: FailureSchema }.
+  function extractIdentifiers(
+    node: ts.Expression,
+    propName?: string,
+  ): string[] {
     if (ts.isIdentifier(node)) return [node.text];
     if (ts.isArrayLiteralExpression(node)) {
       return node.elements.filter(ts.isIdentifier).map((el) => el.text);
+    }
+    // Record literal: { portName: SchemaIdentifier, ... }
+    if (ts.isObjectLiteralExpression(node) && propName === "outputsSchema") {
+      const ids: string[] = [];
+      outputsSchemaIsRecord = true;
+      for (const prop of node.properties) {
+        if (
+          ts.isPropertyAssignment(prop) &&
+          ts.isIdentifier(prop.initializer)
+        ) {
+          const portName = ts.isIdentifier(prop.name)
+            ? prop.name.text
+            : ts.isStringLiteral(prop.name)
+              ? prop.name.text
+              : undefined;
+          if (portName) {
+            ids.push(prop.initializer.text);
+            recordPortNames.set(prop.initializer.text, portName);
+          }
+        }
+      }
+      return ids;
     }
     return [];
   }
@@ -226,6 +257,7 @@ function getSchemaReferences(filePath: string): Array<{
   for (const stmt of source.statements) {
     // Class-based: static readonly configSchema = ConfigsSchema
     //              static readonly outputsSchema = [Output1Schema, Output2Schema]
+    //              static readonly outputsSchema = { success: SuccessSchema, ... }
     if (ts.isClassDeclaration(stmt)) {
       for (const member of stmt.members) {
         if (
@@ -234,7 +266,7 @@ function getSchemaReferences(filePath: string): Array<{
           member.name.text in SCHEMA_PROP_SEMANTICS &&
           member.initializer
         ) {
-          const ids = extractIdentifiers(member.initializer);
+          const ids = extractIdentifiers(member.initializer, member.name.text);
           if (ids.length > 0) {
             schemaRefs.set(member.name.text, ids);
           }
@@ -261,7 +293,7 @@ function getSchemaReferences(filePath: string): Array<{
               ts.isIdentifier(prop.name) &&
               prop.name.text in SCHEMA_PROP_SEMANTICS
             ) {
-              const ids = extractIdentifiers(prop.initializer);
+              const ids = extractIdentifiers(prop.initializer, prop.name.text);
               if (ids.length > 0) {
                 schemaRefs.set(prop.name.text, ids);
               }
@@ -278,18 +310,23 @@ function getSchemaReferences(filePath: string): Array<{
     semanticName: string;
     importSource: string;
     tupleProp?: string;
+    recordPortName?: string;
   }> = [];
   for (const [propName, identifiers] of schemaRefs) {
     const semanticName = SCHEMA_PROP_SEMANTICS[propName];
-    const isArray = identifiers.length > 1;
+    const isArray = identifiers.length > 1 && !outputsSchemaIsRecord;
+    const isRecord = propName === "outputsSchema" && outputsSchemaIsRecord;
     for (const identifier of identifiers) {
       const importSource = importMap.get(identifier);
       if (importSource) {
         result.push({
           localName: identifier,
-          semanticName: isArray ? identifier : semanticName,
+          semanticName: isArray || isRecord ? identifier : semanticName,
           importSource,
-          tupleProp: isArray ? semanticName : undefined,
+          tupleProp: isArray || isRecord ? semanticName : undefined,
+          recordPortName: isRecord
+            ? recordPortNames.get(identifier)
+            : undefined,
         });
       }
     }
@@ -334,15 +371,28 @@ function getFactoryInfo(
 
 /**
  * Build a type argument string from a schema map entry.
- * Returns "any" if no schema, "Infer<typeof X>" for single, or a tuple for arrays.
+ * Returns "any" if no schema, "Infer<typeof X>" for single, a tuple for arrays,
+ * or a record type for named port schemas.
  */
 function buildTypeArg(
   schemaMap: Map<string, string[]>,
   semanticName: string,
+  portNameMap?: Map<string, string>,
 ): string {
   const names = schemaMap.get(semanticName);
   if (!names || names.length === 0) return "any";
-  if (names.length === 1) return `Infer<typeof ${names[0]}>`;
+  if (names.length === 1 && !portNameMap?.has(names[0]))
+    return `Infer<typeof ${names[0]}>`;
+  // Record-based outputsSchema: { portName: Infer<typeof Schema>, ... }
+  if (portNameMap && names.some((n) => portNameMap.has(n))) {
+    const entries = names
+      .map((n) => {
+        const portName = portNameMap.get(n);
+        return portName ? `${portName}: Infer<typeof ${n}>` : null;
+      })
+      .filter(Boolean);
+    return `{ ${entries.join(", ")} }`;
+  }
   return `[${names.map((n) => `Infer<typeof ${n}>`).join(", ")}]`;
 }
 
@@ -375,13 +425,19 @@ function buildNodeReexports(srcDir: string, entryFile: string): string {
 
         // Build schema map: semantic name → local identifiers
         const schemaMap = new Map<string, string[]>();
+        // Build port name map for record-based outputsSchema
+        const portNameMap = new Map<string, string>();
         for (const ref of schemaRefs) {
           const key = ref.tupleProp ?? ref.semanticName;
           if (!schemaMap.has(key)) schemaMap.set(key, []);
           schemaMap.get(key)!.push(ref.localName);
+          if (ref.recordPortName) {
+            portNameMap.set(ref.localName, ref.recordPortName);
+          }
         }
 
         const hasSchemas = schemaMap.size > 0;
+        const hasRecordOutputs = portNameMap.size > 0;
 
         // NRG type imports
         const nrgImports = ["NodeConstructor", interfaceName];
@@ -416,11 +472,16 @@ function buildNodeReexports(srcDir: string, entryFile: string): string {
         // Build generic type arguments
         let typeArgs: string;
         if (factoryInfo.factoryName === "defineIONode") {
+          const outputsArg = buildTypeArg(
+            schemaMap,
+            "OutputsSchema",
+            portNameMap.size > 0 ? portNameMap : undefined,
+          );
           typeArgs = [
             buildTypeArg(schemaMap, "ConfigSchema"),
             buildTypeArg(schemaMap, "CredentialsSchema"),
             buildTypeArg(schemaMap, "InputSchema"),
-            buildTypeArg(schemaMap, "OutputsSchema"),
+            outputsArg,
           ].join(", ");
         } else {
           typeArgs = [

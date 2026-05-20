@@ -18,38 +18,38 @@
       />
     </div>
   </div>
-  <div v-if="hasEmitPorts" class="form-row nrg-toggles-grid">
-    <div v-if="hasEmitError">
+  <div v-if="hasBuiltinPorts" class="form-row nrg-toggles-grid">
+    <div v-if="hasErrorPort">
       <NodeRedToggle
-        :model-value="localNode.emitError"
+        :model-value="localNode.errorPort"
         :label="resolveLabel('toggles.errorPort', 'Error Port')"
         @update:model-value="
           (val: boolean) => {
-            localNode.emitError = val;
+            localNode.errorPort = val;
             recalculateOutputs();
           }
         "
       />
     </div>
-    <div v-if="hasEmitComplete">
+    <div v-if="hasCompletePort">
       <NodeRedToggle
-        :model-value="localNode.emitComplete"
+        :model-value="localNode.completePort"
         :label="resolveLabel('toggles.completePort', 'Complete Port')"
         @update:model-value="
           (val: boolean) => {
-            localNode.emitComplete = val;
+            localNode.completePort = val;
             recalculateOutputs();
           }
         "
       />
     </div>
-    <div v-if="hasEmitStatus">
+    <div v-if="hasStatusPort">
       <NodeRedToggle
-        :model-value="localNode.emitStatus"
+        :model-value="localNode.statusPort"
         :label="resolveLabel('toggles.statusPort', 'Status Port')"
         @update:model-value="
           (val: boolean) => {
-            localNode.emitStatus = val;
+            localNode.statusPort = val;
             recalculateOutputs();
           }
         "
@@ -99,17 +99,17 @@ export default defineComponent({
     };
   },
   computed: {
-    hasEmitError(): boolean {
-      return this.schema?.properties?.emitError !== undefined;
+    hasErrorPort(): boolean {
+      return this.schema?.properties?.errorPort !== undefined;
     },
-    hasEmitComplete(): boolean {
-      return this.schema?.properties?.emitComplete !== undefined;
+    hasCompletePort(): boolean {
+      return this.schema?.properties?.completePort !== undefined;
     },
-    hasEmitStatus(): boolean {
-      return this.schema?.properties?.emitStatus !== undefined;
+    hasStatusPort(): boolean {
+      return this.schema?.properties?.statusPort !== undefined;
     },
-    hasEmitPorts(): boolean {
-      return this.hasEmitError || this.hasEmitComplete || this.hasEmitStatus;
+    hasBuiltinPorts(): boolean {
+      return this.hasErrorPort || this.hasCompletePort || this.hasStatusPort;
     },
   },
   created() {
@@ -217,9 +217,9 @@ export default defineComponent({
     recalculateOutputs() {
       const baseOutputs = this.localNode._def?.outputs ?? 0;
       let count = baseOutputs;
-      if (this.localNode.emitError) count++;
-      if (this.localNode.emitComplete) count++;
-      if (this.localNode.emitStatus) count++;
+      if (this.localNode.errorPort) count++;
+      if (this.localNode.completePort) count++;
+      if (this.localNode.statusPort) count++;
       this.localNode.outputs = count;
     },
   },

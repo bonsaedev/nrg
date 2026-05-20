@@ -1,8 +1,14 @@
+import { Kind } from "@sinclair/typebox";
 import type { ResolveNodeRefs, Schema } from "../schemas/types";
 import type { RED, NodeRedNode, NodeRedContextStore } from "../types";
 import type { NodeContextStore } from "./types";
 import { NrgError } from "../../errors";
 import TypedInput from "../typed-input";
+
+/** Returns true if `obj` is a TypeBox schema (has the `Kind` symbol). */
+function isSchemaLike(obj: unknown): boolean {
+  return obj != null && typeof obj === "object" && Kind in obj;
+}
 
 function setupContext(
   context: NodeRedContextStore,
@@ -117,4 +123,4 @@ function setupConfigProxy<T extends object>(
   return createProxy(config) as ResolveNodeRefs<T>;
 }
 
-export { setupConfigProxy, setupContext };
+export { isSchemaLike, setupConfigProxy, setupContext };

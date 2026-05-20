@@ -1,6 +1,8 @@
 import type { Schema } from "../schemas/types";
 import type { RED, NodeRedNode } from "../../server/types";
 import { Node } from "./node";
+import { NrgError } from "../../errors";
+import type { BUILTIN_PORT_KEYS } from "../../constants";
 import type {
   HexColor,
   IIONode,
@@ -10,17 +12,12 @@ import type {
   IONodeConfig,
   IONodeCredentials,
 } from "./types";
-import { setupContext } from "./utils";
+import { isSchemaLike, setupContext } from "./utils";
 import { WIRE_HANDLERS } from "./symbols";
 
-/** Reserved config property names for dynamic emit ports */
-const EMIT_PORT_KEYS = ["emitError", "emitComplete", "emitStatus"] as const;
-
-interface EmitPortFlags {
-  emitError?: boolean;
-  emitComplete?: boolean;
-  emitStatus?: boolean;
-}
+type BuiltinPortFlags = {
+  [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;
+};
 
 /**
  * Base class for nodes that process messages. Provides input/output handling,
@@ -52,7 +49,10 @@ abstract class IONode<
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
   public static readonly inputSchema?: Schema;
-  public static readonly outputsSchema?: Schema | Schema[];
+  public static readonly outputsSchema?:
+    | Schema
+    | Schema[]
+    | Record<string, Schema>;
   public static readonly validateInput: boolean = false;
   public static readonly validateOutput: boolean = false;
 
@@ -63,7 +63,20 @@ abstract class IONode<
   public static get outputs(): number {
     const s = this.outputsSchema;
     if (!s) return 0;
-    return Array.isArray(s) ? s.length : 1;
+    if (Array.isArray(s)) return s.length;
+    if (isSchemaLike(s)) return 1;
+    // Record of named ports — validate no numeric keys
+    const keys = Object.keys(s);
+    for (const key of keys) {
+      if (/^\d+$/.test(key)) {
+        throw new NrgError(
+          `outputsSchema record key "${key}" in ${this.type} looks numeric. ` +
+            `Use descriptive string names (e.g. "success", "failure") to avoid ` +
+            `JavaScript object key ordering issues.`,
+        );
+      }
+    }
+    return keys.length;
   }
 
   #send: ((msg: any) => void) | undefined;
@@ -194,34 +207,50 @@ abstract class IONode<
       this.config.validateOutput ?? NodeClass.validateOutput;
     if (shouldValidateOutput && NodeClass.outputsSchema) {
       this.log("Validating output");
-      const schemas = NodeClass.outputsSchema;
+      const rawSchema = NodeClass.outputsSchema;
 
-      if (Array.isArray(schemas)) {
+      if (Array.isArray(rawSchema)) {
         // Per-port validation: schemas[i] validates msg[i]
         const msgs = msg as unknown[];
-        for (let i = 0; i < schemas.length; i++) {
+        for (let i = 0; i < rawSchema.length; i++) {
           if (msgs[i] == null) continue;
-          this.RED.validator.validate(msgs[i], schemas[i], {
-            cacheKey: schemas[i].$id || `${NodeClass.type}:output-schema:${i}`,
+          this.RED.validator.validate(msgs[i], rawSchema[i], {
+            cacheKey:
+              rawSchema[i].$id || `${NodeClass.type}:output-schema:${i}`,
             throwOnError: true,
           });
         }
-      } else if (Array.isArray(msg)) {
-        // Single schema, array of messages: validate each non-null element
-        const msgs = msg as unknown[];
-        for (let i = 0; i < msgs.length; i++) {
-          if (msgs[i] == null) continue;
-          this.RED.validator.validate(msgs[i], schemas, {
-            cacheKey: schemas.$id || `${NodeClass.type}:output-schema`,
+      } else if (isSchemaLike(rawSchema)) {
+        // Single schema
+        if (Array.isArray(msg)) {
+          const msgs = msg as unknown[];
+          for (let i = 0; i < msgs.length; i++) {
+            if (msgs[i] == null) continue;
+            this.RED.validator.validate(msgs[i], rawSchema as Schema, {
+              cacheKey:
+                (rawSchema as Schema).$id || `${NodeClass.type}:output-schema`,
+              throwOnError: true,
+            });
+          }
+        } else {
+          this.RED.validator.validate(msg, rawSchema as Schema, {
+            cacheKey:
+              (rawSchema as Schema).$id || `${NodeClass.type}:output-schema`,
             throwOnError: true,
           });
         }
       } else {
-        // Single schema, single message
-        this.RED.validator.validate(msg, schemas, {
-          cacheKey: schemas.$id || `${NodeClass.type}:output-schema`,
-          throwOnError: true,
-        });
+        // Record of named port schemas — validate per-port by index
+        const schemaArray = Object.values(rawSchema);
+        const msgs = msg as unknown[];
+        for (let i = 0; i < schemaArray.length; i++) {
+          if (msgs[i] == null) continue;
+          this.RED.validator.validate(msgs[i], schemaArray[i], {
+            cacheKey:
+              schemaArray[i].$id || `${NodeClass.type}:output-schema:${i}`,
+            throwOnError: true,
+          });
+        }
       }
       this.log("Output is valid");
     }
@@ -233,40 +262,48 @@ abstract class IONode<
     }
   }
 
-  // --- Emit port management ---
+  // --- Built-in port management ---
 
   public get baseOutputs(): number {
     return (this.constructor as typeof IONode).outputs ?? 0;
   }
 
   public get totalOutputs(): number {
-    const config = this.config as unknown as EmitPortFlags;
+    const config = this.config as unknown as BuiltinPortFlags;
     let count = this.baseOutputs;
-    if (config.emitError) count++;
-    if (config.emitComplete) count++;
-    if (config.emitStatus) count++;
+    if (config.errorPort) count++;
+    if (config.completePort) count++;
+    if (config.statusPort) count++;
     return count;
   }
 
   /**
    * Send a message to a specific output port by index or name.
-   * Named ports: `"error"`, `"complete"`, `"status"` — resolved automatically
-   * based on the node's emit port configuration.
+   * Built-in ports: `"error"`, `"complete"`, `"status"` — resolved automatically
+   * based on the node's built-in port configuration.
+   * Custom named ports are resolved from `outputsSchema` when it is a record.
    * Numeric indices refer to the base output ports (0-based).
    */
-  public sendToPort(
-    port: number | "error" | "complete" | "status",
-    msg: TOutput,
-  ) {
+  public sendToPort<
+    P extends
+      | (keyof TOutput & string)
+      | number
+      | "error"
+      | "complete"
+      | "status",
+  >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
     this.#sendToPort(port, msg);
   }
 
-  #sendToPort(port: number | "error" | "complete" | "status", msg: unknown) {
+  #sendToPort(port: number | string, msg: unknown) {
     let portIndex: number | null;
     if (typeof port === "number") {
       portIndex = port;
+    } else if (port === "error" || port === "complete" || port === "status") {
+      portIndex = this.#getBuiltinPortIndex(port);
+      if (portIndex === null) return;
     } else {
-      portIndex = this.#getEmitPortIndex(port);
+      portIndex = this.#getNamedPortIndex(port);
       if (portIndex === null) return;
     }
     const out: (unknown | null)[] = Array(this.totalOutputs).fill(null);
@@ -274,18 +311,25 @@ abstract class IONode<
     this.node.send(out);
   }
 
-  #getEmitPortIndex(name: "error" | "complete" | "status"): number | null {
-    const config = this.config as unknown as EmitPortFlags;
+  #getNamedPortIndex(name: string): number | null {
+    const schema = (this.constructor as typeof IONode).outputsSchema;
+    if (!schema || Array.isArray(schema) || isSchemaLike(schema)) return null;
+    const idx = Object.keys(schema).indexOf(name);
+    return idx === -1 ? null : idx;
+  }
+
+  #getBuiltinPortIndex(name: "error" | "complete" | "status"): number | null {
+    const config = this.config as unknown as BuiltinPortFlags;
     if (name === "error") {
-      return config.emitError ? this.baseOutputs : null;
+      return config.errorPort ? this.baseOutputs : null;
     }
     let idx = this.baseOutputs;
-    if (config.emitError) idx++;
+    if (config.errorPort) idx++;
     if (name === "complete") {
-      return config.emitComplete ? idx : null;
+      return config.completePort ? idx : null;
     }
-    if (config.emitComplete) idx++;
-    return config.emitStatus ? idx : null;
+    if (config.completePort) idx++;
+    return config.statusPort ? idx : null;
   }
 
   #nodeSource() {
@@ -348,4 +392,4 @@ abstract class IONode<
   }
 }
 
-export { IONode, EMIT_PORT_KEYS };
+export { IONode };
