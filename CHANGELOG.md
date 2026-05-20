@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.15.0](https://github.com/bonsaedev/nrg/compare/v0.14.0...v0.15.0) (2026-05-20)
+
+
+### Features
+
+* add named output ports and rename emit config keys ([3d69414](https://github.com/bonsaedev/nrg/commit/3d694145e61732b588a1d43181cbc6c2f26686a7))
+
 # [0.14.0](https://github.com/bonsaedev/nrg/compare/v0.13.1...v0.14.0) (2026-05-13)
 
 
