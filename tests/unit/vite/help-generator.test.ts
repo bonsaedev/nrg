@@ -336,6 +336,47 @@ describe("help-generator", () => {
       expect(doc).toContain("<h4>Port 2</h4>");
     });
 
+    it("handles record-based named output ports", () => {
+      const namedOutputNode = {
+        ...mockNodeClass,
+        outputsSchema: {
+          success: { properties: { payload: { type: "string" } } },
+          failure: { properties: { reason: { type: "string" } } },
+        },
+      };
+
+      const doc = generateHelpDoc(
+        namedOutputNode,
+        {
+          outputs: {
+            success: { payload: "Result" },
+            failure: { reason: "Error reason" },
+          } as any,
+        },
+        enUS,
+      );
+
+      expect(doc).toContain("<h3>Outputs</h3>");
+      expect(doc).toContain("<h4>success</h4>");
+      expect(doc).toContain("<h4>failure</h4>");
+    });
+
+    it("handles record outputs without labels", () => {
+      const namedOutputNode = {
+        ...mockNodeClass,
+        outputsSchema: {
+          success: { properties: { payload: { type: "string" } } },
+          failure: { properties: { reason: { type: "string" } } },
+        },
+      };
+
+      const doc = generateHelpDoc(namedOutputNode, {}, enUS);
+
+      expect(doc).toContain("<h3>Outputs</h3>");
+      expect(doc).toContain("<h4>success</h4>");
+      expect(doc).toContain("<h4>failure</h4>");
+    });
+
     it("returns empty string when no schemas or labels exist", () => {
       const doc = generateHelpDoc({}, {}, enUS);
       expect(doc).toBe("");
