@@ -6,3 +6,4 @@ tests/fixtures/*/node_modules/
 tests/fixtures/*/dist*/
 *.log
 .DS_Store
+.claude/
