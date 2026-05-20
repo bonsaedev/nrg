@@ -209,12 +209,13 @@ async function createNode<T extends NodeClass>(
 
   const node = new (NodeClass as any)(RED, nodeRedNode, config, credentials);
 
+  // Attach helpers before created() so status/send calls during created() are captured
+  const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);
+
   // Wire up event handlers (same path as production)
   const createdPromise = Promise.resolve(node.created?.());
   node[WIRE_HANDLERS](nodeRedNode, createdPromise);
   await createdPromise;
-
-  const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);
 
   return { node: augmented, RED };
 }
