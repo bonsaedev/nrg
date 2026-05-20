@@ -610,6 +610,7 @@ The number of input and output ports is **derived from the schemas you declare**
 | `inputSchema` absent | 0 input ports (source node) |
 | `outputsSchema` is a single Schema | 1 output port |
 | `outputsSchema` is an array of N schemas | N output ports |
+| `outputsSchema` is a record `{ name: Schema }` | N named output ports |
 | `outputsSchema` absent | 0 output ports (sink node) |
 
 **Examples:**
@@ -625,9 +626,13 @@ static override readonly outputsSchema: Schema = OutputSchema;
 // Sink node (no output, e.g., debug/log): 1 input, 0 outputs
 static override readonly inputSchema: Schema = InputSchema;
 
-// Multi-output node: 1 input, 3 outputs
+// Multi-output node: 1 input, 3 outputs (indexed)
 static override readonly inputSchema: Schema = InputSchema;
 static override readonly outputsSchema: Schema[] = [Port1Schema, Port2Schema, Port3Schema];
+
+// Named output ports: 1 input, 2 named outputs
+static override readonly inputSchema: Schema = InputSchema;
+static override readonly outputsSchema = { success: SuccessSchema, failure: FailureSchema };
 ```
 
 Use `SchemaType.Object({})` when a port accepts or emits any message shape:
@@ -636,6 +641,58 @@ Use `SchemaType.Object({})` when a port accepts or emits any message shape:
 static override readonly inputSchema: Schema = SchemaType.Object({});
 static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
 ```
+
+#### Named Output Ports
+
+When `outputsSchema` is a **record** (an object with string keys mapping to schemas), each key becomes a named output port. Port names appear as labels in the editor, and `sendToPort()` gets full autocomplete and per-port type safety.
+
+```typescript
+const SuccessSchema = defineSchema(
+  { payload: SchemaType.String() },
+  { $id: "router:success" },
+);
+
+const FailureSchema = defineSchema(
+  { payload: SchemaType.Object({ reason: SchemaType.String() }) },
+  { $id: "router:failure" },
+);
+
+export default defineIONode({
+  type: "router",
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: { success: SuccessSchema, failure: FailureSchema },
+
+  async input(msg) {
+    try {
+      const result = await process(msg);
+      // Type-safe: msg must match SuccessSchema
+      this.sendToPort("success", { payload: result });
+      //              ^^^^^^^^^ autocompletes: "success" | "failure"
+    } catch (err) {
+      // Type-safe: msg must match FailureSchema
+      this.sendToPort("failure", { payload: { reason: String(err) } });
+    }
+  },
+});
+```
+
+You can also send by numeric index — port order follows the record key insertion order:
+
+```typescript
+this.sendToPort(0, msg); // same as sendToPort("success", msg)
+this.sendToPort(1, msg); // same as sendToPort("failure", msg)
+```
+
+Positional `send()` still works with named ports, using a tuple where each element is any port's type or `null`:
+
+```typescript
+this.send([successMsg, null]); // send to port 0 (success)
+this.send([null, failureMsg]); // send to port 1 (failure)
+```
+
+::: tip When to use named ports
+Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `sendToPort()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
+:::
 
 ### Static Properties
 
@@ -681,11 +738,11 @@ By default, Node-RED routes errors, completions, and status changes through impl
 
 NRG lets you add explicit output ports for these events. When enabled, errors, completions, and status changes are sent through wires like any other message, keeping the flow visible and debuggable.
 
-This feature is **opt-in per node**. Emit ports only appear in the editor when you add the corresponding boolean properties to your config schema. If you don't add them, nothing changes.
+This feature is **opt-in per node**. Built-in ports only appear in the editor when you add the corresponding boolean properties to your config schema. If you don't add them, nothing changes.
 
-#### Adding emit ports to your schema
+#### Adding built-in ports to your schema
 
-Add any combination of `emitError`, `emitComplete`, and `emitStatus` to your config schema:
+Add any combination of `errorPort`, `completePort`, and `statusPort` to your config schema:
 
 ```typescript
 export const ConfigsSchema = defineSchema(
@@ -694,10 +751,10 @@ export const ConfigsSchema = defineSchema(
     url: SchemaType.String({ default: "" }),
     // ... your node-specific config
 
-    // Opt-in to emit ports (all optional — add only the ones you need)
-    emitError: SchemaType.Boolean({ default: false }),
-    emitComplete: SchemaType.Boolean({ default: false }),
-    emitStatus: SchemaType.Boolean({ default: false }),
+    // Opt-in to built-in ports (all optional — add only the ones you need)
+    errorPort: SchemaType.Boolean({ default: false }),
+    completePort: SchemaType.Boolean({ default: false }),
+    statusPort: SchemaType.Boolean({ default: false }),
   },
   { $id: "my-node:config" }
 );
@@ -707,22 +764,22 @@ The framework detects these properties by name. When present, toggle switches ap
 
 #### How it works
 
-When a user enables an emit port, an extra output is appended to the node:
+When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `emitError` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { message, source: { id, type, name } } }` |
-| `emitComplete` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` |
-| `emitStatus` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
+| `errorPort` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { message, source: { id, type, name } } }` |
+| `completePort` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` |
+| `statusPort` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
 
 Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
 
 ```
 Port 0: Data output 1
 Port 1: Data output 2
-Port 2: Error        (if emitError enabled)
-Port 3: Complete     (if emitComplete enabled)
-Port 4: Status       (if emitStatus enabled)
+Port 2: Error        (if errorPort enabled)
+Port 3: Complete     (if completePort enabled)
+Port 4: Status       (if statusPort enabled)
 ```
 
 #### Example: node with error and status ports
@@ -732,8 +789,8 @@ const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
     url: SchemaType.String({ default: "" }),
-    emitError: SchemaType.Boolean({ default: false }),
-    emitStatus: SchemaType.Boolean({ default: false }),
+    errorPort: SchemaType.Boolean({ default: false }),
+    statusPort: SchemaType.Boolean({ default: false }),
   },
   { $id: "http-client:config" }
 );
@@ -753,10 +810,10 @@ export default class HttpClient extends IONode<Config> {
 }
 ```
 
-If the user enables both `emitError` and `emitStatus`, the node gets 3 outputs: data (port 0), error (port 1), and status (port 2). If they leave both off, the node has a single output as usual.
+If the user enables both `errorPort` and `statusPort`, the node gets 3 outputs: data (port 0), error (port 1), and status (port 2). If they leave both off, the node has a single output as usual.
 
 ::: tip Backward compatible
-Emit ports work alongside Node-RED's built-in `catch`, `complete`, and `status` nodes. Enabling an emit port doesn't disable the implicit behavior — both work simultaneously.
+Built-in ports work alongside Node-RED's built-in `catch`, `complete`, and `status` nodes. Enabling a built-in port doesn't disable the implicit behavior — both work simultaneously.
 :::
 
 ## Register the Node
@@ -1254,7 +1311,9 @@ export default defineIONode({
 
 ### Per-port output typing
 
-For nodes with multiple outputs, use `as const` on the `outputsSchema` array to get per-port type safety on `this.send()`:
+For nodes with multiple outputs, you have two options for type-safe per-port messaging:
+
+**Named ports (recommended)** — use a record-based `outputsSchema` for `sendToPort()` with autocomplete and per-port types:
 
 ```typescript
 const SuccessSchema = defineSchema(
@@ -1267,6 +1326,26 @@ const ErrorSchema = defineSchema(
   { $id: "router:error" },
 );
 
+export default defineIONode({
+  type: "router",
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: { success: SuccessSchema, error: ErrorSchema },
+  validateOutput: true,
+
+  async input(msg) {
+    try {
+      const id = await process(msg);
+      this.sendToPort("success", { payload: { ok: true, id } });
+    } catch (err) {
+      this.sendToPort("error", { payload: { ok: false, reason: String(err) } });
+    }
+  },
+});
+```
+
+**Array with `as const`** — use an indexed array for tuple typing on `this.send()`:
+
+```typescript
 export default defineIONode({
   type: "router",
   inputSchema: SchemaType.Object({}),
