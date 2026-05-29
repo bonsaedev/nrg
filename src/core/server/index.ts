@@ -30,7 +30,12 @@ export {
   defineIONode,
   defineConfigNode,
 } from "./nodes";
-export type { NodeConstructor, IIONode, IConfigNode } from "./nodes/types";
+export type {
+  NodeConstructor,
+  INode,
+  IIONode,
+  IConfigNode,
+} from "./nodes/types";
 export { NrgError } from "../errors";
 export type { RED } from "./types";
 export {
