@@ -306,7 +306,7 @@ abstract class IONode<
       portIndex = this.#getNamedPortIndex(port);
       if (portIndex === null) return;
     }
-    const out: (unknown | null)[] = Array(this.totalOutputs).fill(null);
+    const out = new Array(this.totalOutputs);
     out[portIndex] = msg;
     this.node.send(out);
   }

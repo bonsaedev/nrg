@@ -86,7 +86,7 @@ describe("named output ports", () => {
       expect(sent).toHaveLength(1);
       const msg = sent[0] as unknown as any[];
       expect(msg[0]).toEqual({ payload: "ok" });
-      expect(msg[1]).toBeNull();
+      expect(msg[1]).toBeUndefined();
     });
 
     it("sends to second named port", async () => {
@@ -108,7 +108,7 @@ describe("named output ports", () => {
       const sent = node.sent();
       expect(sent).toHaveLength(1);
       const msg = sent[0] as unknown as any[];
-      expect(msg[0]).toBeNull();
+      expect(msg[0]).toBeUndefined();
       expect(msg[1]).toEqual({ payload: { reason: "bad" } });
     });
 

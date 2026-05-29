@@ -105,8 +105,8 @@ describe("emit ports", () => {
       );
       expect(errorSends).toHaveLength(1);
       expect(errorSends[0][1].error.message).toBe("Explicit error");
-      // Port 0 (data) should be null
-      expect(errorSends[0][0]).toBeNull();
+      // Port 0 (data) should be empty (sparse array slot)
+      expect(errorSends[0][0]).toBeUndefined();
     });
 
     it("does not send to error port when disabled but still logs error", async () => {
@@ -152,8 +152,8 @@ describe("emit ports", () => {
       expect(statusSends[0][1].status.fill).toBe("green");
       expect(statusSends[0][1].status.text).toBe("ok");
       expect(statusSends[0][1].source.type).toBe("emit-test");
-      // Port 0 (data) should be null
-      expect(statusSends[0][0]).toBeNull();
+      // Port 0 (data) should be empty (sparse array slot)
+      expect(statusSends[0][0]).toBeUndefined();
     });
 
     it("does not send to status port when disabled but still updates UI status", async () => {
@@ -341,7 +341,7 @@ describe("emit ports", () => {
       // 2 messages: user's sendToPort("complete") + framework's automatic complete port
       expect(sent).toHaveLength(2);
       const completeSend = sent[0] as any[];
-      expect(completeSend[0]).toBeNull();
+      expect(completeSend[0]).toBeUndefined();
       expect(completeSend[1].payload).toBe("done");
     });
 
