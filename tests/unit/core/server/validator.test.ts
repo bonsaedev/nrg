@@ -3,6 +3,14 @@ import { initValidator } from "@/core/server/validation";
 import { createNodeRedRuntime } from "@mocks/red";
 
 describe("NodeRedValidator", () => {
+  it("should skip initialization if validator is already set", () => {
+    const RED = createNodeRedRuntime();
+    initValidator(RED);
+    const first = RED.validator;
+    initValidator(RED);
+    expect(RED.validator).toBe(first);
+  });
+
   describe("x-nrg-skip-validation keyword", () => {
     it("should accept any data when x-nrg-skip-validation is true", () => {
       const RED = createNodeRedRuntime();

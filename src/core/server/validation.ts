@@ -2,6 +2,8 @@ import { Validator } from "../validator";
 import type { RED } from "./types";
 
 function initValidator(RED: RED): void {
+  if (RED.validator) return;
+
   const nrg = {
     validator: new Validator({
       customKeywords: [
