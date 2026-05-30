@@ -11,16 +11,8 @@
 
 # nrg
 
-Build Node-RED nodes with Vue 3, TypeScript, and JSON Schema validation.
+Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vistest.
 
-## Install
-
-```bash
-pnpm add @bonsae/nrg
-pnpm add -D vite
-```
-
-> `vite` is a dev dependency because it is only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
 
 ## Package Exports
 
@@ -37,8 +29,10 @@ pnpm add -D vite
 ```bash
 # In your Node-RED package project
 pnpm add @bonsae/nrg
-pnpm add -D vite
+pnpm add -D vite vue
 ```
+
+> `vite` ane `vue` are dev dependencies because they are only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
 
 **vite.config.ts**
 
