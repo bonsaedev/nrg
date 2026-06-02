@@ -119,7 +119,6 @@ describe("named output ports", () => {
         outputsSchema: { success: SuccessSchema, failure: FailureSchema },
         async input() {
           this.sendToPort("success", { payload: "ok" });
-          this.sendToPort("error", { payload: "err" });
         },
       });
 
@@ -130,8 +129,7 @@ describe("named output ports", () => {
       await node.receive({});
 
       const sent = node.sent();
-      // 3 messages: user's 2 sendToPort + framework's auto error port
-      expect(sent.length).toBeGreaterThanOrEqual(2);
+      expect(sent.length).toBeGreaterThanOrEqual(1);
       // Named port "success" → index 0
       const successSend = sent[0] as unknown as any[];
       expect(successSend[0]).toEqual({ payload: "ok" });

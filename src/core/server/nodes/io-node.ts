@@ -279,19 +279,19 @@ abstract class IONode<
 
   /**
    * Send a message to a specific output port by index or name.
-   * Built-in ports: `"error"`, `"complete"`, `"status"` — resolved automatically
-   * based on the node's built-in port configuration.
+   * Built-in port `"status"` is resolved automatically based on the node's
+   * built-in port configuration.
    * Custom named ports are resolved from `outputsSchema` when it is a record.
    * Numeric indices refer to the base output ports (0-based).
+   *
+   * Note: `"error"` and `"complete"` ports are managed by the framework and
+   * cannot be sent to directly. Throw an error to trigger the error port,
+   * and the complete port is sent automatically on successful input processing.
    */
-  public sendToPort<
-    P extends
-      | (keyof TOutput & string)
-      | number
-      | "error"
-      | "complete"
-      | "status",
-  >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
+  public sendToPort<P extends (keyof TOutput & string) | number | "status">(
+    port: P,
+    msg: P extends keyof TOutput ? TOutput[P] : unknown,
+  ) {
     this.#sendToPort(port, msg);
   }
 
