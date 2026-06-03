@@ -1,5 +1,19 @@
 # Changelog
 
+# [0.16.0](https://github.com/bonsaedev/nrg/compare/v0.15.1...v0.16.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* export INode type from public API for consumer declaration generation ([df2bf33](https://github.com/bonsaedev/nrg/commit/df2bf33dd96f044d15a02320c169430a7d4c6755))
+* prevent duplicate validator initialization across multiple nrg packages ([93f2ba3](https://github.com/bonsaedev/nrg/commit/93f2ba3d98b83752d3a7e93fff13c8437778db60))
+* sendToPort autocomplete only offers named ports for record output schemas ([fb5911f](https://github.com/bonsaedev/nrg/commit/fb5911f7cf81f4ed3b8eb92f70575ecfcae4f727))
+
+
+### Features
+
+* expose editor instance and tray-footer slot in NodeRedEditorInput ([cf20d52](https://github.com/bonsaedev/nrg/commit/cf20d5285c211f2b64e1462d3e958bc9cc1b2d1b))
+
 ## [0.15.1](https://github.com/bonsaedev/nrg/compare/v0.15.0...v0.15.1) (2026-05-20)
 
 
