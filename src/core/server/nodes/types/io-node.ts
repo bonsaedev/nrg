@@ -75,7 +75,14 @@ interface IIONode<
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
-  sendToPort<P extends (keyof TOutput & string) | number | "status">(
+  sendToPort<
+    P extends
+      | (TOutput extends Record<string, Record<string, any>>
+          ? keyof TOutput & string
+          : never)
+      | number
+      | "status",
+  >(
     port: P,
     msg: P extends keyof TOutput ? TOutput[P] : unknown,
   ): void;

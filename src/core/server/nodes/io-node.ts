@@ -288,10 +288,14 @@ abstract class IONode<
    * cannot be sent to directly. Throw an error to trigger the error port,
    * and the complete port is sent automatically on successful input processing.
    */
-  public sendToPort<P extends (keyof TOutput & string) | number | "status">(
-    port: P,
-    msg: P extends keyof TOutput ? TOutput[P] : unknown,
-  ) {
+  public sendToPort<
+    P extends
+      | (TOutput extends Record<string, Record<string, any>>
+          ? keyof TOutput & string
+          : never)
+      | number
+      | "status",
+  >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
     this.#sendToPort(port, msg);
   }
 
@@ -340,9 +344,10 @@ abstract class IONode<
     };
   }
 
-  public status(status: IONodeStatus) {
+  public status(status: IONodeStatus, data?: Record<string, unknown>) {
     this.node.status(status);
     this.#sendToPort("status", {
+      ...data,
       status,
       source: this.#nodeSource(),
     });
