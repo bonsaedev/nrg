@@ -21,11 +21,13 @@
     <div v-show="error" class="node-red-vue-input-error-message">
       {{ error }}
     </div>
+    <Teleport v-if="trayElement" :to="trayElement">
+      <slot name="tray-footer" />
+    </Teleport>
   </div>
 </template>
 
 <script lang="ts">
-// TODO: expose editor apis
 import { defineComponent } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
@@ -150,7 +152,7 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: ["update:value"],
+  emits: ["update:value", "editor-ready", "tray-open", "tray-close"],
   // Non-reactive instance property — must NOT be in data() because Vue's
   // reactivity proxy breaks Monaco editor and jQuery widgets. markRaw() was
   // tested and also does not work. Declared here so Vue ignores it.
@@ -160,6 +162,7 @@ export default defineComponent({
     return {
       editorId: "node-red-editor-" + stateId,
       stateId,
+      trayElement: null as HTMLElement | null,
     };
   },
   mounted() {
@@ -170,13 +173,13 @@ export default defineComponent({
     this.createExpandeEditorTray();
   },
   beforeUnmount() {
-    if (this.editorInstance) {
+    if (this.editor) {
       try {
-        this.editorInstance.destroy();
+        this.editor.destroy();
       } catch (err) {
         console.error(`Error destroying editor for ID ${this.editorId}:`, err);
       }
-      this.editorInstance = null;
+      this.editor = null;
     }
   },
   methods: {
@@ -217,34 +220,35 @@ export default defineComponent({
       });
     },
     createEditorInstance() {
-      this.editorInstance = RED.editor.createEditor({
+      this.editor = RED.editor.createEditor({
         id: this.editorId,
         mode: this.language,
         value: this.value,
       });
-      this.editorInstance.getSession().on("change", () => {
-        const currentValue = this.editorInstance.getValue();
+      this.editor.getSession().on("change", () => {
+        const currentValue = this.editor.getValue();
         if (currentValue !== this.value) {
           this.$emit("update:value", currentValue);
         }
       });
+      this.$emit("editor-ready", this.editor);
     },
     createExpandeEditorTray() {
       let expandedEditor: any;
 
       const onCancel = () => {
         setTimeout(() => {
-          this.editorInstance.focus();
+          this.editor.focus();
         }, 250);
         RED.tray.close();
       };
 
       const onDone = () => {
         expandedEditor.saveView();
-        this.editorInstance.setValue(expandedEditor.getValue(), -1);
+        this.editor.setValue(expandedEditor.getValue(), -1);
         setTimeout(() => {
-          this.editorInstance.restoreView();
-          this.editorInstance.focus();
+          this.editor.restoreView();
+          this.editor.focus();
         }, 250);
         RED.tray.close();
       };
@@ -282,8 +286,19 @@ export default defineComponent({
             value: this.value,
           });
           dialogForm.i18n();
+          const trayBody = tray.find(".red-ui-tray-body")[0];
+          const footerContainer = document.createElement("div");
+          footerContainer.className = "red-ui-tray-footer";
+          trayBody.insertAdjacentElement("afterend", footerContainer);
+          this.trayElement = footerContainer;
+          this.$emit("tray-open", this.trayElement);
         },
-        close: function () {
+        close: () => {
+          this.$emit("tray-close");
+          if (this.trayElement) {
+            this.trayElement.remove();
+            this.trayElement = null;
+          }
           expandedEditor.destroy();
         },
       };
