@@ -41,8 +41,18 @@ export type { RED } from "./types";
 export {
   SchemaType,
   defineSchema,
+  NodeSourceSchema,
   ErrorPortSchema,
   CompletePortSchema,
   StatusPortSchema,
 } from "./schemas";
-export type { Schema, Infer, TNodeRef, TTypedInput } from "./schemas/types";
+export type {
+  Schema,
+  Infer,
+  TNodeRef,
+  TTypedInput,
+  NodeSource,
+  ErrorPortMessage,
+  CompletePortMessage,
+  StatusPortMessage,
+} from "./schemas/types";

@@ -63,6 +63,18 @@ describe("named output ports", () => {
         NC.outputs;
       }).toThrow(/numeric/i);
     });
+
+    it.each(["error", "complete", "status"])(
+      "throws on reserved port name '%s'",
+      (name) => {
+        const NC = defineIONode({
+          type: `reserved-name-${name}-test`,
+          outputsSchema: { [name]: SuccessSchema },
+          async input() {},
+        }) as any;
+        expect(() => NC.outputs).toThrow(/reserved/i);
+      },
+    );
   });
 
   describe("sendToPort with named ports", () => {

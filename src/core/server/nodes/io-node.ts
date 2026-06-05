@@ -65,7 +65,7 @@ abstract class IONode<
     if (!s) return 0;
     if (Array.isArray(s)) return s.length;
     if (isSchemaLike(s)) return 1;
-    // Record of named ports — validate no numeric keys
+    // Record of named ports — validate keys
     const keys = Object.keys(s);
     for (const key of keys) {
       if (/^\d+$/.test(key)) {
@@ -73,6 +73,12 @@ abstract class IONode<
           `outputsSchema record key "${key}" in ${this.type} looks numeric. ` +
             `Use descriptive string names (e.g. "success", "failure") to avoid ` +
             `JavaScript object key ordering issues.`,
+        );
+      }
+      if (key === "error" || key === "complete" || key === "status") {
+        throw new NrgError(
+          `outputsSchema record key "${key}" in ${this.type} is reserved for built-in ports. ` +
+            `Use a different name (e.g. "failed" instead of "error").`,
         );
       }
     }
@@ -255,10 +261,13 @@ abstract class IONode<
       this.log("Output is valid");
     }
 
+    const out = Array.isArray(msg)
+      ? (msg as unknown[]).slice(0, this.baseOutputs)
+      : msg;
     if (this.#send) {
-      this.#send(msg);
+      this.#send(out);
     } else {
-      this.node.send(msg);
+      this.node.send(out);
     }
   }
 
@@ -279,23 +288,26 @@ abstract class IONode<
 
   /**
    * Send a message to a specific output port by index or name.
-   * Built-in port `"status"` is resolved automatically based on the node's
-   * built-in port configuration.
    * Custom named ports are resolved from `outputsSchema` when it is a record.
    * Numeric indices refer to the base output ports (0-based).
    *
-   * Note: `"error"` and `"complete"` ports are managed by the framework and
-   * cannot be sent to directly. Throw an error to trigger the error port,
-   * and the complete port is sent automatically on successful input processing.
+   * Built-in ports (`"error"`, `"complete"`, `"status"`) are managed by the
+   * framework and cannot be sent to directly. Use `this.status()` for status,
+   * throw an error or call `this.error()` for the error port, and the complete
+   * port is sent automatically on successful input processing.
    */
   public sendToPort<
     P extends
       | (TOutput extends Record<string, Record<string, any>>
           ? keyof TOutput & string
           : never)
-      | number
-      | "status",
+      | number,
   >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
+    if (port === "error" || port === "complete" || port === "status") {
+      throw new NrgError(
+        `sendToPort("${port}") is not allowed. Built-in ports are managed by the framework.`,
+      );
+    }
     this.#sendToPort(port, msg);
   }
 
@@ -344,10 +356,9 @@ abstract class IONode<
     };
   }
 
-  public status(status: IONodeStatus, data?: Record<string, unknown>) {
+  public status(status: IONodeStatus) {
     this.node.status(status);
     this.#sendToPort("status", {
-      ...data,
       status,
       source: this.#nodeSource(),
     });

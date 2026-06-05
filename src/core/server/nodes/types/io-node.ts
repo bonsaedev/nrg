@@ -80,8 +80,7 @@ interface IIONode<
       | (TOutput extends Record<string, Record<string, any>>
           ? keyof TOutput & string
           : never)
-      | number
-      | "status",
+      | number,
   >(
     port: P,
     msg: P extends keyof TOutput ? TOutput[P] : unknown,

@@ -316,6 +316,33 @@ describe("emit ports", () => {
   });
 
   describe("sendToPort", () => {
+    it.each(["error", "complete", "status"])(
+      "throws when called with built-in port '%s'",
+      async (port) => {
+        const GuardNode = defineIONode({
+          type: `sendtoport-guard-${port}-test`,
+          inputSchema: SchemaType.Object({}),
+          outputsSchema: SchemaType.Object({}),
+          configSchema: ConfigSchema,
+          async input() {
+            (this as any).sendToPort(port, { payload: "test" });
+          },
+        });
+
+        const { node } = await createNode(GuardNode, {
+          config: {
+            errorPort: true,
+            completePort: true,
+            statusPort: true,
+          },
+        });
+
+        await expect(node.receive({ payload: "go" })).rejects.toThrow(
+          `sendToPort("${port}") is not allowed`,
+        );
+      },
+    );
+
     it("sends to a numeric port index", async () => {
       const SendToPortNode = defineIONode({
         type: "sendtoport-numeric-test",
@@ -342,17 +369,14 @@ describe("emit ports", () => {
       expect((sent[0] as any[])[0].payload).toBe("record");
     });
 
-    it("sends to status port via sendToPort", async () => {
+    it("sends to status port via status() method", async () => {
       const SendToPortNode = defineIONode({
         type: "sendtoport-status-test",
         inputSchema: SchemaType.Object({}),
         outputsSchema: SchemaType.Object({}),
         configSchema: ConfigSchema,
         async input() {
-          this.sendToPort("status", {
-            status: { fill: "blue", shape: "dot", text: "working" },
-            source: { id: this.id, type: "sendtoport-status-test", name: "" },
-          });
+          this.status({ fill: "green", shape: "dot", text: "working" });
         },
       });
 
@@ -370,6 +394,46 @@ describe("emit ports", () => {
       expect(sent).toHaveLength(1);
       const statusSend = sent[0] as any[];
       expect(statusSend[1].status.text).toBe("working");
+      expect(statusSend[1].source).toBeDefined();
+    });
+  });
+
+  describe("send() truncation", () => {
+    it("truncates array to baseOutputs so built-in port slots are unreachable", async () => {
+      const TruncateNode = defineIONode({
+        type: "truncate-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input() {
+          (this as any).send([
+            { payload: "data" },
+            { payload: "should-be-dropped" },
+            { payload: "also-dropped" },
+          ]);
+        },
+      });
+
+      const { node } = await createNode(TruncateNode, {
+        config: {
+          errorPort: true,
+          completePort: true,
+          statusPort: true,
+        },
+      });
+
+      await node.receive({ payload: "go" });
+
+      const sent = node.sent();
+      const dataSends = sent.filter(
+        (s: any) => !Array.isArray(s) || !s.some((m: any) => m?.error || m?.complete || m?.status),
+      );
+      for (const s of dataSends) {
+        if (Array.isArray(s)) {
+          expect(s).toHaveLength(1);
+          expect(s[0].payload).toBe("data");
+        }
+      }
     });
   });
 
