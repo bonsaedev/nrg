@@ -694,6 +694,10 @@ this.send([null, failureMsg]); // send to port 1 (failure)
 Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `sendToPort()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
 :::
 
+::: warning Reserved port names
+The names `"error"`, `"complete"`, and `"status"` are reserved for built-in ports and cannot be used as keys in `outputsSchema`. Use descriptive alternatives like `"failed"` instead of `"error"`. `sendToPort()` only works with user-defined output ports — built-in ports are managed by the framework through `this.status()`, `this.error()`, and automatic completion.
+:::
+
 ### Static Properties
 
 | Property | Required | Description |
@@ -722,7 +726,7 @@ Use named ports whenever your node has multiple outputs with distinct purposes. 
 | Method | Description |
 | --- | --- |
 | `this.send(msg)` | Send a message to the next node |
-| `this.sendToPort(port, msg)` | Send a message to a specific output port by index or name |
+| `this.sendToPort(port, msg)` | Send a message to a user-defined output port by index or name. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -1322,15 +1326,15 @@ const SuccessSchema = defineSchema(
   { $id: "router:success" },
 );
 
-const ErrorSchema = defineSchema(
+const FailedSchema = defineSchema(
   { payload: SchemaType.Object({ ok: SchemaType.Literal(false), reason: SchemaType.String() }) },
-  { $id: "router:error" },
+  { $id: "router:failed" },
 );
 
 export default defineIONode({
   type: "router",
   inputSchema: SchemaType.Object({}),
-  outputsSchema: { success: SuccessSchema, error: ErrorSchema },
+  outputsSchema: { success: SuccessSchema, failed: FailedSchema },
   validateOutput: true,
 
   async input(msg) {
@@ -1338,7 +1342,7 @@ export default defineIONode({
       const id = await process(msg);
       this.sendToPort("success", { payload: { ok: true, id } });
     } catch (err) {
-      this.sendToPort("error", { payload: { ok: false, reason: String(err) } });
+      this.sendToPort("failed", { payload: { ok: false, reason: String(err) } });
     }
   },
 });
@@ -1350,13 +1354,13 @@ export default defineIONode({
 export default defineIONode({
   type: "router",
   inputSchema: SchemaType.Object({}),
-  outputsSchema: [SuccessSchema, ErrorSchema] as const,
+  outputsSchema: [SuccessSchema, FailedSchema] as const,
   validateOutput: true,
 
   async input(msg) {
     try {
       const id = await process(msg);
-      // Tuple typing: [successPort, errorPort]
+      // Tuple typing: [successPort, failedPort]
       this.send([{ payload: { ok: true, id } }, null]);
     } catch (err) {
       this.send([null, { payload: { ok: false, reason: String(err) } }]);
