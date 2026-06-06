@@ -2,7 +2,7 @@
 
 NRG provides two test libraries:
 
-- `@bonsae/nrg/test` — Unit/integration testing of **server-side logic** (lifecycle hooks, input/output, config, credentials, context stores)
+- `@bonsae/nrg/test/server/unit` — Unit/integration testing of **server-side logic** (lifecycle hooks, input/output, config, credentials, context stores)
 - `@bonsae/nrg/test/client/e2e` — E2E testing of **editor UI** with Playwright (form rendering, validation, typed inputs, config selectors)
 
 ## Server-Side Testing
@@ -58,7 +58,7 @@ export default defineConfig({
 ## Quick Start
 
 ```typescript
-import { createNode } from "@bonsae/nrg/test";
+import { createNode } from "@bonsae/nrg/test/server/unit";
 import MyNode from "../src/server/nodes/my-node";
 
 describe("my-node", () => {
@@ -111,7 +111,7 @@ Every node returned by `createNode` has these helpers:
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { createNode } from "@bonsae/nrg/test";
+import { createNode } from "@bonsae/nrg/test/server/unit";
 import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
 import MyNode from "../src/server/nodes/my-node";
 import Splitter from "../src/server/nodes/splitter";
@@ -356,7 +356,7 @@ describe("factory API", () => {
 NRG provides a browser test library at `@bonsae/nrg/test/client/e2e` for end-to-end testing of your node's editor UI. It uses [Playwright](https://playwright.dev/) to drive a real Node-RED editor and interact with your form fields, typed inputs, config selectors, and validation messages.
 
 ::: tip When to use
-Use browser E2E tests to verify that your node's editor form renders correctly, validates input, and persists values. Server-side logic is better tested with `@bonsae/nrg/test` (see above).
+Use browser E2E tests to verify that your node's editor form renders correctly, validates input, and persists values. Server-side logic is better tested with `@bonsae/nrg/test/server/unit` (see above).
 :::
 
 ### Setup

@@ -1,10 +1,10 @@
 import { vi } from "vitest";
 import { createNodeRedRuntime, createNodeRedNode } from "./mocks";
-import { initValidator } from "../core/server/validation";
-import type { NodeRedNode } from "../core/server/types";
-import type { NodeConstructor as NodeClass } from "../core/server/nodes/types/node";
+import { initValidator } from "../../../core/server/validation";
+import type { NodeRedNode } from "../../../core/server/types";
+import type { NodeConstructor as NodeClass } from "../../../core/server/nodes/types/node";
 import type { MockRED } from "./mocks";
-import { WIRE_HANDLERS } from "../core/server/nodes/symbols";
+import { WIRE_HANDLERS } from "../../../core/server/nodes/symbols";
 
 interface CreateNodeOptions {
   config?: Record<string, any>;

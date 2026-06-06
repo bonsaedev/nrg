@@ -10,7 +10,7 @@ import {
   type RED,
 } from "@/core/server";
 import { defineSchema } from "@/core/server/schemas";
-import { createNode } from "@/test";
+import { createNode } from "@/test/server/unit";
 
 // --- Test fixtures ---
 

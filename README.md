@@ -131,7 +131,7 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 
 ## Testing
 
-Test your nodes' server-side logic with `@bonsae/nrg/test`:
+Test your nodes' server-side logic with `@bonsae/nrg/test/server/unit`:
 
 ```bash
 pnpm add -D vitest
@@ -140,7 +140,7 @@ pnpm add -D vitest
 ```typescript
 // tests/my-node.test.ts
 import { describe, it, expect } from "vitest";
-import { createNode } from "@bonsae/nrg/test";
+import { createNode } from "@bonsae/nrg/test/server/unit";
 import MyNode from "../src/server/nodes/my-node";
 
 describe("my-node", () => {
