@@ -26,6 +26,14 @@ const ConfigsSchema = defineSchema(
       default: { value: "", type: "str" },
       "x-nrg-form": { typedInputTypes: ["str", "num", "bool"] },
     } as any),
+    tags: SchemaType.Array(
+      SchemaType.Unsafe<string>({
+        type: "string",
+        enum: ["frontend", "backend", "devops"],
+      }),
+      { default: [] },
+    ),
+    recipients: SchemaType.Array(SchemaType.String(), { default: [] }),
     template: SchemaType.String({
       default: "<p>Hello</p>",
       "x-nrg-form": { editorLanguage: "html" },

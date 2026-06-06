@@ -60,7 +60,7 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     await editor.clickDone();
 
     await editor.editNode("n1");
-    expect(await nameField.input.inputValue()).toBe("E2E Node");
+    expect(await nameField.getValue()).toBe("E2E Node");
     await nameField.clear();
     await editor.clickDone();
   });
@@ -70,7 +70,7 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const count = editor.field("Count");
     await count.expectVisible();
     await count.scrollIntoView();
-    expect(await count.input.getAttribute("type")).toBe("number");
+    expect(await count.getInputType()).toBe("number");
     await editor.screenshot(`${name}-number-input-renders-for-integer-field`);
     await editor.clickCancel();
   });
@@ -80,7 +80,7 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const rate = editor.field("Rate");
     await rate.expectVisible();
     await rate.scrollIntoView();
-    expect(await rate.input.getAttribute("type")).toBe("number");
+    expect(await rate.getInputType()).toBe("number");
     await editor.screenshot(`${name}-number-input-renders-for-float-field`);
     await editor.clickCancel();
   });
@@ -110,8 +110,9 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const color = editor.field("Color");
     await color.expectVisible();
     await color.scrollIntoView();
-    const container = color.row.locator(".red-ui-typedInput-container");
-    expect(await container.isVisible()).toBe(true);
+    expect(await color.typedInputContainer.isVisible()).toBe(true);
+    const labels = await color.getOptionMenuLabels();
+    expect(labels).toEqual(["red", "green", "blue"]);
     await editor.screenshot(`${name}-select-input-renders-for-enum-field`);
     await editor.clickCancel();
   });
@@ -121,15 +122,10 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const target = editor.field("Target");
     await target.expectVisible();
     await target.scrollIntoView();
-    const container = target.row.locator(".red-ui-typedInput-container");
-    expect(await container.isVisible()).toBe(true);
-    await container.locator(".red-ui-typedInput-type-select").click();
-    const menu = editor.page.locator(".red-ui-typedInput-options").last();
-    await menu.waitFor({ state: "visible", timeout: 5_000 });
-    const items = menu.locator("a");
-    expect(await items.count()).toBe(14);
+    expect(await target.typedInputContainer.isVisible()).toBe(true);
+    const values = await target.getTypeMenuValues();
+    expect(values).toHaveLength(14);
     await editor.screenshot(`${name}-typed-input-all-types`);
-    await editor.page.keyboard.press("Escape");
     await editor.clickCancel();
   });
 
@@ -138,19 +134,36 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const source = editor.field("Source");
     await source.expectVisible();
     await source.scrollIntoView();
-    const container = source.row.locator(".red-ui-typedInput-container");
-    expect(await container.isVisible()).toBe(true);
-    await container.locator(".red-ui-typedInput-type-select").click();
-    const menu = editor.page.locator(".red-ui-typedInput-options").last();
-    await menu.waitFor({ state: "visible", timeout: 5_000 });
-    const items = menu.locator("a");
-    expect(await items.count()).toBe(3);
-    const values = await items.evaluateAll((els) =>
-      els.map((el) => el.getAttribute("value")),
-    );
+    expect(await source.typedInputContainer.isVisible()).toBe(true);
+    const values = await source.getTypeMenuValues();
     expect(values).toEqual(["str", "num", "bool"]);
     await editor.screenshot(`${name}-typed-input-restricted-types`);
-    await editor.page.keyboard.press("Escape");
+    await editor.clickCancel();
+  });
+
+  test("multi-select renders for array with enum items", async () => {
+    await editor.editNode("n1");
+    const tags = editor.field("Tags");
+    await tags.expectVisible();
+    await tags.scrollIntoView();
+    expect(await tags.typedInputContainer.isVisible()).toBe(true);
+    const labels = await tags.getOptionMenuLabels();
+    expect(labels).toEqual(["frontend", "backend", "devops"]);
+    await editor.screenshot(`${name}-multi-select-renders`);
+    await editor.clickCancel();
+  });
+
+  test("array-text renders textarea for plain array field", async () => {
+    await editor.editNode("n1");
+    const recipients = editor.field("Recipients");
+    await recipients.expectVisible();
+    await recipients.scrollIntoView();
+    expect(await recipients.textarea.isVisible()).toBe(true);
+    const hint = recipients.row.locator("span", {
+      hasText: "One entry per line",
+    });
+    expect(await hint.isVisible()).toBe(true);
+    await editor.screenshot(`${name}-array-text-textarea-renders`);
     await editor.clickCancel();
   });
 
@@ -170,7 +183,23 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const server = editor.field("Server");
     await server.expectVisible();
     await server.scrollIntoView();
+    expect(await server.select.isVisible()).toBe(true);
+    expect(await server.editButton.isVisible()).toBe(true);
+    expect(await server.addButton.isVisible()).toBe(true);
+    const options = await server.getOptions();
+    expect(options).toContain("Test Server");
     await editor.screenshot(`${name}-config-input-renders`);
+    await editor.clickCancel();
+  });
+
+  test("required fields show asterisk indicator", async () => {
+    await editor.editNode("n1");
+    const nameField = editor.field("Name");
+    await nameField.expectVisible();
+    await nameField.scrollIntoView();
+    expect(await nameField.requiredIndicator.isVisible()).toBe(true);
+    expect(await nameField.requiredIndicator.textContent()).toBe("*");
+    await editor.screenshot(`${name}-required-indicator`);
     await editor.clickCancel();
   });
 
@@ -179,9 +208,7 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const nameField = editor.field("Name");
     await nameField.expectVisible();
     await nameField.scrollIntoView();
-    const error = nameField.errorMessage;
-    await error.waitFor({ state: "visible", timeout: 5_000 });
-    expect(await error.textContent()).toContain("must NOT have fewer than 1 characters");
+    await nameField.expectError("must NOT have fewer than 1 characters");
     await editor.screenshot(`${name}-validation-error-empty-string`);
     await editor.clickCancel();
   });
@@ -191,9 +218,7 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const count = editor.field("Count");
     await count.expectVisible();
     await count.scrollIntoView();
-    const error = count.errorMessage;
-    await error.waitFor({ state: "visible", timeout: 5_000 });
-    expect(await error.textContent()).toContain("must be >= 1");
+    await count.expectError("must be >= 1");
     await editor.screenshot(`${name}-validation-error-below-minimum`);
     await editor.clickCancel();
   });
@@ -203,10 +228,9 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const nameField = editor.field("Name");
     await nameField.expectVisible();
     await nameField.scrollIntoView();
-    const error = nameField.errorMessage;
-    await error.waitFor({ state: "visible", timeout: 5_000 });
+    await nameField.expectError();
     await nameField.fill("Valid Name");
-    await error.waitFor({ state: "hidden", timeout: 5_000 });
+    await nameField.expectNoError();
     await editor.screenshot(`${name}-validation-error-cleared`);
     await nameField.clear();
     await editor.clickCancel();
@@ -217,10 +241,8 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const count = editor.field("Count");
     await count.expectVisible();
     await count.scrollIntoView();
-    await count.input.fill("200");
-    const error = count.errorMessage;
-    await error.waitFor({ state: "visible", timeout: 5_000 });
-    expect(await error.textContent()).toContain("must be <= 100");
+    await count.fill("200");
+    await count.expectError("must be <= 100");
     await editor.screenshot(`${name}-validation-error-above-maximum`);
     await editor.clickCancel();
   });
@@ -230,12 +252,12 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
     const apiKey = editor.field("Api Key");
     await apiKey.expectVisible();
     await apiKey.scrollIntoView();
-    expect(await apiKey.input.getAttribute("type")).toBe("password");
+    expect(await apiKey.getInputType()).toBe("password");
 
     const token = editor.field("Token");
     await token.expectVisible();
     await token.scrollIntoView();
-    expect(await token.input.getAttribute("type")).toBe("text");
+    expect(await token.getInputType()).toBe("text");
     await editor.screenshot(`${name}-credential-fields-render`);
     await editor.clickCancel();
   });

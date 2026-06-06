@@ -112,6 +112,8 @@ export async function setup(): Promise<void> {
       color: "red",
       target: { value: "payload", type: "msg" },
       source: { value: "", type: "str" },
+      tags: [],
+      recipients: [],
       template: "<p>Hello</p>",
       server: "",
       x: 250,

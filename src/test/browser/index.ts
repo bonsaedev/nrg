@@ -97,6 +97,14 @@ export class NodeRedEditor {
     return new NodeRedField(this.page, label);
   }
 
+  expectNoPageErrors(): void {
+    if (this.errors.length > 0) {
+      throw new Error(
+        `Page errors detected:\n${this.errors.map((e) => `  - ${e}`).join("\n")}`,
+      );
+    }
+  }
+
   get tray(): Locator {
     return this.page.locator(".red-ui-tray-body-wrapper");
   }
@@ -111,7 +119,6 @@ export class NodeRedField {
   ) {
     this.row = page.locator(`.form-row:has(:text("${label}"))`).first();
   }
-
   get input(): Locator {
     return this.row.locator("input").first();
   }
@@ -124,12 +131,15 @@ export class NodeRedField {
     await this.input.fill("", { force: true });
   }
 
-  get toggleSlider(): Locator {
-    return this.row.locator(".nrg-toggle__slider");
+  async getValue(): Promise<string> {
+    return this.input.inputValue();
   }
 
-  get toggleCheckbox(): Locator {
-    return this.row.locator('input[type="checkbox"]');
+  async getInputType(): Promise<string | null> {
+    return this.input.getAttribute("type");
+  }
+  get toggleSlider(): Locator {
+    return this.row.locator(".nrg-toggle__slider");
   }
 
   async toggle(): Promise<void> {
@@ -139,25 +149,99 @@ export class NodeRedField {
   get checkbox(): Locator {
     return this.row.locator('input[type="checkbox"]');
   }
-
-  get selectInput(): Locator {
-    return this.row.locator("input.node-input-select");
+  get typedInputContainer(): Locator {
+    return this.row.locator(".red-ui-typedInput-container");
   }
 
-  get typedInput(): Locator {
-    return this.row.locator("input.node-red-typed-input");
+  async getSelectedType(): Promise<string> {
+    return this.typedInputContainer
+      .locator("input")
+      .first()
+      .evaluate((el) => (globalThis as any).$(el).typedInput("type") as string);
   }
 
-  get typedInputButton(): Locator {
-    return this.row.locator(
-      ".red-ui-typedInput-container .red-ui-typedInput-type-select",
-    );
+  async getSelectedValue(): Promise<string> {
+    return this.typedInputContainer
+      .locator("input")
+      .first()
+      .evaluate(
+        (el) => (globalThis as any).$(el).typedInput("value") as string,
+      );
   }
 
-  get configSelect(): Locator {
-    return this.row.locator("select, input").first();
+  async openTypeMenu(): Promise<Locator> {
+    await this.typedInputContainer
+      .locator(".red-ui-typedInput-type-select")
+      .click();
+    const menu = this.page.locator(".red-ui-typedInput-options").last();
+    await menu.waitFor({ state: "visible", timeout: 5_000 });
+    return menu;
   }
 
+  async getTypeMenuValues(): Promise<string[]> {
+    const menu = await this.openTypeMenu();
+    const values = await menu
+      .locator("a")
+      .evaluateAll((els) => els.map((el) => el.getAttribute("value") ?? ""));
+    await this.page.keyboard.press("Escape");
+    return values;
+  }
+
+  async selectType(type: string): Promise<void> {
+    const menu = await this.openTypeMenu();
+    await menu.locator(`a[value="${type}"]`).click();
+  }
+
+  async openOptionMenu(): Promise<Locator> {
+    await this.typedInputContainer
+      .locator(".red-ui-typedInput-option-trigger")
+      .click();
+    const menu = this.page.locator(".red-ui-typedInput-options").last();
+    await menu.waitFor({ state: "visible", timeout: 5_000 });
+    return menu;
+  }
+
+  async getOptionMenuLabels(): Promise<string[]> {
+    const menu = await this.openOptionMenu();
+    const labels = await menu
+      .locator("a")
+      .evaluateAll((els) => els.map((el) => el.textContent?.trim() ?? ""));
+    await this.page.keyboard.press("Escape");
+    return labels;
+  }
+  get select(): Locator {
+    return this.row.locator("select");
+  }
+
+  get editButton(): Locator {
+    return this.row.locator("a.red-ui-button:has(i.fa-pencil)");
+  }
+
+  get addButton(): Locator {
+    return this.row.locator("a.red-ui-button:has(i.fa-plus)");
+  }
+
+  async getSelectedOption(): Promise<string> {
+    return this.select.inputValue();
+  }
+
+  async getSelectedOptionLabel(): Promise<string> {
+    const value = await this.getSelectedOption();
+    return this.select
+      .locator(`option[value="${value}"]`)
+      .textContent()
+      .then((t) => t?.trim() ?? "");
+  }
+
+  async getOptions(): Promise<string[]> {
+    return this.select
+      .locator("option")
+      .evaluateAll((els) =>
+        els
+          .map((el) => el.textContent?.trim() ?? "")
+          .filter((t) => !t.startsWith("Add new ") && t !== ""),
+      );
+  }
   get editorWrapper(): Locator {
     return this.row.locator(".editor-wrapper");
   }
@@ -165,11 +249,32 @@ export class NodeRedField {
   get expandButton(): Locator {
     return this.row.locator(".expand-button");
   }
+  get textarea(): Locator {
+    return this.row.locator("textarea");
+  }
+  get requiredIndicator(): Locator {
+    return this.row.locator(".nrg-required");
+  }
 
   get errorMessage(): Locator {
     return this.row.locator(".node-red-vue-input-error-message");
   }
 
+  async expectError(containing?: string): Promise<void> {
+    await this.errorMessage.waitFor({ state: "visible", timeout: 5_000 });
+    if (containing) {
+      const text = await this.errorMessage.textContent();
+      if (!text?.includes(containing)) {
+        throw new Error(
+          `Expected error containing "${containing}", got "${text}"`,
+        );
+      }
+    }
+  }
+
+  async expectNoError(): Promise<void> {
+    await this.errorMessage.waitFor({ state: "hidden", timeout: 5_000 });
+  }
   async scrollIntoView(): Promise<void> {
     await this.row.scrollIntoViewIfNeeded();
   }
