@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 tests/.tmp/
+test-results/
 tests/fixtures/*/node_modules/
 tests/fixtures/*/dist*/
 *.log

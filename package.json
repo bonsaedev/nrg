@@ -5,6 +5,7 @@
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://bonsaedev.github.io/nrg/",
   "repository": {
     "url": "https://github.com/bonsaedev/nrg",
     "type": "git"
@@ -21,8 +22,10 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
+    "test:e2e:browser": "vitest run --config vitest.e2e.browser.config.ts",
     "build": "node build.mjs",
-    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/tsconfig.json --noEmit && tsc -p src/test/browser/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/browser/tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
@@ -52,6 +55,10 @@
     "./test": {
       "types": "./dist/types/test.d.ts",
       "default": "./dist/test/index.js"
+    },
+    "./test/browser": {
+      "types": "./dist/types/test-browser.d.ts",
+      "default": "./dist/test/browser/index.js"
     },
     "./tsconfig/base.json": "./dist/tsconfig/base.json",
     "./tsconfig/client.json": "./dist/tsconfig/client.json",
@@ -103,6 +110,7 @@
     "@types/node": "^22.15.18",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "@vitest/browser-playwright": "^4.1.5",
     "@vitest/coverage-v8": "^4.1.5",
     "dts-bundle-generator": "^9.5.1",
     "eslint": "^9.27.0",
@@ -111,12 +119,15 @@
     "globals": "^16.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "playwright": "^1.60.0",
     "prettier": "^3.5.3",
     "semantic-release": "^24.2.4",
     "typescript-eslint": "^8.32.1",
     "vite": "^6.3.4",
     "vitest": "^4.1.5",
+    "vitest-browser-vue": "^2.1.0",
     "vue": "^3.5.14",
-    "vue-tsc": "^3.2.8"
+    "vue-tsc": "^3.2.8",
+    "zod": "^4.4.3"
   }
 }

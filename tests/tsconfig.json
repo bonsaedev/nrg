@@ -4,5 +4,5 @@
     "lib": ["ESNext"]
   },
   "include": ["**/*.ts", "../src/**/*.ts"],
-  "exclude": ["node_modules", "fixtures/**", "../src/core/client/**"]
+  "exclude": ["node_modules", "fixtures/**", "browser/**", "../src/core/client/**"]
 }
