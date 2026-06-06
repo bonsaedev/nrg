@@ -1,11 +1,4 @@
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-} from "vitest";
-import fs from "fs";
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import {
   chromium,
   firefox,
@@ -13,12 +6,7 @@ import {
   type Browser,
   type BrowserType,
 } from "playwright";
-import { NodeRedEditor } from "./helpers";
-import { PORT_FILE } from "./global-setup";
-
-const PORT = (): number => {
-  return Number(fs.readFileSync(PORT_FILE, "utf-8").trim());
-};
+import { NodeRedEditor } from "../../../../src/test/client/e2e";
 
 const BROWSERS: Array<{ name: string; type: BrowserType }> = [
   { name: "chromium", type: chromium },
@@ -33,7 +21,7 @@ describe.each(BROWSERS)("Node-RED form components ($name)", ({ name, type }) => 
   beforeAll(async () => {
     browser = await type.launch();
     const page = await browser.newPage();
-    editor = new NodeRedEditor(page, PORT(), {
+    editor = new NodeRedEditor(page, Number(process.env.NODE_RED_PORT), {
       screenshotDir: "test-results/screenshots",
     });
     await editor.open();

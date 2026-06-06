@@ -60,8 +60,8 @@ jobs:
           name: dist
           path: dist/
 
-  e2e:
-    name: E2E Tests (Node ${{ matrix.node-version }})
+  vite-e2e:
+    name: Vite E2E Tests (Node ${{ matrix.node-version }})
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -95,7 +95,7 @@ jobs:
           name: dist
           path: dist/
 
-      - name: E2E Tests
+      - name: Vite E2E Tests
         run: pnpm vitest run --config vitest.vite.e2e.config.ts
 
   client-e2e:

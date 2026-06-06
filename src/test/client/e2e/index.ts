@@ -1,6 +1,48 @@
 import fs from "fs";
 import path from "path";
 import type { Page, Locator } from "playwright";
+import {
+  NodeRedTestEnvironment,
+  type NodeRedTestEnvironmentOptions,
+} from "./environment";
+
+export { NodeRedTestEnvironment, type NodeRedTestEnvironmentOptions };
+
+export interface SetupOptions extends NodeRedTestEnvironmentOptions {
+  flow?: Record<string, unknown>[];
+}
+
+export const defaultConfig = {
+  testTimeout: 60_000,
+  hookTimeout: 120_000,
+  globalSetup: ["@bonsae/nrg/test/client/e2e"],
+};
+
+let _env: NodeRedTestEnvironment | null = null;
+
+export async function setup(options?: SetupOptions): Promise<void> {
+  const packageName =
+    options?.packageName ??
+    JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "package.json"), "utf-8"),
+    ).name;
+
+  _env = new NodeRedTestEnvironment({ ...options, packageName });
+  const port = await _env.setup();
+  process.env.NODE_RED_PORT = String(port);
+
+  if (options?.flow) {
+    await _env.deployFlow(options.flow);
+  }
+}
+
+export async function teardown(): Promise<void> {
+  if (_env) {
+    await _env.teardown();
+    _env = null;
+  }
+  delete process.env.NODE_RED_PORT;
+}
 
 export class NodeRedEditor {
   readonly errors: string[] = [];
@@ -173,7 +215,9 @@ export class NodeRedField {
     await this.typedInputContainer
       .locator(".red-ui-typedInput-type-select")
       .click();
-    const menu = this.page.locator(".red-ui-typedInput-options").last();
+    const menu = this.page
+      .locator(".red-ui-typedInput-options:visible")
+      .first();
     await menu.waitFor({ state: "visible", timeout: 5_000 });
     return menu;
   }
@@ -196,7 +240,9 @@ export class NodeRedField {
     await this.typedInputContainer
       .locator(".red-ui-typedInput-option-trigger")
       .click();
-    const menu = this.page.locator(".red-ui-typedInput-options").last();
+    const menu = this.page
+      .locator(".red-ui-typedInput-options:visible")
+      .first();
     await menu.waitFor({ state: "visible", timeout: 5_000 });
     return menu;
   }
@@ -261,14 +307,12 @@ export class NodeRedField {
   }
 
   async expectError(containing?: string): Promise<void> {
-    await this.errorMessage.waitFor({ state: "visible", timeout: 5_000 });
     if (containing) {
-      const text = await this.errorMessage.textContent();
-      if (!text?.includes(containing)) {
-        throw new Error(
-          `Expected error containing "${containing}", got "${text}"`,
-        );
-      }
+      await this.errorMessage
+        .filter({ hasText: containing })
+        .waitFor({ state: "visible", timeout: 5_000 });
+    } else {
+      await this.errorMessage.waitFor({ state: "visible", timeout: 5_000 });
     }
   }
 
