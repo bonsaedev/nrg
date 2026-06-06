@@ -18,10 +18,10 @@
     "pnpm": ">=10.11.0"
   },
   "scripts": {
-    "test": "vitest run && vitest run --config vitest.e2e.config.ts",
+    "test": "vitest run && vitest run --config vitest.e2e.vite.config.ts",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.vite.config.ts",
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:e2e:browser": "vitest run --config vitest.e2e.browser.config.ts",
     "build": "node build.mjs",
