@@ -97,12 +97,12 @@ Create `tsconfig.json` files that extend the shared configs:
 ```
 
 ::: tip
-The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your server schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#_4-client-side-files-all-optional) for details.
+The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your server schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.
 :::
 
-### 4. Create the entry files
+### 4. Create the entry file
 
-Create the server and client entry points. See the [Project Structure](./project-structure) page for the full layout, and [Creating a Node](./creating-a-node) for a complete walkthrough.
+Create the server entry point. See the [Project Structure](./project-structure) page for the full layout, and [Creating a Node](./creating-a-node) for a complete walkthrough.
 
 **src/server/index.ts**
 
@@ -115,14 +115,11 @@ export default defineModule({
 });
 ```
 
-**src/client/index.ts**
+`defineModule` registers your node classes with the NRG build system. It creates a typed module manifest that NRG uses to register your nodes with Node-RED.
 
-```typescript
-import { registerTypes } from "@bonsae/nrg/client";
-import myNode from "./nodes/my-node";
-
-await registerTypes([myNode]);
-```
+::: tip No client code needed
+NRG auto-generates all client-side code (editor forms, node registration, defaults) from your server schemas. You only need a `src/client/` directory if you want [custom editor behavior](./creating-a-node#client-side-files).
+:::
 
 ### 5. Start developing
 

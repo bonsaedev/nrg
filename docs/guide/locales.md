@@ -62,7 +62,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `description` | No | Node description for the help panel and palette tooltip. |
 | `inputLabels` | No | Label for the input port (string). |
 | `outputLabels` | No | Labels for output ports (array of strings, one per port). |
-| `configs` | No | Labels for config properties (maps property key → display label). Also used in the auto-generated editor form. |
+| `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
 | `outputs` | No | Array of label maps, one per output port. Matches `outputsSchema` order. |
@@ -86,7 +86,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 }
 ```
 
-For local development with a linked package:
+For local development or when using a linked package, use the local path instead:
 
 ```json
 {
@@ -117,6 +117,19 @@ For local development with a linked package:
     "description": {
       "type": "string",
       "description": "Node description for auto-generated help docs"
+    },
+    "paletteLabel": {
+      "type": "string",
+      "description": "Label shown in the palette. Falls back to 'label' if not set."
+    },
+    "inputLabels": {
+      "type": "string",
+      "description": "Label for the input port"
+    },
+    "outputLabels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Labels for output ports (one per port)"
     },
     "configs": {
       "$ref": "#/$defs/labelMap"
@@ -227,9 +240,8 @@ In Vue form components, use `$i18n()` to resolve labels:
 ```vue
 <template>
   <NodeRedInput
-    :value="node.url"
+    v-model="node.url"
     :label="$i18n('configs.url')"
-    @update:value="node.url = $event"
   />
 </template>
 ```

@@ -80,18 +80,21 @@ export default defineIONode({
 
 ```typescript [Class API]
 // server/nodes/my-node.ts
-import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../schemas/my-node";
+import { IONode, SchemaType, type Schema, type Infer } from "@bonsae/nrg/server";
+import { ConfigsSchema, InputSchema } from "../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
+type Input = Infer<typeof InputSchema>;
 
-export default class MyNode extends IONode<Config> {
+export default class MyNode extends IONode<Config, any, Input> {
   static readonly type = "my-node";
   static readonly category = "my-category";
   static readonly color: `#${string}` = "#FFFFFF";
   static readonly configSchema: Schema = ConfigsSchema;
+  static readonly inputSchema: Schema = InputSchema;
+  static readonly outputsSchema: Schema = SchemaType.Object({});
 
-  async input(msg: any) {
+  async input(msg: Input) {
     this.send({ payload: msg.payload.toUpperCase() });
   }
 }
@@ -269,6 +272,9 @@ RED.nodes.registerType('my-node', {
 Define a schema. The editor form is auto-generated with validation and inline error messages — all for free.
 
 ```typescript
+import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import RemoteServer from "./nodes/remote-server";
+
 const ConfigsSchema = defineSchema({
   name: SchemaType.String({ default: "my-node" }),
   url: SchemaType.String({ default: "", minLength: 1 }),
@@ -280,40 +286,28 @@ Need a custom form? Create a Vue component at `client/components/{type}.vue` —
 
 ```vue
 <!-- client/components/my-node.vue -->
-<template>
-  <div>
-    <div class="form-row">
-      <NodeRedInput
-        :value="node.name"
-        label="Name"
-        @update:value="node.name = $event"
-        :error="errors['node.name']"
-      />
-    </div>
-    <div class="form-row">
-      <NodeRedConfigInput
-        :value="node.server"
-        type="remote-server"
-        :node="node"
-        prop-name="server"
-        label="Server"
-        @update:value="node.server = $event"
-        :error="errors['node.server']"
-      />
-    </div>
-  </div>
-</template>
-
-<script lang="ts">
-import { defineComponent } from "vue";
-
-export default defineComponent({
-  props: {
-    node: { type: Object, required: true },
-    errors: { type: Object, required: true },
-  },
-});
+<script setup lang="ts">
+defineProps<{
+  node: any;
+  errors: Record<string, string>;
+}>();
 </script>
+
+<template>
+  <NodeRedInput
+    v-model="node.name"
+    label="Name"
+    :error="errors['node.name']"
+  />
+  <NodeRedConfigInput
+    v-model="node.server"
+    label="Server"
+    type="remote-server"
+    :node="node"
+    prop-name="server"
+    :error="errors['node.server']"
+  />
+</template>
 ```
 
 ## Input Handler
@@ -449,16 +443,16 @@ NRG brings the modern JavaScript ecosystem to Node-RED development:
 One command to start:
 
 ```bash
-pnpm dev
+pnpm vite dev
 ```
 
-Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. Change a file, see the result — no manual restart.
+Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. Server changes trigger a Node-RED restart; client changes trigger a browser reload. Change a file, see the result — no manual restart.
 
 Standard scripts work out of the box:
 
 ```bash
-pnpm dev          # dev server with hot rebuild
-pnpm build        # production build
+pnpm vite dev     # dev server with hot rebuild
+pnpm vite build   # production build
 pnpm lint         # eslint
 pnpm format       # prettier
 pnpm tsc:server   # type-check server

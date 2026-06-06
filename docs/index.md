@@ -28,5 +28,5 @@ features:
   - title: Auto-Generated Editor Forms
     details: Editor forms are generated from your schema automatically. Need more control? Override with Vue 3 components using built-in widgets for typed inputs, selects, code editors, and more.
   - title: Vite-Powered Build
-    details: "One command: pnpm dev. Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. No more restart-refresh-redeploy loops."
+    details: "One command: pnpm vite dev. Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. No more restart-refresh-redeploy loops."
 ---

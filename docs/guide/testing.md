@@ -2,6 +2,10 @@
 
 NRG provides a test framework at `@bonsae/nrg/test` for unit and integration testing the **server-side logic** of your nodes with Vitest. This covers node lifecycle hooks, input/output handling, config resolution, credentials, context stores, and settings — everything that runs in the Node-RED runtime.
 
+::: tip Server-side only
+This framework covers server-side node testing. Client-side Vue components can be tested with standard Vue testing tools (Vitest + [Vue Test Utils](https://test-utils.vuejs.org/)) but are not covered here.
+:::
+
 ## Setup
 
 ### 1. Install Vitest
@@ -54,7 +58,7 @@ export default defineConfig({
 
 ```typescript
 import { createNode } from "@bonsae/nrg/test";
-import MyNode from "./nodes/my-node";
+import MyNode from "../src/server/nodes/my-node";
 
 describe("my-node", () => {
   it("should process messages", async () => {
@@ -107,9 +111,10 @@ Every node returned by `createNode` has these helpers:
 ```typescript
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test";
-import MyNode from "../server/nodes/my-node";
-import Splitter from "../server/nodes/splitter";
-import RemoteServer from "../server/nodes/remote-server";
+import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+import MyNode from "../src/server/nodes/my-node";
+import Splitter from "../src/server/nodes/splitter";
+import RemoteServer from "../src/server/nodes/remote-server";
 
 describe("my-node", () => {
   it("should apply config defaults from schema", async () => {
@@ -274,6 +279,15 @@ describe("context store", () => {
 });
 
 describe("error handling", () => {
+  const ErrorNode = defineIONode({
+    type: "error-test",
+    inputSchema: SchemaType.Object({}),
+    outputsSchema: SchemaType.Object({}),
+    async input() {
+      throw new Error("something broke");
+    },
+  });
+
   it("should reject when input throws", async () => {
     const { node } = await createNode(ErrorNode);
 
@@ -297,7 +311,6 @@ describe("factory API", () => {
   it("should work with defineIONode", async () => {
     const FactoryNode = defineIONode({
       type: "factory-node",
-      configSchema: ConfigsSchema,
       inputSchema: SchemaType.Object({}),
       outputsSchema: SchemaType.Object({}),
       input(msg) {

@@ -2,10 +2,6 @@
 
 NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime validation on both server and client. Schemas serve two purposes: they validate data at runtime with AJV, and they provide TypeScript type inference via `Infer`.
 
-::: warning Future changes
-In a future release, NRG plans to replace AJV with TypeBox's native validation and upgrade to [TypeBox v1](https://www.npmjs.com/package/typebox) (published as `typebox` on npm), which is ESM-only. This may introduce breaking changes to schema definitions and validation behavior.
-:::
-
 ## Defining Schemas
 
 Use `defineSchema` to create a schema with a required `$id`:
@@ -74,7 +70,7 @@ export default class MyNode extends IONode<Config, Credentials> {
   static readonly configSchema: Schema = ConfigsSchema;
   static readonly credentialsSchema: Schema = CredentialsSchema;
 
-  async input(msg: any) {
+  async input(msg: Input) {
     const apiKey = this.credentials?.apiKey;
     // ...
   }
@@ -96,11 +92,11 @@ const InputSchema = defineSchema(
   { $id: "my-node:input" }
 );
 
-export default class MyNode extends IONode<Config> {
+export default class MyNode extends IONode<Config, any, Input> {
   static readonly inputSchema: Schema = InputSchema;
   static readonly validateInput = true;
 
-  async input(msg: any) {
+  async input(msg: Input) {
     // msg.payload is guaranteed to be a string here
   }
 }
@@ -123,11 +119,11 @@ const OutputSchema = defineSchema(
   { $id: "my-node:output" }
 );
 
-export default class MyNode extends IONode<Config> {
+export default class MyNode extends IONode<Config, any, Input, Output> {
   static readonly outputsSchema: Schema = OutputSchema;
   static readonly validateOutput = true;
 
-  async input(msg: any) {
+  async input(msg: Input) {
     this.send({
       payload: { result: "ok", timestamp: Date.now() },
     });
@@ -135,21 +131,20 @@ export default class MyNode extends IONode<Config> {
 }
 ```
 
-For nodes with multiple outputs, provide an array of schemas:
+For nodes with multiple outputs, provide an array of schemas. The number of output ports is derived from the array length — there is no `outputs` property to set manually:
 
 ```typescript
 export default class MyNode extends IONode<Config> {
-  static readonly outputs = 2;
-  static readonly outputsSchema: Schema[] = [SuccessSchema, ErrorSchema];
+  static readonly outputsSchema: Schema[] = [SuccessSchema, FailedSchema];
   static readonly validateOutput = true;
 
-  async input(msg: any) {
+  async input(msg: Input) {
     try {
       // Send to first output
       this.send([{ payload: "success" }, null]);
     } catch {
       // Send to second output
-      this.send([null, { payload: "error" }]);
+      this.send([null, { payload: "failed" }]);
     }
   }
 }
@@ -168,10 +163,10 @@ const SettingsSchema = defineSchema(
   { $id: "my-node:settings" }
 );
 
-export default class MyNode extends IONode<Config, any, any, any, Settings> {
+export default class MyNode extends IONode<Config, any, Input, any, Settings> {
   static readonly settingsSchema: Schema = SettingsSchema;
 
-  async input(msg: any) {
+  async input(msg: Input) {
     const endpoint = this.settings.apiEndpoint;
     // ...
   }
@@ -181,3 +176,7 @@ export default class MyNode extends IONode<Config, any, any, any, Settings> {
 Settings are validated once when the node type is first registered. They're accessed via `this.settings` with full type safety.
 
 Setting keys in `settings.js` are prefixed with the camelCase version of the node type. For a node with `type = "my-node"`, the settings key `apiEndpoint` maps to `myNodeApiEndpoint` in the Node-RED settings file.
+
+::: info Future changes
+NRG currently uses [AJV](https://ajv.js.org/) for runtime schema validation. A future release may replace AJV with TypeBox's native validation and upgrade to [TypeBox v1](https://www.npmjs.com/package/typebox) (published as `typebox` on npm). This may introduce changes to schema definitions and validation behavior.
+:::

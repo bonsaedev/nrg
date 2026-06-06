@@ -35,6 +35,8 @@ my-node-red-nodes/
 │       └── docs/
 │           └── {type-id}/
 │               └── {lang}.{md|html}  # Help sidebar documentation
+├── tests/                         # Unit and integration tests
+│   └── {type-id}.test.ts
 └── dist/                          # Build output (git-ignored)
 ```
 
@@ -68,6 +70,14 @@ PNG icons displayed in the Node-RED palette. Name them to match the node type (e
 
 Internationalization files. Labels provide translatable strings for the editor UI. Docs provide help text shown in the Node-RED info sidebar.
 
+### `node-red.settings.ts`
+
+Optional Node-RED runtime settings file. Customizes the Node-RED instance used in development mode (flow file, logging, credential secret, etc.). See [Building & Running](./building-and-running#node-red-settings) for details.
+
+### `tests/`
+
+Unit and integration tests for your nodes using Vitest and `@bonsae/nrg/test`. See [Testing a Node](./testing) for the full API.
+
 ### `dist/`
 
-The build output. Contains the compiled CJS server bundle, HTML with embedded client code, icons, locales, and a generated `package.json` ready for publishing or installing into Node-RED.
+The build output. Contains a CJS bridge (`index.js`) that loads the ESM server bundle (`index.mjs`), an HTML file with client resource links, icons, locales, type declarations, and a generated `package.json` ready for publishing or installing into Node-RED. See [Building & Running](./building-and-running#production-build) for the full layout.

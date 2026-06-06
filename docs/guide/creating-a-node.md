@@ -342,13 +342,14 @@ In a custom form, pass the types via the `types` prop:
 ```vue
 <template>
   <NodeRedTypedInput
-    v-model:value="node.target.value"
-    v-model:type="node.target.type"
+    v-model="node.target"
     label="Target"
     :types="['str', 'num', 'msg']"
   />
 </template>
 ```
+
+The `v-model` binds the whole `{ value, type }` object. The component emits the updated object whenever the user changes either the value or the type.
 
 At runtime, `this.config.target` is a `TypedInput` instance with `.type`, `.value`, and `.resolve()`:
 
@@ -386,7 +387,9 @@ In a custom form, use `<NodeRedConfigInput>`:
   <NodeRedConfigInput
     v-model="node.server"
     label="Server"
-    config-type="remote-server"
+    type="remote-server"
+    :node="node"
+    prop-name="server"
   />
 </template>
 ```
@@ -553,7 +556,7 @@ export type Settings = Infer<typeof SettingsSchema>;
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
 ```typescript
-import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, SchemaType, type RED, type Schema, type Infer } from "@bonsae/nrg/server";
 import {
   ConfigsSchema,
   CredentialsSchema,
@@ -580,7 +583,7 @@ export default class MyNode extends IONode<
   static readonly inputSchema: Schema = SchemaType.Object({});
   static readonly outputsSchema: Schema = SchemaType.Object({});
 
-  static async registered(RED: any) {
+  static async registered(RED: RED) {
     RED.log.info("my-node type registered");
   }
 
@@ -588,7 +591,7 @@ export default class MyNode extends IONode<
     this.log(`Using endpoint: ${this.settings.apiEndpoint}`);
   }
 
-  async input(msg: any) {
+  async input(msg: Record<string, any>) {
     const apiKey = this.credentials?.apiKey;
     msg.payload = `${this.config.prefix}: ${msg.payload}`;
     this.send(msg);
@@ -790,6 +793,8 @@ Port 4: Status       (if statusPort enabled)
 #### Example: node with error and status ports
 
 ```typescript
+import { IONode, defineSchema, SchemaType, type Schema, type Infer } from "@bonsae/nrg/server";
+
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
@@ -797,8 +802,10 @@ const ConfigsSchema = defineSchema(
     errorPort: SchemaType.Boolean({ default: false }),
     statusPort: SchemaType.Boolean({ default: false }),
   },
-  { $id: "http-client:config" }
+  { $id: "http-client:configs" }
 );
+
+type Config = Infer<typeof ConfigsSchema>;
 
 export default class HttpClient extends IONode<Config> {
   static override readonly type = "http-client";
@@ -806,7 +813,7 @@ export default class HttpClient extends IONode<Config> {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  override async input(msg: any) {
+  override async input(msg: Record<string, unknown>) {
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
     const response = await fetch(this.config.url);
     this.status({ fill: "green", shape: "dot", text: "done" });
@@ -891,7 +898,7 @@ export default defineNode({
 
 ### `src/client/components/{type}.vue` — Custom Form Component {#custom-form-component}
 
-Use this to replace the auto-generated JSON schema form with a fully custom Vue 3 component. This gives you complete control over the editor UI:
+Use this to replace the auto-generated JSON schema form with a fully custom Vue 3 component. NRG matches components to node types by filename — a file named `my-node.vue` replaces the auto-generated form for the node with `type: "my-node"`. This gives you complete control over the editor UI:
 
 ```vue
 <script setup lang="ts">
@@ -916,7 +923,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
   <div>
     <div class="form-row">
       <NodeRedInput
-        v-model:value="node.name"
+        v-model="node.name"
         label="Name"
         icon="tag"
         :error="errors['node.name']"
@@ -925,7 +932,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
 
     <div class="form-row">
       <NodeRedSelectInput
-        v-model:value="node.method"
+        v-model="node.method"
         label="Method"
         icon="random"
         :options="methods"
@@ -934,7 +941,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
 
     <div class="form-row">
       <NodeRedInput
-        v-model:value="node.url"
+        v-model="node.url"
         label="URL"
         icon="globe"
         :required="true"
@@ -945,7 +952,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
     <!-- Only shown for POST/PUT/PATCH -->
     <div v-if="hasBody" class="form-row">
       <NodeRedEditorInput
-        v-model:value="node.body"
+        v-model="node.body"
         label="Body"
         icon="code"
         :required="true"
@@ -956,7 +963,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
 
     <div class="form-row">
       <NodeRedSelectInput
-        v-model:value="node.authType"
+        v-model="node.authType"
         label="Auth Type"
         icon="lock"
         :options="authTypes"
@@ -966,7 +973,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
     <!-- Only shown for basic auth -->
     <div v-if="node.authType === 'basic'" class="form-row">
       <NodeRedInput
-        v-model:value="node.username"
+        v-model="node.username"
         label="Username"
         icon="user"
         :required="true"
@@ -976,7 +983,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
 
     <div v-if="node.authType === 'basic'" class="form-row">
       <NodeRedInput
-        v-model:value="node.password"
+        v-model="node.password"
         label="Password"
         icon="key"
         type="password"
@@ -988,7 +995,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
     <!-- Only shown for bearer auth -->
     <div v-if="node.authType === 'bearer'" class="form-row">
       <NodeRedInput
-        v-model:value="node.token"
+        v-model="node.token"
         label="Token"
         icon="key"
         type="password"
@@ -999,7 +1006,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
 
     <div class="form-row">
       <NodeRedInput
-        v-model:value="node.retries"
+        v-model="node.retries"
         label="Retries"
         icon="repeat"
         type="number"
@@ -1009,7 +1016,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
     <!-- Only shown when retries > 0 -->
     <div v-if="node.retries > 0" class="form-row">
       <NodeRedInput
-        v-model:value="node.retryDelay"
+        v-model="node.retryDelay"
         label="Retry Delay (ms)"
         icon="hourglass"
         type="number"
@@ -1100,8 +1107,7 @@ NRG registers these components globally in every form:
 ```vue
 <template>
   <NodeRedTypedInput
-    v-model:value="node.target.value"
-    v-model:type="node.target.type"
+    v-model="node.target"
     label="Target"
     :types="['msg', 'flow', 'global', 'str', 'num']"
   />
@@ -1115,7 +1121,9 @@ NRG registers these components globally in every form:
   <NodeRedConfigInput
     v-model="node.server"
     label="Server"
-    config-type="remote-server"
+    type="remote-server"
+    :node="node"
+    prop-name="server"
   />
 </template>
 ```

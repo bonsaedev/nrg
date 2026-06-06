@@ -14,6 +14,8 @@ This will:
 2. Launch a local Node-RED instance (URL printed in the terminal)
 3. Watch for file changes and automatically rebuild + restart
 
+Server-side changes trigger a full Node-RED restart. Client-side changes trigger a browser page reload. The flow editor state (your flow definitions) is preserved across restarts.
+
 ### Node-RED Settings
 
 To customize the Node-RED runtime, create a `node-red.settings.ts` at the project root:
