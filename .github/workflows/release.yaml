@@ -42,22 +42,28 @@ jobs:
           HUSKY: 0
 
       - name: Type Check
-        run: pnpm typecheck
+        run: pnpm validate:tsc
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm validate:lint
 
       - name: Format Check
-        run: pnpm format:check
+        run: pnpm validate:format
 
-      - name: Unit Tests
-        run: pnpm test:unit
+      - name: Server Unit Tests
+        run: pnpm vitest run --config vitest.core.server.unit.config.ts
+
+      - name: Vite Unit Tests
+        run: pnpm vitest run --config vitest.vite.unit.config.ts
 
       - name: Build
         run: pnpm build
 
-      - name: E2E Tests
-        run: pnpm test:e2e
+      - name: Vite E2E Tests
+        run: pnpm vitest run --config vitest.vite.e2e.config.ts
+
+      - name: Client E2E Tests
+        run: pnpm vitest run --config vitest.core.client.e2e.config.ts
 
       - name: Semantic Release
         id: semantic

@@ -31,13 +31,13 @@ jobs:
           HUSKY: 0
 
       - name: Type Check
-        run: pnpm typecheck
+        run: pnpm validate:tsc
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm validate:lint
 
       - name: Format Check
-        run: pnpm format:check
+        run: pnpm validate:format
 
       - name: Server Unit Tests
         run: pnpm vitest run --config vitest.core.server.unit.config.ts --coverage

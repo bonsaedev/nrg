@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-const REPO_ROOT = path.resolve(__dirname, "../../..");
+const REPO_ROOT = path.resolve(__dirname, "../..");
 
 /**
  * Sets up the fixture's node_modules so @bonsae/nrg resolves correctly.
