@@ -1,16 +1,8 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedConfigInput from "../../../../../src/core/client/form/components/node-red-config-input.vue";
-
-function createNode(overrides: Record<string, any> = {}) {
-  return {
-    id: "node-1",
-    type: "test-node",
-    changed: false,
-    _def: {},
-    ...overrides,
-  };
-}
+import { createNode, getMockRED } from "../../../../../src/test/client/unit";
+import { getJQueryState } from "../../../../../src/test/client/unit/jquery";
 
 describe("NodeRedConfigInput", () => {
   const DEFAULT_PROPS = {
@@ -38,7 +30,7 @@ describe("NodeRedConfigInput", () => {
 
   test("calls RED.editor.prepareConfigNodeSelect", async () => {
     const spy = vi.spyOn(
-      (window as any).RED.editor,
+      getMockRED().editor,
       "prepareConfigNodeSelect",
     );
     render(NodeRedConfigInput, { props: DEFAULT_PROPS });
@@ -96,7 +88,7 @@ describe("NodeRedConfigInput", () => {
       "#node-input-server",
     ) as HTMLInputElement;
     input.value = "_ADD_";
-    const jqState = (input as any).__jqState;
+    const jqState = getJQueryState(input as Element);
     jqState?.listeners["change"]?.forEach((cb: Function) => cb());
     expect(onModelUpdate).toHaveBeenCalledWith("");
     expect(onValueUpdate).toHaveBeenCalledWith("");
@@ -114,7 +106,7 @@ describe("NodeRedConfigInput", () => {
       "#node-input-server",
     ) as HTMLInputElement;
     input.value = "config-2";
-    const jqState = (input as any).__jqState;
+    const jqState = getJQueryState(input as Element);
     jqState?.listeners["change"]?.forEach((cb: Function) => cb());
     expect(onModelUpdate).toHaveBeenCalledWith("config-2");
   });

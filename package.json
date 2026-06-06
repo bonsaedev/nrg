@@ -10,6 +10,19 @@
     "url": "https://github.com/bonsaedev/nrg",
     "type": "git"
   },
+  "keywords": [
+    "node-red",
+    "vue",
+    "vue3",
+    "typescript",
+    "json-schema",
+    "vite",
+    "vitest",
+    "iot",
+    "automation",
+    "low-code",
+    "framework"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -31,7 +44,7 @@
     "test:vite:e2e": "vitest run --config vitest.vite.e2e.config.ts",
     "build": "node build/index.mjs",
     "validate": "npm run validate:tsc && npm run validate:lint && npm run validate:format",
-    "validate:tsc": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
+    "validate:tsc": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/client/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
     "validate:lint": "eslint src/",
     "validate:format": "prettier --check \"src/**/*.{ts,vue,json}\"",
     "lint": "eslint src/",

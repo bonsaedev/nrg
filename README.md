@@ -13,16 +13,19 @@
 
 Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vistest.
 
-
 ## Package Exports
 
-| Export | Description |
-| --- | --- |
-| `@bonsae/nrg` | Root entry — `defineRuntimeSettings` |
-| `@bonsae/nrg/server` | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
-| `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`) |
-| `@bonsae/nrg/vite` | Vite plugin for building and developing Node-RED packages |
-| `@bonsae/nrg/tsconfig/*` | Shared TypeScript configurations for consumers |
+| Export                               | Description                                                                                                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bonsae/nrg`                        | Root entry — `defineRuntimeSettings`                                                                                                                                  |
+| `@bonsae/nrg/server`                 | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
+| `@bonsae/nrg/client`                 | Client-side registration (`registerTypes`, `defineNode`)                                                                                                              |
+| `@bonsae/nrg/vite`                   | Vite plugin for building and developing Node-RED packages                                                                                                             |
+| `@bonsae/nrg/test/server/unit`       | Server-side unit test helpers (`createNode`)                                                                                                                          |
+| `@bonsae/nrg/test/client/unit`       | Client component test helpers (`createNode`, `getMockRED`, `i18nMock`)                                                                                                |
+| `@bonsae/nrg/test/client/unit/setup` | Setup file that installs Node-RED editor mocks on `window`                                                                                                            |
+| `@bonsae/nrg/test/client/e2e`        | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`)                                                                                                            |
+| `@bonsae/nrg/tsconfig/*`             | Shared TypeScript configurations for consumers                                                                                                                        |
 
 ## Quick Start
 
@@ -32,7 +35,7 @@ pnpm add @bonsae/nrg
 pnpm add -D vite vue
 ```
 
-> `vite` ane `vue` are dev dependencies because they are only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
+> `vite` and `vue` are dev dependencies because they are only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
 
 **vite.config.ts**
 
@@ -55,7 +58,7 @@ export const ConfigsSchema = defineSchema(
     name: SchemaType.String({ default: "" }),
     prefix: SchemaType.String({ default: "hello" }),
   },
-  { $id: "my-node:configs" }
+  { $id: "my-node:configs" },
 );
 ```
 
@@ -131,14 +134,15 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 
 ## Testing
 
-Test your nodes' server-side logic with `@bonsae/nrg/test/server/unit`:
+NRG provides three test libraries:
 
-```bash
-pnpm add -D vitest
-```
+- `@bonsae/nrg/test/server/unit` — server-side unit tests
+- `@bonsae/nrg/test/client/unit` — client component tests (Vue + browser)
+- `@bonsae/nrg/test/client/e2e` — browser E2E tests (Playwright)
+
+### Server Unit Tests
 
 ```typescript
-// tests/my-node.test.ts
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
 import MyNode from "../src/server/nodes/my-node";
@@ -156,9 +160,55 @@ describe("my-node", () => {
 });
 ```
 
-```bash
-npx vitest run
+### Client Component Tests
+
+Test your Vue editor components with mocked Node-RED globals:
+
+```typescript
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+import { playwright } from "@vitest/browser-playwright";
+import vue from "@vitejs/plugin-vue";
+import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+
+export default defineConfig({
+  plugins: [vue()],
+  test: {
+    ...defaultConfig,
+    browser: {
+      ...defaultConfig.browser,
+      provider: playwright(),
+    },
+  },
+});
 ```
+
+```typescript
+// tests/my-component.test.ts
+import { describe, test, expect, vi } from "vitest";
+import { render } from "vitest-browser-vue";
+import { createNode, getMockRED, i18nMock } from "@bonsae/nrg/test/client/unit";
+import MyComponent from "../src/client/components/my-component.vue";
+
+describe("MyComponent", () => {
+  test("renders with node props", async () => {
+    const screen = render(MyComponent, {
+      props: { node: createNode({ name: "test" }) },
+      ...i18nMock,
+    });
+    await expect.element(screen.getByText("test")).toBeInTheDocument();
+  });
+
+  test("calls RED.editor API", async () => {
+    const spy = vi.spyOn(getMockRED().editor, "createEditor");
+    render(MyComponent, { props: { value: "" } });
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
+```
+
+See the [testing guide](https://bonsaedev.github.io/nrg/guide/testing) for full API reference.
 
 ## Development
 

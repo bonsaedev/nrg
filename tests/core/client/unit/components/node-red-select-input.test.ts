@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedSelectInput from "../../../../../src/core/client/form/components/node-red-select-input.vue";
+import { getJQueryState } from "../../../../../src/test/client/unit/jquery";
 
 const OPTIONS = [
   { value: "a", label: "Alpha" },
@@ -24,7 +25,7 @@ describe("NodeRedSelectInput", () => {
     const input = screen.container.querySelector(
       "input.node-input-select",
     ) as HTMLInputElement;
-    const state = (input as any).__jqState;
+    const state = getJQueryState(input as Element);
     expect(state).toBeDefined();
     expect(state.typedInput).toBeDefined();
   });
@@ -77,7 +78,7 @@ describe("NodeRedSelectInput", () => {
     const input = screen.container.querySelector(
       "input.node-input-select",
     ) as HTMLInputElement;
-    const state = (input as any).__jqState;
+    const state = getJQueryState(input as Element);
     expect(state.typedInput.value).toBe("b");
   });
 
@@ -88,7 +89,7 @@ describe("NodeRedSelectInput", () => {
     const input = screen.container.querySelector(
       "input.node-input-select",
     ) as HTMLInputElement;
-    const state = (input as any).__jqState;
+    const state = getJQueryState(input as Element);
     expect(state.typedInput.value).toBe("c");
   });
 
@@ -106,7 +107,7 @@ describe("NodeRedSelectInput", () => {
     const input = screen.container.querySelector(
       "input.node-input-select",
     ) as HTMLInputElement;
-    const jqState = (input as any).__jqState;
+    const jqState = getJQueryState(input as Element);
     jqState.typedInput.value = "b";
     jqState.listeners["change"]?.forEach((cb: Function) => cb());
     expect(onModelUpdate).toHaveBeenCalledWith("b");
@@ -126,7 +127,7 @@ describe("NodeRedSelectInput", () => {
     const input = screen.container.querySelector(
       "input.node-input-select",
     ) as HTMLInputElement;
-    const jqState = (input as any).__jqState;
+    const jqState = getJQueryState(input as Element);
     jqState.typedInput.value = "a,c";
     jqState.listeners["change"]?.forEach((cb: Function) => cb());
     expect(onModelUpdate).toHaveBeenCalledWith(["a", "c"]);

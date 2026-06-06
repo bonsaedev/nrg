@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedEditorInput from "../../../../../src/core/client/form/components/node-red-editor-input.vue";
+import { getMockRED } from "../../../../../src/test/client/unit";
 
 describe("NodeRedEditorInput", () => {
   test("mounts without error", async () => {
@@ -32,7 +33,7 @@ describe("NodeRedEditorInput", () => {
   });
 
   test("calls RED.editor.createEditor with correct options", async () => {
-    const spy = vi.spyOn((window as any).RED.editor, "createEditor");
+    const spy = vi.spyOn(getMockRED().editor, "createEditor");
     render(NodeRedEditorInput, {
       props: { value: "test content", language: "javascript" },
     });
@@ -105,7 +106,7 @@ describe("NodeRedEditorInput", () => {
   });
 
   test("modelValue takes precedence over value", async () => {
-    const spy = vi.spyOn((window as any).RED.editor, "createEditor");
+    const spy = vi.spyOn(getMockRED().editor, "createEditor");
     render(NodeRedEditorInput, {
       props: { modelValue: "from-model", value: "from-value" },
     });

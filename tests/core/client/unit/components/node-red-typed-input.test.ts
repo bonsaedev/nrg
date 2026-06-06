@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedTypedInput from "../../../../../src/core/client/form/components/node-red-typed-input.vue";
+import { getJQueryState } from "../../../../../src/test/client/unit/jquery";
 
 describe("NodeRedTypedInput", () => {
   const DEFAULT_PROPS = {
@@ -25,7 +26,7 @@ describe("NodeRedTypedInput", () => {
     const input = screen.container.querySelector(
       "input.node-red-typed-input",
     ) as HTMLInputElement;
-    const state = (input as any).__jqState;
+    const state = getJQueryState(input as Element);
     expect(state.typedInput.value).toBe("hello");
     expect(state.typedInput.type).toBe("str");
   });
@@ -72,7 +73,7 @@ describe("NodeRedTypedInput", () => {
     const input = screen.container.querySelector(
       "input.node-red-typed-input",
     ) as HTMLInputElement;
-    const state = (input as any).__jqState;
+    const state = getJQueryState(input as Element);
     expect(state.typedInput.value).toBe("from-model");
     expect(state.typedInput.type).toBe("num");
   });
@@ -90,7 +91,7 @@ describe("NodeRedTypedInput", () => {
     const input = screen.container.querySelector(
       "input.node-red-typed-input",
     ) as HTMLInputElement;
-    const jqState = (input as any).__jqState;
+    const jqState = getJQueryState(input as Element);
     jqState.typedInput.value = "42";
     jqState.typedInput.type = "num";
     jqState.listeners["change"]?.forEach((cb: Function) => cb());
@@ -109,7 +110,7 @@ describe("NodeRedTypedInput", () => {
     const input = screen.container.querySelector(
       "input.node-red-typed-input",
     ) as HTMLInputElement;
-    const jqState = (input as any).__jqState;
+    const jqState = getJQueryState(input as Element);
     // Value unchanged from initial
     jqState.listeners["change"]?.forEach((cb: Function) => cb());
     expect(onModelUpdate).not.toHaveBeenCalled();

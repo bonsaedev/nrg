@@ -1,26 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedJsonSchemaForm from "../../../../../src/core/client/form/components/node-red-json-schema-form.vue";
-
-function createNode(props: Record<string, any> = {}) {
-  return {
-    id: "node-1",
-    type: "test-node",
-    changed: false,
-    _def: { outputs: 1 },
-    name: "",
-    _: (key: string) => key,
-    ...props,
-  };
-}
-
-const I18N_MOCK = {
-  global: {
-    mocks: {
-      $i18n: (key: string) => key,
-    },
-  },
-};
+import { createNode, i18nMock } from "../../../../../src/test/client/unit";
 
 describe("NodeRedJsonSchemaForm", () => {
   test("renders string field as text input", async () => {
@@ -35,7 +16,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     await expect.element(screen.getByText("Name")).toBeInTheDocument();
     const input = screen.container.querySelector(
@@ -56,7 +37,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     await expect.element(screen.getByText("Timeout")).toBeInTheDocument();
     const input = screen.container.querySelector(
@@ -77,7 +58,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const input = screen.container.querySelector(
       'input[type="number"]',
@@ -101,7 +82,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const toggle = screen.container.querySelector(".nrg-toggle");
     expect(toggle).not.toBeNull();
@@ -119,7 +100,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const checkbox = screen.container.querySelector(
       'input[type="checkbox"]',
@@ -145,7 +126,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     await expect.element(screen.getByText("Color")).toBeInTheDocument();
     const selectInput = screen.container.querySelector(
@@ -169,7 +150,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const selectInput = screen.container.querySelector(
       "input.node-input-select",
@@ -193,7 +174,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const selectInput = screen.container.querySelector(
       "input.node-input-select",
@@ -222,7 +203,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const typedInput = screen.container.querySelector(
       "input.node-red-typed-input",
@@ -246,7 +227,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const configInput = screen.container.querySelector(
       "#node-input-server",
@@ -272,7 +253,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     await expect.element(screen.getByText("Custom")).toBeInTheDocument();
     const allInputs = screen.container.querySelectorAll("input");
@@ -303,7 +284,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     await expect.element(screen.getByText("API Key")).toBeInTheDocument();
     await expect.element(screen.getByText("Username")).toBeInTheDocument();
@@ -327,7 +308,7 @@ describe("NodeRedJsonSchemaForm", () => {
         },
         errors: { "node.name": "Name is required" },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     await expect
       .element(screen.getByText("Name is required"))
@@ -350,7 +331,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const passwordInput = screen.container.querySelector(
       'input[type="password"]',
@@ -370,7 +351,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const textarea = screen.container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -392,7 +373,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const editorWrapper = screen.container.querySelector(".editor-wrapper");
     expect(editorWrapper).not.toBeNull();
@@ -405,7 +386,7 @@ describe("NodeRedJsonSchemaForm", () => {
         node,
         schema: { type: "object", properties: {} },
       },
-      ...I18N_MOCK,
+      ...i18nMock,
     });
     const formRows = screen.container.querySelectorAll(".form-row");
     expect(formRows.length).toBe(0);

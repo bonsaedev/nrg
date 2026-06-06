@@ -105,6 +105,8 @@ function buildVitePlugin() {
 
 function buildTestUtils() {
   esbuild("src/test/server/unit/index.ts", { format: "esm", outdir: "dist/test/server/unit" });
+  esbuild("src/test/client/unit/index.ts", { format: "esm", outdir: "dist/test/client/unit" });
+  esbuild("src/test/client/unit/setup.ts", { format: "esm", outdir: "dist/test/client/unit" });
   esbuild("src/test/client/e2e/index.ts", { format: "esm", outdir: "dist/test/client/e2e" });
   console.log("✓ Built test utilities to dist/test/");
 }
@@ -138,6 +140,7 @@ export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
 
   // Test utilities types
   execSync(`npx dts-bundle-generator -o dist/types/test-server-unit.d.ts src/test/server/unit/index.ts ${DTS_FLAGS} --external-types vitest`, { stdio: "inherit" });
+  execSync(`npx dts-bundle-generator -o dist/types/test-client-unit.d.ts src/test/client/unit/index.ts ${DTS_FLAGS}`, { stdio: "inherit" });
   execSync(`npx dts-bundle-generator -o dist/types/test-client-e2e.d.ts src/test/client/e2e/index.ts ${DTS_FLAGS} --external-imports playwright --external-imports playwright-core`, { stdio: "inherit" });
 
   console.log("✓ Generated type declarations to dist/types/");
@@ -257,6 +260,11 @@ function generatePackageJson() {
         types: "./types/test-server-unit.d.ts",
         default: "./test/server/unit/index.js",
       },
+      "./test/client/unit": {
+        types: "./types/test-client-unit.d.ts",
+        default: "./test/client/unit/index.js",
+      },
+      "./test/client/unit/setup": "./test/client/unit/setup.js",
       "./test/client/e2e": {
         types: "./types/test-client-e2e.d.ts",
         default: "./test/client/e2e/index.js",
