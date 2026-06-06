@@ -21,6 +21,10 @@ import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
+    modelValue: {
+      type: String,
+      default: undefined,
+    },
     value: {
       type: String,
       default: "",
@@ -54,10 +58,13 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: ["update:value"],
+  emits: ["update:modelValue", "update:value"],
   computed: {
     inputId() {
       return "node-input-" + this.propName;
+    },
+    effectiveValue(): string {
+      return this.modelValue !== undefined ? this.modelValue : this.value;
     },
   },
   mounted() {
@@ -73,10 +80,12 @@ export default defineComponent({
       const val = input.val() as string;
       // "_ADD_" is Node-RED's internal placeholder for "Add new..." —
       // treat it as empty so validation catches unset config refs.
-      this.$emit("update:value", val === "_ADD_" ? "" : val);
+      const emitVal = val === "_ADD_" ? "" : val;
+      this.$emit("update:modelValue", emitVal);
+      this.$emit("update:value", emitVal);
     });
 
-    input.val(this.value || "_ADD_");
+    input.val(this.effectiveValue || "_ADD_");
   },
 });
 </script>

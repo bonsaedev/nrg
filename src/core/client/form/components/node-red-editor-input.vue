@@ -33,6 +33,10 @@ import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
+    modelValue: {
+      type: String,
+      default: undefined,
+    },
     value: {
       type: String,
       default: "",
@@ -152,7 +156,13 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: ["update:value", "editor-ready", "tray-open", "tray-close"],
+  emits: [
+    "update:modelValue",
+    "update:value",
+    "editor-ready",
+    "tray-open",
+    "tray-close",
+  ],
   // Non-reactive instance property — must NOT be in data() because Vue's
   // reactivity proxy breaks Monaco editor and jQuery widgets. markRaw() was
   // tested and also does not work. Declared here so Vue ignores it.
@@ -164,6 +174,11 @@ export default defineComponent({
       stateId,
       trayElement: null as HTMLElement | null,
     };
+  },
+  computed: {
+    effectiveValue(): string {
+      return this.modelValue !== undefined ? this.modelValue : this.value;
+    },
   },
   mounted() {
     // NOTE: jquery wrapper is used because RED.popover.tooltip needs it
@@ -223,11 +238,12 @@ export default defineComponent({
       this.editor = RED.editor.createEditor({
         id: this.editorId,
         mode: this.language,
-        value: this.value,
+        value: this.effectiveValue,
       });
       this.editor.getSession().on("change", () => {
         const currentValue = this.editor.getValue();
-        if (currentValue !== this.value) {
+        if (currentValue !== this.effectiveValue) {
+          this.$emit("update:modelValue", currentValue);
           this.$emit("update:value", currentValue);
         }
       });
@@ -283,7 +299,7 @@ export default defineComponent({
             stateId: this.stateId,
             mode: this.language,
             focus: true,
-            value: this.value,
+            value: this.effectiveValue,
           });
           dialogForm.i18n();
           const trayBody = tray.find(".red-ui-tray-body")[0];

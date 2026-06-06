@@ -33,6 +33,10 @@ const SECRET_PATTERN = "*************";
 export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
+    modelValue: {
+      type: String,
+      default: undefined,
+    },
     value: {
       type: String,
       default: "",
@@ -62,19 +66,25 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: ["update:value", "input"],
+  emits: ["update:modelValue", "update:value", "input"],
   data() {
     return {
       internalValue: "",
     };
   },
+  computed: {
+    effectiveValue(): string {
+      return this.modelValue !== undefined ? this.modelValue : this.value;
+    },
+  },
   beforeMount() {
-    this.internalValue = this.value;
+    this.internalValue = this.effectiveValue;
     this.onBlur();
   },
   methods: {
     onInput(event) {
       this.internalValue = event.target.value;
+      this.$emit("update:modelValue", this.internalValue);
       this.$emit("update:value", this.internalValue);
       this.$emit("input", this.internalValue);
     },
@@ -84,7 +94,7 @@ export default defineComponent({
       }
     },
     onBlur() {
-      if (this.type === "password" && this.value === "__PWD__") {
+      if (this.type === "password" && this.effectiveValue === "__PWD__") {
         this.internalValue = SECRET_PATTERN;
       }
     },

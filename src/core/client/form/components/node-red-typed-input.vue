@@ -28,10 +28,20 @@ import { TYPED_INPUT_TYPES } from "../../../constants";
 export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
+    modelValue: {
+      type: Object,
+      default: undefined,
+      validator: function (obj: { value: string; type: string } | undefined) {
+        if (obj === undefined) return true;
+        if (typeof obj !== "object" || obj === null) return false;
+        return typeof obj.value === "string" && typeof obj.type === "string";
+      },
+    },
     value: {
       type: Object,
-      required: true,
-      validator: function (obj: { value: string; type: string }) {
+      default: undefined,
+      validator: function (obj: { value: string; type: string } | undefined) {
+        if (obj === undefined) return true;
         if (typeof obj !== "object" || obj === null) {
           console.warn(
             "[WARN] Invalid value for 'value' property. It must be an object.",
@@ -72,13 +82,16 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: ["update:value"],
+  emits: ["update:modelValue", "update:value"],
   // $input and mutationObserver are assigned directly on `this` in mounted().
   // They must NOT be in data() because Vue's reactivity proxy breaks jQuery
   // widgets. markRaw() was tested and also does not work.
   computed: {
+    effectiveValue(): { value: string; type: string } {
+      return this.modelValue !== undefined ? this.modelValue : this.value;
+    },
     isProvidedValueTypeValid() {
-      const type = this.value.type;
+      const type = this.effectiveValue.type;
       const types = this.types;
 
       return types.includes(type);
@@ -111,12 +124,12 @@ export default defineComponent({
   mounted() {
     const inputElement = this.$refs.typedInput;
     this.$input = $(inputElement).typedInput({
-      default: this.value.type || this.types[0],
+      default: this.effectiveValue.type || this.types[0],
       types: this.types,
     });
 
-    this.$input.typedInput("value", this.value.value || "");
-    this.$input.typedInput("type", this.value.type || this.types[0]);
+    this.$input.typedInput("value", this.effectiveValue.value || "");
+    this.$input.typedInput("type", this.effectiveValue.type || this.types[0]);
 
     // NOTE: when typed input is just a text input, it isn't emiting change while typing because it is updating the value in a hidden input
     this.$nextTick(() => {
@@ -151,11 +164,13 @@ export default defineComponent({
     onChange() {
       const newValue = this.$input.typedInput("value");
       const newType = this.$input.typedInput("type");
-      if (this.value.value !== newValue || this.value.type !== newType) {
-        this.$emit("update:value", {
-          value: newValue,
-          type: newType,
-        });
+      if (
+        this.effectiveValue.value !== newValue ||
+        this.effectiveValue.type !== newType
+      ) {
+        const payload = { value: newValue, type: newType };
+        this.$emit("update:modelValue", payload);
+        this.$emit("update:value", payload);
       }
     },
   },

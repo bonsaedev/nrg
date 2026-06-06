@@ -26,6 +26,10 @@ import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
+    modelValue: {
+      type: [String, Array],
+      default: undefined,
+    },
     value: {
       type: [String, Array],
       default: () => "",
@@ -80,7 +84,12 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: ["update:value"],
+  emits: ["update:modelValue", "update:value"],
+  computed: {
+    effectiveValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value;
+    },
+  },
   mounted() {
     const inputElement = this.$refs.selectInput as HTMLInputElement;
     const $selectInput = $(inputElement);
@@ -95,12 +104,15 @@ export default defineComponent({
 
     $selectInput.typedInput(
       "value",
-      Array.isArray(this.value) ? this.value.join(",") : this.value,
+      Array.isArray(this.effectiveValue)
+        ? this.effectiveValue.join(",")
+        : this.effectiveValue,
     );
     $selectInput.on("change", () => {
       const newValue = this.multiple
         ? ($selectInput.typedInput("value")?.split(",").filter(Boolean) ?? [])
         : $selectInput.typedInput("value");
+      this.$emit("update:modelValue", newValue);
       this.$emit("update:value", newValue);
     });
   },
