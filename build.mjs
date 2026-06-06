@@ -104,7 +104,7 @@ function buildVitePlugin() {
 
 function buildTestUtils() {
   esbuild("src/test/index.ts", { format: "esm", outdir: "dist/test" });
-  esbuild("src/test/browser/index.ts", { format: "esm", outdir: "dist/test/browser" });
+  esbuild("src/test/client/e2e/index.ts", { format: "esm", outdir: "dist/test/client/e2e" });
   console.log("✓ Built test utilities to dist/test/");
 }
 
@@ -137,7 +137,7 @@ export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
 
   // Test utilities types
   execSync(`npx dts-bundle-generator -o dist/types/test.d.ts src/test/index.ts ${DTS_FLAGS} --external-types vitest`, { stdio: "inherit" });
-  execSync(`npx dts-bundle-generator -o dist/types/test-browser.d.ts src/test/browser/index.ts ${DTS_FLAGS} --external-imports playwright --external-imports playwright-core`, { stdio: "inherit" });
+  execSync(`npx dts-bundle-generator -o dist/types/test-client-e2e.d.ts src/test/client/e2e/index.ts ${DTS_FLAGS} --external-imports playwright --external-imports playwright-core`, { stdio: "inherit" });
 
   console.log("✓ Generated type declarations to dist/types/");
 }
@@ -256,9 +256,9 @@ function generatePackageJson() {
         types: "./types/test.d.ts",
         default: "./test/index.js",
       },
-      "./test/browser": {
-        types: "./types/test-browser.d.ts",
-        default: "./test/browser/index.js",
+      "./test/client/e2e": {
+        types: "./types/test-client-e2e.d.ts",
+        default: "./test/client/e2e/index.js",
       },
       "./tsconfig/base.json": "./tsconfig/base.json",
       "./tsconfig/client.json": "./tsconfig/client.json",

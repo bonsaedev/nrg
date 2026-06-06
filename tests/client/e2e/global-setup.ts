@@ -17,7 +17,7 @@ import { NodeRedLauncher } from "../../../src/vite/node-red-launcher";
 import {
   setupFixtureNodeModules,
   cleanFixtureNodeModules,
-} from "../vite/setup-fixture";
+} from "../../e2e/vite/setup-fixture";
 import type {
   BuildContext,
   ServerBuildOptions,
@@ -32,7 +32,7 @@ const INSTALLED_PKG_DIR = path.join(
   "node_modules",
   "form-components",
 );
-export const PORT_FILE = path.join(os.tmpdir(), "nrg-e2e-browser-port");
+export const PORT_FILE = path.join(os.tmpdir(), "nrg-client-e2e-port");
 
 let launcher: NodeRedLauncher;
 let originalCwd: string;

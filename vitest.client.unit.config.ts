@@ -5,8 +5,8 @@ import vue from "@vitejs/plugin-vue";
 export default defineConfig({
   plugins: [vue()],
   test: {
-    include: ["tests/browser/**/*.test.ts"],
-    setupFiles: ["tests/browser/setup.ts"],
+    include: ["tests/client/unit/**/*.test.ts"],
+    setupFiles: ["tests/client/unit/setup.ts"],
     browser: {
       enabled: true,
       provider: playwright(),

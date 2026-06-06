@@ -22,10 +22,10 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "vitest run --config vitest.e2e.vite.config.ts",
-    "test:browser": "vitest run --config vitest.browser.config.ts",
-    "test:e2e:browser": "vitest run --config vitest.e2e.browser.config.ts",
+    "test:client:unit": "vitest run --config vitest.client.unit.config.ts",
+    "test:client:e2e": "vitest run --config vitest.client.e2e.config.ts",
     "build": "node build.mjs",
-    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/tsconfig.json --noEmit && tsc -p src/test/browser/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/browser/tsconfig.json --noEmit && tsc -p tests/e2e/browser/tsconfig.json --noEmit",
+    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/client/unit/tsconfig.json --noEmit && tsc -p tests/client/e2e/tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
@@ -56,9 +56,9 @@
       "types": "./dist/types/test.d.ts",
       "default": "./dist/test/index.js"
     },
-    "./test/browser": {
-      "types": "./dist/types/test-browser.d.ts",
-      "default": "./dist/test/browser/index.js"
+    "./test/client/e2e": {
+      "types": "./dist/types/test-client-e2e.d.ts",
+      "default": "./dist/test/client/e2e/index.js"
     },
     "./tsconfig/base.json": "./dist/tsconfig/base.json",
     "./tsconfig/client.json": "./dist/tsconfig/client.json",

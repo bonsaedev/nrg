@@ -3,7 +3,7 @@
 NRG provides two test libraries:
 
 - `@bonsae/nrg/test` — Unit/integration testing of **server-side logic** (lifecycle hooks, input/output, config, credentials, context stores)
-- `@bonsae/nrg/test/browser` — E2E testing of **editor UI** with Playwright (form rendering, validation, typed inputs, config selectors)
+- `@bonsae/nrg/test/client/e2e` — E2E testing of **editor UI** with Playwright (form rendering, validation, typed inputs, config selectors)
 
 ## Server-Side Testing
 
@@ -353,7 +353,7 @@ describe("factory API", () => {
 
 ## Browser E2E Testing
 
-NRG provides a browser test library at `@bonsae/nrg/test/browser` for end-to-end testing of your node's editor UI. It uses [Playwright](https://playwright.dev/) to drive a real Node-RED editor and interact with your form fields, typed inputs, config selectors, and validation messages.
+NRG provides a browser test library at `@bonsae/nrg/test/client/e2e` for end-to-end testing of your node's editor UI. It uses [Playwright](https://playwright.dev/) to drive a real Node-RED editor and interact with your form fields, typed inputs, config selectors, and validation messages.
 
 ::: tip When to use
 Use browser E2E tests to verify that your node's editor form renders correctly, validates input, and persists values. Server-side logic is better tested with `@bonsae/nrg/test` (see above).
@@ -370,15 +370,15 @@ pnpm add -D playwright vitest
 #### 2. Create a Vitest config for E2E browser tests
 
 ```typescript
-// vitest.e2e.browser.config.ts
+// vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     testTimeout: 120_000,
     hookTimeout: 120_000,
-    globalSetup: "tests/e2e/browser/global-setup.ts",
-    include: ["tests/e2e/browser/**/*.test.ts"],
+    globalSetup: "tests/client/e2e/global-setup.ts",
+    include: ["tests/client/e2e/**/*.test.ts"],
   },
 });
 ```
@@ -388,7 +388,7 @@ export default defineConfig({
 The global setup builds your node package, starts a Node-RED instance, deploys a test flow, and writes the port to a temp file so tests can connect to it.
 
 ```typescript
-// tests/e2e/browser/global-setup.ts
+// tests/client/e2e/global-setup.ts
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -400,7 +400,7 @@ const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/my-node");
 const OUT_DIR = path.join(FIXTURE_DIR, "dist-e2e");
 const NODE_RED_DIR = path.join(FIXTURE_DIR, ".node-red");
 const INSTALLED_PKG_DIR = path.join(NODE_RED_DIR, "node_modules", "my-node");
-export const PORT_FILE = path.join(os.tmpdir(), "nrg-e2e-browser-port");
+export const PORT_FILE = path.join(os.tmpdir(), "nrg-client-e2e-port");
 
 let launcher: NodeRedLauncher;
 
@@ -444,11 +444,11 @@ export async function teardown(): Promise<void> {
 #### 4. Create a test file
 
 ```typescript
-// tests/e2e/browser/my-node.test.ts
+// tests/client/e2e/my-node.test.ts
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import { chromium, type Browser } from "playwright";
-import { NodeRedEditor } from "@bonsae/nrg/test/browser";
+import { NodeRedEditor } from "@bonsae/nrg/test/client/e2e";
 import { PORT_FILE } from "./global-setup";
 
 describe("my-node editor", () => {
@@ -483,7 +483,7 @@ describe("my-node editor", () => {
 #### 5. Run the tests
 
 ```bash
-npx vitest run --config vitest.e2e.browser.config.ts
+npx vitest run --config vitest.client.e2e.config.ts
 ```
 
 ### API
@@ -596,7 +596,7 @@ const name = editor.field("Name");
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import { chromium, type Browser } from "playwright";
-import { NodeRedEditor } from "@bonsae/nrg/test/browser";
+import { NodeRedEditor } from "@bonsae/nrg/test/client/e2e";
 import { PORT_FILE } from "./global-setup";
 
 describe("my-node editor", () => {

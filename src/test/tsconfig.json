@@ -10,5 +10,5 @@
     "../core/errors.ts",
     "../constants.ts"
   ],
-  "exclude": ["node_modules", "browser"]
+  "exclude": ["node_modules", "client"]
 }

@@ -95,8 +95,8 @@ jobs:
       - name: E2E Tests
         run: pnpm vitest run --config vitest.e2e.vite.config.ts
 
-  e2e-browser:
-    name: E2E Browser Tests
+  client-e2e:
+    name: Client E2E Tests
     needs: build
     runs-on: ubuntu-latest
 
@@ -130,13 +130,13 @@ jobs:
           name: dist
           path: dist/
 
-      - name: E2E Browser Tests
-        run: pnpm vitest run --config vitest.e2e.browser.config.ts
+      - name: Client E2E Tests
+        run: pnpm vitest run --config vitest.client.e2e.config.ts
 
       - name: Upload Screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-browser-screenshots
+          name: client-e2e-screenshots
           path: test-results/screenshots/
           if-no-files-found: ignore

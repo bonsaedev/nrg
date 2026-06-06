@@ -3,6 +3,9 @@
   "compilerOptions": {
     "lib": ["ESNext", "DOM"]
   },
-  "include": ["**/*.ts"],
+  "include": [
+    "**/*.ts",
+    "../../../src/test/client/e2e/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
