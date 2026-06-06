@@ -25,7 +25,7 @@
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:e2e:browser": "vitest run --config vitest.e2e.browser.config.ts",
     "build": "node build.mjs",
-    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/tsconfig.json --noEmit && tsc -p src/test/browser/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/browser/tsconfig.json --noEmit",
+    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/tsconfig.json --noEmit && tsc -p src/test/browser/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/browser/tsconfig.json --noEmit && tsc -p tests/e2e/browser/tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue,json}\"",

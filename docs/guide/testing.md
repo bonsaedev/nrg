@@ -1,10 +1,11 @@
 # Testing a Node
 
-NRG provides a test framework at `@bonsae/nrg/test` for unit and integration testing the **server-side logic** of your nodes with Vitest. This covers node lifecycle hooks, input/output handling, config resolution, credentials, context stores, and settings — everything that runs in the Node-RED runtime.
+NRG provides two test libraries:
 
-::: tip Server-side only
-This framework covers server-side node testing. Client-side Vue components can be tested with standard Vue testing tools (Vitest + [Vue Test Utils](https://test-utils.vuejs.org/)) but are not covered here.
-:::
+- `@bonsae/nrg/test` — Unit/integration testing of **server-side logic** (lifecycle hooks, input/output, config, credentials, context stores)
+- `@bonsae/nrg/test/browser` — E2E testing of **editor UI** with Playwright (form rendering, validation, typed inputs, config selectors)
+
+## Server-Side Testing
 
 ## Setup
 
@@ -349,3 +350,393 @@ describe("factory API", () => {
 | Error handling | `expect(node.receive(...)).rejects.toThrow(...)` |
 | Factory API | `createNode(defineIONode({ ... }))` |
 | Reset state | `node.reset()` clears sent, statuses, and logs |
+
+## Browser E2E Testing
+
+NRG provides a browser test library at `@bonsae/nrg/test/browser` for end-to-end testing of your node's editor UI. It uses [Playwright](https://playwright.dev/) to drive a real Node-RED editor and interact with your form fields, typed inputs, config selectors, and validation messages.
+
+::: tip When to use
+Use browser E2E tests to verify that your node's editor form renders correctly, validates input, and persists values. Server-side logic is better tested with `@bonsae/nrg/test` (see above).
+:::
+
+### Setup
+
+#### 1. Install dependencies
+
+```bash
+pnpm add -D playwright vitest
+```
+
+#### 2. Create a Vitest config for E2E browser tests
+
+```typescript
+// vitest.e2e.browser.config.ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
+    globalSetup: "tests/e2e/browser/global-setup.ts",
+    include: ["tests/e2e/browser/**/*.test.ts"],
+  },
+});
+```
+
+#### 3. Create a global setup file
+
+The global setup builds your node package, starts a Node-RED instance, deploys a test flow, and writes the port to a temp file so tests can connect to it.
+
+```typescript
+// tests/e2e/browser/global-setup.ts
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { build as buildServer } from "@bonsae/nrg/vite/server/build";
+import { build as buildClient } from "@bonsae/nrg/vite/client/build";
+import { NodeRedLauncher } from "@bonsae/nrg/vite/node-red-launcher";
+
+const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/my-node");
+const OUT_DIR = path.join(FIXTURE_DIR, "dist-e2e");
+const NODE_RED_DIR = path.join(FIXTURE_DIR, ".node-red");
+const INSTALLED_PKG_DIR = path.join(NODE_RED_DIR, "node_modules", "my-node");
+export const PORT_FILE = path.join(os.tmpdir(), "nrg-e2e-browser-port");
+
+let launcher: NodeRedLauncher;
+
+export async function setup(): Promise<void> {
+  // Build your node package
+  // ... build server and client ...
+
+  // Install into Node-RED's node_modules
+  fs.mkdirSync(INSTALLED_PKG_DIR, { recursive: true });
+  fs.cpSync(OUT_DIR, INSTALLED_PKG_DIR, { recursive: true });
+
+  // Start Node-RED
+  launcher = new NodeRedLauncher(INSTALLED_PKG_DIR, {
+    runtime: { port: 1881 },
+  });
+  const port = await launcher.start();
+
+  // Deploy a test flow
+  await fetch(`http://localhost:${port}/flows`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Node-RED-Deployment-Type": "full",
+    },
+    body: JSON.stringify([
+      { id: "tab1", type: "tab", label: "E2E Tests" },
+      { id: "n1", type: "my-node", z: "tab1", name: "", x: 250, y: 200, wires: [[]] },
+    ]),
+  });
+
+  // Write port for test files
+  fs.writeFileSync(PORT_FILE, String(port));
+}
+
+export async function teardown(): Promise<void> {
+  await launcher?.stop();
+  launcher?.cleanup();
+}
+```
+
+#### 4. Create a test file
+
+```typescript
+// tests/e2e/browser/my-node.test.ts
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
+import fs from "fs";
+import { chromium, type Browser } from "playwright";
+import { NodeRedEditor } from "@bonsae/nrg/test/browser";
+import { PORT_FILE } from "./global-setup";
+
+describe("my-node editor", () => {
+  let browser: Browser;
+  let editor: NodeRedEditor;
+
+  beforeAll(async () => {
+    const port = Number(fs.readFileSync(PORT_FILE, "utf-8").trim());
+    browser = await chromium.launch();
+    const page = await browser.newPage();
+    editor = new NodeRedEditor(page, port);
+    await editor.open();
+  });
+
+  afterAll(async () => {
+    await browser.close();
+  });
+
+  test("name field accepts input", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    await name.fill("Test Node");
+    await editor.clickDone();
+
+    await editor.editNode("n1");
+    expect(await name.getValue()).toBe("Test Node");
+    await editor.clickCancel();
+  });
+});
+```
+
+#### 5. Run the tests
+
+```bash
+npx vitest run --config vitest.e2e.browser.config.ts
+```
+
+### API
+
+#### `NodeRedEditor`
+
+Controls the Node-RED editor page. Wraps a Playwright `Page` instance.
+
+```typescript
+const editor = new NodeRedEditor(page, port, {
+  screenshotDir: "test-results/screenshots", // optional
+});
+```
+
+| Method | Description |
+| --- | --- |
+| `editor.open()` | Navigate to Node-RED and wait for the editor to load |
+| `editor.editNode(nodeId)` | Open the edit dialog for a node |
+| `editor.clickDone()` | Click the Done button and wait for the tray to close |
+| `editor.clickCancel()` | Click the Cancel button and wait for the tray to close |
+| `editor.field(label)` | Get a `NodeRedField` for the form row with the given label |
+| `editor.deployFlow(flow)` | Deploy a flow via the REST API and reload the page |
+| `editor.screenshot(name)` | Take a full-page screenshot, returns the file path |
+| `editor.expectNoPageErrors()` | Assert no uncaught JavaScript errors occurred |
+| `editor.tray` | Locator for the tray body wrapper |
+| `editor.errors` | Array of captured page error messages |
+
+#### `NodeRedField`
+
+Represents a single form row in the node edit dialog. All field types (text, number, boolean, typed input, config input, code editor, textarea) are accessed through the same class.
+
+```typescript
+const name = editor.field("Name");
+```
+
+**Input fields** (text, number, password):
+
+| Method / Property | Description |
+| --- | --- |
+| `field.input` | Locator for the `<input>` element |
+| `field.fill(value)` | Set the input value |
+| `field.clear()` | Clear the input value |
+| `field.getValue()` | Get the current input value |
+| `field.getInputType()` | Get the input `type` attribute (`"text"`, `"number"`, `"password"`) |
+
+**Boolean fields** (toggle, checkbox):
+
+| Method / Property | Description |
+| --- | --- |
+| `field.toggleSlider` | Locator for the NRG toggle slider |
+| `field.toggle()` | Click the toggle slider |
+| `field.checkbox` | Locator for the checkbox input |
+
+**Typed input fields** (TypedInput, enum select, multi-select):
+
+| Method / Property | Description |
+| --- | --- |
+| `field.typedInputContainer` | Locator for the typed input container |
+| `field.getSelectedType()` | Get the currently selected type (e.g. `"msg"`, `"str"`) |
+| `field.getSelectedValue()` | Get the current typed input value |
+| `field.getTypeMenuValues()` | Open the type dropdown, return all type values, close it |
+| `field.selectType(type)` | Open the type dropdown and select a type |
+| `field.getOptionMenuLabels()` | Open the option dropdown, return all labels, close it |
+
+**Config input fields** (NodeRef):
+
+| Method / Property | Description |
+| --- | --- |
+| `field.select` | Locator for the `<select>` element |
+| `field.editButton` | Locator for the edit (pencil) button |
+| `field.addButton` | Locator for the add (plus) button |
+| `field.getSelectedOption()` | Get the selected option value |
+| `field.getSelectedOptionLabel()` | Get the selected option display text |
+| `field.getOptions()` | Get all option labels (excludes "Add new ...") |
+
+**Code editor fields**:
+
+| Method / Property | Description |
+| --- | --- |
+| `field.editorWrapper` | Locator for the code editor wrapper |
+| `field.expandButton` | Locator for the expand button |
+
+**Array text fields**:
+
+| Method / Property | Description |
+| --- | --- |
+| `field.textarea` | Locator for the `<textarea>` element |
+
+**Validation**:
+
+| Method / Property | Description |
+| --- | --- |
+| `field.requiredIndicator` | Locator for the required asterisk (`*`) |
+| `field.errorMessage` | Locator for the validation error message |
+| `field.expectError(containing?)` | Assert a validation error is visible, optionally containing text |
+| `field.expectNoError()` | Assert no validation error is visible |
+
+**Visibility**:
+
+| Method / Property | Description |
+| --- | --- |
+| `field.row` | Locator for the entire `.form-row` element |
+| `field.scrollIntoView()` | Scroll the field into the viewport |
+| `field.expectVisible()` | Assert the field row is visible |
+| `field.expectHidden()` | Assert the field row is hidden |
+
+### Examples
+
+```typescript
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
+import fs from "fs";
+import { chromium, type Browser } from "playwright";
+import { NodeRedEditor } from "@bonsae/nrg/test/browser";
+import { PORT_FILE } from "./global-setup";
+
+describe("my-node editor", () => {
+  let browser: Browser;
+  let editor: NodeRedEditor;
+
+  beforeAll(async () => {
+    const port = Number(fs.readFileSync(PORT_FILE, "utf-8").trim());
+    browser = await chromium.launch();
+    const page = await browser.newPage();
+    editor = new NodeRedEditor(page, port);
+    await editor.open();
+  });
+
+  afterAll(async () => {
+    await browser.close();
+  });
+
+  test("text input round-trip", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    await name.fill("E2E Node");
+    await editor.clickDone();
+
+    await editor.editNode("n1");
+    expect(await name.getValue()).toBe("E2E Node");
+    await name.clear();
+    await editor.clickDone();
+  });
+
+  test("number input renders correctly", async () => {
+    await editor.editNode("n1");
+    const count = editor.field("Count");
+    expect(await count.getInputType()).toBe("number");
+    await editor.clickCancel();
+  });
+
+  test("toggle renders for boolean field", async () => {
+    await editor.editNode("n1");
+    const enabled = editor.field("Enabled");
+    expect(await enabled.toggleSlider.isVisible()).toBe(true);
+    await editor.clickCancel();
+  });
+
+  test("typed input shows available types", async () => {
+    await editor.editNode("n1");
+    const target = editor.field("Target");
+    const types = await target.getTypeMenuValues();
+    expect(types).toContain("msg");
+    expect(types).toContain("str");
+    await editor.clickCancel();
+  });
+
+  test("enum field shows options", async () => {
+    await editor.editNode("n1");
+    const color = editor.field("Color");
+    const labels = await color.getOptionMenuLabels();
+    expect(labels).toEqual(["red", "green", "blue"]);
+    await editor.clickCancel();
+  });
+
+  test("config input shows registered config nodes", async () => {
+    await editor.editNode("n1");
+    const server = editor.field("Server");
+    expect(await server.select.isVisible()).toBe(true);
+    expect(await server.editButton.isVisible()).toBe(true);
+    const options = await server.getOptions();
+    expect(options).toContain("Test Server");
+    await editor.clickCancel();
+  });
+
+  test("validation error appears for invalid input", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    await name.expectError("must NOT have fewer than 1 characters");
+    await editor.clickCancel();
+  });
+
+  test("validation error clears when corrected", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    await name.expectError();
+    await name.fill("Valid");
+    await name.expectNoError();
+    await name.clear();
+    await editor.clickCancel();
+  });
+
+  test("required indicator is visible", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    expect(await name.requiredIndicator.isVisible()).toBe(true);
+    expect(await name.requiredIndicator.textContent()).toBe("*");
+    await editor.clickCancel();
+  });
+
+  test("screenshots for visual review", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    await name.scrollIntoView();
+    await editor.screenshot("name-field");
+    await editor.clickCancel();
+  });
+
+  test("no page errors after interaction", async () => {
+    await editor.editNode("n1");
+    await editor.clickCancel();
+    editor.expectNoPageErrors();
+  });
+});
+```
+
+### Multi-browser testing
+
+Run the same tests across Chromium, Firefox, and WebKit using `describe.each`:
+
+```typescript
+import { chromium, firefox, webkit, type BrowserType } from "playwright";
+
+const BROWSERS: Array<{ name: string; type: BrowserType }> = [
+  { name: "chromium", type: chromium },
+  { name: "firefox", type: firefox },
+  { name: "webkit", type: webkit },
+];
+
+describe.each(BROWSERS)("my-node editor ($name)", ({ type }) => {
+  let browser: Browser;
+  let editor: NodeRedEditor;
+
+  beforeAll(async () => {
+    browser = await type.launch();
+    const page = await browser.newPage();
+    editor = new NodeRedEditor(page, port);
+    await editor.open();
+  });
+
+  afterAll(async () => {
+    await browser.close();
+  });
+
+  // ... tests run once per browser engine
+});
+```
