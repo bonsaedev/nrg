@@ -3,13 +3,12 @@
     <div v-for="field in configFields" :key="field.key" class="form-row">
       <NodeRedInput
         v-if="field.inputType === 'text' || field.inputType === 'number'"
-        :value="node[field.key]"
+        v-model:value="node[field.key]"
         :type="field.htmlType"
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
-        @update:value="node[field.key] = $event"
       />
 
       <div v-else-if="field.inputType === 'boolean' && field.toggle">
@@ -47,30 +46,28 @@
 
       <NodeRedSelectInput
         v-else-if="field.inputType === 'select'"
-        :value="node[field.key]"
+        v-model:value="node[field.key]"
         :options="field.options!"
         :multiple="field.multiple"
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
-        @update:value="node[field.key] = $event"
       />
 
       <NodeRedTypedInput
         v-else-if="field.inputType === 'typed'"
-        :value="node[field.key]"
+        v-model:value="node[field.key]"
         :types="field.types"
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
-        @update:value="node[field.key] = $event"
       />
 
       <NodeRedConfigInput
         v-else-if="field.inputType === 'config'"
-        :value="node[field.key]"
+        v-model:value="node[field.key]"
         :type="field.configType!"
         :node="node"
         :prop-name="field.key"
@@ -78,7 +75,6 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
-        @update:value="node[field.key] = $event"
       />
 
       <div v-else-if="field.inputType === 'array-text'">
@@ -126,13 +122,12 @@
 
       <NodeRedEditorInput
         v-else-if="field.inputType === 'editor'"
-        :value="node[field.key]"
+        v-model:value="node[field.key]"
         :language="field.language"
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
-        @update:value="node[field.key] = $event"
       />
     </div>
 
@@ -142,13 +137,12 @@
       class="form-row"
     >
       <NodeRedInput
-        :value="node.credentials[field.key]"
+        v-model:value="node.credentials[field.key]"
         :type="field.htmlType"
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.credentials.${field.key}`]"
-        @update:value="node.credentials[field.key] = $event"
       />
     </div>
   </div>

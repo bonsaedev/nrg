@@ -5,16 +5,14 @@
   >
     <div v-if="features.hasInputSchema">
       <NodeRedToggle
-        :model-value="localNode.validateInput"
+        v-model="localNode.validateInput"
         :label="resolveLabel('toggles.validateInput', 'Validate Input')"
-        @update:model-value="localNode.validateInput = $event"
       />
     </div>
     <div v-if="features.hasOutputSchema">
       <NodeRedToggle
-        :model-value="localNode.validateOutput"
+        v-model="localNode.validateOutput"
         :label="resolveLabel('toggles.validateOutput', 'Validate Output')"
-        @update:model-value="localNode.validateOutput = $event"
       />
     </div>
   </div>

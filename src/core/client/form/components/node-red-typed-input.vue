@@ -33,8 +33,21 @@ export default defineComponent({
       default: undefined,
       validator: function (obj: { value: string; type: string } | undefined) {
         if (obj === undefined) return true;
-        if (typeof obj !== "object" || obj === null) return false;
-        return typeof obj.value === "string" && typeof obj.type === "string";
+        if (typeof obj !== "object" || obj === null) {
+          console.warn(
+            "[WARN] Invalid modelValue for TypedInput. It must be an object.",
+          );
+          return false;
+        }
+        const isValid =
+          typeof obj.value === "string" && typeof obj.type === "string";
+        if (!isValid) {
+          console.warn(
+            "[WARN] Invalid modelValue for TypedInput. It must be an object with 'value' and 'type' properties being strings.",
+            obj,
+          );
+        }
+        return isValid;
       },
     },
     value: {
@@ -44,7 +57,7 @@ export default defineComponent({
         if (obj === undefined) return true;
         if (typeof obj !== "object" || obj === null) {
           console.warn(
-            "[WARN] Invalid value for 'value' property. It must be an object.",
+            "[WARN] Invalid value for TypedInput. It must be an object.",
           );
           return false;
         }
@@ -52,7 +65,7 @@ export default defineComponent({
           typeof obj.value === "string" && typeof obj.type === "string";
         if (!isValid) {
           console.warn(
-            "[WARN] Invalid value for 'value' property. It must be an object with 'value' and 'type' properties being strings.",
+            "[WARN] Invalid value for TypedInput. It must be an object with 'value' and 'type' properties being strings.",
             obj,
           );
         }
