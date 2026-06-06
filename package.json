@@ -42,6 +42,7 @@
     "test:core:client:e2e": "vitest run --config vitest.core.client.e2e.config.ts",
     "test:vite": "pnpm test:vite:unit && pnpm test:vite:e2e",
     "test:vite:unit": "vitest run --config vitest.vite.unit.config.ts",
+    "test:vite:unit:watch": "vitest --config vitest.vite.unit.config.ts",
     "test:vite:e2e": "vitest run --config vitest.vite.e2e.config.ts",
     "build": "node build/index.mjs",
     "validate": "npm run validate:tsc && npm run validate:lint && npm run validate:format",
@@ -74,6 +75,11 @@
       "types": "./dist/types/test-server-unit.d.ts",
       "default": "./dist/test/server/unit/index.js"
     },
+    "./test/client/unit": {
+      "types": "./dist/types/test-client-unit.d.ts",
+      "default": "./dist/test/client/unit/index.js"
+    },
+    "./test/client/unit/setup": "./dist/test/client/unit/setup.js",
     "./test/client/e2e": {
       "types": "./dist/types/test-client-e2e.d.ts",
       "default": "./dist/test/client/e2e/index.js"

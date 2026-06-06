@@ -50,8 +50,14 @@ jobs:
       - name: Format Check
         run: pnpm validate:format
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
       - name: Server Unit Tests
         run: pnpm vitest run --config vitest.core.server.unit.config.ts
+
+      - name: Client Unit Tests
+        run: pnpm vitest run --config vitest.core.client.unit.config.ts
 
       - name: Vite Unit Tests
         run: pnpm vitest run --config vitest.vite.unit.config.ts
