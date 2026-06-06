@@ -12,7 +12,7 @@
     "resolveJsonModule": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@mocks/*": ["./tests/mocks/*"]
+      "@mocks/*": ["./tests/core/server/mocks/*"]
     }
   },
   "exclude": ["node_modules", "dist"]

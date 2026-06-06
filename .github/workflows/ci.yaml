@@ -39,8 +39,11 @@ jobs:
       - name: Format Check
         run: pnpm format:check
 
-      - name: Unit Tests
-        run: pnpm vitest run --config vitest.config.ts --coverage
+      - name: Server Unit Tests
+        run: pnpm vitest run --config vitest.core.server.unit.config.ts --coverage
+
+      - name: Vite Unit Tests
+        run: pnpm vitest run --config vitest.vite.unit.config.ts --coverage
 
       - name: Upload Coverage
         if: always()
@@ -93,7 +96,7 @@ jobs:
           path: dist/
 
       - name: E2E Tests
-        run: pnpm vitest run --config vitest.e2e.vite.config.ts
+        run: pnpm vitest run --config vitest.vite.e2e.config.ts
 
   client-e2e:
     name: Client E2E Tests
@@ -131,7 +134,7 @@ jobs:
           path: dist/
 
       - name: Client E2E Tests
-        run: pnpm vitest run --config vitest.client.e2e.config.ts
+        run: pnpm vitest run --config vitest.core.client.e2e.config.ts
 
       - name: Upload Screenshots
         if: always()

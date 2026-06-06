@@ -28,7 +28,19 @@ Add a test script to your `package.json`:
 }
 ```
 
-### 3. Create a test file
+### 3. Add a test tsconfig
+
+Create a `tsconfig.json` for your server tests that extends the NRG base config:
+
+```json
+// tests/server/tsconfig.json
+{
+  "extends": "@bonsae/nrg/tsconfig/test/server/unit.json",
+  "include": ["**/*.ts", "../../src/server/**/*.ts"]
+}
+```
+
+### 4. Create a test file
 
 Create your tests in a `tests/` directory (or anywhere — Vitest finds `*.test.ts` files automatically):
 
@@ -37,8 +49,10 @@ src/
   server/
     nodes/my-node.ts
 tests/
-  my-node.test.ts        ← test file
-vitest.config.ts         ← optional
+  server/
+    my-node.test.ts        ← test file
+    tsconfig.json           ← extends @bonsae/nrg/tsconfig/test/server/unit.json
+vitest.config.ts           ← optional
 ```
 
 No special Vitest configuration is needed. Vitest picks up your existing `vite.config.ts` or runs with sensible defaults.
@@ -367,28 +381,38 @@ Use browser E2E tests to verify that your node's editor form renders correctly, 
 pnpm add -D playwright vitest
 ```
 
-#### 2. Create a Vitest config for E2E browser tests
+#### 2. Add a test tsconfig
+
+```json
+// tests/client/e2e/tsconfig.json
+{
+  "extends": "@bonsae/nrg/tsconfig/test/client/e2e.json",
+  "include": ["**/*.ts"]
+}
+```
+
+#### 3. Create a Vitest config for E2E browser tests
 
 ```typescript
-// vitest.client.e2e.config.ts
+// vitest.core.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     testTimeout: 120_000,
     hookTimeout: 120_000,
-    globalSetup: "tests/client/e2e/global-setup.ts",
-    include: ["tests/client/e2e/**/*.test.ts"],
+    globalSetup: "tests/core/client/e2e/global-setup.ts",
+    include: ["tests/core/client/e2e/**/*.test.ts"],
   },
 });
 ```
 
-#### 3. Create a global setup file
+#### 4. Create a global setup file
 
 The global setup builds your node package, starts a Node-RED instance, deploys a test flow, and writes the port to a temp file so tests can connect to it.
 
 ```typescript
-// tests/client/e2e/global-setup.ts
+// tests/core/client/e2e/global-setup.ts
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -441,10 +465,10 @@ export async function teardown(): Promise<void> {
 }
 ```
 
-#### 4. Create a test file
+#### 5. Create a test file
 
 ```typescript
-// tests/client/e2e/my-node.test.ts
+// tests/core/client/e2e/my-node.test.ts
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import { chromium, type Browser } from "playwright";
@@ -480,10 +504,10 @@ describe("my-node editor", () => {
 });
 ```
 
-#### 5. Run the tests
+#### 6. Run the tests
 
 ```bash
-npx vitest run --config vitest.client.e2e.config.ts
+npx vitest run --config vitest.core.client.e2e.config.ts
 ```
 
 ### API

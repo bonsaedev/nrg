@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM"]
+  },
+  "include": [
+    "**/*.ts",
+    "../../../../src/test/client/e2e/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -18,14 +18,19 @@
     "pnpm": ">=10.11.0"
   },
   "scripts": {
-    "test": "vitest run && vitest run --config vitest.e2e.vite.config.ts",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
-    "test:e2e": "vitest run --config vitest.e2e.vite.config.ts",
-    "test:client:unit": "vitest run --config vitest.client.unit.config.ts",
-    "test:client:e2e": "vitest run --config vitest.client.e2e.config.ts",
-    "build": "node build.mjs",
-    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/client/unit/tsconfig.json --noEmit && tsc -p tests/client/e2e/tsconfig.json --noEmit",
+    "test": "pnpm test:core && pnpm test:vite",
+    "test:core": "pnpm test:core:server && pnpm test:core:client",
+    "test:core:server": "pnpm test:core:server:unit",
+    "test:core:server:unit": "vitest run --config vitest.core.server.unit.config.ts",
+    "test:core:server:unit:watch": "vitest --config vitest.core.server.unit.config.ts",
+    "test:core:client": "pnpm test:core:client:unit && pnpm test:core:client:e2e",
+    "test:core:client:unit": "vitest run --config vitest.core.client.unit.config.ts",
+    "test:core:client:e2e": "vitest run --config vitest.core.client.e2e.config.ts",
+    "test:vite": "pnpm test:vite:unit && pnpm test:vite:e2e",
+    "test:vite:unit": "vitest run --config vitest.vite.unit.config.ts",
+    "test:vite:e2e": "vitest run --config vitest.vite.e2e.config.ts",
+    "build": "node build/index.mjs",
+    "typecheck": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
@@ -61,8 +66,11 @@
       "default": "./dist/test/client/e2e/index.js"
     },
     "./tsconfig/base.json": "./dist/tsconfig/base.json",
-    "./tsconfig/client.json": "./dist/tsconfig/client.json",
-    "./tsconfig/server.json": "./dist/tsconfig/server.json"
+    "./tsconfig/core/server.json": "./dist/tsconfig/core/server.json",
+    "./tsconfig/core/client.json": "./dist/tsconfig/core/client.json",
+    "./tsconfig/test/server/unit.json": "./dist/tsconfig/test/server/unit.json",
+    "./tsconfig/test/client/unit.json": "./dist/tsconfig/test/client/unit.json",
+    "./tsconfig/test/client/e2e.json": "./dist/tsconfig/test/client/e2e.json"
   },
   "peerDependencies": {
     "vite": "^6.0.0",

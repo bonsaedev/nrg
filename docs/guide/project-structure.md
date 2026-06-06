@@ -10,14 +10,14 @@ my-node-red-nodes/
 ├── node-red.settings.ts           # Optional Node-RED runtime settings
 ├── src/
 │   ├── server/
-│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/server.json
+│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/server.json
 │   │   ├── index.ts               # Server entry — exports { nodes: [...] }
 │   │   ├── nodes/
 │   │   │   └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
 │   │   └── schemas/
 │   │       └── {type-id}.ts       # TypeBox schema definition
 │   ├── client/
-│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/client.json
+│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/client.json
 │   │   ├── index.ts               # Client entry — registerTypes([...])
 │   │   ├── public/                # Static files copied to dist/resources/
 │   │   ├── nodes/
@@ -35,8 +35,17 @@ my-node-red-nodes/
 │       └── docs/
 │           └── {type-id}/
 │               └── {lang}.{md|html}  # Help sidebar documentation
-├── tests/                         # Unit and integration tests
-│   └── {type-id}.test.ts
+├── tests/
+│   ├── server/
+│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/test/server/unit.json
+│   │   └── {type-id}.test.ts      # Server-side unit tests
+│   └── client/
+│       ├── e2e/
+│       │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/e2e.json
+│       │   └── {type-id}.test.ts  # Browser E2E tests (Playwright)
+│       └── unit/
+│           ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/unit.json
+│           └── {type-id}.test.ts  # Vue component unit tests
 └── dist/                          # Build output (git-ignored)
 ```
 
@@ -76,7 +85,7 @@ Optional Node-RED runtime settings file. Customizes the Node-RED instance used i
 
 ### `tests/`
 
-Unit and integration tests for your nodes using Vitest and `@bonsae/nrg/test`. See [Testing a Node](./testing) for the full API.
+Tests for your nodes, organized by domain and type. Server-side unit tests use `@bonsae/nrg/test/server/unit`, browser E2E tests use `@bonsae/nrg/test/client/e2e`. See [Testing a Node](./testing) for setup and API details.
 
 ### `dist/`
 

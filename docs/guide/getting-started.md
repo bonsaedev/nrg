@@ -76,7 +76,7 @@ Create `tsconfig.json` files that extend the shared configs:
 
 ```json
 {
-  "extends": "@bonsae/nrg/tsconfig/server.json",
+  "extends": "@bonsae/nrg/tsconfig/core/server.json",
   "compilerOptions": {
     "rootDir": "."
   },
@@ -88,7 +88,7 @@ Create `tsconfig.json` files that extend the shared configs:
 
 ```json
 {
-  "extends": "@bonsae/nrg/tsconfig/client.json",
+  "extends": "@bonsae/nrg/tsconfig/core/client.json",
   "compilerOptions": {
     "rootDir": "."
   },
