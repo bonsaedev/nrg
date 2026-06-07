@@ -1,5 +1,20 @@
 # Changelog
 
+# [0.17.0](https://github.com/bonsaedev/nrg/compare/v0.16.0...v0.17.0) (2026-06-07)
+
+
+### Bug Fixes
+
+* add missing client unit test exports, CI job, and watch scripts ([c2b04f8](https://github.com/bonsaedev/nrg/commit/c2b04f85dbfdb4e2fb6da0f28e58940e67b87a62))
+* deploy docs only after a release ([eeb966b](https://github.com/bonsaedev/nrg/commit/eeb966bb54de337fed358ffc20790c73805851d8))
+* exclude test fixtures from root tsconfig ([f8f9082](https://github.com/bonsaedev/nrg/commit/f8f9082699581eb48041fc0fc2e420da8319c766))
+
+
+### Features
+
+* add client unit test helper library ([ff32aba](https://github.com/bonsaedev/nrg/commit/ff32aba665d565e6279e072b63ac7dc954f3288d))
+* add Playwright E2E browser tests for form components ([f72ab27](https://github.com/bonsaedev/nrg/commit/f72ab277452db6fa142fef99201fae679491c1bf))
+
 # [0.16.0](https://github.com/bonsaedev/nrg/compare/v0.15.1...v0.16.0) (2026-06-03)
 
 
