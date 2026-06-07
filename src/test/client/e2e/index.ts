@@ -8,7 +8,8 @@ import {
 
 export { NodeRedTestEnvironment, type NodeRedTestEnvironmentOptions };
 
-export interface SetupOptions extends NodeRedTestEnvironmentOptions {
+export interface SetupOptions {
+  settingsFile?: string;
   flow?: Record<string, unknown>[];
 }
 
@@ -21,13 +22,14 @@ export const defaultConfig = {
 let _env: NodeRedTestEnvironment | null = null;
 
 export async function setup(options?: SetupOptions): Promise<void> {
-  const packageName =
-    options?.packageName ??
-    JSON.parse(
-      fs.readFileSync(path.join(process.cwd(), "package.json"), "utf-8"),
-    ).name;
+  const packageName = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), "package.json"), "utf-8"),
+  ).name;
 
-  _env = new NodeRedTestEnvironment({ ...options, packageName });
+  _env = new NodeRedTestEnvironment({
+    packageName,
+    settingsFile: options?.settingsFile,
+  });
   const port = await _env.setup();
   process.env.NODE_RED_PORT = String(port);
 
