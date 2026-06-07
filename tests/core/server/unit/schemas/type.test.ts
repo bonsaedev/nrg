@@ -5,7 +5,7 @@ import {
   defineSchema,
 } from "@/core/server/schemas";
 import { initValidator } from "@/core/server/validation";
-import { createNodeRedRuntime } from "@mocks/red";
+import { createRED } from "@mocks/red";
 
 describe("SchemaType", () => {
   describe("primitive types", () => {
@@ -234,7 +234,7 @@ describe("defineSchema", () => {
     });
 
     it("should work with the validator without $id", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = defineSchema({

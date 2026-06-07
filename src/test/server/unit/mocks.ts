@@ -7,9 +7,7 @@ interface MockRED extends RED {
   registerNrgNode(id: string, nrgInstance: Partial<INode>): void;
 }
 
-function createNodeRedRuntime(
-  options: { settings?: Record<string, any> } = {},
-): MockRED {
+function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
   const { settings = {} } = options;
   const nodes: Record<string, any> = {};
 
@@ -244,5 +242,5 @@ function createNodeRedNode(options: Partial<NodeRedNode> = {}): NodeRedNode {
   } as NodeRedNode;
 }
 
-export { createNodeRedRuntime, createNodeRedNode, createContextStore };
+export { createRED, createNodeRedNode, createContextStore };
 export type { MockRED };

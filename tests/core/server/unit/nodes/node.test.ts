@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { Node } from "@/core/server/nodes/node";
 import { initValidator } from "@/core/server/validation";
 import { defineSchema, SchemaType } from "@/core/server/schemas";
-import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
+import { createRED, createNodeRedNode } from "@mocks/red";
 import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 class ConcreteNode extends Node {
@@ -13,7 +13,7 @@ class ConcreteNode extends Node {
 describe("Node", () => {
   describe("constructor", () => {
     it("should set RED, node, and config", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode({ credentials: { apiKey: "secret" } });
       const config = { name: "test" };
@@ -25,7 +25,7 @@ describe("Node", () => {
     });
 
     it("should make config read-only via proxy", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const config = { name: "test" };
@@ -48,7 +48,7 @@ describe("Node", () => {
         static override readonly configSchema = schema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
 
@@ -68,7 +68,7 @@ describe("Node", () => {
         static override readonly configSchema = schema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
 
@@ -88,7 +88,7 @@ describe("Node", () => {
         static override readonly credentialsSchema = credSchema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
 
@@ -99,7 +99,7 @@ describe("Node", () => {
 
   describe("i18n", () => {
     it("should call RED._ with node type prefix", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -109,7 +109,7 @@ describe("Node", () => {
     });
 
     it("should pass substitutions", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -124,7 +124,7 @@ describe("Node", () => {
   describe("timers", () => {
     it("should create and track setTimeout", () => {
       vi.useFakeTimers();
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -139,7 +139,7 @@ describe("Node", () => {
 
     it("should create and track setInterval", () => {
       vi.useFakeTimers();
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -154,7 +154,7 @@ describe("Node", () => {
 
     it("should clear timers on close", async () => {
       vi.useFakeTimers();
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -177,7 +177,7 @@ describe("Node", () => {
 
     it("should support manual clearTimeout", () => {
       vi.useFakeTimers();
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -193,7 +193,7 @@ describe("Node", () => {
 
     it("should support manual clearInterval", () => {
       vi.useFakeTimers();
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -210,7 +210,7 @@ describe("Node", () => {
 
   describe("logging", () => {
     it("should delegate log to node.log", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -220,7 +220,7 @@ describe("Node", () => {
     });
 
     it("should delegate warn to node.warn", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -230,7 +230,7 @@ describe("Node", () => {
     });
 
     it("should delegate error to node.error", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -244,7 +244,7 @@ describe("Node", () => {
 
   describe("credentials", () => {
     it("should return node.credentials", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode({ credentials: { apiKey: "secret" } });
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -255,7 +255,7 @@ describe("Node", () => {
 
   describe("settings", () => {
     it("should return cached settings", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});
@@ -267,7 +267,7 @@ describe("Node", () => {
 
   describe("settings registration", () => {
     it("should not pass settings when no settingsSchema", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       await ConcreteNode.register(RED);
 
@@ -293,7 +293,7 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       await SettingsNode.register(RED);
 
@@ -319,7 +319,7 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       await HyphenNode.register(RED);
 
@@ -343,7 +343,7 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       RED.settings.settingsValidTimeout = 3000;
 
@@ -368,7 +368,7 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       DefaultSettingsNode.validateSettings(RED);
 
@@ -378,7 +378,7 @@ describe("Node", () => {
     });
 
     it("should do nothing when no settingsSchema", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       ConcreteNode.validateSettings(RED);
       // Should not throw
@@ -403,7 +403,7 @@ describe("Node", () => {
         static override readonly settingsSchema = settingsSchema;
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       FuncSettingsNode.validateSettings(RED);
 
@@ -415,7 +415,7 @@ describe("Node", () => {
 
   describe("on", () => {
     it("should delegate to node.on", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ConcreteNode as any)(RED, node, {}, {});

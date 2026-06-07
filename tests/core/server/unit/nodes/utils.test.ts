@@ -5,7 +5,7 @@ import { defineConfigNode } from "@/core/server/nodes/factories";
 import type TypedInput from "@/core/server/typed-input";
 import { NrgError } from "@/core/errors";
 import {
-  createNodeRedRuntime,
+  createRED,
   createNodeRedNode,
   createContextStore,
 } from "@mocks/red";
@@ -21,7 +21,7 @@ describe("setupConfigProxy", () => {
         type: "remote-server",
         config: { host: "localhost" },
       } as any;
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       RED.registerNrgNode("server-1", nrgInstance);
       const nodeRedNode = createNodeRedNode({
         id: "server-1",
@@ -44,7 +44,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should NOT resolve plain strings as node references", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { server: "some-string", name: "my-node" };
       const schema = defineSchema({
         server: SchemaType.String(),
@@ -63,7 +63,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should return the raw ID when node is not found", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { server: "missing-id" };
       const schema = defineSchema({
         server: SchemaType.NodeRef(RemoteServer),
@@ -79,7 +79,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should not resolve empty strings", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { server: "" };
       const schema = defineSchema({
         server: SchemaType.NodeRef(RemoteServer),
@@ -98,7 +98,7 @@ describe("setupConfigProxy", () => {
 
   describe("reference equality (WeakMap cache)", () => {
     it("should return the same proxy for the same nested object", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const nested = { value: "str", type: "str" };
       const config = { myProp: nested };
 
@@ -111,7 +111,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should return the same mapped array on repeated access", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { tags: ["a", "b", "c"] };
 
       const proxy = setupConfigProxy({
@@ -125,7 +125,7 @@ describe("setupConfigProxy", () => {
 
   describe("read-only (set trap)", () => {
     it("should throw NrgError when setting a property", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { name: "test" };
       const proxy = setupConfigProxy({
         RED,
@@ -139,7 +139,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should include property name in error message", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { name: "test" };
       const proxy = setupConfigProxy({
         RED,
@@ -155,7 +155,7 @@ describe("setupConfigProxy", () => {
 
   describe("skip props", () => {
     it("should return raw value for id", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { id: "node-123", name: "test" };
       const schema = defineSchema({
         id: SchemaType.NodeRef(SomeNode),
@@ -172,7 +172,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should return raw value for _id and _users", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { _id: "abc", _users: ["u1", "u2"] } as any;
 
       const proxy = setupConfigProxy({
@@ -187,7 +187,7 @@ describe("setupConfigProxy", () => {
 
   describe("nested objects and arrays", () => {
     it("should proxy nested objects", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { settings: { timeout: 5000 } };
 
       const proxy = setupConfigProxy({
@@ -199,7 +199,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should handle arrays of objects", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { items: [{ name: "a" }, { name: "b" }] };
 
       const proxy = setupConfigProxy({
@@ -212,7 +212,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should handle arrays of primitives", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { tags: ["alpha", "beta"] };
 
       const proxy = setupConfigProxy({
@@ -224,7 +224,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should return primitives as-is", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { count: 42, enabled: true, label: null };
 
       const proxy = setupConfigProxy({
@@ -240,7 +240,7 @@ describe("setupConfigProxy", () => {
 
   describe("without schema", () => {
     it("should not resolve any strings when no schema is provided", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       RED.registerNrgNode("test", {});
       const config = { name: "test" };
 
@@ -263,7 +263,7 @@ describe("setupConfigProxy", () => {
     }
 
     it("should return a TypedInputRef for TypedInput-marked props", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = {
         target: { value: "payload", type: "msg" },
         name: "test",
@@ -283,7 +283,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should return the same TypedInputRef on repeated access (cache)", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { target: { value: "x", type: "str" }, name: "test" };
       const schema = makeTypedInputSchema();
 
@@ -297,7 +297,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should resolve a TypedInputRef via evaluateNodeProperty", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       vi.mocked(RED.util.evaluateNodeProperty).mockImplementation(
         (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
           cb(null, "resolved-value"),
@@ -321,7 +321,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should reject when evaluateNodeProperty returns an error", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       vi.mocked(RED.util.evaluateNodeProperty).mockImplementation(
         (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
           cb(new Error("eval failed")),
@@ -342,7 +342,7 @@ describe("setupConfigProxy", () => {
 
     it("should resolve node ID to NRG node instance for node-type inputs", async () => {
       const nrgInstance = { id: "n1", type: "test", config: { name: "test" } };
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       RED.registerNrgNode("n1", nrgInstance);
       // evaluateNodeProperty returns the string ID for "node" type
       vi.mocked(RED.util.evaluateNodeProperty).mockImplementation(
@@ -365,7 +365,7 @@ describe("setupConfigProxy", () => {
 
     it("should return raw node when no NRG wrapper exists", async () => {
       const rawNode = { id: "n2", type: "debug" };
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       RED.registerNode("n2", rawNode);
       vi.mocked(RED.util.evaluateNodeProperty).mockImplementation(
         (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
@@ -385,7 +385,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should return the ID string when node is not found", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       vi.mocked(RED.util.evaluateNodeProperty).mockImplementation(
         (_val: any, _type: any, _node: any, _msg: any, cb: any) =>
           cb(null, "missing-id"),
@@ -404,7 +404,7 @@ describe("setupConfigProxy", () => {
     });
 
     it("should not wrap non-TypedInput objects as refs", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       const config = { settings: { value: "x", type: "str" }, name: "test" };
       const schema = defineSchema({
         settings: SchemaType.Object({}),

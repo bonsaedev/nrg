@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { IONode } from "@/core/server/nodes/io-node";
 import { initValidator } from "@/core/server/validation";
 import { defineSchema, SchemaType } from "@/core/server/schemas";
-import { createNodeRedRuntime, createNodeRedNode } from "@mocks/red";
+import { createRED, createNodeRedNode } from "@mocks/red";
 import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 class TestIONode extends IONode {
@@ -24,7 +24,7 @@ class TestIONode extends IONode {
 describe("IONode", () => {
   describe("constructor", () => {
     it("should set up context with node, flow, and global", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -36,7 +36,7 @@ describe("IONode", () => {
     });
 
     it("should support context as a function with scope", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -51,7 +51,7 @@ describe("IONode", () => {
 
   describe("properties", () => {
     it("should expose x, y, g, wires from underlying node", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -65,7 +65,7 @@ describe("IONode", () => {
 
   describe("input handling", () => {
     it("should call input method with message", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -97,7 +97,7 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ValidatedIONode as any)(RED, node, {}, {});
@@ -129,7 +129,7 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (NoValidateIONode as any)(RED, node, {}, {});
@@ -148,7 +148,7 @@ describe("IONode", () => {
 
   describe("send", () => {
     it("should use send callback when inside input handler", async () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
 
@@ -173,7 +173,7 @@ describe("IONode", () => {
     });
 
     it("should fall back to node.send outside input handler", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -201,7 +201,7 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (MultiOutputNode as any)(RED, node, {}, {});
@@ -228,7 +228,7 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (SingleSchemaArrayNode as any)(RED, node, {}, {});
@@ -257,7 +257,7 @@ describe("IONode", () => {
         public override async input() {}
       }
 
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (ValidatedOutputNode as any)(RED, node, {}, {});
@@ -268,7 +268,7 @@ describe("IONode", () => {
 
   describe("status", () => {
     it("should delegate to node.status", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -284,7 +284,7 @@ describe("IONode", () => {
 
   describe("updateWires", () => {
     it("should delegate to node.updateWires", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});
@@ -296,7 +296,7 @@ describe("IONode", () => {
 
   describe("receive", () => {
     it("should delegate to node.receive", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
       const instance = new (TestIONode as any)(RED, node, {}, {});

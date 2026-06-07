@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { createNodeRedRuntime, createNodeRedNode } from "./mocks";
+import { createRED, createNodeRedNode } from "./mocks";
 import { initValidator } from "../../../core/server/validation";
 import type { NodeRedNode } from "../../../core/server/types";
 import type { NodeConstructor as NodeClass } from "../../../core/server/nodes/types/node";
@@ -173,7 +173,7 @@ async function createNode<T extends NodeClass>(
     }
   }
 
-  const RED = createNodeRedRuntime({ settings });
+  const RED = createRED({ settings });
   initValidator(RED);
 
   for (const [id, value] of Object.entries(configNodes)) {
@@ -221,3 +221,5 @@ async function createNode<T extends NodeClass>(
 }
 
 export { createNode };
+export { createRED } from "./mocks";
+export type { MockRED } from "./mocks";

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { initValidator } from "@/core/server/validation";
-import { createNodeRedRuntime } from "@mocks/red";
+import { createRED } from "@mocks/red";
 
 describe("NodeRedValidator", () => {
   it("should skip initialization if validator is already set", () => {
-    const RED = createNodeRedRuntime();
+    const RED = createRED();
     initValidator(RED);
     const first = RED.validator;
     initValidator(RED);
@@ -13,7 +13,7 @@ describe("NodeRedValidator", () => {
 
   describe("x-nrg-skip-validation keyword", () => {
     it("should accept any data when x-nrg-skip-validation is true", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = {
@@ -30,7 +30,7 @@ describe("NodeRedValidator", () => {
 
   describe("x-nrg-node-type keyword", () => {
     it("should validate node reference matches expected type", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       RED.registerNode("node-123", { type: "remote-server" });
       initValidator(RED);
 
@@ -49,7 +49,7 @@ describe("NodeRedValidator", () => {
     });
 
     it("should fail when node type does not match", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       RED.registerNode("node-456", { type: "wrong-type" });
       initValidator(RED);
 
@@ -69,7 +69,7 @@ describe("NodeRedValidator", () => {
     });
 
     it("should pass when value is empty (optional ref)", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = {
@@ -88,7 +88,7 @@ describe("NodeRedValidator", () => {
     });
 
     it("should fail when node does not exist", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = {
@@ -109,7 +109,7 @@ describe("NodeRedValidator", () => {
 
   describe("custom formats", () => {
     it("should validate node-id format", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = {
@@ -128,7 +128,7 @@ describe("NodeRedValidator", () => {
     });
 
     it("should validate flow-id format", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = {
@@ -150,7 +150,7 @@ describe("NodeRedValidator", () => {
     });
 
     it("should validate topic-path format", () => {
-      const RED = createNodeRedRuntime();
+      const RED = createRED();
       initValidator(RED);
 
       const schema = {
