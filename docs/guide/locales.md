@@ -61,17 +61,46 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
 | `inputLabels` | No | Label for the input port (string). |
-| `outputLabels` | No | Labels for output ports (array of strings, one per port). |
+| `outputLabels` | No | Labels for output ports. Array of strings (one per port) for indexed ports, or an object mapping port names to labels when using named `outputsSchema` ports. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
 | `outputs` | No | Array of label maps, one per output port. Matches `outputsSchema` order. |
 | `errors` | No | Custom error messages. Use `__field__` for placeholder substitution. |
 
+### Named Output Ports
+
+When your `outputsSchema` uses a record (named ports) instead of an array, use an object for `outputLabels` mapping port names to display labels:
+
+```json
+{
+  "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "label": "Router",
+  "outputLabels": {
+    "success": "Success",
+    "failure": "Failure"
+  },
+  "outputs": {
+    "success": { "payload": "Result" },
+    "failure": { "error": "Error Message" }
+  }
+}
+```
+
+This matches the named ports defined in your server schema:
+
+```typescript
+export const OutputSchema = {
+  success: defineSchema({ payload: SchemaType.String() }),
+  failure: defineSchema({ error: SchemaType.String() }),
+};
+```
+
 ### Rules
 
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
 - **`outputs` is an array** — even for single-output nodes, use `[{ ... }]`
+- **`outputs` can be an object** — when using named output ports, use `{ portName: { ... } }`
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label
 - **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to camelCase formatting
 
@@ -127,9 +156,11 @@ For local development or when using a linked package, use the local path instead
       "description": "Label for the input port"
     },
     "outputLabels": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Labels for output ports (one per port)"
+      "oneOf": [
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "object", "additionalProperties": { "type": "string" } }
+      ],
+      "description": "Labels for output ports — array for indexed ports, object for named ports"
     },
     "configs": {
       "$ref": "#/$defs/labelMap"
@@ -141,9 +172,11 @@ For local development or when using a linked package, use the local path instead
       "$ref": "#/$defs/labelMap"
     },
     "outputs": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/labelMap" },
-      "description": "Per-port output labels, matching outputsSchema order"
+      "oneOf": [
+        { "type": "array", "items": { "$ref": "#/$defs/labelMap" } },
+        { "$ref": "#/$defs/labelMap" }
+      ],
+      "description": "Per-port output labels — array for indexed ports (matches outputsSchema order), or object for named ports (keys match port names)"
     },
     "errors": {
       "$ref": "#/$defs/labelMap"

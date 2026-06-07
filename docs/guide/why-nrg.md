@@ -86,7 +86,7 @@ import { ConfigsSchema, InputSchema } from "../schemas/my-node";
 type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
 
-export default class MyNode extends IONode<Config, any, Input> {
+export default class MyNode extends IONode<Config, never, Input> {
   static readonly type = "my-node";
   static readonly category = "my-category";
   static readonly color: `#${string}` = "#FFFFFF";
@@ -149,7 +149,7 @@ type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
 type Output = Infer<typeof OutputSchema>;
 
-export default class MyNode extends IONode<Config, any, Input, Output> {
+export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly type = "my-node";
   static readonly configSchema: Schema = ConfigsSchema;
 
@@ -287,10 +287,10 @@ Need a custom form? Create a Vue component at `client/components/{type}.vue` —
 ```vue
 <!-- client/components/my-node.vue -->
 <script setup lang="ts">
-defineProps<{
-  node: any;
-  errors: Record<string, string>;
-}>();
+import { useFormNode } from "@bonsae/nrg/client";
+import type { ConfigsSchema } from "../../server/schemas/my-node";
+
+const { node, errors } = useFormNode<typeof ConfigsSchema>();
 </script>
 
 <template>

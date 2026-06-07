@@ -92,4 +92,25 @@ Tests for your nodes, organized by domain and type. Server-side unit tests use `
 
 ### `dist/`
 
-The build output. Contains a CJS bridge (`index.js`) that loads the ESM server bundle (`index.mjs`), an HTML file with client resource links, icons, locales, type declarations, and a generated `package.json` ready for publishing or installing into Node-RED. See [Building & Running](./building-and-running#production-build) for the full layout.
+The build output directory. Contains everything needed to publish your node package to npm or install directly into Node-RED:
+
+```
+dist/
+├── index.js              # CJS bridge — loads the ESM server bundle
+├── index.mjs             # ESM server bundle (your node classes)
+├── index.d.ts            # Auto-generated server type declarations
+├── {type}.html           # HTML file per node type (client resource links)
+├── resources/
+│   └── {package}.js      # Client bundle (Vue components, registration)
+├── icons/
+│   └── {type}.png        # Palette icons
+├── locales/
+│   └── {lang}/
+│       ├── {type}.json   # Merged label strings
+│       └── {type}.html   # Auto-generated help docs
+├── examples/
+│   └── {name}.json       # Example flows
+└── package.json          # Generated package.json for publishing
+```
+
+The `index.d.ts` file contains auto-generated TypeScript declarations for the server side that consumers import when using your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.

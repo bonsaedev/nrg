@@ -19,7 +19,7 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 | --- | --- |
 | `@bonsae/nrg` | Root entry — `defineRuntimeSettings` |
 | `@bonsae/nrg/server` | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
-| `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`) |
+| `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`, `useFormNode`, `Infer`) |
 | `@bonsae/nrg/vite` | Vite plugin for building and developing Node-RED packages |
 | `@bonsae/nrg/test/server/unit` | Server unit test helpers (`createNode`, `createRED`, `MockRED`) |
 | `@bonsae/nrg/test/client/unit` | Client unit test config and mocks (`defaultConfig`, `createRED`, `createJQuery`) |
@@ -106,7 +106,7 @@ type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
 type Output = Infer<typeof OutputSchema>;
 
-export default class MyNode extends IONode<Config, any, Input, Output> {
+export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly type = "my-node";
   static readonly category = "function";
   static readonly color: `#${string}` = "#ffffff";

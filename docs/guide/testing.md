@@ -355,6 +355,68 @@ describe("factory API", () => {
     expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
   });
 });
+
+describe("named output ports (sendToPort)", () => {
+  // Given a node with named outputsSchema:
+  //
+  //   static readonly outputsSchema = {
+  //     success: defineSchema({ payload: SchemaType.String() }),
+  //     failure: defineSchema({ error: SchemaType.String() }),
+  //   };
+
+  it("should route messages to named ports", async () => {
+    const { node } = await createNode(Router, {
+      config: { threshold: 50 },
+    });
+
+    await node.receive({ payload: 75 });
+    expect(node.sent("success")).toEqual([{ payload: "passed" }]);
+    expect(node.sent("failure")).toHaveLength(0);
+  });
+
+  it("should send to failure port on error condition", async () => {
+    const { node } = await createNode(Router, {
+      config: { threshold: 50 },
+    });
+
+    await node.receive({ payload: 10 });
+    expect(node.sent("failure")).toEqual([{ error: "below threshold" }]);
+  });
+});
+
+describe("built-in emit ports", () => {
+  // Every IONode has built-in error, complete, and status ports.
+  // They emit automatically — error port on thrown errors,
+  // complete port on successful input processing, and
+  // status port on this.status() calls.
+
+  it("should emit to error port when input throws", async () => {
+    const { node } = await createNode(ErrorNode);
+
+    await expect(node.receive({ payload: "bad" })).rejects.toThrow();
+    expect(node.sent("error")).toHaveLength(1);
+    expect(node.sent("error")[0]).toMatchObject({
+      error: { message: "something broke" },
+    });
+  });
+
+  it("should emit to complete port on successful processing", async () => {
+    const { node } = await createNode(MyNode);
+
+    await node.receive({ payload: "hello" });
+    expect(node.sent("complete")).toHaveLength(1);
+  });
+
+  it("should emit to status port when status is set", async () => {
+    const { node } = await createNode(MyNode);
+
+    await node.receive({ payload: "hello" });
+    expect(node.sent("status")).toHaveLength(1);
+    expect(node.sent("status")[0]).toMatchObject({
+      status: { fill: "green", text: "ok" },
+    });
+  });
+});
 ```
 
 ## Client Unit Testing
@@ -608,6 +670,57 @@ describe("editor component", () => {
     input.value = "new value";
     input.dispatchEvent(new Event("input"));
     expect(onUpdate).toHaveBeenCalledWith("new value");
+  });
+});
+```
+
+### Testing `useFormNode` Components
+
+Components that use `useFormNode()` need the injection keys provided by the NRG form wrapper. Use Vue's `global.provide` option to supply them in tests:
+
+```typescript
+import { describe, test, expect } from "vitest";
+import { render } from "vitest-browser-vue";
+import { createNode } from "@bonsae/nrg/test/client/component";
+import MyForm from "../../../src/client/components/my-node.vue";
+
+describe("my-node form (useFormNode)", () => {
+  test("renders fields from injected node", async () => {
+    const { node } = createNode({ name: "test", url: "https://example.com" });
+    const errors = {};
+    const schema = { properties: { name: {}, url: {} } };
+
+    const screen = render(MyForm, {
+      global: {
+        provide: {
+          __nrg_form_node: node,
+          __nrg_form_schema: schema,
+          __nrg_form_errors: errors,
+        },
+      },
+    });
+
+    await expect.element(screen.getByDisplayValue("test")).toBeInTheDocument();
+  });
+
+  test("displays validation errors", async () => {
+    const { node } = createNode({ name: "" });
+    const errors = { "node.name": "must NOT have fewer than 1 characters" };
+    const schema = { properties: { name: {} } };
+
+    const screen = render(MyForm, {
+      global: {
+        provide: {
+          __nrg_form_node: node,
+          __nrg_form_schema: schema,
+          __nrg_form_errors: errors,
+        },
+      },
+    });
+
+    await expect
+      .element(screen.getByText("must NOT have fewer than 1 characters"))
+      .toBeInTheDocument();
   });
 });
 ```
