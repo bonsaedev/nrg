@@ -1,13 +1,14 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedConfigInput from "../../../../../src/core/client/form/components/node-red-config-input.vue";
-import { createNode, getMockRED } from "../../../../../src/test/client/unit";
+import { createNode } from "../../../../../src/test/client/unit";
 import { getJQueryState } from "../../../../../src/test/client/unit/jquery";
 
 describe("NodeRedConfigInput", () => {
+  const { node: defaultNode, RED } = createNode();
   const DEFAULT_PROPS = {
     type: "my-config",
-    node: createNode(),
+    node: defaultNode,
     propName: "server",
     value: "config-1",
   };
@@ -29,18 +30,13 @@ describe("NodeRedConfigInput", () => {
   });
 
   test("calls RED.editor.prepareConfigNodeSelect", async () => {
-    const spy = vi.spyOn(
-      getMockRED().editor,
-      "prepareConfigNodeSelect",
-    );
     render(NodeRedConfigInput, { props: DEFAULT_PROPS });
-    expect(spy).toHaveBeenCalledWith(
+    expect(RED.editor.prepareConfigNodeSelect).toHaveBeenCalledWith(
       DEFAULT_PROPS.node,
       "server",
       "my-config",
       "node-input",
     );
-    spy.mockRestore();
   });
 
   test("renders label when provided", async () => {

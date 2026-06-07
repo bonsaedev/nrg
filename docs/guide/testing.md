@@ -428,15 +428,14 @@ browser: {
 ```typescript
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import { createNode, getMockRED, i18nMock } from "@bonsae/nrg/test/client/unit";
+import { createNode } from "@bonsae/nrg/test/client/unit";
 import MyComponent from "../../../src/client/components/my-component.vue";
 
 describe("MyComponent", () => {
   test("renders with node props", async () => {
-    const node = createNode({ name: "my-node", timeout: 30 });
+    const { node } = createNode({ name: "my-node", timeout: 30 });
     const screen = render(MyComponent, {
       props: { node, propName: "timeout", value: 30 },
-      ...i18nMock,
     });
     await expect.element(screen.getByText("Timeout")).toBeInTheDocument();
   });
@@ -451,23 +450,24 @@ Vitest test config with browser mode enabled (chromium), setup files, and timeou
 
 #### `createNode(overrides?)`
 
-Creates a mock Node-RED node object for passing as a component prop. Returns a `TestNode` with sensible defaults (`id`, `type`, `changed`, `_def`, `_`).
+Creates a mock Node-RED node object for passing as a component prop. Returns `{ node, RED }` — a `TestNode` with sensible defaults (`id`, `type`, `changed`, `_def`, `_`) and the mock `RED` instance with all methods wrapped in `vi.spyOn`.
+
+Because every RED method is spied, you can assert on calls directly without manual setup:
 
 ```typescript
-const node = createNode({ name: "test", retries: 3 });
-// { id: "node-1", type: "test-node", changed: false, _def: { outputs: 1 }, _: ..., name: "test", retries: 3 }
+const { node, RED } = createNode({ name: "test", retries: 3 });
+render(MyComponent, { props: { node } });
+expect(RED.editor.createEditor).toHaveBeenCalled();
 ```
 
-#### `getMockRED()`
-
-Returns the typed `window.RED` mock installed by the setup file. Use it to spy on RED API calls:
+You can override any method per test while keeping the default implementation for the rest:
 
 ```typescript
-const spy = vi.spyOn(getMockRED().editor, "createEditor");
-render(MyEditorComponent, { props: { value: "" } });
-expect(spy).toHaveBeenCalled();
-spy.mockRestore();
+const { node, RED } = createNode();
+RED.nodes.dirty.mockReturnValue(true);
 ```
+
+`vi.restoreAllMocks()` safely strips the spies. The next `createNode` call re-applies fresh ones, so tests stay isolated.
 
 The mock provides:
 
@@ -479,41 +479,29 @@ The mock provides:
 | `RED.popover` | `tooltip(...)`                                                               |
 | `RED.nodes`   | `registerType(...)`, `node(...)`, `dirty(...)`                               |
 | `RED.events`  | `on(...)`, `off(...)`, `emit(...)`                                           |
-
-#### `i18nMock`
-
-Vue test mount option that mocks the `$i18n` global. Pass it as a spread into `render()`:
-
-```typescript
-render(MyComponent, {
-  props: { ... },
-  ...i18nMock,
-});
-```
+| `RED.settings`| `Record<string, any>` — empty object, reset each test via `beforeEach` in setup |
+| `RED.notify`  | `notify(...)` — no-op                                                        |
 
 ### Examples
 
 ```typescript
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import { createNode, getMockRED, i18nMock } from "@bonsae/nrg/test/client/unit";
+import { createNode } from "@bonsae/nrg/test/client/unit";
 
 describe("editor component", () => {
-  test("spies on RED.editor.createEditor", async () => {
-    const spy = vi.spyOn(getMockRED().editor, "createEditor");
-    render(MyEditorInput, { props: { value: "test content" } });
+  test("asserts RED.editor.createEditor was called", async () => {
+    const { node, RED } = createNode();
+    render(MyEditorInput, { props: { node, value: "test content" } });
     await vi.waitFor(() => {
-      expect(spy).toHaveBeenCalled();
+      expect(RED.editor.createEditor).toHaveBeenCalled();
     });
-    const options = spy.mock.calls[0][0];
-    expect(options.value).toBe("test content");
-    spy.mockRestore();
   });
 
-  test("renders with i18n mock", async () => {
+  test("renders node form", async () => {
+    const { node } = createNode({ name: "test" });
     const screen = render(MyForm, {
-      props: { node: createNode({ name: "test" }) },
-      ...i18nMock,
+      props: { node },
     });
     await expect.element(screen.getByText("test")).toBeInTheDocument();
   });
@@ -539,7 +527,7 @@ describe("editor component", () => {
 ```
 
 ::: info Translations
-Component tests use key-passthrough mocks — `i18nMock` and `RED._` return the translation key as-is. This lets you verify the correct keys are used, but not that translations resolve to the right text. To test that translations are properly loaded and rendered, use [Browser E2E Testing](#browser-e2e-testing) where Node-RED loads the real locale files.
+Component tests use key-passthrough mocks — the setup file installs a `$i18n` mock and `RED._` that return the translation key as-is. This lets you verify the correct keys are used, but not that translations resolve to the right text. To test that translations are properly loaded and rendered, use [Browser E2E Testing](#browser-e2e-testing) where Node-RED loads the real locale files.
 :::
 
 ## Browser E2E Testing

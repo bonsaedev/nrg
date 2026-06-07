@@ -90,6 +90,7 @@ async function build(
       platform: "node",
       target: nodeTarget,
       keepNames: true,
+      tsconfigRaw: "{}",
     },
   };
 

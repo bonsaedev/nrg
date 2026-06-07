@@ -1,11 +1,11 @@
 import { describe, test, expect } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedJsonSchemaForm from "../../../../../src/core/client/form/components/node-red-json-schema-form.vue";
-import { createNode, i18nMock } from "../../../../../src/test/client/unit";
+import { createNode } from "../../../../../src/test/client/unit";
 
 describe("NodeRedJsonSchemaForm", () => {
   test("renders string field as text input", async () => {
-    const node = createNode({ name: "my-node" });
+    const { node } = createNode({ name: "my-node" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -16,7 +16,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     await expect.element(screen.getByText("Name")).toBeInTheDocument();
     const input = screen.container.querySelector(
@@ -26,7 +26,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders number field as number input", async () => {
-    const node = createNode({ timeout: 30 });
+    const { node } = createNode({ timeout: 30 });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -37,7 +37,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     await expect.element(screen.getByText("Timeout")).toBeInTheDocument();
     const input = screen.container.querySelector(
@@ -47,7 +47,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders integer field as number input", async () => {
-    const node = createNode({ retries: 3 });
+    const { node } = createNode({ retries: 3 });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -58,7 +58,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const input = screen.container.querySelector(
       'input[type="number"]',
@@ -67,7 +67,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders boolean with toggle option as toggle", async () => {
-    const node = createNode({ enabled: true });
+    const { node } = createNode({ enabled: true });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -82,14 +82,14 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const toggle = screen.container.querySelector(".nrg-toggle");
     expect(toggle).not.toBeNull();
   });
 
   test("renders boolean without toggle as checkbox", async () => {
-    const node = createNode({ active: false });
+    const { node } = createNode({ active: false });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -100,7 +100,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const checkbox = screen.container.querySelector(
       'input[type="checkbox"]',
@@ -111,7 +111,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders enum field as select input", async () => {
-    const node = createNode({ color: "red" });
+    const { node } = createNode({ color: "red" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -126,7 +126,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     await expect.element(screen.getByText("Color")).toBeInTheDocument();
     const selectInput = screen.container.querySelector(
@@ -136,7 +136,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders anyOf with const values as select input", async () => {
-    const node = createNode({ mode: "fast" });
+    const { node } = createNode({ mode: "fast" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -150,7 +150,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const selectInput = screen.container.querySelector(
       "input.node-input-select",
@@ -159,7 +159,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders array with enum items as multi-select", async () => {
-    const node = createNode({ tags: ["a"] });
+    const { node } = createNode({ tags: ["a"] });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -174,7 +174,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const selectInput = screen.container.querySelector(
       "input.node-input-select",
@@ -183,7 +183,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders typed input for object with value/type", async () => {
-    const node = createNode({
+    const { node } = createNode({
       target: { value: "payload", type: "msg" },
     });
     const screen = render(NodeRedJsonSchemaForm, {
@@ -203,7 +203,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const typedInput = screen.container.querySelector(
       "input.node-red-typed-input",
@@ -212,7 +212,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders config input for x-nrg-node-type", async () => {
-    const node = createNode({ server: "cfg-1" });
+    const { node } = createNode({ server: "cfg-1" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -227,7 +227,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const configInput = screen.container.querySelector(
       "#node-input-server",
@@ -236,7 +236,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("skips system fields", async () => {
-    const node = createNode({ name: "test", customField: "value" });
+    const { node } = createNode({ name: "test", customField: "value" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -253,7 +253,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     await expect.element(screen.getByText("Custom")).toBeInTheDocument();
     const allInputs = screen.container.querySelectorAll("input");
@@ -261,7 +261,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders credential fields as text/password inputs", async () => {
-    const node = createNode({
+    const { node } = createNode({
       credentials: { apiKey: "secret", username: "admin" },
     });
     const screen = render(NodeRedJsonSchemaForm, {
@@ -284,7 +284,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     await expect.element(screen.getByText("API Key")).toBeInTheDocument();
     await expect.element(screen.getByText("Username")).toBeInTheDocument();
@@ -295,7 +295,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("shows error message for a field", async () => {
-    const node = createNode({ name: "" });
+    const { node } = createNode({ name: "" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -308,7 +308,7 @@ describe("NodeRedJsonSchemaForm", () => {
         },
         errors: { "node.name": "Name is required" },
       },
-      ...i18nMock,
+
     });
     await expect
       .element(screen.getByText("Name is required"))
@@ -316,7 +316,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders password field for format:password", async () => {
-    const node = createNode({ secret: "hidden" });
+    const { node } = createNode({ secret: "hidden" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -331,7 +331,7 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const passwordInput = screen.container.querySelector(
       'input[type="password"]',
@@ -340,7 +340,7 @@ describe("NodeRedJsonSchemaForm", () => {
   });
 
   test("renders array without enum as textarea (array-text)", async () => {
-    const node = createNode({ items: ["one", "two"] });
+    const { node } = createNode({ items: ["one", "two"] });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -351,14 +351,14 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const textarea = screen.container.querySelector("textarea");
     expect(textarea).not.toBeNull();
   });
 
   test("renders editor for string with editorLanguage", async () => {
-    const node = createNode({ template: "<p>hello</p>" });
+    const { node } = createNode({ template: "<p>hello</p>" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -373,20 +373,20 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-      ...i18nMock,
+
     });
     const editorWrapper = screen.container.querySelector(".editor-wrapper");
     expect(editorWrapper).not.toBeNull();
   });
 
   test("renders no fields for empty schema", async () => {
-    const node = createNode();
+    const { node } = createNode();
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
         schema: { type: "object", properties: {} },
       },
-      ...i18nMock,
+
     });
     const formRows = screen.container.querySelectorAll(".form-row");
     expect(formRows.length).toBe(0);

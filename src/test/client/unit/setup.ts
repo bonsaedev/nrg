@@ -1,4 +1,7 @@
-export {};
+import { beforeEach } from "vitest";
+import { config } from "vitest-browser-vue";
+
+config.global.mocks.$i18n = (key: string) => key;
 
 interface JQState {
   typedInput: { value: string; type: string };
@@ -78,6 +81,12 @@ function createJQ(el: Element | null): any {
       return createJQ(el?.querySelector(selector) ?? null);
     },
 
+    append(child: any) {
+      const childEl = child?.[0] || child;
+      if (el && childEl instanceof Element) el.appendChild(childEl);
+      return jq;
+    },
+
     appendTo(target: any) {
       const t = target?.[0] || target;
       if (t instanceof Element && el) t.appendChild(el);
@@ -116,12 +125,22 @@ function createJQ(el: Element | null): any {
   return jq;
 }
 
-function $(selector: any): any {
+function $(selector: any, attrs?: Record<string, any>): any {
   if (typeof selector === "string") {
     if (selector.trim().startsWith("<")) {
       const tpl = document.createElement("template");
       tpl.innerHTML = selector.trim();
-      return createJQ(tpl.content.firstElementChild);
+      const el = tpl.content.firstElementChild;
+      if (el && attrs) {
+        for (const [key, value] of Object.entries(attrs)) {
+          if (key === "html") {
+            el.innerHTML = String(value);
+          } else {
+            el.setAttribute(key, String(value));
+          }
+        }
+      }
+      return createJQ(el);
     }
     return createJQ(document.querySelector(selector));
   }
@@ -137,17 +156,15 @@ const RED = {
   editor: {
     createEditor(options: any) {
       let currentValue = options.value || "";
-      const sessionCbs: Record<string, (...args: any[]) => any> = {};
+      const session = {
+        on(_event: string, _cb: (...args: any[]) => any) {},
+      };
       return {
         getValue: () => currentValue,
         setValue: (val: string) => {
           currentValue = val;
         },
-        getSession: () => ({
-          on: (event: string, cb: (...args: any[]) => any) => {
-            sessionCbs[event] = cb;
-          },
-        }),
+        getSession: () => session,
         focus: () => {},
         destroy: () => {},
         saveView: () => {},
@@ -178,7 +195,15 @@ const RED = {
     off: () => {},
     emit: () => {},
   },
+
+  settings: {} as Record<string, any>,
+
+  notify: () => {},
 };
 
 (window as any).$ = $;
 (window as any).RED = RED;
+
+beforeEach(() => {
+  RED.settings = {};
+});

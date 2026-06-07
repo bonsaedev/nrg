@@ -11,7 +11,7 @@
 
 # nrg
 
-Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vistest.
+Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vitest.
 
 ## Package Exports
 
@@ -22,7 +22,7 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 | `@bonsae/nrg/client`                 | Client-side registration (`registerTypes`, `defineNode`)                                                                                                              |
 | `@bonsae/nrg/vite`                   | Vite plugin for building and developing Node-RED packages                                                                                                             |
 | `@bonsae/nrg/test/server/unit`       | Server-side unit test helpers (`createNode`)                                                                                                                          |
-| `@bonsae/nrg/test/client/unit`       | Client component test helpers (`createNode`, `getMockRED`, `i18nMock`)                                                                                                |
+| `@bonsae/nrg/test/client/unit`       | Client component test helpers (`createNode`, `defaultConfig`)                                                                                                            |
 | `@bonsae/nrg/test/client/unit/setup` | Setup file that installs Node-RED editor mocks on `window`                                                                                                            |
 | `@bonsae/nrg/test/client/e2e`        | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`)                                                                                                            |
 | `@bonsae/nrg/tsconfig/*`             | Shared TypeScript configurations for consumers                                                                                                                        |
@@ -187,23 +187,22 @@ export default defineConfig({
 // tests/my-component.test.ts
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import { createNode, getMockRED, i18nMock } from "@bonsae/nrg/test/client/unit";
+import { createNode } from "@bonsae/nrg/test/client/unit";
 import MyComponent from "../src/client/components/my-component.vue";
 
 describe("MyComponent", () => {
   test("renders with node props", async () => {
+    const { node } = createNode({ name: "test" });
     const screen = render(MyComponent, {
-      props: { node: createNode({ name: "test" }) },
-      ...i18nMock,
+      props: { node },
     });
     await expect.element(screen.getByText("test")).toBeInTheDocument();
   });
 
   test("calls RED.editor API", async () => {
-    const spy = vi.spyOn(getMockRED().editor, "createEditor");
-    render(MyComponent, { props: { value: "" } });
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    const { node, RED } = createNode();
+    render(MyComponent, { props: { node, value: "" } });
+    expect(RED.editor.createEditor).toHaveBeenCalled();
   });
 });
 ```

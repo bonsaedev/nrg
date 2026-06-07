@@ -1,9 +1,15 @@
-import { describe, test, expect, vi } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedEditorInput from "../../../../../src/core/client/form/components/node-red-editor-input.vue";
-import { getMockRED } from "../../../../../src/test/client/unit";
+import { createNode } from "../../../../../src/test/client/unit";
 
 describe("NodeRedEditorInput", () => {
+  const { RED } = createNode();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test("mounts without error", async () => {
     const screen = render(NodeRedEditorInput, {
       props: { value: '{"key": "val"}' },
@@ -33,18 +39,17 @@ describe("NodeRedEditorInput", () => {
   });
 
   test("calls RED.editor.createEditor with correct options", async () => {
-    const spy = vi.spyOn(getMockRED().editor, "createEditor");
     render(NodeRedEditorInput, {
       props: { value: "test content", language: "javascript" },
     });
     await vi.waitFor(() => {
-      expect(spy).toHaveBeenCalled();
+      expect(RED.editor.createEditor).toHaveBeenCalled();
     });
+    const spy = RED.editor.createEditor as ReturnType<typeof vi.fn>;
     const call = spy.mock.calls[0][0] as Record<string, unknown>;
     expect(call.mode).toBe("javascript");
     expect(call.value).toBe("test content");
     expect(call.id).toMatch(/^node-red-editor-/);
-    spy.mockRestore();
   });
 
   test("emits editor-ready with editor instance", async () => {
@@ -106,14 +111,14 @@ describe("NodeRedEditorInput", () => {
   });
 
   test("modelValue takes precedence over value", async () => {
-    const spy = vi.spyOn(getMockRED().editor, "createEditor");
     render(NodeRedEditorInput, {
       props: { modelValue: "from-model", value: "from-value" },
     });
     await vi.waitFor(() => {
-      expect(spy).toHaveBeenCalled();
+      expect(RED.editor.createEditor).toHaveBeenCalled();
     });
-    expect((spy.mock.calls[0][0] as Record<string, unknown>).value).toBe("from-model");
-    spy.mockRestore();
+    const spy = RED.editor.createEditor as ReturnType<typeof vi.fn>;
+    const call = spy.mock.calls[0][0] as Record<string, unknown>;
+    expect(call.value).toBe("from-model");
   });
 });

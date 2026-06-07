@@ -34,11 +34,11 @@ export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
     modelValue: {
-      type: String,
+      type: [String, Number],
       default: undefined,
     },
     value: {
-      type: String,
+      type: [String, Number],
       default: "",
     },
     type: {

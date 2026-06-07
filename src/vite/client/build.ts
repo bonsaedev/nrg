@@ -166,6 +166,9 @@ async function build(
       },
     },
     plugins,
+    esbuild: {
+      tsconfigRaw: "{}",
+    },
     css: {
       devSourcemap: buildContext.isDev,
     },
