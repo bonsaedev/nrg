@@ -121,4 +121,88 @@ describe("NodeRedEditorInput", () => {
     const call = spy.mock.calls[0][0] as Record<string, unknown>;
     expect(call.value).toBe("from-model");
   });
+
+  test("editor getValue/setValue work after mount (no reactive proxy freeze)", async () => {
+    const onEditorReady = vi.fn();
+    render(NodeRedEditorInput, {
+      props: { value: "initial", "onEditor-ready": onEditorReady },
+    });
+    await vi.waitFor(() => {
+      expect(onEditorReady).toHaveBeenCalled();
+    });
+    const editor = onEditorReady.mock.calls[0][0];
+    expect(editor.getValue()).toBe("initial");
+    editor.setValue("updated");
+    expect(editor.getValue()).toBe("updated");
+  });
+
+  test("editor change handler fires and emits update events", async () => {
+    let changeCb: (() => void) | null = null;
+    const mockCreateEditor = vi
+      .fn()
+      .mockImplementation((options: any) => {
+        let currentValue = options.value || "";
+        return {
+          getValue: () => currentValue,
+          setValue: (val: string) => {
+            currentValue = val;
+          },
+          getSession: () => ({
+            on: (_event: string, cb: () => void) => {
+              changeCb = cb;
+            },
+          }),
+          focus: () => {},
+          destroy: () => {},
+          saveView: () => {},
+          restoreView: () => {},
+        };
+      });
+    (RED.editor.createEditor as any) = mockCreateEditor;
+
+    const onUpdate = vi.fn();
+    render(NodeRedEditorInput, {
+      props: {
+        value: "hello",
+        "onUpdate:value": onUpdate,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(mockCreateEditor).toHaveBeenCalled();
+    });
+
+    const editor = mockCreateEditor.mock.results[0].value;
+    editor.setValue("world");
+    expect(changeCb).not.toBeNull();
+    changeCb!();
+
+    await vi.waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith("world");
+    });
+  });
+
+  test("editor destroy on unmount does not throw", async () => {
+    const destroySpy = vi.fn();
+    const mockCreateEditor = vi.fn().mockImplementation((options: any) => ({
+      getValue: () => options.value || "",
+      setValue: () => {},
+      getSession: () => ({ on: () => {} }),
+      focus: () => {},
+      destroy: destroySpy,
+      saveView: () => {},
+      restoreView: () => {},
+    }));
+    (RED.editor.createEditor as any) = mockCreateEditor;
+
+    const screen = render(NodeRedEditorInput, {
+      props: { value: "temp" },
+    });
+    await vi.waitFor(() => {
+      expect(mockCreateEditor).toHaveBeenCalled();
+    });
+
+    screen.unmount();
+    expect(destroySpy).toHaveBeenCalled();
+  });
 });

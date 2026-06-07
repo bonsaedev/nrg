@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, shallowRef } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
@@ -163,10 +163,16 @@ export default defineComponent({
     "tray-open",
     "tray-close",
   ],
-  // Non-reactive instance property — must NOT be in data() because Vue's
-  // reactivity proxy breaks Monaco editor and jQuery widgets. markRaw() was
-  // tested and also does not work. Declared here so Vue ignores it.
-  editor: null,
+  setup() {
+    // shallowRef avoids deep reactivity — Monaco editor breaks with Vue proxies.
+    // data() + markRaw() was tested and does not work because the reactive
+    // setter still intercepts assignments. shallowRef only tracks .value
+    // reassignment without proxying the value itself.
+    return {
+      editor: shallowRef<any>(null),
+      expandedEditorTray: shallowRef<any>(null),
+    };
+  },
   data() {
     const stateId = Math.random().toString(36).substring(2, 9);
     return {

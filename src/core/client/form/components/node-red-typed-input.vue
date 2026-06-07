@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, type PropType } from "vue";
+import { defineComponent, shallowRef, type PropType } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 import { TYPED_INPUT_TYPES } from "../../../constants";
 
@@ -96,18 +96,24 @@ export default defineComponent({
     },
   },
   emits: ["update:modelValue", "update:value"],
-  // $input and mutationObserver are assigned directly on `this` in mounted().
-  // They must NOT be in data() because Vue's reactivity proxy breaks jQuery
-  // widgets. markRaw() was tested and also does not work.
+  setup() {
+    return {
+      inputWidget: shallowRef<any>(null),
+      mutationObserver: shallowRef<MutationObserver | null>(null),
+    };
+  },
   computed: {
     effectiveValue(): { value: string; type: string } {
-      return this.modelValue !== undefined ? this.modelValue : this.value;
+      return (this.modelValue !== undefined ? this.modelValue : this.value) as {
+        value: string;
+        type: string;
+      };
     },
     isProvidedValueTypeValid() {
       const type = this.effectiveValue.type;
       const types = this.types;
 
-      return types.includes(type);
+      return (types as readonly unknown[]).includes(type);
     },
   },
   watch: {
@@ -115,7 +121,7 @@ export default defineComponent({
       handler(newValue) {
         if (!newValue) {
           console.warn(
-            `Validation failed: this.value.type (${this.value.type}) must be one of the provided types (${this.types}).`,
+            `Validation failed: type (${this.effectiveValue.type}) must be one of the provided types (${this.types}).`,
           );
         }
       },
@@ -135,14 +141,18 @@ export default defineComponent({
     },
   },
   mounted() {
-    const inputElement = this.$refs.typedInput;
-    this.$input = $(inputElement).typedInput({
+    const inputElement = this.$refs.typedInput as HTMLElement;
+    this.inputWidget = $(inputElement);
+    this.inputWidget.typedInput({
       default: this.effectiveValue.type || this.types[0],
       types: this.types,
     });
 
-    this.$input.typedInput("value", this.effectiveValue.value || "");
-    this.$input.typedInput("type", this.effectiveValue.type || this.types[0]);
+    this.inputWidget.typedInput("value", this.effectiveValue.value || "");
+    this.inputWidget.typedInput(
+      "type",
+      this.effectiveValue.type || this.types[0],
+    );
 
     // NOTE: when typed input is just a text input, it isn't emiting change while typing because it is updating the value in a hidden input
     this.$nextTick(() => {
@@ -163,7 +173,7 @@ export default defineComponent({
     });
 
     // NOTE: this emits changes to all types that lose focus when choosing a value, but text inputs
-    this.$input.on("change", () => {
+    this.inputWidget.on("change", () => {
       this.onChange();
     });
   },
@@ -175,8 +185,8 @@ export default defineComponent({
   },
   methods: {
     onChange() {
-      const newValue = this.$input.typedInput("value");
-      const newType = this.$input.typedInput("type");
+      const newValue = this.inputWidget.typedInput("value");
+      const newType = this.inputWidget.typedInput("type");
       if (
         this.effectiveValue.value !== newValue ||
         this.effectiveValue.type !== newType

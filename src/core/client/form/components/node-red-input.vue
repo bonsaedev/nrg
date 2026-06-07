@@ -74,7 +74,9 @@ export default defineComponent({
   },
   computed: {
     effectiveValue(): string {
-      return this.modelValue !== undefined ? this.modelValue : this.value;
+      return (
+        this.modelValue !== undefined ? this.modelValue : this.value
+      ) as string;
     },
   },
   beforeMount() {
