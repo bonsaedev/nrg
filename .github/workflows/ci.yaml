@@ -11,16 +11,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4.1.0
+        uses: pnpm/action-setup@v6
         with:
           version: 10.11.0
           run_install: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: "pnpm"
@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload Coverage
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -58,7 +58,7 @@ jobs:
         run: pnpm build
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/
@@ -73,16 +73,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4.1.0
+        uses: pnpm/action-setup@v6
         with:
           version: 10.11.0
           run_install: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
@@ -93,7 +93,7 @@ jobs:
           HUSKY: 0
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist
           path: dist/
@@ -108,16 +108,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4.1.0
+        uses: pnpm/action-setup@v6
         with:
           version: 10.11.0
           run_install: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: "pnpm"
@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload Coverage
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -146,16 +146,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4.1.0
+        uses: pnpm/action-setup@v6
         with:
           version: 10.11.0
           run_install: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: "pnpm"
@@ -169,7 +169,7 @@ jobs:
         run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist
           path: dist/
@@ -179,7 +179,7 @@ jobs:
 
       - name: Upload Screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: client-e2e-screenshots
           path: test-results/screenshots/
