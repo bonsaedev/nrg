@@ -40,12 +40,15 @@ my-node-red-nodes/
 │   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/test/server/unit.json
 │   │   └── {type-id}.test.ts      # Server-side unit tests
 │   └── client/
-│       ├── e2e/
-│       │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/e2e.json
-│       │   └── {type-id}.test.ts  # Browser E2E tests (Playwright)
-│       └── component/
-│           ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/component.json
-│           └── {type-id}.test.ts  # Vue component tests
+│       ├── unit/
+│       │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/unit.json
+│       │   └── {module}.test.ts   # Client TS logic unit tests
+│       ├── component/
+│       │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/component.json
+│       │   └── {type-id}.test.ts  # Vue component tests
+│       └── e2e/
+│           ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/e2e.json
+│           └── {type-id}.test.ts  # Browser E2E tests (Playwright)
 └── dist/                          # Build output (git-ignored)
 ```
 
@@ -85,7 +88,7 @@ Optional Node-RED runtime settings file. Customizes the Node-RED instance used i
 
 ### `tests/`
 
-Tests for your nodes, organized by domain and type. Server-side unit tests use `@bonsae/nrg/test/server/unit`, browser E2E tests use `@bonsae/nrg/test/client/e2e`. See [Testing a Node](./testing) for setup and API details.
+Tests for your nodes, organized by domain and type. Server-side unit tests use `@bonsae/nrg/test/server/unit`, client unit tests use `@bonsae/nrg/test/client/unit`, component tests use `@bonsae/nrg/test/client/component`, and browser E2E tests use `@bonsae/nrg/test/client/e2e`. See [Testing](./testing) for setup and API details.
 
 ### `dist/`
 

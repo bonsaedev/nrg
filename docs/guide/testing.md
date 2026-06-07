@@ -1,37 +1,64 @@
-# Testing a Node
+# Testing
 
-NRG provides three test libraries:
+NRG nodes have two runtime surfaces — server-side logic (Node.js) and client-side UI (browser) — each with its own test strategies. NRG ships test libraries for all of them so you can verify your nodes end-to-end without running a manual Node-RED session.
 
-- `@bonsae/nrg/test/server/unit` — Unit/integration testing of **server-side logic** (lifecycle hooks, input/output, config, credentials, context stores)
-- `@bonsae/nrg/test/client/component` — Component testing of **editor UI components** with Vitest browser mode (Vue rendering, jQuery widgets, RED API interactions)
-- `@bonsae/nrg/test/client/e2e` — E2E testing of **editor UI** with Playwright (form rendering, validation, typed inputs, config selectors)
+::: tip Scaffolded projects
+If you created your project with `@bonsae/create-nrg`, the vitest configs, setup files, tsconfigs, dependencies, and folder structure described below are already in place. You can skip the setup sections and go straight to the API and examples.
+:::
 
-## Server-Side Testing
+## Test Types
+
+### Server
+
+| Type | What it tests | Speed | Library |
+|------|--------------|-------|---------|
+| **Unit** | Node lifecycle, input/output routing, config, credentials, context stores, error handling | Fast (Node.js, no browser) | `@bonsae/nrg/test/server/unit` |
+
+Server tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
+
+### Client
+
+| Type | What it tests | Speed | Library |
+|------|--------------|-------|---------|
+| **Unit** | Pure TypeScript logic used by client code (validation, utilities, helpers) | Fast (headless Chromium) | `@bonsae/nrg/test/client/unit` |
+| **Component** | Vue editor components — rendering, props, events, RED API interactions | Medium (headless browsers) | `@bonsae/nrg/test/client/component` |
+| **E2E** | Full editor round-trip — form rendering, validation, TypedInput, config selectors, i18n | Slow (real Node-RED instance) | `@bonsae/nrg/test/client/e2e` |
+
+Client **unit** tests cover standalone TypeScript modules (validation logic, format helpers, etc.) without rendering Vue components. They run in a browser environment with mocked `RED` and `$` globals.
+
+Client **component** tests render individual Vue components with Vitest browser mode and mocked Node-RED globals. They verify that components respond to props, emit events, and call the RED API correctly.
+
+Client **E2E** tests start a real Node-RED instance with your nodes installed and drive the editor with Playwright. They test the full stack — schema-driven form generation, validation messages, TypedInput widgets, config node selectors, and locale resolution.
+
+### When to Use What
+
+| I want to verify... | Use |
+|---------------------|-----|
+| Input handler transforms a message correctly | Server unit |
+| Node sets status after processing | Server unit |
+| Config node credentials are resolved | Server unit |
+| TypedInput resolves msg/flow/global values | Server unit |
+| A validation utility rejects invalid input | Client unit |
+| A helper function formats data correctly | Client unit |
+| My Vue form renders the right fields | Client component |
+| A component emits `update:modelValue` on input | Client component |
+| `RED.editor.createEditor` is called on mount | Client component |
+| The editor form shows a validation error for empty required fields | Client E2E |
+| A TypedInput dropdown offers the correct types | Client E2E |
+| Config node selector shows registered config nodes | Client E2E |
+| Translations display correctly in the editor | Client E2E |
+
+## Server Unit Testing
 
 ### Setup
 
-#### 1. Install Vitest
+#### 1. Install dependencies
 
 ```bash
 pnpm add -D vitest
 ```
 
-#### 2. Add test script
-
-Add a test script to your `package.json`:
-
-```json
-{
-  "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest"
-  }
-}
-```
-
-#### 3. Add a test tsconfig
-
-Create a `tsconfig.json` for your server tests that extends the NRG base config:
+#### 2. Create a tsconfig
 
 ```json
 // tests/server/tsconfig.json
@@ -41,52 +68,29 @@ Create a `tsconfig.json` for your server tests that extends the NRG base config:
 }
 ```
 
-#### 4. Create a test file
+#### 3. Create a vitest config
 
-Create your tests in a `tests/` directory (or anywhere — Vitest finds `*.test.ts` files automatically):
-
-```
-src/
-  server/
-    nodes/my-node.ts
-tests/
-  server/
-    my-node.test.ts        ← test file
-    tsconfig.json           ← extends @bonsae/nrg/tsconfig/test/server/unit.json
-vitest.config.ts           ← optional
-```
-
-No special Vitest configuration is needed. Vitest picks up your existing `vite.config.ts` or runs with sensible defaults.
-
-If you want a separate config for tests, create a `vitest.config.ts`:
+No special configuration is required — Vitest picks up your `vite.config.ts` or uses defaults. If you want a dedicated config:
 
 ```typescript
+// vitest.server.unit.config.ts
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    globals: true,
+    include: ["tests/server/**/*.test.ts"],
   },
 });
 ```
 
-### Quick Start
+#### 4. Add a test script
 
-```typescript
-import { createNode } from "@bonsae/nrg/test/server/unit";
-import MyNode from "../src/server/nodes/my-node";
-
-describe("my-node", () => {
-  it("should process messages", async () => {
-    const { node } = await createNode(MyNode, {
-      config: { greeting: "hello" },
-    });
-
-    await node.receive({ payload: "world" });
-
-    expect(node.sent(0)).toEqual([{ payload: "hello world" }]);
-  });
-});
+```json
+{
+  "scripts": {
+    "test:server": "vitest run --config vitest.server.unit.config.ts"
+  }
+}
 ```
 
 ### API
@@ -97,30 +101,42 @@ Creates a fully initialized node instance with mocked RED and Node-RED internals
 
 **Options:**
 
-| Option        | Description                                                                                                                           |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `config`      | Node config object (merged with schema defaults). Config node instances can be passed directly as values and will be auto-registered. |
-| `credentials` | Credentials object                                                                                                                    |
-| `settings`    | `RED.settings` overrides                                                                                                              |
-| `overrides`   | Low-level Node-RED node overrides (`id`, `wires`, etc.)                                                                               |
+| Option | Description |
+|--------|-------------|
+| `config` | Node config object (merged with schema defaults). Config node instances can be passed directly as values and will be auto-registered. |
+| `credentials` | Credentials object |
+| `settings` | `RED.settings` overrides |
+| `overrides` | Low-level Node-RED node overrides (`id`, `wires`, etc.) |
 
-**Returns:** `{ node, RED }`
+**Returns:** `Promise<{ node, RED }>`
+
+#### `createRED(options?)`
+
+Creates a standalone mock RED runtime. Useful when you need to test utilities or modules that depend on the RED object without instantiating a full node.
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `settings` | `RED.settings` overrides |
+
+**Returns:** `MockRED`
 
 #### Node Test Helpers
 
 Every node returned by `createNode` has these helpers:
 
-| Method                 | Description                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `node.receive(msg)`    | Send a message through the node's `input()` handler                                   |
-| `node.close(removed?)` | Trigger the `closed()` lifecycle hook                                                 |
-| `node.reset()`         | Clear all captured sent messages, statuses, and logs                                  |
-| `node.sent()`          | All raw messages passed to `send()`                                                   |
-| `node.sent(port)`      | Messages sent to a specific output port                                               |
-| `node.statuses()`      | All `status()` calls                                                                  |
-| `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`) |
-| `node.warned()`        | Warning messages                                                                      |
-| `node.errored()`       | Error messages                                                                        |
+| Method | Description |
+|--------|-------------|
+| `node.receive(msg)` | Send a message through the node's `input()` handler |
+| `node.close(removed?)` | Trigger the `closed()` lifecycle hook |
+| `node.reset()` | Clear all captured sent messages, statuses, and logs |
+| `node.sent()` | All raw messages passed to `send()` |
+| `node.sent(port)` | Messages sent to a specific output port |
+| `node.statuses()` | All `status()` calls |
+| `node.logged(level?)` | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`) |
+| `node.warned()` | Warning messages |
+| `node.errored()` | Error messages |
 
 ### Examples
 
@@ -341,23 +357,117 @@ describe("factory API", () => {
 });
 ```
 
-## Client Component Testing
+## Client Unit Testing
 
-NRG provides a component test library at `@bonsae/nrg/test/client/component` for testing your Vue editor components in a real browser environment. It uses [Vitest browser mode](https://vitest.dev/guide/browser/) to render components with mocked Node-RED editor globals, so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
-
-::: tip When to use
-Use component tests to verify that individual Vue components render correctly, respond to props, and interact with the RED API. For full editor round-trip testing (deploy, edit, save), use `@bonsae/nrg/test/client/e2e` instead.
-:::
+Client unit tests cover pure TypeScript logic that runs in the browser — validation functions, formatters, utility modules, etc. They run in headless Chromium with mocked `RED` and `$` globals, but without rendering Vue components.
 
 ### Setup
 
 #### 1. Install dependencies
 
 ```bash
-pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitejs/plugin-vue
+pnpm add -D vitest @vitest/browser-playwright @vitest/coverage-istanbul
 ```
 
-#### 2. Add a test tsconfig
+#### 2. Create a tsconfig
+
+```json
+// tests/client/unit/tsconfig.json
+{
+  "extends": "@bonsae/nrg/tsconfig/test/client/unit.json",
+  "include": [
+    "**/*.ts",
+    "../../../src/client/**/*.ts"
+  ]
+}
+```
+
+#### 3. Create a vitest config
+
+```typescript
+// vitest.client.unit.config.ts
+import { defineConfig } from "vitest/config";
+import { playwright } from "@vitest/browser-playwright";
+import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+
+export default defineConfig({
+  test: {
+    ...defaultConfig,
+    include: ["tests/client/unit/**/*.test.ts"],
+    browser: {
+      ...defaultConfig.browser,
+      provider: playwright(),
+    },
+  },
+});
+```
+
+The `defaultConfig` provides:
+
+- `testTimeout: 30_000`
+- `setupFiles` pointing to the built-in setup that installs `RED` and `$` mocks on `window`
+- `browser.enabled: true` with a single chromium instance
+
+#### 4. Add a test script
+
+```json
+{
+  "scripts": {
+    "test:client:unit": "vitest run --config vitest.client.unit.config.ts"
+  }
+}
+```
+
+### Quick Start
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { validateNode } from "../../../src/client/validation";
+
+describe("validateNode", () => {
+  it("returns true for valid config", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 1 },
+      },
+      required: ["name"],
+    };
+    const subject = { type: "my-node", name: "test" };
+
+    expect(validateNode(subject, schema)).toBe(true);
+  });
+
+  it("returns errors for missing required field", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 1 },
+      },
+      required: ["name"],
+    };
+    const subject = { type: "my-node", name: "" };
+    const result = validateNode(subject, schema);
+
+    expect(result).not.toBe(true);
+    expect(result).toContain("must NOT have fewer than 1 characters");
+  });
+});
+```
+
+## Client Component Testing
+
+Component tests render your Vue editor components in a real browser with mocked Node-RED globals. They use [Vitest browser mode](https://vitest.dev/guide/browser/) so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
+
+### Setup
+
+#### 1. Install dependencies
+
+```bash
+pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitest/coverage-istanbul @vitejs/plugin-vue
+```
+
+#### 2. Create a tsconfig
 
 ```json
 // tests/client/component/tsconfig.json
@@ -371,10 +481,10 @@ pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitejs/plugin-
 }
 ```
 
-#### 3. Create a Vitest config
+#### 3. Create a vitest config
 
 ```typescript
-// vitest.client.unit.config.ts
+// vitest.client.component.config.ts
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import vue from "@vitejs/plugin-vue";
@@ -396,10 +506,10 @@ export default defineConfig({
 The `defaultConfig` provides:
 
 - `testTimeout: 30_000`
-- `setupFiles` pointing to the built-in setup that installs `$` and `RED` mocks on `window`
+- `setupFiles` pointing to the built-in setup that installs `$` and `RED` mocks on `window` and configures Vue i18n
 - `browser.enabled: true` with a single chromium instance
 
-You can add more browser instances in your config if you want cross-browser coverage:
+You can add more browser instances if you want cross-browser coverage:
 
 ```typescript
 browser: {
@@ -418,28 +528,9 @@ browser: {
 ```json
 {
   "scripts": {
-    "test:client:unit": "vitest run --config vitest.client.unit.config.ts"
+    "test:client:component": "vitest run --config vitest.client.component.config.ts"
   }
 }
-```
-
-### Quick Start
-
-```typescript
-import { describe, test, expect, vi } from "vitest";
-import { render } from "vitest-browser-vue";
-import { createNode } from "@bonsae/nrg/test/client/component";
-import MyComponent from "../../../src/client/components/my-component.vue";
-
-describe("MyComponent", () => {
-  test("renders with node props", async () => {
-    const { node } = createNode({ name: "my-node", timeout: 30 });
-    const screen = render(MyComponent, {
-      props: { node, propName: "timeout", value: 30 },
-    });
-    await expect.element(screen.getByText("Timeout")).toBeInTheDocument();
-  });
-});
 ```
 
 ### API
@@ -471,16 +562,16 @@ RED.nodes.dirty.mockReturnValue(true);
 
 The mock provides:
 
-| Namespace     | Methods                                                                      |
-| ------------- | ---------------------------------------------------------------------------- |
-| `RED._`       | `_(key)` — returns the key as-is                                             |
-| `RED.editor`  | `createEditor(options)`, `prepareConfigNodeSelect(...)`, `validateNode(...)` |
-| `RED.tray`    | `show(...)`, `close()`                                                       |
-| `RED.popover` | `tooltip(...)`                                                               |
-| `RED.nodes`   | `registerType(...)`, `node(...)`, `dirty(...)`                               |
-| `RED.events`  | `on(...)`, `off(...)`, `emit(...)`                                           |
-| `RED.settings`| `Record<string, any>` — empty object, reset each test via `beforeEach` in setup |
-| `RED.notify`  | `notify(...)` — no-op                                                        |
+| Namespace | Methods |
+|-----------|---------|
+| `RED._` | `_(key)` — returns the key as-is |
+| `RED.editor` | `createEditor(options)`, `prepareConfigNodeSelect(...)`, `validateNode(...)` |
+| `RED.tray` | `show(...)`, `close()` |
+| `RED.popover` | `tooltip(...)` |
+| `RED.nodes` | `registerType(...)`, `node(...)`, `dirty(...)` |
+| `RED.events` | `on(...)`, `off(...)`, `emit(...)` |
+| `RED.settings` | `Record<string, any>` — empty object, reset each test via `beforeEach` in setup |
+| `RED.notify` | `notify(...)` — no-op |
 
 ### Examples
 
@@ -527,16 +618,12 @@ describe("editor component", () => {
 ```
 
 ::: info Translations
-Component tests use key-passthrough mocks — the setup file installs a `$i18n` mock and `RED._` that return the translation key as-is. This lets you verify the correct keys are used, but not that translations resolve to the right text. To test that translations are properly loaded and rendered, use [Browser E2E Testing](#browser-e2e-testing) where Node-RED loads the real locale files.
+Component tests use key-passthrough mocks — the setup file installs a `$i18n` mock and `RED._` that return the translation key as-is. This lets you verify the correct keys are used, but not that translations resolve to the right text. To test that translations are properly loaded and rendered, use [Browser E2E Testing](#client-e2e-testing) where Node-RED loads the real locale files.
 :::
 
-## Browser E2E Testing
+## Client E2E Testing
 
-NRG provides a browser test library at `@bonsae/nrg/test/client/e2e` for end-to-end testing of your node's editor UI. It uses [Playwright](https://playwright.dev/) to drive a real Node-RED editor and interact with your form fields, typed inputs, config selectors, and validation messages.
-
-::: tip When to use
-Use browser E2E tests to verify that your node's editor form renders correctly, validates input, persists values, and displays correct translations. Server-side logic is better tested with `@bonsae/nrg/test/server/unit` (see above).
-:::
+E2E tests start a real Node-RED instance with your nodes installed and drive the editor with [Playwright](https://playwright.dev/). They test the full stack — schema-driven form generation, validation messages, TypedInput widgets, config node selectors, and locale resolution.
 
 ### Setup
 
@@ -546,7 +633,7 @@ Use browser E2E tests to verify that your node's editor form renders correctly, 
 pnpm add -D playwright vitest
 ```
 
-#### 2. Add a test tsconfig
+#### 2. Create a tsconfig
 
 ```json
 // tests/client/e2e/tsconfig.json
@@ -556,65 +643,34 @@ pnpm add -D playwright vitest
 }
 ```
 
-#### 3. Create a Vitest config for E2E browser tests
+#### 3. Create a vitest config
 
 ```typescript
-// vitest.core.client.e2e.config.ts
+// vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     testTimeout: 120_000,
     hookTimeout: 120_000,
-    globalSetup: "tests/core/client/e2e/global-setup.ts",
-    include: ["tests/core/client/e2e/**/*.test.ts"],
+    globalSetup: "tests/client/e2e/global-setup.ts",
+    include: ["tests/client/e2e/**/*.test.ts"],
   },
 });
 ```
 
 #### 4. Create a global setup file
 
-The global setup builds your node package, starts a Node-RED instance, deploys a test flow, and writes the port to a temp file so tests can connect to it.
-
 ```typescript
-// tests/core/client/e2e/global-setup.ts
-import fs from "fs";
-import os from "os";
-import path from "path";
-import { build as buildServer } from "@bonsae/nrg/vite/server/build";
-import { build as buildClient } from "@bonsae/nrg/vite/client/build";
-import { NodeRedLauncher } from "@bonsae/nrg/vite/node-red-launcher";
+// tests/client/e2e/global-setup.ts
+import {
+  setup as baseSetup,
+  teardown as baseTeardown,
+} from "@bonsae/nrg/test/client/e2e";
 
-const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/my-node");
-const OUT_DIR = path.join(FIXTURE_DIR, "dist-e2e");
-const NODE_RED_DIR = path.join(FIXTURE_DIR, ".node-red");
-const INSTALLED_PKG_DIR = path.join(NODE_RED_DIR, "node_modules", "my-node");
-export const PORT_FILE = path.join(os.tmpdir(), "nrg-client-e2e-port");
-
-let launcher: NodeRedLauncher;
-
-export async function setup(): Promise<void> {
-  // Build your node package
-  // ... build server and client ...
-
-  // Install into Node-RED's node_modules
-  fs.mkdirSync(INSTALLED_PKG_DIR, { recursive: true });
-  fs.cpSync(OUT_DIR, INSTALLED_PKG_DIR, { recursive: true });
-
-  // Start Node-RED
-  launcher = new NodeRedLauncher(INSTALLED_PKG_DIR, {
-    runtime: { port: 1881 },
-  });
-  const port = await launcher.start();
-
-  // Deploy a test flow
-  await fetch(`http://localhost:${port}/flows`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Node-RED-Deployment-Type": "full",
-    },
-    body: JSON.stringify([
+export async function setup() {
+  await baseSetup({
+    flow: [
       { id: "tab1", type: "tab", label: "E2E Tests" },
       {
         id: "n1",
@@ -625,35 +681,38 @@ export async function setup(): Promise<void> {
         y: 200,
         wires: [[]],
       },
-    ]),
+    ],
   });
-
-  // Write port for test files
-  fs.writeFileSync(PORT_FILE, String(port));
 }
 
-export async function teardown(): Promise<void> {
-  await launcher?.stop();
-  launcher?.cleanup();
+export async function teardown() {
+  await baseTeardown();
 }
+```
+
+If your project uses a `node-red.settings.ts` file that is not at the project root, pass `settingsFile` with the path to it:
+
+```typescript
+await baseSetup({
+  settingsFile: "config/node-red.settings.ts",
+  flow: [/* ... */],
+});
 ```
 
 #### 5. Create a test file
 
 ```typescript
-// tests/core/client/e2e/my-node.test.ts
+// tests/client/e2e/my-node.test.ts
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
-import fs from "fs";
 import { chromium, type Browser } from "playwright";
 import { NodeRedEditor } from "@bonsae/nrg/test/client/e2e";
-import { PORT_FILE } from "./global-setup";
 
 describe("my-node editor", () => {
   let browser: Browser;
   let editor: NodeRedEditor;
 
   beforeAll(async () => {
-    const port = Number(fs.readFileSync(PORT_FILE, "utf-8").trim());
+    const port = Number(process.env.NODE_RED_PORT);
     browser = await chromium.launch();
     const page = await browser.newPage();
     editor = new NodeRedEditor(page, port);
@@ -677,10 +736,14 @@ describe("my-node editor", () => {
 });
 ```
 
-#### 6. Run the tests
+#### 6. Add a test script
 
-```bash
-npx vitest run --config vitest.core.client.e2e.config.ts
+```json
+{
+  "scripts": {
+    "test:client:e2e": "vitest run --config vitest.client.e2e.config.ts"
+  }
+}
 ```
 
 ### API
@@ -695,18 +758,18 @@ const editor = new NodeRedEditor(page, port, {
 });
 ```
 
-| Method                        | Description                                                |
-| ----------------------------- | ---------------------------------------------------------- |
-| `editor.open()`               | Navigate to Node-RED and wait for the editor to load       |
-| `editor.editNode(nodeId)`     | Open the edit dialog for a node                            |
-| `editor.clickDone()`          | Click the Done button and wait for the tray to close       |
-| `editor.clickCancel()`        | Click the Cancel button and wait for the tray to close     |
-| `editor.field(label)`         | Get a `NodeRedField` for the form row with the given label |
-| `editor.deployFlow(flow)`     | Deploy a flow via the REST API and reload the page         |
-| `editor.screenshot(name)`     | Take a full-page screenshot, returns the file path         |
-| `editor.expectNoPageErrors()` | Assert no uncaught JavaScript errors occurred              |
-| `editor.tray`                 | Locator for the tray body wrapper                          |
-| `editor.errors`               | Array of captured page error messages                      |
+| Method | Description |
+|--------|-------------|
+| `editor.open()` | Navigate to Node-RED and wait for the editor to load |
+| `editor.editNode(nodeId)` | Open the edit dialog for a node |
+| `editor.clickDone()` | Click the Done button and wait for the tray to close |
+| `editor.clickCancel()` | Click the Cancel button and wait for the tray to close |
+| `editor.field(label)` | Get a `NodeRedField` for the form row with the given label |
+| `editor.deployFlow(flow)` | Deploy a flow via the REST API and reload the page |
+| `editor.screenshot(name)` | Take a full-page screenshot, returns the file path |
+| `editor.expectNoPageErrors()` | Assert no uncaught JavaScript errors occurred |
+| `editor.tray` | Locator for the tray body wrapper |
+| `editor.errors` | Array of captured page error messages |
 
 #### `NodeRedField`
 
@@ -718,90 +781,88 @@ const name = editor.field("Name");
 
 **Input fields** (text, number, password):
 
-| Method / Property      | Description                                                         |
-| ---------------------- | ------------------------------------------------------------------- |
-| `field.input`          | Locator for the `<input>` element                                   |
-| `field.fill(value)`    | Set the input value                                                 |
-| `field.clear()`        | Clear the input value                                               |
-| `field.getValue()`     | Get the current input value                                         |
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.input` | Locator for the `<input>` element |
+| `field.fill(value)` | Set the input value |
+| `field.clear()` | Clear the input value |
+| `field.getValue()` | Get the current input value |
 | `field.getInputType()` | Get the input `type` attribute (`"text"`, `"number"`, `"password"`) |
 
 **Boolean fields** (toggle, checkbox):
 
-| Method / Property    | Description                       |
-| -------------------- | --------------------------------- |
+| Method / Property | Description |
+|-------------------|-------------|
 | `field.toggleSlider` | Locator for the NRG toggle slider |
-| `field.toggle()`     | Click the toggle slider           |
-| `field.checkbox`     | Locator for the checkbox input    |
+| `field.toggle()` | Click the toggle slider |
+| `field.checkbox` | Locator for the checkbox input |
 
 **Typed input fields** (TypedInput, enum select, multi-select):
 
-| Method / Property             | Description                                              |
-| ----------------------------- | -------------------------------------------------------- |
-| `field.typedInputContainer`   | Locator for the typed input container                    |
-| `field.getSelectedType()`     | Get the currently selected type (e.g. `"msg"`, `"str"`)  |
-| `field.getSelectedValue()`    | Get the current typed input value                        |
-| `field.getTypeMenuValues()`   | Open the type dropdown, return all type values, close it |
-| `field.selectType(type)`      | Open the type dropdown and select a type                 |
-| `field.getOptionMenuLabels()` | Open the option dropdown, return all labels, close it    |
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.typedInputContainer` | Locator for the typed input container |
+| `field.getSelectedType()` | Get the currently selected type (e.g. `"msg"`, `"str"`) |
+| `field.getSelectedValue()` | Get the current typed input value |
+| `field.getTypeMenuValues()` | Open the type dropdown, return all type values, close it |
+| `field.selectType(type)` | Open the type dropdown and select a type |
+| `field.getOptionMenuLabels()` | Open the option dropdown, return all labels, close it |
 
 **Config input fields** (NodeRef):
 
-| Method / Property                | Description                                    |
-| -------------------------------- | ---------------------------------------------- |
-| `field.select`                   | Locator for the `<select>` element             |
-| `field.editButton`               | Locator for the edit (pencil) button           |
-| `field.addButton`                | Locator for the add (plus) button              |
-| `field.getSelectedOption()`      | Get the selected option value                  |
-| `field.getSelectedOptionLabel()` | Get the selected option display text           |
-| `field.getOptions()`             | Get all option labels (excludes "Add new ...") |
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.select` | Locator for the `<select>` element |
+| `field.editButton` | Locator for the edit (pencil) button |
+| `field.addButton` | Locator for the add (plus) button |
+| `field.getSelectedOption()` | Get the selected option value |
+| `field.getSelectedOptionLabel()` | Get the selected option display text |
+| `field.getOptions()` | Get all option labels (excludes "Add new ...") |
 
 **Code editor fields**:
 
-| Method / Property     | Description                         |
-| --------------------- | ----------------------------------- |
+| Method / Property | Description |
+|-------------------|-------------|
 | `field.editorWrapper` | Locator for the code editor wrapper |
-| `field.expandButton`  | Locator for the expand button       |
+| `field.expandButton` | Locator for the expand button |
 
 **Array text fields**:
 
-| Method / Property | Description                          |
-| ----------------- | ------------------------------------ |
-| `field.textarea`  | Locator for the `<textarea>` element |
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.textarea` | Locator for the `<textarea>` element |
 
 **Validation**:
 
-| Method / Property                | Description                                                      |
-| -------------------------------- | ---------------------------------------------------------------- |
-| `field.requiredIndicator`        | Locator for the required asterisk (`*`)                          |
-| `field.errorMessage`             | Locator for the validation error message                         |
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.requiredIndicator` | Locator for the required asterisk (`*`) |
+| `field.errorMessage` | Locator for the validation error message |
 | `field.expectError(containing?)` | Assert a validation error is visible, optionally containing text |
-| `field.expectNoError()`          | Assert no validation error is visible                            |
+| `field.expectNoError()` | Assert no validation error is visible |
 
 **Visibility**:
 
-| Method / Property        | Description                                |
-| ------------------------ | ------------------------------------------ |
-| `field.row`              | Locator for the entire `.form-row` element |
-| `field.scrollIntoView()` | Scroll the field into the viewport         |
-| `field.expectVisible()`  | Assert the field row is visible            |
-| `field.expectHidden()`   | Assert the field row is hidden             |
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.row` | Locator for the entire `.form-row` element |
+| `field.scrollIntoView()` | Scroll the field into the viewport |
+| `field.expectVisible()` | Assert the field row is visible |
+| `field.expectHidden()` | Assert the field row is hidden |
 
 ### Examples
 
 ```typescript
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
-import fs from "fs";
 import { chromium, type Browser } from "playwright";
 import { NodeRedEditor } from "@bonsae/nrg/test/client/e2e";
-import { PORT_FILE } from "./global-setup";
 
 describe("my-node editor", () => {
   let browser: Browser;
   let editor: NodeRedEditor;
 
   beforeAll(async () => {
-    const port = Number(fs.readFileSync(PORT_FILE, "utf-8").trim());
+    const port = Number(process.env.NODE_RED_PORT);
     browser = await chromium.launch();
     const page = await browser.newPage();
     editor = new NodeRedEditor(page, port);
@@ -936,6 +997,7 @@ describe.each(BROWSERS)("my-node editor ($name)", ({ type }) => {
   let editor: NodeRedEditor;
 
   beforeAll(async () => {
+    const port = Number(process.env.NODE_RED_PORT);
     browser = await type.launch();
     const page = await browser.newPage();
     editor = new NodeRedEditor(page, port);

@@ -21,10 +21,12 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 | `@bonsae/nrg/server`                 | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
 | `@bonsae/nrg/client`                 | Client-side registration (`registerTypes`, `defineNode`)                                                                                                              |
 | `@bonsae/nrg/vite`                   | Vite plugin for building and developing Node-RED packages                                                                                                             |
-| `@bonsae/nrg/test/server/unit`       | Server-side unit test helpers (`createNode`)                                                                                                                          |
-| `@bonsae/nrg/test/client/component`       | Client component test helpers (`createNode`, `defaultConfig`)                                                                                                            |
-| `@bonsae/nrg/test/client/component/setup` | Setup file that installs Node-RED editor mocks on `window`                                                                                                            |
-| `@bonsae/nrg/test/client/e2e`        | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`)                                                                                                            |
+| `@bonsae/nrg/test/server/unit`       | Server-side unit test helpers (`createNode`, `createRED`, `MockRED`)                                                                                                  |
+| `@bonsae/nrg/test/client/unit`             | Client unit test config and mocks (`defaultConfig`, `createRED`, `createJQuery`)                                                                                      |
+| `@bonsae/nrg/test/client/unit/setup`       | Setup file that installs `RED` and `$` mocks on `window`                                                                                                              |
+| `@bonsae/nrg/test/client/component`        | Client component test helpers (`createNode`, `defaultConfig`, `createRED`, `createJQuery`)                                                                             |
+| `@bonsae/nrg/test/client/component/setup`  | Setup file that installs `RED` and `$` mocks on `window` and configures Vue i18n                                                                                      |
+| `@bonsae/nrg/test/client/e2e`              | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`)                                                                                                             |
 | `@bonsae/nrg/tsconfig/*`             | Shared TypeScript configurations for consumers                                                                                                                        |
 
 ## Quick Start
