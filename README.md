@@ -22,8 +22,8 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 | `@bonsae/nrg/client`                 | Client-side registration (`registerTypes`, `defineNode`)                                                                                                              |
 | `@bonsae/nrg/vite`                   | Vite plugin for building and developing Node-RED packages                                                                                                             |
 | `@bonsae/nrg/test/server/unit`       | Server-side unit test helpers (`createNode`)                                                                                                                          |
-| `@bonsae/nrg/test/client/unit`       | Client component test helpers (`createNode`, `defaultConfig`)                                                                                                            |
-| `@bonsae/nrg/test/client/unit/setup` | Setup file that installs Node-RED editor mocks on `window`                                                                                                            |
+| `@bonsae/nrg/test/client/component`       | Client component test helpers (`createNode`, `defaultConfig`)                                                                                                            |
+| `@bonsae/nrg/test/client/component/setup` | Setup file that installs Node-RED editor mocks on `window`                                                                                                            |
 | `@bonsae/nrg/test/client/e2e`        | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`)                                                                                                            |
 | `@bonsae/nrg/tsconfig/*`             | Shared TypeScript configurations for consumers                                                                                                                        |
 
@@ -137,7 +137,7 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 NRG provides three test libraries:
 
 - `@bonsae/nrg/test/server/unit` — server-side unit tests
-- `@bonsae/nrg/test/client/unit` — client component tests (Vue + browser)
+- `@bonsae/nrg/test/client/component` — client component tests (Vue + browser)
 - `@bonsae/nrg/test/client/e2e` — browser E2E tests (Playwright)
 
 ### Server Unit Tests
@@ -169,7 +169,7 @@ Test your Vue editor components with mocked Node-RED globals:
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import vue from "@vitejs/plugin-vue";
-import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+import { defaultConfig } from "@bonsae/nrg/test/client/component";
 
 export default defineConfig({
   plugins: [vue()],
@@ -187,7 +187,7 @@ export default defineConfig({
 // tests/my-component.test.ts
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import { createNode } from "@bonsae/nrg/test/client/unit";
+import { createNode } from "@bonsae/nrg/test/client/component";
 import MyComponent from "../src/client/components/my-component.vue";
 
 describe("MyComponent", () => {

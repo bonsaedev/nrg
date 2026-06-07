@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedTypedInput from "../../../../../src/core/client/form/components/node-red-typed-input.vue";
-import { getJQueryState } from "../../../../../src/test/client/unit/jquery";
+import NodeRedTypedInput from "../../../../src/core/client/form/components/node-red-typed-input.vue";
+import { getJQueryState } from "../../../../src/test/client/component/jquery";
 
 describe("NodeRedTypedInput", () => {
   const DEFAULT_PROPS = {

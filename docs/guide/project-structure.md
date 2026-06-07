@@ -43,9 +43,9 @@ my-node-red-nodes/
 │       ├── e2e/
 │       │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/e2e.json
 │       │   └── {type-id}.test.ts  # Browser E2E tests (Playwright)
-│       └── unit/
-│           ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/unit.json
-│           └── {type-id}.test.ts  # Vue component unit tests
+│       └── component/
+│           ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/component.json
+│           └── {type-id}.test.ts  # Vue component tests
 └── dist/                          # Build output (git-ignored)
 ```
 

@@ -3,7 +3,7 @@
 NRG provides three test libraries:
 
 - `@bonsae/nrg/test/server/unit` — Unit/integration testing of **server-side logic** (lifecycle hooks, input/output, config, credentials, context stores)
-- `@bonsae/nrg/test/client/unit` — Component testing of **editor UI components** with Vitest browser mode (Vue rendering, jQuery widgets, RED API interactions)
+- `@bonsae/nrg/test/client/component` — Component testing of **editor UI components** with Vitest browser mode (Vue rendering, jQuery widgets, RED API interactions)
 - `@bonsae/nrg/test/client/e2e` — E2E testing of **editor UI** with Playwright (form rendering, validation, typed inputs, config selectors)
 
 ## Server-Side Testing
@@ -343,7 +343,7 @@ describe("factory API", () => {
 
 ## Client Component Testing
 
-NRG provides a component test library at `@bonsae/nrg/test/client/unit` for testing your Vue editor components in a real browser environment. It uses [Vitest browser mode](https://vitest.dev/guide/browser/) to render components with mocked Node-RED editor globals, so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
+NRG provides a component test library at `@bonsae/nrg/test/client/component` for testing your Vue editor components in a real browser environment. It uses [Vitest browser mode](https://vitest.dev/guide/browser/) to render components with mocked Node-RED editor globals, so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
 
 ::: tip When to use
 Use component tests to verify that individual Vue components render correctly, respond to props, and interact with the RED API. For full editor round-trip testing (deploy, edit, save), use `@bonsae/nrg/test/client/e2e` instead.
@@ -360,9 +360,9 @@ pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitejs/plugin-
 #### 2. Add a test tsconfig
 
 ```json
-// tests/client/unit/tsconfig.json
+// tests/client/component/tsconfig.json
 {
-  "extends": "@bonsae/nrg/tsconfig/test/client/unit.json",
+  "extends": "@bonsae/nrg/tsconfig/test/client/component.json",
   "include": [
     "**/*.ts",
     "../../../src/client/**/*.ts",
@@ -378,13 +378,13 @@ pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitejs/plugin-
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import vue from "@vitejs/plugin-vue";
-import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+import { defaultConfig } from "@bonsae/nrg/test/client/component";
 
 export default defineConfig({
   plugins: [vue()],
   test: {
     ...defaultConfig,
-    include: ["tests/client/unit/**/*.test.ts"],
+    include: ["tests/client/component/**/*.test.ts"],
     browser: {
       ...defaultConfig.browser,
       provider: playwright(),
@@ -428,7 +428,7 @@ browser: {
 ```typescript
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import { createNode } from "@bonsae/nrg/test/client/unit";
+import { createNode } from "@bonsae/nrg/test/client/component";
 import MyComponent from "../../../src/client/components/my-component.vue";
 
 describe("MyComponent", () => {
@@ -487,7 +487,7 @@ The mock provides:
 ```typescript
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import { createNode } from "@bonsae/nrg/test/client/unit";
+import { createNode } from "@bonsae/nrg/test/client/component";
 
 describe("editor component", () => {
   test("asserts RED.editor.createEditor was called", async () => {

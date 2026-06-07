@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedJsonSchemaForm from "../../../../../src/core/client/form/components/node-red-json-schema-form.vue";
-import { createNode } from "../../../../../src/test/client/unit";
+import NodeRedJsonSchemaForm from "../../../../src/core/client/form/components/node-red-json-schema-form.vue";
+import { createNode } from "../../../../src/test/client/component";
 
 describe("NodeRedJsonSchemaForm", () => {
   test("renders string field as text input", async () => {

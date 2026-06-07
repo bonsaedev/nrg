@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedEditorInput from "../../../../../src/core/client/form/components/node-red-editor-input.vue";
-import { createNode } from "../../../../../src/test/client/unit";
+import NodeRedEditorInput from "../../../../src/core/client/form/components/node-red-editor-input.vue";
+import { createNode } from "../../../../src/test/client/component";
 
 describe("NodeRedEditorInput", () => {
   const { RED } = createNode();

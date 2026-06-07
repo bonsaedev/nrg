@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedSelectInput from "../../../../../src/core/client/form/components/node-red-select-input.vue";
-import { getJQueryState } from "../../../../../src/test/client/unit/jquery";
+import NodeRedSelectInput from "../../../../src/core/client/form/components/node-red-select-input.vue";
+import { getJQueryState } from "../../../../src/test/client/component/jquery";
 
 const OPTIONS = [
   { value: "a", label: "Alpha" },

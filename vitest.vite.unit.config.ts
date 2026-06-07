@@ -11,6 +11,7 @@ export default defineConfig({
     include: ["tests/vite/unit/**/*.test.ts"],
     coverage: {
       provider: "v8",
+      reportsDirectory: "coverage/vite",
       reporter: ["text", "lcov"],
       include: [
         "src/vite/utils.ts",

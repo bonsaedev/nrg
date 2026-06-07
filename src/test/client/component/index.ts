@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 export const defaultConfig = {
   testTimeout: 30_000,
-  setupFiles: ["@bonsae/nrg/test/client/unit/setup"],
+  setupFiles: ["@bonsae/nrg/test/client/component/setup"],
   browser: {
     enabled: true,
     instances: [{ browser: "chromium" }],
