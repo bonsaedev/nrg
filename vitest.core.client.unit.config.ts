@@ -17,7 +17,12 @@ export default defineConfig({
       provider: "v8",
       reportsDirectory: "coverage/client-unit",
       reporter: ["text", "lcov"],
-      include: ["src/core/client/validation.ts"],
+      include: [
+        "src/core/client/validation.ts",
+        "src/core/client/registration.ts",
+        "src/core/client/state.ts",
+        "src/core/client/labels.ts",
+      ],
     },
   },
 });

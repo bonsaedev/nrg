@@ -93,6 +93,34 @@ export interface NodeDefinition {
   form?: NodeFormDefinition;
 }
 
+export interface NodeDefaults {
+  [key: string]: {
+    value: any;
+    type?: string;
+    label?: string;
+    required?: boolean;
+    validate?: (this: NodeRedNode, value: any, opt: any) => any;
+  };
+}
+
+export interface NodeCredentials {
+  [key: string]: {
+    value?: string;
+    type?: "password" | "text";
+    label?: string;
+    required?: boolean;
+  };
+}
+
+export interface MergedNodeDefinition extends NodeDefinition {
+  defaults?: NodeDefaults;
+  credentials?: NodeCredentials;
+  configSchema?: Record<string, any>;
+  credentialsSchema?: { properties?: Record<string, any> };
+  outputsSchema?: Record<string, any>;
+  inputSchema?: Record<string, any>;
+}
+
 export interface NodeFeatures {
   hasInputSchema: boolean;
   hasOutputSchema: boolean;

@@ -1,14 +1,20 @@
 import type { Component } from "vue";
-import { isEqual } from "es-toolkit";
 import { validateNode } from "./validation";
 import { mountApp, unmountApp } from "./form";
+import { getNodeState, getChanges, applyState } from "./state";
+import {
+  createDefaultLabel,
+  createDefaultPaletteLabel,
+  createDefaultInputLabels,
+  createDefaultOutputLabels,
+} from "./labels";
 import type {
   NodeRedNode,
-  NodeState,
-  NodeButtonDefinition,
   NodeFormDefinition,
   NodeDefinition,
   NodeFeatures,
+  MergedNodeDefinition,
+  NodeDefaults,
 } from "./types";
 
 const _schemas: Record<string, any> = {};
@@ -22,79 +28,105 @@ function __setForms(forms: Record<string, Component>): void {
   Object.assign(_forms, forms);
 }
 
-function getNodeState(node: NodeRedNode): NodeState {
-  const state: NodeState = {
-    credentials: {},
-  };
-  Object.keys(node._def.defaults ?? {}).forEach((prop) => {
-    state[prop] = node[prop];
-  });
-  if (node._def.credentials) {
-    Object.keys(node._def.credentials).forEach((prop) => {
-      state.credentials[prop] = node.credentials?.[prop];
-
-      if (node._def.credentials[prop].type === "password") {
-        state.credentials[`has_${prop}`] =
-          node.credentials?.[`has_${prop}`] || false;
-      }
-    });
-  }
-
-  return state;
-}
-
-function getChanges(
-  o: Record<any, any>,
-  n: Record<any, any>,
-): Record<string, any> {
-  const changes: Record<string, any> = {};
-
-  const allKeys = new Set([...Object.keys(o), ...Object.keys(n ?? {})]);
-  allKeys.forEach((prop) => {
-    const _o = o[prop];
-    const _n = (n ?? {})[prop];
-
-    if (!Array.isArray(_o) && typeof _o === "object" && _o !== null) {
-      const _changes = getChanges(_o, _n);
-      if (Object.keys(_changes).length) {
-        changes[prop] = _changes;
-      }
-    } else if (!isEqual(_o, _n)) {
-      changes[prop] = _o;
-    }
-  });
-
-  return changes;
-}
-
-function applyState(target: any, source: any): void {
-  for (const key of Object.keys(source)) {
-    const srcVal = source[key];
-    if (Array.isArray(srcVal)) {
-      target[key] = [...srcVal];
-    } else if (srcVal !== null && typeof srcVal === "object") {
-      if (
-        !target[key] ||
-        typeof target[key] !== "object" ||
-        Array.isArray(target[key])
-      ) {
-        target[key] = {};
-      }
-      applyState(target[key], srcVal);
-    } else {
-      target[key] = srcVal;
-    }
-  }
-}
-
 function defineNode<T extends NodeDefinition>(options: T): T {
   return options;
+}
+
+function updateConfigNodeUsers(node: NodeRedNode): void {
+  Object.keys(node._def.defaults ?? {}).forEach((prop) => {
+    if (!node._def.defaults?.[prop]?.type) return;
+    const oldConfigNodeId: string = node[prop] as string;
+    const newConfigNodeId: string = node._newState![prop] as string;
+    if (oldConfigNodeId === newConfigNodeId) return;
+    const oldConfigNode = RED.nodes.node(oldConfigNodeId);
+    if (oldConfigNode && oldConfigNode._def.category === "config") {
+      const idx = oldConfigNode.users.findIndex(
+        (_node) => _node.id === node.id,
+      );
+      if (idx !== -1) {
+        oldConfigNode.users.splice(idx, 1);
+      }
+    }
+  });
+
+  Object.keys(node._def.defaults ?? {}).forEach((prop) => {
+    if (!node._def.defaults?.[prop]?.type) return;
+    const newConfigNodeId: string = node._newState![prop] as string;
+    if (!newConfigNodeId) return;
+    const newConfigNode = RED.nodes.node(newConfigNodeId);
+    if (newConfigNode && newConfigNode._def.category === "config") {
+      const idx = newConfigNode.users.findIndex(
+        (_node) => _node.id === node.id,
+      );
+      if (idx === -1) {
+        newConfigNode.users.push(node);
+      }
+    }
+  });
+}
+
+function syncConfigInputs(
+  node: NodeRedNode,
+  newState: Record<string, any>,
+  appContainerId: string,
+): void {
+  Object.keys(node._def.defaults ?? {}).forEach((prop) => {
+    if (node._def.defaults[prop].type) return;
+    const inputId = `node-config-input-${prop}`;
+    let input = $(`#${inputId}`);
+    if (!input.length) {
+      input = $("<input>", { type: "hidden", id: inputId });
+      $(`#${appContainerId}`).append(input);
+    }
+    input.val(newState[prop] ?? "");
+  });
+}
+
+function composeValidationSchema(
+  nodeDefinition: MergedNodeDefinition,
+): Record<string, any> | undefined {
+  if (
+    nodeDefinition.configSchema &&
+    nodeDefinition.credentialsSchema?.properties
+  ) {
+    return {
+      ...nodeDefinition.configSchema,
+      properties: {
+        ...nodeDefinition.configSchema.properties,
+        credentials: {
+          type: "object",
+          properties: nodeDefinition.credentialsSchema.properties,
+        },
+      },
+    };
+  }
+  return nodeDefinition.configSchema;
+}
+
+function computeBuiltinPortOutputs(
+  defaults: NodeDefaults,
+  baseOutputs: number,
+): { hasBuiltinPorts: boolean; baseOutputs: number } {
+  const hasBuiltinPorts =
+    "errorPort" in defaults ||
+    "completePort" in defaults ||
+    "statusPort" in defaults;
+
+  if (hasBuiltinPorts && !("outputs" in defaults)) {
+    let initialOutputs = baseOutputs;
+    if (defaults.errorPort?.value) initialOutputs++;
+    if (defaults.completePort?.value) initialOutputs++;
+    if (defaults.statusPort?.value) initialOutputs++;
+    defaults.outputs = { value: initialOutputs };
+  }
+
+  return { hasBuiltinPorts, baseOutputs };
 }
 
 async function registerType(definition: NodeDefinition): Promise<void> {
   const { type } = definition;
   try {
-    const nodeDefinition = {
+    const nodeDefinition: MergedNodeDefinition = {
       ...(_schemas[type] ?? {}),
       ...definition,
     };
@@ -112,33 +144,15 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       html: `<div id="${appContainerId}"></div>`,
     }).appendTo("body");
 
-    const validationSchema =
-      nodeDefinition.configSchema &&
-      nodeDefinition.credentialsSchema?.properties
-        ? {
-            ...nodeDefinition.configSchema,
-            properties: {
-              ...nodeDefinition.configSchema.properties,
-              credentials: {
-                type: "object",
-                properties: nodeDefinition.credentialsSchema.properties,
-              },
-            },
-          }
-        : nodeDefinition.configSchema;
+    const validationSchema = composeValidationSchema(nodeDefinition);
 
-    const hasBuiltinPorts =
-      defaults &&
-      ("errorPort" in defaults ||
-        "completePort" in defaults ||
-        "statusPort" in defaults);
-    const baseOutputs = nodeDefinition.outputs || 0;
-    if (hasBuiltinPorts && defaults && !("outputs" in defaults)) {
-      let initialOutputs = baseOutputs;
-      if (defaults.errorPort?.value) initialOutputs++;
-      if (defaults.completePort?.value) initialOutputs++;
-      if (defaults.statusPort?.value) initialOutputs++;
-      defaults.outputs = { value: initialOutputs };
+    let hasBuiltinPorts = false;
+    let baseOutputs = nodeDefinition.outputs || 0;
+    if (defaults) {
+      ({ hasBuiltinPorts, baseOutputs } = computeBuiltinPortOutputs(
+        defaults,
+        baseOutputs,
+      ));
     }
 
     if (validationSchema && defaults) {
@@ -154,7 +168,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     }
 
     function oneditprepare(this: NodeRedNode) {
-      const form =
+      const form: NodeFormDefinition | undefined =
         definition.form ??
         (_forms[type] ? { component: _forms[type] } : undefined);
       const features: NodeFeatures = {
@@ -175,51 +189,11 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       const changed = !!Object.keys(changes)?.length;
       if (!changed) return false;
 
-      Object.keys(node._def.defaults ?? {}).forEach((prop) => {
-        if (!node._def.defaults?.[prop]?.type) return;
-        const oldConfigNodeId: string = node[prop] as string;
-        const newConfigNodeId: string = node._newState![prop] as string;
-        if (oldConfigNodeId === newConfigNodeId) return;
-        const oldConfigNode = RED.nodes.node(oldConfigNodeId);
-        if (oldConfigNode && oldConfigNode._def.category === "config") {
-          const idx = oldConfigNode.users.findIndex(
-            (_node) => _node.id === node.id,
-          );
-          if (idx !== -1) {
-            oldConfigNode.users.splice(idx, 1);
-          }
-        }
-      });
-
-      Object.keys(node._def.defaults ?? {}).forEach((prop) => {
-        if (!node._def.defaults?.[prop]?.type) return;
-        const newConfigNodeId: string = node._newState![prop] as string;
-        if (!newConfigNodeId) return;
-        const newConfigNode = RED.nodes.node(newConfigNodeId);
-        if (newConfigNode && newConfigNode._def.category === "config") {
-          const idx = newConfigNode.users.findIndex(
-            (_node) => _node.id === node.id,
-          );
-          if (idx === -1) {
-            newConfigNode.users.push(node);
-          }
-        }
-      });
-
+      updateConfigNodeUsers(node);
       applyState(node, newState);
 
-      const isConfigNode = definition.category === "config";
-      if (isConfigNode) {
-        Object.keys(node._def.defaults ?? {}).forEach((prop) => {
-          if (node._def.defaults[prop].type) return;
-          const inputId = `node-config-input-${prop}`;
-          let input = $(`#${inputId}`);
-          if (!input.length) {
-            input = $("<input>", { type: "hidden", id: inputId });
-            $(`#${appContainerId}`).append(input);
-          }
-          input.val(newState[prop] ?? "");
-        });
+      if (definition.category === "config") {
+        syncConfigInputs(node, newState, appContainerId);
         return undefined;
       }
 
@@ -255,70 +229,19 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       icon: nodeDefinition.icon,
       inputs: nodeDefinition.inputs || 0,
       outputs: nodeDefinition.outputs || 0,
-      label:
-        nodeDefinition.label ||
-        function (this: NodeRedNode) {
-          if (this.name) return this.name;
-          const label = this._(`${type}.label`);
-          if (label && label !== `${type}.label`) return label;
-          return type;
-        },
+      label: nodeDefinition.label || createDefaultLabel(type),
       paletteLabel:
-        nodeDefinition.paletteLabel ||
-        function (this: NodeRedNode) {
-          const palette = this._(`${type}.paletteLabel`);
-          if (palette && palette !== `${type}.paletteLabel`) return palette;
-          const label = this._(`${type}.label`);
-          if (label && label !== `${type}.label`) return label;
-          return type;
-        },
+        nodeDefinition.paletteLabel || createDefaultPaletteLabel(type),
       labelStyle: nodeDefinition.labelStyle,
-      inputLabels:
-        nodeDefinition.inputLabels ||
-        function (this: NodeRedNode, index: number) {
-          const indexed = this._(`${type}.inputLabels.${index}`);
-          if (indexed && indexed !== `${type}.inputLabels.${index}`)
-            return indexed;
-          const single = this._(`${type}.inputLabels`);
-          if (single && single !== `${type}.inputLabels`) return single;
-          return undefined;
-        },
+      inputLabels: nodeDefinition.inputLabels || createDefaultInputLabels(type),
       outputLabels:
         nodeDefinition.outputLabels ||
-        function (this: NodeRedNode, index: number) {
-          // Named output ports from record-based outputsSchema
-          const os = nodeDefinition.outputsSchema;
-          if (
-            os &&
-            typeof os === "object" &&
-            !Array.isArray(os) &&
-            !("type" in os || "properties" in os)
-          ) {
-            const portNames = Object.keys(os);
-            if (index < portNames.length) return portNames[index];
-          }
-          if (hasBuiltinPorts) {
-            let extraIdx = baseOutputs;
-            if (this.errorPort) {
-              if (index === extraIdx) return "Error";
-              extraIdx++;
-            }
-            if (this.completePort) {
-              if (index === extraIdx) return "Complete";
-              extraIdx++;
-            }
-            if (this.statusPort) {
-              if (index === extraIdx) return "Status";
-              extraIdx++;
-            }
-          }
-          const indexed = this._(`${type}.outputLabels.${index}`);
-          if (indexed && indexed !== `${type}.outputLabels.${index}`)
-            return indexed;
-          const single = this._(`${type}.outputLabels`);
-          if (single && single !== `${type}.outputLabels`) return single;
-          return undefined;
-        },
+        createDefaultOutputLabels(
+          type,
+          nodeDefinition.outputsSchema,
+          hasBuiltinPorts,
+          baseOutputs,
+        ),
       align: nodeDefinition.align || "left",
       button: nodeDefinition.button
         ? { ...nodeDefinition.button, onclick: nodeDefinition.button.onClick }
