@@ -1,8 +1,8 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedConfigInput from "../../../../src/core/client/form/components/node-red-config-input.vue";
-import { createNode } from "../../../../src/test/client/component";
-import { getJQueryState } from "../../../../src/test/client/component/jquery";
+import NodeRedConfigInput from "@/core/client/form/components/node-red-config-input.vue";
+import { createNode } from "@/test/client/component";
+import { getJQueryState } from "@/test/client/component/jquery";
 
 describe("NodeRedConfigInput", () => {
   const { node: defaultNode, RED } = createNode();

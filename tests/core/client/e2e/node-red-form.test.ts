@@ -6,7 +6,7 @@ import {
   type Browser,
   type BrowserType,
 } from "playwright";
-import { NodeRedEditor } from "../../../../src/test/client/e2e";
+import { NodeRedEditor } from "@/test/client/e2e";
 
 const BROWSERS: Array<{ name: string; type: BrowserType }> = [
   { name: "chromium", type: chromium },

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedInputLabel from "../../../../src/core/client/form/components/node-red-input-label.vue";
+import NodeRedInputLabel from "@/core/client/form/components/node-red-input-label.vue";
 
 describe("NodeRedInputLabel", () => {
   test("renders label text", async () => {

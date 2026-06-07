@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateNode, validateForm } from "../../../../src/core/client/validation";
+import { validateNode, validateForm } from "@/core/client/validation";
 
 const baseSchema = {
   type: "object",

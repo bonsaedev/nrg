@@ -1,5 +1,5 @@
 import path from "path";
-import { NodeRedTestEnvironment } from "../../../../src/test/client/e2e";
+import { NodeRedTestEnvironment } from "@/test/client/e2e";
 import {
   setupFixtureNodeModules,
   cleanFixtureNodeModules,
