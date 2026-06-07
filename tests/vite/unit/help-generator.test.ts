@@ -1,8 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import fs from "fs";
+import path from "path";
+import os from "os";
 import {
   buildPropertyRow,
   generateSchemaSection,
   generateHelpDoc,
+  loadNodeLabels,
+  discoverLanguages,
+  helpGenerator,
 } from "@/vite/client/plugins/help-generator";
 import { getHelpTranslations } from "@/vite/client/plugins/help-i18n";
 
@@ -77,6 +83,53 @@ describe("help-generator", () => {
     it("returns empty default for undefined default", () => {
       const row = buildPropertyRow("field", { type: "string" }, true);
       expect(row.defaultVal).toBe("");
+    });
+
+    it("includes minLength and maxLength constraints", () => {
+      const row = buildPropertyRow(
+        "name",
+        { type: "string", minLength: 3, maxLength: 50 },
+        false,
+      );
+      expect(row.type).toContain("min: 3");
+      expect(row.type).toContain("max: 50");
+    });
+
+    it("includes pattern constraint", () => {
+      const row = buildPropertyRow(
+        "code",
+        { type: "string", pattern: "^[A-Z]+$" },
+        false,
+      );
+      expect(row.type).toContain("pattern: `^[A-Z]+$`");
+    });
+
+    it("includes non-password format constraint", () => {
+      const row = buildPropertyRow(
+        "email",
+        { type: "string", format: "email" },
+        false,
+      );
+      expect(row.type).toContain("format: email");
+    });
+
+    it("includes description from schema", () => {
+      const row = buildPropertyRow(
+        "host",
+        { type: "string", description: "The server hostname" },
+        false,
+      );
+      expect(row.description).toBe("The server hostname");
+    });
+
+    it("returns empty description when not provided", () => {
+      const row = buildPropertyRow("host", { type: "string" }, false);
+      expect(row.description).toBe("");
+    });
+
+    it("returns empty type when schema has no type indicators", () => {
+      const row = buildPropertyRow("field", { default: "val" }, false);
+      expect(row.type).toBe("");
     });
   });
 
@@ -210,6 +263,52 @@ describe("help-generator", () => {
       });
 
       expect(section).toMatch(/^<h4>Ports<\/h4>/);
+    });
+
+    it("renders empty default cell when property has no default value", () => {
+      const schemaNoDefaults = {
+        properties: {
+          host: { type: "string" },
+        },
+      };
+      const section = generateSchemaSection({
+        title: "Test",
+        schema: schemaNoDefaults,
+        t: enUS,
+        labels: { host: "Host" },
+        includeDefault: true,
+      });
+
+      expect(section).toContain("<th>Default</th>");
+      expect(section).not.toContain("<code>");
+    });
+
+    it("omits both label and default columns when no labels and includeDefault is false", () => {
+      const section = generateSchemaSection({
+        title: "Test",
+        schema,
+        t: enUS,
+        includeDefault: false,
+      });
+
+      expect(section).not.toContain("<th>Label</th>");
+      expect(section).not.toContain("<th>Default</th>");
+      expect(section).toContain("<th>Property</th>");
+      expect(section).toContain("<th>Type</th>");
+      expect(section).toContain("width:40%");
+    });
+
+    it("returns empty string when all properties are system fields", () => {
+      const systemOnly = {
+        properties: {
+          id: { type: "string" },
+          type: { type: "string" },
+          wires: { type: "array" },
+        },
+      };
+      expect(
+        generateSchemaSection({ title: "Test", schema: systemOnly, t: enUS }),
+      ).toBe("");
     });
   });
 
@@ -382,6 +481,53 @@ describe("help-generator", () => {
       expect(doc).toBe("");
     });
 
+    it("skips array output ports that produce empty sections", () => {
+      const node = {
+        outputsSchema: [
+          { properties: { id: { type: "string" } } },
+          { properties: { type: { type: "string" } } },
+        ],
+      };
+
+      const doc = generateHelpDoc(node, {}, enUS);
+      expect(doc).not.toContain("Outputs");
+    });
+
+    it("skips record output ports that produce empty sections", () => {
+      const node = {
+        outputsSchema: {
+          first: { properties: { id: { type: "string" } } },
+          second: { properties: { type: { type: "string" } } },
+        },
+      };
+
+      const doc = generateHelpDoc(node, {}, enUS);
+      expect(doc).not.toContain("Outputs");
+    });
+
+    it("skips single output when section is empty", () => {
+      const node = {
+        outputsSchema: {
+          type: "object",
+          properties: { id: { type: "string" } },
+        },
+      };
+
+      const doc = generateHelpDoc(node, {}, enUS);
+      expect(doc).not.toContain("Output");
+    });
+
+    it("skips input section when schema has only system fields", () => {
+      const node = {
+        inputSchema: {
+          properties: { id: { type: "string" }, type: { type: "string" } },
+        },
+      };
+
+      const doc = generateHelpDoc(node, {}, enUS);
+      expect(doc).not.toContain("Input");
+    });
+
     it("omits sections for missing schemas", () => {
       const nodeWithConfigOnly = {
         configSchema: {
@@ -395,6 +541,585 @@ describe("help-generator", () => {
       expect(doc).not.toContain("<h3>Credentials</h3>");
       expect(doc).not.toContain("<h3>Input</h3>");
       expect(doc).not.toContain("<h3>Output</h3>");
+    });
+  });
+
+  describe("loadNodeLabels", () => {
+    let tmpDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nrg-test-labels-"));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true });
+    });
+
+    it("returns empty object when file does not exist", () => {
+      const result = loadNodeLabels(path.join(tmpDir, "nonexistent.json"));
+      expect(result).toEqual({});
+    });
+
+    it("parses and returns all label fields", () => {
+      const labelPath = path.join(tmpDir, "en-US.json");
+      fs.writeFileSync(
+        labelPath,
+        JSON.stringify({
+          description: "A test node",
+          configs: { host: "Host" },
+          credentials: { apiKey: "API Key" },
+          input: { payload: "Payload" },
+          outputs: [{ result: "Result" }],
+        }),
+      );
+
+      const result = loadNodeLabels(labelPath);
+      expect(result.description).toBe("A test node");
+      expect(result.configs).toEqual({ host: "Host" });
+      expect(result.credentials).toEqual({ apiKey: "API Key" });
+      expect(result.input).toEqual({ payload: "Payload" });
+      expect(result.outputs).toEqual([{ result: "Result" }]);
+    });
+
+    it("returns empty object on invalid JSON", () => {
+      const labelPath = path.join(tmpDir, "bad.json");
+      fs.writeFileSync(labelPath, "not valid json{{{");
+
+      const result = loadNodeLabels(labelPath);
+      expect(result).toEqual({});
+    });
+
+    it("returns undefined for missing optional fields", () => {
+      const labelPath = path.join(tmpDir, "minimal.json");
+      fs.writeFileSync(labelPath, JSON.stringify({ description: "Minimal" }));
+
+      const result = loadNodeLabels(labelPath);
+      expect(result.description).toBe("Minimal");
+      expect(result.configs).toBeUndefined();
+      expect(result.credentials).toBeUndefined();
+      expect(result.input).toBeUndefined();
+      expect(result.outputs).toBeUndefined();
+    });
+  });
+
+  describe("discoverLanguages", () => {
+    let tmpDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nrg-test-langs-"));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true });
+    });
+
+    it("returns empty array when directory does not exist", () => {
+      const result = discoverLanguages(tmpDir, "nonexistent-node");
+      expect(result).toEqual([]);
+    });
+
+    it("returns language names from JSON files", () => {
+      const nodeDir = path.join(tmpDir, "my-node");
+      fs.mkdirSync(nodeDir);
+      fs.writeFileSync(path.join(nodeDir, "en-US.json"), "{}");
+      fs.writeFileSync(path.join(nodeDir, "pt-BR.json"), "{}");
+
+      const result = discoverLanguages(tmpDir, "my-node");
+      expect(result).toContain("en-US");
+      expect(result).toContain("pt-BR");
+      expect(result).toHaveLength(2);
+    });
+
+    it("filters out non-JSON files", () => {
+      const nodeDir = path.join(tmpDir, "my-node");
+      fs.mkdirSync(nodeDir);
+      fs.writeFileSync(path.join(nodeDir, "en-US.json"), "{}");
+      fs.writeFileSync(path.join(nodeDir, "README.md"), "docs");
+      fs.writeFileSync(path.join(nodeDir, "notes.txt"), "notes");
+
+      const result = discoverLanguages(tmpDir, "my-node");
+      expect(result).toEqual(["en-US"]);
+    });
+  });
+
+  describe("helpGenerator", () => {
+    let tmpDir: string;
+    let outDir: string;
+    let localesOutDir: string;
+    let docsDir: string;
+    let labelsDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nrg-test-helpgen-"));
+      outDir = path.join(tmpDir, "out");
+      localesOutDir = path.join(tmpDir, "locales");
+      docsDir = path.join(tmpDir, "docs");
+      labelsDir = path.join(tmpDir, "labels");
+      fs.mkdirSync(outDir);
+      fs.mkdirSync(localesOutDir);
+      fs.mkdirSync(docsDir);
+      fs.mkdirSync(labelsDir);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      fs.rmSync(tmpDir, { recursive: true });
+    });
+
+    it("returns a plugin with correct metadata", () => {
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      expect(plugin.name).toBe("vite-plugin-node-red:client:help-generator");
+      expect(plugin.apply).toBe("build");
+      expect(plugin.enforce).toBe("post");
+      expect(plugin.closeBundle).toBeTypeOf("function");
+    });
+
+    it("does nothing when no built output exists", async () => {
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      expect(fs.readdirSync(localesOutDir)).toEqual([]);
+    });
+
+    it("generates help files from CJS module", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "test-node",
+            configSchema: {
+              properties: {
+                host: { type: "string", default: "localhost" },
+              },
+            },
+          },
+        ] } };`,
+      );
+
+      const nodeLabelsDir = path.join(labelsDir, "test-node");
+      fs.mkdirSync(nodeLabelsDir);
+      fs.writeFileSync(
+        path.join(nodeLabelsDir, "en-US.json"),
+        JSON.stringify({ configs: { host: "Host" } }),
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      expect(fs.existsSync(htmlPath)).toBe(true);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+      expect(content).toContain('data-help-name="test-node"');
+      expect(content).toContain("Properties");
+    });
+
+    it("skips node when manual .md docs exist", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "manual-node",
+            configSchema: {
+              properties: { host: { type: "string" } },
+            },
+          },
+        ] } };`,
+      );
+
+      const manualDir = path.join(docsDir, "manual-node");
+      fs.mkdirSync(manualDir);
+      fs.writeFileSync(path.join(manualDir, "en-US.md"), "# Manual docs");
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      expect(fs.existsSync(path.join(localesOutDir, "en-US"))).toBe(false);
+    });
+
+    it("skips node when manual .html docs exist", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "html-node",
+            configSchema: {
+              properties: { host: { type: "string" } },
+            },
+          },
+        ] } };`,
+      );
+
+      const manualDir = path.join(docsDir, "html-node");
+      fs.mkdirSync(manualDir);
+      fs.writeFileSync(path.join(manualDir, "en-US.html"), "<p>Manual</p>");
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      expect(fs.existsSync(path.join(localesOutDir, "en-US"))).toBe(false);
+    });
+
+    it("skips nodes without type", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          { configSchema: { properties: { host: { type: "string" } } } },
+        ] } };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      expect(fs.readdirSync(localesOutDir)).toEqual([]);
+    });
+
+    it("auto-adds en-US when not in discovered languages", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "no-labels-node",
+            configSchema: {
+              properties: { port: { type: "number", default: 8080 } },
+            },
+          },
+        ] } };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      expect(fs.existsSync(htmlPath)).toBe(true);
+      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("no-labels-node");
+    });
+
+    it("generates for multiple languages", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "multi-lang",
+            configSchema: {
+              properties: { host: { type: "string", default: "localhost" } },
+            },
+          },
+        ] } };`,
+      );
+
+      const nodeLabelsDir = path.join(labelsDir, "multi-lang");
+      fs.mkdirSync(nodeLabelsDir);
+      fs.writeFileSync(
+        path.join(nodeLabelsDir, "en-US.json"),
+        JSON.stringify({ configs: { host: "Host" } }),
+      );
+      fs.writeFileSync(
+        path.join(nodeLabelsDir, "pt-BR.json"),
+        JSON.stringify({ configs: { host: "Servidor" } }),
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      expect(
+        fs.existsSync(path.join(localesOutDir, "en-US", "index.html")),
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(localesOutDir, "pt-BR", "index.html")),
+      ).toBe(true);
+    });
+
+    it("appends to existing index.html", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "append-node",
+            configSchema: {
+              properties: { val: { type: "string", default: "x" } },
+            },
+          },
+        ] } };`,
+      );
+
+      const langDir = path.join(localesOutDir, "en-US");
+      fs.mkdirSync(langDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(langDir, "index.html"),
+        '<script type="text/html" data-help-name="existing">old</script>',
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const content = fs.readFileSync(
+        path.join(langDir, "index.html"),
+        "utf-8",
+      );
+      expect(content).toContain("existing");
+      expect(content).toContain("append-node");
+    });
+
+    it("handles import failure gracefully", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(cjsPath, "throw new Error('bad module');");
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await expect(
+        (plugin.closeBundle as Function).call({}),
+      ).resolves.not.toThrow();
+
+      expect(fs.readdirSync(localesOutDir)).toEqual([]);
+    });
+
+    it("skips node when generateHelpDoc produces no content", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          { type: "empty-node" },
+        ] } };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      expect(fs.readdirSync(localesOutDir)).toEqual([]);
+    });
+
+    it("generates help files from ESM module", async () => {
+      const esmPath = path.join(outDir, "index.mjs");
+      fs.writeFileSync(
+        esmPath,
+        `export default { nodes: [
+          {
+            type: "esm-node",
+            configSchema: {
+              properties: { host: { type: "string", default: "localhost" } },
+            },
+          },
+        ] };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      expect(fs.existsSync(htmlPath)).toBe(true);
+      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("esm-node");
+    });
+
+    it("prefers ESM over CJS when both exist", async () => {
+      const esmPath = path.join(outDir, "index.mjs");
+      fs.writeFileSync(
+        esmPath,
+        `export default { nodes: [
+          {
+            type: "esm-priority",
+            configSchema: {
+              properties: { val: { type: "string", default: "esm" } },
+            },
+          },
+        ] };`,
+      );
+
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "cjs-priority",
+            configSchema: {
+              properties: { val: { type: "string", default: "cjs" } },
+            },
+          },
+        ] } };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      const content = fs.readFileSync(htmlPath, "utf-8");
+      expect(content).toContain("esm-priority");
+      expect(content).not.toContain("cjs-priority");
+    });
+
+    it("handles module with nodes on top-level export (no default)", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { nodes: [
+          {
+            type: "top-level-node",
+            configSchema: {
+              properties: { url: { type: "string", default: "http://x" } },
+            },
+          },
+        ] };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      expect(fs.existsSync(htmlPath)).toBe(true);
+      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("top-level-node");
+    });
+
+    it("aggregates multiple nodes into the same language file", async () => {
+      const cjsPath = path.join(outDir, "index.js");
+      fs.writeFileSync(
+        cjsPath,
+        `module.exports = { default: { nodes: [
+          {
+            type: "node-a",
+            configSchema: {
+              properties: { host: { type: "string", default: "a" } },
+            },
+          },
+          {
+            type: "node-b",
+            configSchema: {
+              properties: { port: { type: "number", default: 80 } },
+            },
+          },
+        ] } };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      const content = fs.readFileSync(htmlPath, "utf-8");
+      expect(content).toContain('data-help-name="node-a"');
+      expect(content).toContain('data-help-name="node-b"');
+    });
+
+    it("loads ESM module without default export", async () => {
+      const esmPath = path.join(outDir, "index.mjs");
+      fs.writeFileSync(
+        esmPath,
+        `const nodes = [
+          {
+            type: "named-export-node",
+            configSchema: {
+              properties: { val: { type: "string", default: "x" } },
+            },
+          },
+        ];
+        export { nodes };`,
+      );
+
+      const plugin = helpGenerator({
+        outDir,
+        localesOutDir,
+        docsDir,
+        labelsDir,
+      });
+
+      await (plugin.closeBundle as Function).call({});
+
+      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
+      expect(fs.existsSync(htmlPath)).toBe(true);
+      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("named-export-node");
     });
   });
 });

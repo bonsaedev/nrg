@@ -627,4 +627,13 @@ function typeGenerator(options: {
   ].flat();
 }
 
-export { typeGenerator };
+export {
+  typeGenerator,
+  collectTsFiles,
+  toPascalCase,
+  getNodeTypeExports,
+  getSchemaReferences,
+  getFactoryInfo,
+  buildTypeArg,
+  buildNodeReexports,
+};

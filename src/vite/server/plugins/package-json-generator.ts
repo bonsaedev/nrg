@@ -73,7 +73,7 @@ function patchExportsWithTypes(
   return patched;
 }
 
-export function packageJsonGenerator(options: {
+function packageJsonGenerator(options: {
   outDir: string;
   bundled?: string[];
   types?: boolean;
@@ -201,3 +201,13 @@ export function packageJsonGenerator(options: {
     },
   };
 }
+
+export {
+  packageJsonGenerator,
+  buildTypesPath,
+  buildOutputPath,
+  buildExportKey,
+  buildEsmOutputPath,
+  generateExports,
+  patchExportsWithTypes,
+};

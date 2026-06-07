@@ -356,6 +356,8 @@ export {
   buildPropertyRow,
   generateSchemaSection,
   generateHelpDoc,
+  loadNodeLabels,
+  discoverLanguages,
 };
 export type {
   HelpGeneratorOptions,
