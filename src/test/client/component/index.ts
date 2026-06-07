@@ -1,4 +1,8 @@
 import { vi } from "vitest";
+import type { MockRED } from "../mocks";
+
+export type { MockRED, MockEditor } from "../mocks";
+export { createRED, createJQuery } from "../mocks";
 
 export const defaultConfig = {
   testTimeout: 30_000,
@@ -60,47 +64,6 @@ function spyOnRED(RED: MockRED): void {
   spyIfNeeded(RED.events, "on");
   spyIfNeeded(RED.events, "off");
   spyIfNeeded(RED.events, "emit");
-}
-
-export interface MockEditor {
-  getValue(): string;
-  setValue(val: string): void;
-  getSession(): { on(event: string, cb: (...args: any[]) => any): void };
-  focus(): void;
-  destroy(): void;
-  saveView(): void;
-  restoreView(): void;
-}
-
-export interface MockRED {
-  _(key: string): string;
-  editor: {
-    createEditor(options: any): MockEditor;
-    prepareConfigNodeSelect(...args: any[]): void;
-    validateNode(...args: any[]): boolean;
-  };
-  tray: {
-    show(...args: any[]): void;
-    close(): void;
-  };
-  popover: {
-    tooltip(...args: any[]): {
-      delete(): void;
-      setAction(...args: any[]): void;
-    };
-  };
-  nodes: {
-    registerType(...args: any[]): void;
-    node(...args: any[]): null;
-    dirty(...args: any[]): boolean;
-  };
-  events: {
-    on(...args: any[]): void;
-    off(...args: any[]): void;
-    emit(...args: any[]): void;
-  };
-  settings: Record<string, any>;
-  notify(...args: any[]): void;
 }
 
 function getMockRED(): MockRED {

@@ -1,1 +1,1 @@
-import "../../../../src/test/client/component/setup";
+import "../../../../src/test/client/unit/setup";

@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
-import { defaultConfig } from "./src/test/client/component";
+import { defaultConfig } from "./src/test/client/unit";
 
 export default defineConfig({
   test: {
