@@ -1,3 +1,4 @@
+import "../globals";
 import { vi } from "vitest";
 import type { MockRED } from "../mocks";
 
@@ -67,5 +68,5 @@ function spyOnRED(RED: MockRED): void {
 }
 
 function getMockRED(): MockRED {
-  return (window as any).RED;
+  return window.RED;
 }

@@ -250,11 +250,14 @@ describe("Validator", () => {
 
     it("should remove schemas", () => {
       const validator = new Validator();
-      validator.addSchema(
-        { $id: "removable", type: "string" },
-      );
+      validator.addSchema({ $id: "removable", type: "string" });
       validator.removeSchema("removable");
-      expect(validator.createValidator({ $id: "removable-2", type: "string" })).toBeDefined();
+      // After removal, re-adding with the same $id should not throw
+      const fn = validator.createValidator({ $id: "removable", type: "number" });
+      expect(fn).toBeDefined();
+      // The new schema should validate numbers, not strings
+      expect(fn(42)).toBe(true);
+      expect(fn("hello")).toBe(false);
     });
   });
 });

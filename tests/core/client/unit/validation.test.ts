@@ -166,6 +166,43 @@ describe("validateForm", () => {
     );
     expect(result).toHaveProperty("node.credentials.apiKey");
   });
+
+  it("does NOT skip password errors via has_ flag (unlike validateNode)", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        credentials: {
+          type: "object",
+          properties: {
+            token: { type: "string", format: "password", minLength: 1 },
+          },
+          required: ["token"],
+        },
+      },
+      additionalProperties: true,
+    };
+    const result = validateForm(
+      { type: "vf-has", credentials: { token: "", has_token: true } },
+      schema,
+    );
+    expect(Object.keys(result).length).toBeGreaterThan(0);
+  });
+
+  it("returns multiple errors for multiple invalid fields", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 1 },
+        url: { type: "string", minLength: 1 },
+      },
+      required: ["name", "url"],
+      additionalProperties: true,
+    };
+    const result = validateForm({ type: "vf-multi" }, schema);
+    expect(Object.keys(result).length).toBe(2);
+    expect(result).toHaveProperty("node.name");
+    expect(result).toHaveProperty("node.url");
+  });
 });
 
 describe("custom formats", () => {
@@ -187,6 +224,22 @@ describe("custom formats", () => {
     };
     expect(validateNode({ type: "fmt-fid", fid: "abcdef0123456789" }, schema)).toBe(true);
     expect(validateNode({ type: "fmt-fid", fid: "not-hex" }, schema)).not.toBe(true);
+  });
+
+  it("rejects flow-id with wrong length or uppercase", () => {
+    const schema = {
+      type: "object",
+      properties: { fid: { type: "string", format: "flow-id" } },
+      additionalProperties: true,
+    };
+    // 15 chars — too short
+    expect(validateNode({ type: "fmt-fid", fid: "abcdef012345678" }, schema)).not.toBe(true);
+    // 17 chars — too long
+    expect(validateNode({ type: "fmt-fid", fid: "abcdef01234567890" }, schema)).not.toBe(true);
+    // uppercase hex — invalid
+    expect(validateNode({ type: "fmt-fid", fid: "ABCDEF0123456789" }, schema)).not.toBe(true);
+    // empty string — also invalid (regex requires exactly 16 hex chars)
+    expect(validateNode({ type: "fmt-fid", fid: "" }, schema)).not.toBe(true);
   });
 
   it("validates topic-path format", () => {
@@ -218,7 +271,7 @@ describe("x-nrg-node-type keyword", () => {
 
   it("passes when RED.nodes.node returns matching type", () => {
     const spy = vi.fn().mockReturnValue({ type: "my-config" });
-    (window as any).RED.nodes.node = spy;
+    window.RED.nodes.node = spy;
 
     const schema = {
       type: "object",
@@ -232,7 +285,7 @@ describe("x-nrg-node-type keyword", () => {
   });
 
   it("fails when RED.nodes.node returns wrong type", () => {
-    (window as any).RED.nodes.node = vi.fn().mockReturnValue({ type: "other" });
+    window.RED.nodes.node = vi.fn().mockReturnValue({ type: "other" });
 
     const schema = {
       type: "object",
@@ -245,7 +298,7 @@ describe("x-nrg-node-type keyword", () => {
   });
 
   it("fails when RED.nodes.node returns null", () => {
-    (window as any).RED.nodes.node = vi.fn().mockReturnValue(null);
+    window.RED.nodes.node = vi.fn().mockReturnValue(null);
 
     const schema = {
       type: "object",

@@ -90,5 +90,30 @@ describe("Infer", () => {
       Infer<ReturnType<typeof typedInput>>
     >().toEqualTypeOf<TypedInputValue>();
   });
+
+  it("infers nested objects with NodeRef recursively", () => {
+    const s = schema({
+      outer: Type.Object({
+        inner: Type.Object({
+          server: nodeRef<{ host: string }>(),
+        }),
+      }),
+    });
+    expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{
+      outer: { inner: { server: string } };
+    }>();
+  });
+
+  it("does not collapse to any", () => {
+    const s = schema({ name: Type.String() });
+    expectTypeOf<Infer<typeof s>>().not.toBeAny();
+  });
+
+  it("NodeRef does not resolve to NodeRefResolved on client", () => {
+    const s = schema({ server: nodeRef<{ id: string }>() });
+    type Result = Infer<typeof s>;
+    expectTypeOf<Result["server"]>().toBeString();
+    expectTypeOf<Result["server"]>().not.toEqualTypeOf<{ id: string }>();
+  });
 });
 

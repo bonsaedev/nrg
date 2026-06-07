@@ -111,6 +111,14 @@ describe("getChanges", () => {
   it("handles null new object", () => {
     expect(getChanges({ a: 1 }, null as any)).toEqual({ a: 1 });
   });
+
+  it("detects old object replaced by null", () => {
+    const o = { nested: { x: 1 } };
+    const n = { nested: null };
+    const changes = getChanges(o, n as any);
+    expect(changes).toHaveProperty("nested");
+    expect(changes.nested).toEqual({ x: 1 });
+  });
 });
 
 describe("applyState", () => {
@@ -158,5 +166,17 @@ describe("applyState", () => {
     const copy = JSON.parse(JSON.stringify(source));
     applyState({}, source);
     expect(source).toEqual(copy);
+  });
+
+  it("assigns null values directly", () => {
+    const target: any = { key: "old" };
+    applyState(target, { key: null });
+    expect(target.key).toBeNull();
+  });
+
+  it("assigns undefined values directly", () => {
+    const target: any = { key: "old" };
+    applyState(target, { key: undefined });
+    expect(target.key).toBeUndefined();
   });
 });

@@ -120,4 +120,35 @@ describe("Server Infer", () => {
       data: { conn: Conn };
     }>();
   });
+
+  it("does not collapse to any", () => {
+    const s = schema({ name: Type.String() });
+    expectTypeOf<Infer<typeof s>>().not.toBeAny();
+  });
+
+  it("infers nested objects with NodeRef recursively", () => {
+    interface DbConn {
+      host: string;
+    }
+    const s = schema({
+      outer: Type.Object({
+        inner: Type.Object({
+          db: nodeRef<DbConn>(),
+        }),
+      }),
+    });
+    expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{
+      outer: { inner: { db: DbConn } };
+    }>();
+  });
+
+  it("NodeRef resolves to instance type, not string", () => {
+    interface Cfg {
+      port: number;
+    }
+    const s = schema({ ref: nodeRef<Cfg>() });
+    type Result = Infer<typeof s>;
+    expectTypeOf<Result["ref"]>().toEqualTypeOf<Cfg>();
+    expectTypeOf<Result["ref"]>().not.toBeString();
+  });
 });

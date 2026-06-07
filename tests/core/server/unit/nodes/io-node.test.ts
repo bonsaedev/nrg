@@ -27,21 +27,22 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
-      expect(instance.context).toBeDefined();
-      expect(instance.context.node).toBeDefined();
-      expect(instance.context.flow).toBeDefined();
-      expect(instance.context.global).toBeDefined();
+      const ctx = (instance as any).context;
+      expect(ctx).toBeDefined();
+      expect(ctx.node).toBeDefined();
+      expect(ctx.flow).toBeDefined();
+      expect(ctx.global).toBeDefined();
     });
 
     it("should support context as a function with scope", async () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
-      const nodeCtx = instance.context("node");
+      const nodeCtx = (instance as any).context("node");
       expect(nodeCtx).toBeDefined();
       expect(nodeCtx.get).toBeDefined();
       expect(nodeCtx.set).toBeDefined();
@@ -54,7 +55,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
       expect(instance.x).toBe(100);
       expect(instance.y).toBe(200);
@@ -68,7 +69,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
       // Wire up event handlers
       const createdPromise = Promise.resolve();
@@ -100,7 +101,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ValidatedIONode as any)(RED, node, {}, {});
+      const instance = new ValidatedIONode(RED, node, {}, {});
 
       const createdPromise = Promise.resolve();
       instance[WIRE_HANDLERS](node, createdPromise);
@@ -132,7 +133,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (NoValidateIONode as any)(RED, node, {}, {});
+      const instance = new NoValidateIONode(RED, node, {}, {});
 
       const createdPromise = Promise.resolve();
       instance[WIRE_HANDLERS](node, createdPromise);
@@ -161,7 +162,7 @@ describe("IONode", () => {
         }
       }
 
-      const instance = new (SendingNode as any)(RED, node, {}, {});
+      const instance = new SendingNode(RED, node, {}, {});
       const createdPromise = Promise.resolve();
       instance[WIRE_HANDLERS](node, createdPromise);
 
@@ -176,7 +177,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
       instance.send({ payload: "test" });
       expect(node.send).toHaveBeenCalledWith({ payload: "test" });
@@ -204,7 +205,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (MultiOutputNode as any)(RED, node, {}, {});
+      const instance = new MultiOutputNode(RED, node, {}, {});
 
       // Valid: first port has data, second is null
       expect(() => instance.send([{ result: "ok" }, null])).not.toThrow();
@@ -231,7 +232,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (SingleSchemaArrayNode as any)(RED, node, {}, {});
+      const instance = new SingleSchemaArrayNode(RED, node, {}, {});
 
       // Valid array of messages
       expect(() =>
@@ -260,7 +261,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ValidatedOutputNode as any)(RED, node, {}, {});
+      const instance = new ValidatedOutputNode(RED, node, {}, {});
 
       expect(() => instance.send({ result: "" })).toThrow();
     });
@@ -271,7 +272,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
       instance.status({ fill: "green", shape: "dot", text: "connected" });
       expect(node.status).toHaveBeenCalledWith({
@@ -287,7 +288,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
       instance.updateWires([["a"], ["b"]]);
       expect(node.updateWires).toHaveBeenCalledWith([["a"], ["b"]]);
@@ -299,7 +300,7 @@ describe("IONode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (TestIONode as any)(RED, node, {}, {});
+      const instance = new TestIONode(RED, node, {}, {});
 
       instance.receive({ payload: "test" });
       expect(node.receive).toHaveBeenCalledWith({ payload: "test" });

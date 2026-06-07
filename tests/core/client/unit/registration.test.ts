@@ -13,7 +13,7 @@ import {
 } from "@/core/client/registration";
 import { unmountApp } from "@/core/client/form";
 
-const RED = (window as any).RED;
+const RED = window.RED;
 
 function spyOnRegisterType() {
   return vi.spyOn(RED.nodes, "registerType");

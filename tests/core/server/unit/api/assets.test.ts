@@ -1,9 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Express, Request, Response } from "express";
 import fs from "fs";
 import { serveFile } from "@/core/server/api/assets";
 
 function createMockRes() {
-  return { setHeader: vi.fn() } as any;
+  return { setHeader: vi.fn() } as unknown as Response & {
+    setHeader: ReturnType<typeof vi.fn>;
+  };
+}
+
+function createMockRouter() {
+  return { get: vi.fn() } as unknown as Express & {
+    get: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe("serveFile", () => {
@@ -14,13 +23,15 @@ describe("serveFile", () => {
   it("should serve file with correct content type when it exists", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const mockStream = { pipe: vi.fn() };
-    vi.spyOn(fs, "createReadStream").mockReturnValue(mockStream as any);
+    vi.spyOn(fs, "createReadStream").mockReturnValue(
+      mockStream as unknown as fs.ReadStream,
+    );
 
     const handler = serveFile("/fake/path/file.js");
     const res = createMockRes();
     const next = vi.fn();
 
-    handler({} as any, res, next);
+    handler({} as unknown as Request, res, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(res.setHeader).toHaveBeenCalledWith(
@@ -38,7 +49,7 @@ describe("serveFile", () => {
     const res = createMockRes();
     const next = vi.fn();
 
-    handler({} as any, res, next);
+    handler({} as unknown as Request, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(res.setHeader).not.toHaveBeenCalled();
@@ -58,7 +69,7 @@ describe("initAssetsRoutes", () => {
       "@/core/server/api/assets"
     );
 
-    const router = { get: vi.fn() } as any;
+    const router = createMockRouter();
     initAssetsRoutes(router);
 
     expect(router.get).toHaveBeenCalledTimes(3);
@@ -83,66 +94,80 @@ describe("initAssetsRoutes", () => {
       "@/core/server/api/assets"
     );
 
-    const router = { get: vi.fn() } as any;
+    const router = createMockRouter();
     initAssetsRoutes(router);
 
     expect(router.get).not.toHaveBeenCalled();
   });
 
-  it("should resolve vue prod build in production", async () => {
+  it("should resolve vue prod build in production with correct headers", async () => {
     const origEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
 
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const mockStream = { pipe: vi.fn() };
-    vi.spyOn(fs, "createReadStream").mockReturnValue(mockStream as any);
+    vi.spyOn(fs, "createReadStream").mockReturnValue(
+      mockStream as unknown as fs.ReadStream,
+    );
 
     const { initAssetsRoutes } = await import(
       "@/core/server/api/assets"
     );
 
-    const router = { get: vi.fn() } as any;
+    const router = createMockRouter();
     initAssetsRoutes(router);
 
     const handler = router.get.mock.calls.find(
-      (c: any[]) => c[0] === "/nrg/assets/vue.esm-browser.prod.js",
-    )[1];
+      (c: unknown[]) => c[0] === "/nrg/assets/vue.esm-browser.prod.js",
+    )![1] as Function;
 
-    handler({}, { setHeader: vi.fn() }, vi.fn());
+    const res = createMockRes();
+    handler({}, res, vi.fn());
 
     expect(fs.createReadStream).toHaveBeenCalledWith(
       expect.stringContaining("vue.esm-browser.prod.js"),
+    );
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/javascript",
     );
 
     process.env.NODE_ENV = origEnv;
   });
 
-  it("should resolve vue dev build in development", async () => {
+  it("should resolve vue dev build in development with correct headers", async () => {
     const origEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "development";
 
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const mockStream = { pipe: vi.fn() };
-    vi.spyOn(fs, "createReadStream").mockReturnValue(mockStream as any);
+    vi.spyOn(fs, "createReadStream").mockReturnValue(
+      mockStream as unknown as fs.ReadStream,
+    );
 
     const { initAssetsRoutes } = await import(
       "@/core/server/api/assets"
     );
 
-    const router = { get: vi.fn() } as any;
+    const router = createMockRouter();
     initAssetsRoutes(router);
 
     const handler = router.get.mock.calls.find(
-      (c: any[]) => c[0] === "/nrg/assets/vue.esm-browser.prod.js",
-    )[1];
+      (c: unknown[]) => c[0] === "/nrg/assets/vue.esm-browser.prod.js",
+    )![1] as Function;
 
-    handler({}, { setHeader: vi.fn() }, vi.fn());
+    const res = createMockRes();
+    handler({}, res, vi.fn());
 
     expect(fs.createReadStream).toHaveBeenCalledWith(
       expect.stringContaining("vue.esm-browser.js"),
     );
     expect(fs.createReadStream).not.toHaveBeenCalledWith(
       expect.stringContaining("prod"),
+    );
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/javascript",
     );
 
     process.env.NODE_ENV = origEnv;

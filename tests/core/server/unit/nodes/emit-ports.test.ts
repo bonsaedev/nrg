@@ -20,14 +20,15 @@ const TestNode = defineIONode({
   configSchema: ConfigSchema,
 
   async input(msg) {
-    if ((msg as any).payload === "error") {
+    const payload = (msg as Record<string, unknown>).payload;
+    if (payload === "error") {
       throw new Error("Test error");
     }
-    if ((msg as any).payload === "explicit-error") {
+    if (payload === "explicit-error") {
       this.error("Explicit error", msg);
       return;
     }
-    if ((msg as any).payload === "status") {
+    if (payload === "status") {
       this.status({ fill: "green", shape: "dot", text: "ok" });
       return;
     }
@@ -366,7 +367,9 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect((sent[0] as any[])[0].payload).toBe("record");
+      expect((sent[0] as unknown[])[0]).toEqual(
+        expect.objectContaining({ payload: "record" }),
+      );
     });
 
     it("sends to status port via status() method", async () => {
@@ -392,9 +395,13 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      const statusSend = sent[0] as any[];
-      expect(statusSend[1].status.text).toBe("working");
-      expect(statusSend[1].source).toBeDefined();
+      const statusSend = sent[0] as unknown[];
+      expect(statusSend[1]).toEqual(
+        expect.objectContaining({
+          status: expect.objectContaining({ text: "working" }),
+          source: expect.anything(),
+        }),
+      );
     });
   });
 
@@ -426,12 +433,20 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       const dataSends = sent.filter(
-        (s: any) => !Array.isArray(s) || !s.some((m: any) => m?.error || m?.complete || m?.status),
+        (s) =>
+          !Array.isArray(s) ||
+          !s.some(
+            (m) =>
+              (m as Record<string, unknown>)?.error ||
+              (m as Record<string, unknown>)?.complete ||
+              (m as Record<string, unknown>)?.status,
+          ),
       );
+      expect(dataSends.length).toBeGreaterThan(0);
       for (const s of dataSends) {
         if (Array.isArray(s)) {
           expect(s).toHaveLength(1);
-          expect(s[0].payload).toBe("data");
+          expect(s[0]).toEqual(expect.objectContaining({ payload: "data" }));
         }
       }
     });
@@ -454,7 +469,7 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect((sent[0] as any).payload).toBe("hello");
+      expect(sent[0]).toEqual(expect.objectContaining({ payload: "hello" }));
     });
   });
 });

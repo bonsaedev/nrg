@@ -114,7 +114,7 @@ describe("defineSchema", () => {
       { $id: "func-schema" },
     );
 
-    const transformProp = schema.properties.transform as any;
+    const transformProp = schema.properties.transform as Record<string, unknown>;
     expect(transformProp["x-nrg-skip-validation"]).toBe(true);
     expect(transformProp.type).toBeUndefined();
   });
@@ -132,7 +132,7 @@ describe("defineSchema", () => {
       { $id: "func-default-schema" },
     );
 
-    const transformProp = schema.properties.transform as any;
+    const transformProp = schema.properties.transform as Record<string, unknown>;
     expect(transformProp.default).toBeUndefined();
     expect(transformProp._default).toBe(fn);
   });
@@ -146,8 +146,8 @@ describe("defineSchema", () => {
       { $id: "json-types-schema" },
     );
 
-    const nameProp = schema.properties.name as any;
-    const countProp = schema.properties.count as any;
+    const nameProp = schema.properties.name as Record<string, unknown>;
+    const countProp = schema.properties.count as Record<string, unknown>;
     expect(nameProp["x-nrg-skip-validation"]).toBeUndefined();
     expect(countProp["x-nrg-skip-validation"]).toBeUndefined();
   });
@@ -162,8 +162,10 @@ describe("defineSchema", () => {
       { $id: "items-schema" },
     );
 
-    expect(schema.properties.tags).toBeDefined();
-    expect((schema.properties.tags as any).items).toBeDefined();
+    const tagsProp = schema.properties.tags as Record<string, any>;
+    expect(tagsProp.type).toBe("array");
+    expect(tagsProp.items).toBeDefined();
+    expect(tagsProp.items.type).toBe("string");
   });
 
   it("should handle schemas with anyOf", () => {
@@ -174,7 +176,11 @@ describe("defineSchema", () => {
       { $id: "anyof-schema" },
     );
 
-    expect(schema.properties.value).toBeDefined();
+    const valueProp = schema.properties.value as Record<string, any>;
+    expect(valueProp.anyOf).toBeDefined();
+    expect(valueProp.anyOf).toHaveLength(2);
+    expect(valueProp.anyOf[0].type).toBe("string");
+    expect(valueProp.anyOf[1].type).toBe("number");
   });
 
   it("should handle schemas with allOf via Intersect", () => {
@@ -188,7 +194,11 @@ describe("defineSchema", () => {
       { $id: "allof-schema" },
     );
 
-    expect(schema.properties.combined).toBeDefined();
+    const combinedProp = schema.properties.combined as Record<string, any>;
+    expect(combinedProp.allOf).toBeDefined();
+    expect(combinedProp.allOf).toHaveLength(2);
+    expect(combinedProp.allOf[0].properties.a.type).toBe("string");
+    expect(combinedProp.allOf[1].properties.b.type).toBe("number");
   });
 
   it("should recursively handle nested schemas", () => {
@@ -202,7 +212,8 @@ describe("defineSchema", () => {
     );
 
     expect(schema.properties.config).toBeDefined();
-    const nestedProps = (schema.properties.config as any).properties;
+    const configProp = schema.properties.config as Record<string, unknown>;
+    const nestedProps = configProp.properties as Record<string, unknown>;
     expect(nestedProps.name).toBeDefined();
   });
 

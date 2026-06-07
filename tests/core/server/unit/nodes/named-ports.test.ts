@@ -48,20 +48,12 @@ describe("named output ports", () => {
     });
 
     it("throws on numeric record keys", () => {
-      expect(() => {
-        defineIONode({
-          type: "numeric-key-test",
-          outputsSchema: { "0": SuccessSchema, "1": FailureSchema },
-          async input() {},
-        });
-        // Access the static getter to trigger validation
-        const NC = defineIONode({
-          type: "numeric-key-test-2",
-          outputsSchema: { "0": SuccessSchema, "1": FailureSchema },
-          async input() {},
-        }) as any;
-        NC.outputs;
-      }).toThrow(/numeric/i);
+      const NC = defineIONode({
+        type: "numeric-key-test",
+        outputsSchema: { "0": SuccessSchema, "1": FailureSchema },
+        async input() {},
+      }) as unknown as { outputs: number };
+      expect(() => NC.outputs).toThrow(/numeric/i);
     });
 
     it.each(["error", "complete", "status"])(
@@ -96,7 +88,7 @@ describe("named output ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      const msg = sent[0] as unknown as any[];
+      const msg = sent[0] as unknown as unknown[];
       expect(msg[0]).toEqual({ payload: "ok" });
       expect(msg[1]).toBeUndefined();
     });
@@ -119,7 +111,7 @@ describe("named output ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      const msg = sent[0] as unknown as any[];
+      const msg = sent[0] as unknown as unknown[];
       expect(msg[0]).toBeUndefined();
       expect(msg[1]).toEqual({ payload: { reason: "bad" } });
     });
@@ -143,11 +135,11 @@ describe("named output ports", () => {
       const sent = node.sent();
       expect(sent.length).toBeGreaterThanOrEqual(1);
       // Named port "success" → index 0
-      const successSend = sent[0] as unknown as any[];
+      const successSend = sent[0] as unknown as unknown[];
       expect(successSend[0]).toEqual({ payload: "ok" });
     });
 
-    it("ignores unknown named port", async () => {
+    it("silently drops message for unknown named port", async () => {
       const Node = defineIONode({
         type: "named-unknown-test",
         configSchema: ConfigSchema,
@@ -165,6 +157,31 @@ describe("named output ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(0);
+    });
+
+    it("numeric index beyond baseOutputs creates sparse send", async () => {
+      const Node = defineIONode({
+        type: "named-oob-test",
+        configSchema: ConfigSchema,
+        outputsSchema: { success: SuccessSchema },
+        async input() {
+          this.sendToPort(5, { payload: "oob" });
+        },
+      });
+
+      const { node } = await createNode(Node, {
+        config: { errorPort: false, completePort: false, statusPort: false },
+      });
+
+      await node.receive({});
+
+      const sent = node.sent();
+      // The message is placed at index 5 in the output array
+      // which creates a sparse send (undefined at indices 0-4)
+      expect(sent).toHaveLength(1);
+      const msg = sent[0] as unknown as unknown[];
+      expect(msg[5]).toEqual({ payload: "oob" });
+      expect(msg[0]).toBeUndefined();
     });
 
     it("sends by numeric index with record schema", async () => {
@@ -185,7 +202,7 @@ describe("named output ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect((sent[0] as unknown as any[])[0]).toEqual({ payload: "by-index" });
+      expect((sent[0] as unknown as unknown[])[0]).toEqual({ payload: "by-index" });
     });
   });
 

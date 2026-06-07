@@ -207,7 +207,7 @@ async function createNode<T extends NodeClass>(
   NodeClass.validateSettings(RED);
   await Promise.resolve(NodeClass.registered?.(RED));
 
-  const node = new (NodeClass as any)(RED, nodeRedNode, config, credentials);
+  const node = new NodeClass(RED, nodeRedNode, config, credentials);
 
   // Attach helpers before created() so status/send calls during created() are captured
   const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);

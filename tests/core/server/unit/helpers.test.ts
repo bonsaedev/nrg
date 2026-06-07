@@ -512,6 +512,10 @@ describe("error handling", () => {
       "something broke",
     );
     expect(node.sent()).toHaveLength(0);
+    expect(node.errored().length).toBeGreaterThan(0);
+    expect(node.errored().some((msg) => msg.includes("something broke"))).toBe(
+      true,
+    );
   });
 });
 

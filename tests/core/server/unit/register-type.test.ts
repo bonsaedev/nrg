@@ -55,7 +55,7 @@ describe("registerType validation", () => {
     );
   });
 
-  it("should accept valid hex color", async () => {
+  it("should accept valid hex color and call RED.nodes.registerType", async () => {
     const { IONode, registerType } = await getModules();
     const RED = createRED();
 
@@ -65,9 +65,12 @@ describe("registerType validation", () => {
       static override readonly color = "#a6bbcf";
     }
 
-    await expect(
-      registerType(RED, GoodColor as any),
-    ).resolves.not.toThrow();
+    await registerType(RED, GoodColor as any);
+    expect(RED.nodes.registerType).toHaveBeenCalledWith(
+      "good-color",
+      expect.any(Function),
+      expect.any(Object),
+    );
   });
 
   it("should derive inputs from inputSchema presence", async () => {

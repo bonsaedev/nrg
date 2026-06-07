@@ -65,9 +65,24 @@ describe("getDefaultsFromSchema", () => {
     expect(defaults.name.value).toBeUndefined();
   });
 
+  it("should preserve falsy defaults (0, false, empty string)", () => {
+    const schema = Type.Object({
+      count: Type.Number({ default: 0 }),
+      enabled: Type.Boolean({ default: false }),
+      label: Type.String({ default: "" }),
+    });
+
+    const defaults = getDefaultsFromSchema(schema);
+    expect(defaults.count.value).toBe(0);
+    expect(defaults.enabled.value).toBe(false);
+    expect(defaults.label.value).toBe("");
+  });
+
   it("should include x-nrg-node-type as type", () => {
     const schema = Type.Object({
-      server: Type.String({ "x-nrg-node-type": "remote-server" } as any),
+      server: Type.String({
+        "x-nrg-node-type": "remote-server",
+      } as Record<string, unknown>),
     });
 
     const defaults = getDefaultsFromSchema(schema);

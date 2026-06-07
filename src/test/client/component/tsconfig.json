@@ -3,6 +3,6 @@
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"]
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "../globals.ts"],
   "exclude": ["node_modules"]
 }

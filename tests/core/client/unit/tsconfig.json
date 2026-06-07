@@ -8,6 +8,7 @@
     "**/*.ts",
     "../../../../src/core/client/shims-vue.d.ts",
     "../../../../src/core/client/globals.d.ts",
+    "../../../../src/test/client/globals.ts",
     "../../../../src/core/client/form/**/*.ts",
     "../../../../src/core/client/form/**/*.vue"
   ],

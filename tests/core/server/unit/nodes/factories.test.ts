@@ -112,7 +112,7 @@ describe("defineIONode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(RED, node, {}, {});
+    const instance = new Node(RED, node, {}, {});
 
     // Wire up handlers and trigger input event
     const createdPromise = Promise.resolve();
@@ -140,9 +140,9 @@ describe("defineIONode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(RED, node, {}, {});
+    const instance = new Node(RED, node, {}, {});
 
-    await instance.created();
+    await instance.created!();
 
     expect(createdFn).toHaveBeenCalledOnce();
     expect(node.log).toHaveBeenCalledWith("created");
@@ -162,9 +162,9 @@ describe("defineIONode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(RED, node, {}, {});
+    const instance = new Node(RED, node, {}, {});
 
-    await instance.closed(true);
+    await instance.closed!(true);
 
     expect(closedFn).toHaveBeenCalledWith(true);
     expect(node.log).toHaveBeenCalledWith("closed: true");
@@ -181,7 +181,7 @@ describe("defineIONode", () => {
 
     const RED = createRED();
     initValidator(RED);
-    await Promise.resolve((Node as any).registered?.(RED));
+    await Promise.resolve(Node.registered?.(RED));
 
     expect(registeredFn).toHaveBeenCalledWith(RED);
   });
@@ -195,10 +195,10 @@ describe("defineIONode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(RED, node, {}, {});
+    const instance = new Node(RED, node, {}, {});
 
-    await expect(instance.created()).resolves.not.toThrow();
-    await expect(instance.closed()).resolves.not.toThrow();
+    await expect(instance.created!()).resolves.not.toThrow();
+    await expect(instance.closed!()).resolves.not.toThrow();
   });
 
   it("should return a class that extends IONode", () => {
@@ -220,7 +220,7 @@ describe("defineIONode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (NodeClass as any)(RED, node, {}, {});
+    const instance = new NodeClass(RED, node, {}, {});
 
     expect(instance).toBeInstanceOf(IONode);
     expect(instance).toBeInstanceOf(Node);
@@ -276,14 +276,14 @@ describe("defineConfigNode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(
+    const instance = new Node(
       RED,
       node,
       { host: "example.com", _users: [] },
       {},
     );
 
-    await instance.created();
+    await instance.created!();
 
     expect(createdFn).toHaveBeenCalledOnce();
   });
@@ -301,9 +301,9 @@ describe("defineConfigNode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(RED, node, { _users: [] }, {});
+    const instance = new Node(RED, node, { _users: [] }, {});
 
-    await instance.closed(false);
+    await instance.closed!(false);
 
     expect(closedFn).toHaveBeenCalledWith(false);
   });
@@ -318,7 +318,7 @@ describe("defineConfigNode", () => {
 
     const RED = createRED();
     initValidator(RED);
-    await Promise.resolve((Node as any).registered?.(RED));
+    await Promise.resolve(Node.registered?.(RED));
 
     expect(registeredFn).toHaveBeenCalledWith(RED);
   });
@@ -329,10 +329,10 @@ describe("defineConfigNode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (Node as any)(RED, node, { _users: [] }, {});
+    const instance = new Node(RED, node, { _users: [] }, {});
 
-    await expect(instance.created()).resolves.not.toThrow();
-    await expect(instance.closed()).resolves.not.toThrow();
+    await expect(instance.created!()).resolves.not.toThrow();
+    await expect(instance.closed!()).resolves.not.toThrow();
   });
 
   it("should return a class that extends ConfigNode", () => {
@@ -348,7 +348,7 @@ describe("defineConfigNode", () => {
     const RED = createRED();
     initValidator(RED);
     const node = createNodeRedNode();
-    const instance = new (NodeClass as any)(RED, node, { _users: ["u1"] }, {});
+    const instance = new NodeClass(RED, node, { _users: ["u1"] }, {});
 
     expect(instance).toBeInstanceOf(ConfigNode);
     expect(instance).toBeInstanceOf(Node);

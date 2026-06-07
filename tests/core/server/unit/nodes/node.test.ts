@@ -18,7 +18,7 @@ describe("Node", () => {
       const node = createNodeRedNode({ credentials: { apiKey: "secret" } });
       const config = { name: "test" };
 
-      const instance = new (ConcreteNode as any)(RED, node, config, {});
+      const instance = new ConcreteNode(RED, node, config, {});
       expect(instance.id).toBe(node.id);
       expect(instance.name).toBe(node.name);
       expect(instance.z).toBe("flow-1");
@@ -30,7 +30,7 @@ describe("Node", () => {
       const node = createNodeRedNode();
       const config = { name: "test" };
 
-      const instance = new (ConcreteNode as any)(RED, node, config, {});
+      const instance = new ConcreteNode(RED, node, config, {});
       expect(() => {
         instance.config.name = "changed";
       }).toThrow();
@@ -52,7 +52,7 @@ describe("Node", () => {
       initValidator(RED);
       const node = createNodeRedNode();
 
-      new (ValidatedNode as any)(RED, node, { name: "ab" }, {});
+      new ValidatedNode(RED, node, { name: "ab" }, {});
       expect(node.warn).toHaveBeenCalled();
     });
 
@@ -72,7 +72,7 @@ describe("Node", () => {
       initValidator(RED);
       const node = createNodeRedNode();
 
-      new (ValidNode as any)(RED, node, { name: "hello" }, {});
+      new ValidNode(RED, node, { name: "hello" }, {});
       expect(node.warn).not.toHaveBeenCalled();
     });
 
@@ -92,7 +92,7 @@ describe("Node", () => {
       initValidator(RED);
       const node = createNodeRedNode();
 
-      new (CredNode as any)(RED, node, {}, { apiKey: "ab" });
+      new CredNode(RED, node, {}, { apiKey: "ab" });
       expect(node.warn).toHaveBeenCalled();
     });
   });
@@ -102,7 +102,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       instance.i18n("label.name");
       expect(RED._).toHaveBeenCalledWith("test-node.label.name", undefined);
@@ -112,7 +112,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       instance.i18n("errors.invalid", { field: "name" });
       expect(RED._).toHaveBeenCalledWith("test-node.errors.invalid", {
@@ -127,7 +127,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
 
       instance.setTimeout(fn, 100);
@@ -142,7 +142,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
 
       instance.setInterval(fn, 50);
@@ -157,7 +157,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
 
       // Wire up close handler via the template method
@@ -180,7 +180,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
 
       const timer = instance.setTimeout(fn, 100);
@@ -196,7 +196,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
 
       const interval = instance.setInterval(fn, 50);
@@ -213,7 +213,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       instance.log("test message");
       expect(node.log).toHaveBeenCalledWith("test message");
@@ -223,7 +223,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       instance.warn("warning");
       expect(node.warn).toHaveBeenCalledWith("warning");
@@ -233,7 +233,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       instance.error("error msg", { payload: "data" });
       expect(node.error).toHaveBeenCalledWith("error msg", {
@@ -247,7 +247,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode({ credentials: { apiKey: "secret" } });
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       expect(instance.credentials).toEqual({ apiKey: "secret" });
     });
@@ -258,7 +258,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
 
       // No settings schema, so returns empty object
       expect(instance.settings).toEqual({});
@@ -350,7 +350,7 @@ describe("Node", () => {
       SettingsValidNode.validateSettings(RED);
 
       const node = createNodeRedNode();
-      const instance = new (SettingsValidNode as any)(RED, node, {}, {});
+      const instance = new SettingsValidNode(RED, node, {}, {});
       expect(instance.settings.timeout).toBe(3000);
     });
 
@@ -373,7 +373,7 @@ describe("Node", () => {
       DefaultSettingsNode.validateSettings(RED);
 
       const node = createNodeRedNode();
-      const instance = new (DefaultSettingsNode as any)(RED, node, {}, {});
+      const instance = new DefaultSettingsNode(RED, node, {}, {});
       expect(instance.settings.retries).toBe(3);
     });
 
@@ -408,7 +408,7 @@ describe("Node", () => {
       FuncSettingsNode.validateSettings(RED);
 
       const node = createNodeRedNode();
-      const instance = new (FuncSettingsNode as any)(RED, node, {}, {});
+      const instance = new FuncSettingsNode(RED, node, {}, {});
       expect(instance.settings.transform("hello")).toBe("HELLO");
     });
   });
@@ -418,7 +418,7 @@ describe("Node", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new (ConcreteNode as any)(RED, node, {}, {});
+      const instance = new ConcreteNode(RED, node, {}, {});
       const cb = vi.fn();
 
       instance.on("input", cb);
