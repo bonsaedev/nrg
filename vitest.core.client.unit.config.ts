@@ -1,6 +1,5 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { playwright } from "@vitest/browser-playwright";
 import { defaultConfig } from "./src/test/client/unit";
 
 export default defineConfig({
@@ -15,15 +14,10 @@ export default defineConfig({
     setupFiles: ["tests/core/client/unit/setup.ts"],
     include: ["tests/core/client/unit/**/*.test.ts"],
     coverage: {
-      provider: "istanbul",
+      provider: "v8",
       reportsDirectory: "coverage/client-unit",
       reporter: ["text", "lcov"],
       include: ["src/core/client/validation.ts"],
-    },
-    browser: {
-      ...defaultConfig.browser,
-      instances: [{ browser: "chromium" }],
-      provider: playwright(),
     },
   },
 });

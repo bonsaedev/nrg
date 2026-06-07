@@ -65,6 +65,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Client Component Tests
+        run: pnpm vitest run --config vitest.core.client.component.config.ts
+
       - name: Vite E2E Tests
         run: pnpm vitest run --config vitest.vite.e2e.config.ts
 

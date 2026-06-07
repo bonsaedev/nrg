@@ -20,11 +20,11 @@ Server tests instantiate your node class with mocked Node-RED internals and exer
 
 | Type | What it tests | Speed | Library |
 |------|--------------|-------|---------|
-| **Unit** | Pure TypeScript logic used by client code (validation, utilities, helpers) | Fast (headless Chromium) | `@bonsae/nrg/test/client/unit` |
+| **Unit** | Pure TypeScript logic used by client code (validation, utilities, helpers) | Fast (happy-dom) | `@bonsae/nrg/test/client/unit` |
 | **Component** | Vue editor components — rendering, props, events, RED API interactions | Medium (headless browsers) | `@bonsae/nrg/test/client/component` |
 | **E2E** | Full editor round-trip — form rendering, validation, TypedInput, config selectors, i18n | Slow (real Node-RED instance) | `@bonsae/nrg/test/client/e2e` |
 
-Client **unit** tests cover standalone TypeScript modules (validation logic, format helpers, etc.) without rendering Vue components. They run in a browser environment with mocked `RED` and `$` globals.
+Client **unit** tests cover standalone TypeScript modules (validation logic, format helpers, etc.) without rendering Vue components. They run in a happy-dom environment with mocked `RED` and `$` globals.
 
 Client **component** tests render individual Vue components with Vitest browser mode and mocked Node-RED globals. They verify that components respond to props, emit events, and call the RED API correctly.
 
@@ -359,14 +359,14 @@ describe("factory API", () => {
 
 ## Client Unit Testing
 
-Client unit tests cover pure TypeScript logic that runs in the browser — validation functions, formatters, utility modules, etc. They run in headless Chromium with mocked `RED` and `$` globals, but without rendering Vue components.
+Client unit tests cover pure TypeScript logic — validation functions, formatters, utility modules, etc. They run in a [happy-dom](https://github.com/nicedoc/happy-dom) environment with mocked `RED` and `$` globals, but without rendering Vue components.
 
 ### Setup
 
 #### 1. Install dependencies
 
 ```bash
-pnpm add -D vitest @vitest/browser-playwright @vitest/coverage-istanbul
+pnpm add -D vitest happy-dom
 ```
 
 #### 2. Create a tsconfig
@@ -387,17 +387,12 @@ pnpm add -D vitest @vitest/browser-playwright @vitest/coverage-istanbul
 ```typescript
 // vitest.client.unit.config.ts
 import { defineConfig } from "vitest/config";
-import { playwright } from "@vitest/browser-playwright";
 import { defaultConfig } from "@bonsae/nrg/test/client/unit";
 
 export default defineConfig({
   test: {
     ...defaultConfig,
     include: ["tests/client/unit/**/*.test.ts"],
-    browser: {
-      ...defaultConfig.browser,
-      provider: playwright(),
-    },
   },
 });
 ```
@@ -405,8 +400,8 @@ export default defineConfig({
 The `defaultConfig` provides:
 
 - `testTimeout: 30_000`
+- `environment: "happy-dom"` for `window`, `document`, and other browser globals
 - `setupFiles` pointing to the built-in setup that installs `RED` and `$` mocks on `window`
-- `browser.enabled: true` with a single chromium instance
 
 #### 4. Add a test script
 
@@ -648,16 +643,21 @@ pnpm add -D playwright vitest
 ```typescript
 // vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/e2e";
 
 export default defineConfig({
   test: {
-    testTimeout: 120_000,
-    hookTimeout: 120_000,
+    ...defaultConfig,
     globalSetup: "tests/client/e2e/global-setup.ts",
     include: ["tests/client/e2e/**/*.test.ts"],
   },
 });
 ```
+
+The `defaultConfig` provides:
+
+- `testTimeout: 60_000`
+- `hookTimeout: 120_000`
 
 #### 4. Create a global setup file
 

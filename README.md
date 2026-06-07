@@ -15,19 +15,25 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 
 ## Package Exports
 
-| Export                               | Description                                                                                                                                                           |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bonsae/nrg`                        | Root entry — `defineRuntimeSettings`                                                                                                                                  |
-| `@bonsae/nrg/server`                 | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
-| `@bonsae/nrg/client`                 | Client-side registration (`registerTypes`, `defineNode`)                                                                                                              |
-| `@bonsae/nrg/vite`                   | Vite plugin for building and developing Node-RED packages                                                                                                             |
-| `@bonsae/nrg/test/server/unit`       | Server-side unit test helpers (`createNode`, `createRED`, `MockRED`)                                                                                                  |
-| `@bonsae/nrg/test/client/unit`             | Client unit test config and mocks (`defaultConfig`, `createRED`, `createJQuery`)                                                                                      |
-| `@bonsae/nrg/test/client/unit/setup`       | Setup file that installs `RED` and `$` mocks on `window`                                                                                                              |
-| `@bonsae/nrg/test/client/component`        | Client component test helpers (`createNode`, `defaultConfig`, `createRED`, `createJQuery`)                                                                             |
-| `@bonsae/nrg/test/client/component/setup`  | Setup file that installs `RED` and `$` mocks on `window` and configures Vue i18n                                                                                      |
-| `@bonsae/nrg/test/client/e2e`              | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`)                                                                                                             |
-| `@bonsae/nrg/tsconfig/*`             | Shared TypeScript configurations for consumers                                                                                                                        |
+| Export | Description |
+| --- | --- |
+| `@bonsae/nrg` | Root entry — `defineRuntimeSettings` |
+| `@bonsae/nrg/server` | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
+| `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`) |
+| `@bonsae/nrg/vite` | Vite plugin for building and developing Node-RED packages |
+| `@bonsae/nrg/test/server/unit` | Server unit test helpers (`createNode`, `createRED`, `MockRED`) |
+| `@bonsae/nrg/test/client/unit` | Client unit test config and mocks (`defaultConfig`, `createRED`, `createJQuery`) |
+| `@bonsae/nrg/test/client/unit/setup` | Setup file that installs `RED` and `$` mocks on `window` |
+| `@bonsae/nrg/test/client/component` | Client component test helpers (`createNode`, `defaultConfig`, `createRED`, `createJQuery`) |
+| `@bonsae/nrg/test/client/component/setup` | Setup file that installs `RED` and `$` mocks on `window` with Vue i18n |
+| `@bonsae/nrg/test/client/e2e` | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`, `setup`, `teardown`) |
+| `@bonsae/nrg/tsconfig/base.json` | Base TypeScript configuration |
+| `@bonsae/nrg/tsconfig/core/server.json` | Core server source tsconfig |
+| `@bonsae/nrg/tsconfig/core/client.json` | Core client source tsconfig |
+| `@bonsae/nrg/tsconfig/test/server/unit.json` | Server unit test tsconfig |
+| `@bonsae/nrg/tsconfig/test/client/unit.json` | Client unit test tsconfig |
+| `@bonsae/nrg/tsconfig/test/client/component.json` | Client component test tsconfig |
+| `@bonsae/nrg/tsconfig/test/client/e2e.json` | Client E2E test tsconfig |
 
 ## Quick Start
 
@@ -136,9 +142,10 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 
 ## Testing
 
-NRG provides three test libraries:
+NRG provides four test libraries:
 
 - `@bonsae/nrg/test/server/unit` — server-side unit tests
+- `@bonsae/nrg/test/client/unit` — client-side unit tests (TypeScript logic)
 - `@bonsae/nrg/test/client/component` — client component tests (Vue + browser)
 - `@bonsae/nrg/test/client/e2e` — browser E2E tests (Playwright)
 
@@ -158,6 +165,34 @@ describe("my-node", () => {
     await node.receive({ payload: "world" });
 
     expect(node.sent(0)).toEqual([{ payload: "hello world" }]);
+  });
+});
+```
+
+### Client Unit Tests
+
+Test client-side TypeScript logic (validation, utilities) with mocked `RED` and `$` globals:
+
+```typescript
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+
+export default defineConfig({
+  test: {
+    ...defaultConfig,
+  },
+});
+```
+
+```typescript
+// tests/client/unit/my-util.test.ts
+import { describe, it, expect } from "vitest";
+import { myUtil } from "../src/client/my-util";
+
+describe("myUtil", () => {
+  it("works with RED globals", () => {
+    expect(myUtil("input")).toBe("expected");
   });
 });
 ```
@@ -186,7 +221,7 @@ export default defineConfig({
 ```
 
 ```typescript
-// tests/my-component.test.ts
+// tests/client/component/my-component.test.ts
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { createNode } from "@bonsae/nrg/test/client/component";
@@ -215,10 +250,17 @@ See the [testing guide](https://bonsaedev.github.io/nrg/guide/testing) for full 
 
 ```bash
 pnpm install
-pnpm build          # build all (server CJS, client ESM, vite plugin)
-pnpm typecheck      # type-check server and client
-pnpm lint           # eslint
-pnpm format         # prettier
+pnpm build                        # build all (server, client, vite plugin, test libs)
+pnpm validate                     # type-check + lint + format check
+pnpm validate:tsc                 # type-check all tsconfigs
+pnpm validate:lint                # eslint
+pnpm validate:format              # prettier check
+pnpm test                         # run all tests
+pnpm test:core:server:unit        # server unit tests
+pnpm test:core:client:unit        # client unit tests
+pnpm test:core:client:component   # client component tests
+pnpm test:core:client:e2e         # client E2E tests
+pnpm docs:dev                     # start docs dev server
 ```
 
 ## License
