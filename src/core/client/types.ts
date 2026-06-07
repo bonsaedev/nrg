@@ -1,4 +1,6 @@
 import type { Component, App } from "vue";
+import type { TSchema, Static } from "@sinclair/typebox";
+import type { NodeRefResolved } from "../server/schemas/types";
 
 export interface NodeStateCredentials {
   [key: string]: any;
@@ -125,3 +127,42 @@ export interface NodeFeatures {
   hasInputSchema: boolean;
   hasOutputSchema: boolean;
 }
+
+// -- Client-side type inference --
+
+/** Client-side representation of a TypedInput field: the raw value string and its type selector. */
+export interface TypedInputValue {
+  value: string;
+  type: string;
+}
+
+type _ToClient<T> =
+  T extends NodeRefResolved<any>
+    ? string
+    : T extends { resolve(...args: any[]): any; value: unknown; type: string }
+      ? TypedInputValue
+      : T extends (...args: any[]) => any
+        ? T
+        : T extends Array<infer I>
+          ? _ToClient<I>[]
+          : T extends object
+            ? { [K in keyof T]: _ToClient<T[K]> }
+            : T;
+
+/**
+ * Infers the client-side TypeScript type from a TypeBox schema.
+ *
+ * Resolves schema types to their client form representations:
+ * - `NodeRef<T>` → `string` (node ID in the editor)
+ * - `TypedInput<T>` → `{ value: string; type: string }`
+ * - All other types resolve via TypeBox's `Static<T>`
+ *
+ * @example
+ * ```ts
+ * import type { Infer } from "@bonsae/nrg/client";
+ * import type { ConfigSchema } from "../schemas/my-node";
+ *
+ * type Config = Infer<typeof ConfigSchema>;
+ * ```
+ */
+export type Infer<T extends TSchema> = _ToClient<Static<T>>;

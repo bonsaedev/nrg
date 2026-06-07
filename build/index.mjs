@@ -130,6 +130,11 @@ function generateTypes() {
 export declare function defineNode<T extends NodeDefinition>(options: T): T;
 export declare function registerType(definition: NodeDefinition): Promise<void>;
 export declare function registerTypes(nodes: NodeDefinition[]): Promise<void>;
+export declare function useFormNode<TConfig extends TSchema = TSchema, TCredentials extends TSchema = TSchema>(): {
+  node: NodeRedNode & Infer<TConfig> & { credentials: Infer<TCredentials> & Record<string, any> };
+  schema: Record<string, any>;
+  errors: Record<string, string>;
+};
 `);
 
   // Vite types — the nodeRed() return type (Plugin[]) crashes dts-bundle-generator,

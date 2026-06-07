@@ -38,6 +38,20 @@ type Config = Infer<typeof ConfigsSchema>;
 // { name: string; retries: number; verbose: boolean; tags: string[]; metadata?: { version: string } }
 ```
 
+### Client-Side Inference
+
+The client package resolves the same schemas to their editor form representation. `NodeRef` becomes `string` (the node ID stored in the editor) and `TypedInput` becomes `{ value: string; type: string }`:
+
+```typescript
+import { useFormNode } from "@bonsae/nrg/client";
+import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+
+const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
+// node.name → string, node.server → string (NodeRef), node.target → { value, type }
+```
+
+See [Custom Form Component](/guide/creating-a-node#custom-form-component) for a full example.
+
 ## Config Schema
 
 The `configSchema` static property validates node configuration when a node instance is created. Validation failures produce warnings (they don't prevent the node from starting):

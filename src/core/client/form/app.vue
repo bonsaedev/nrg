@@ -73,6 +73,13 @@ import { validateForm } from "../validation";
 
 export default defineComponent({
   name: "NodeRedVueApp",
+  provide() {
+    return {
+      __nrg_form_node: this.localNode,
+      __nrg_form_schema: this.schema,
+      __nrg_form_errors: this.errors,
+    };
+  },
   props: {
     node: {
       type: Object,
@@ -202,7 +209,10 @@ export default defineComponent({
   },
   methods: {
     validate() {
-      this.errors = validateForm(this.localNode, this.schema);
+      const newErrors = validateForm(this.localNode, this.schema);
+      const keys = Object.keys(this.errors);
+      for (let i = 0; i < keys.length; i++) delete this.errors[keys[i]];
+      Object.assign(this.errors, newErrors);
     },
     resolveLabel(key: string, fallback: string): string {
       const resolved = this.$i18n(key);

@@ -865,6 +865,66 @@ const config = await fetch("/api/config").then((r) => r.json());
 await registerTypes([myNode]);
 ```
 
+### Client-Side Type Inference {#client-type-inference}
+
+The client package uses the same TypeBox schemas defined on the server to provide full type safety in form components. Schema types resolve to their **editor form** representation:
+
+| Schema Type | Server `Infer` | Client (form) |
+| --- | --- | --- |
+| `SchemaType.String()` | `string` | `string` |
+| `SchemaType.Number()` | `number` | `number` |
+| `SchemaType.Boolean()` | `boolean` | `boolean` |
+| `SchemaType.NodeRef(T)` | Config node instance (`T`) | `string` (node ID) |
+| `SchemaType.TypedInput<T>()` | `TypedInput<T>` (with `.resolve()`) | `{ value: string; type: string }` |
+
+#### `useFormNode` (recommended)
+
+The `useFormNode` composable gives your form component typed access to the node, schema, and validation errors — no `defineProps` needed:
+
+```vue
+<script setup lang="ts">
+import { useFormNode } from "@bonsae/nrg/client";
+import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+
+const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
+
+node.name      // string — typed from ConfigsSchema
+node.threshold // number
+node.credentials.apiKey // string — typed from CredentialsSchema
+node.id        // string — NodeRedNode base property
+errors         // Record<string, string> — reactive AJV validation errors
+</script>
+
+<template>
+  <NodeRedInput v-model="node.name" label="Name" :error="errors['node.name']" />
+  <NodeRedInput v-model="node.threshold" label="Threshold" type="number" />
+</template>
+```
+
+Both type parameters are optional — omit them to get untyped access:
+
+```typescript
+// Only type config, credentials stays as Record<string, any>
+const { node } = useFormNode<typeof ConfigsSchema>();
+
+// No schema typing at all
+const { node } = useFormNode();
+```
+
+#### `Infer` type utility
+
+For standalone type inference without the form context, use `Infer`:
+
+```typescript
+import type { Infer } from "@bonsae/nrg/client";
+import type { ConfigsSchema } from "../../server/schemas/my-node";
+
+type Config = Infer<typeof ConfigsSchema>;
+// { name: string; prefix: string; threshold: number; enabled: boolean }
+// NodeRef fields → string, TypedInput fields → { value, type }
+```
+
+
 ### `src/client/nodes/{type}.ts` — Client Node Definition
 
 Use this to set editor-only properties that can't be defined on the server — such as `button`, `onPaletteAdd`, `onPaletteRemove`, `onEditResize`, custom `label` functions, or to specify a custom form component:
@@ -902,9 +962,10 @@ Use this to replace the auto-generated JSON schema form with a fully custom Vue 
 
 ```vue
 <script setup lang="ts">
-const props = defineProps<{
-  node: any;
-}>();
+import { useFormNode } from "@bonsae/nrg/client";
+import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+
+const { node } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 </script>
 
 <template>
@@ -913,6 +974,8 @@ const props = defineProps<{
   <NodeRedInput v-model="node.threshold" label="Threshold" type="number" />
 </template>
 ```
+
+The `useFormNode` composable uses the same TypeBox schemas you defined on the server to give you full autocomplete and type safety on `node` properties. See [Client-Side Type Inference](#client-type-inference) for details.
 
 #### Full example — conditional visibility, icons, and custom validation
 

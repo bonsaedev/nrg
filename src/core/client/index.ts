@@ -6,6 +6,8 @@ export {
   registerTypes,
 } from "./registration";
 
+export { useFormNode } from "./use-form-node";
+
 export type {
   NodeRedNode,
   NodeDefinition,
@@ -13,4 +15,6 @@ export type {
   NodeRedNodeButtonDefinition,
   NodeFormDefinition,
   NodeFeatures,
+  TypedInputValue,
+  Infer,
 } from "./types";

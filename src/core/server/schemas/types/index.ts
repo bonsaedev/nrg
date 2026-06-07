@@ -16,25 +16,32 @@ import type {
   StatusPortSchema,
 } from "../base";
 
+interface NodeRefResolved<T = any> {
+  readonly __nrg_node_ref: true;
+  readonly __instance: T;
+}
+
 /** Schema type representing a reference to a config node. Resolves to the node instance at runtime. */
 interface TNodeRef<T = any> extends TSchema {
   [Kind]: "NodeRef";
-  static: T;
+  static: NodeRefResolved<T>;
   type: "string";
   format: "node-id";
   "x-nrg-node-type"?: string;
 }
 
 type ResolveNodeRefs<T> =
-  T extends TypedInput<any>
-    ? T
-    : T extends (...args: any[]) => any
+  T extends NodeRefResolved<infer I>
+    ? I
+    : T extends TypedInput<any>
       ? T
-      : T extends Array<infer Item>
-        ? ResolveNodeRefs<Item>[]
-        : T extends object
-          ? { [K in keyof T]: ResolveNodeRefs<T[K]> }
-          : T;
+      : T extends (...args: any[]) => any
+        ? T
+        : T extends Array<infer Item>
+          ? ResolveNodeRefs<Item>[]
+          : T extends object
+            ? { [K in keyof T]: ResolveNodeRefs<T[K]> }
+            : T;
 
 /**
  * Infers the TypeScript type from a schema or a record of schemas.
@@ -59,6 +66,7 @@ type TypedInputType = (typeof TYPED_INPUT_TYPES)[number];
 interface TTypedInput<T = unknown> extends TSchema {
   [Kind]: "TypedInput";
   static: TypedInput<T>;
+  "x-nrg-typed-input": true;
 }
 
 interface NrgSchemaOptions extends SchemaOptions, NrgSchemaExtensions {}
@@ -86,6 +94,7 @@ export {
   InferOr,
   InferOutputs,
   ResolveNodeRefs,
+  NodeRefResolved,
   TNodeRef,
   TTypedInput,
   TypedInputType,
