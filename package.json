@@ -104,7 +104,14 @@
   },
   "peerDependencies": {
     "vite": "^6.0.0",
-    "vue": "^3.5.14"
+    "vitest": "^4.0.0",
+    "vue": "^3.5.14",
+    "@vitest/coverage-istanbul": "^4.0.0",
+    "@vitest/coverage-v8": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@vitest/coverage-istanbul": { "optional": true },
+    "@vitest/coverage-v8": { "optional": true }
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",
@@ -124,7 +131,11 @@
     "typescript": "^5.8.3",
     "vite-plugin-dts": "^4.5.4",
     "vite-plugin-static-copy": "^3.1.0",
-    "vue": "^3.5.14"
+    "vue": "^3.5.14",
+    "@vitest/browser-playwright": "^4.1.5",
+    "happy-dom": "^20.10.2",
+    "playwright": "^1.60.0",
+    "vitest-browser-vue": "^2.1.0"
   },
   "lint-staged": {
     "src/**/*.{ts,vue}": [
@@ -151,7 +162,6 @@
     "@types/node": "^22.15.18",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
-    "@vitest/browser-playwright": "^4.1.5",
     "@vitest/coverage-istanbul": "^4.1.8",
     "@vitest/coverage-v8": "^4.1.5",
     "dts-bundle-generator": "^9.5.1",
@@ -159,17 +169,14 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.1.0",
     "globals": "^16.1.0",
-    "happy-dom": "^20.10.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "playwright": "^1.60.0",
     "prettier": "^3.5.3",
     "semantic-release": "^24.2.4",
     "tsx": "^4.22.4",
     "typescript-eslint": "^8.32.1",
     "vite": "^6.3.4",
     "vitest": "^4.1.5",
-    "vitest-browser-vue": "^2.1.0",
     "vue": "^3.5.14",
     "vue-tsc": "^3.2.8",
     "zod": "^4.4.3"

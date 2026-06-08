@@ -6,6 +6,22 @@ NRG nodes have two runtime surfaces — server-side logic (Node.js) and client-s
 If you created your project with `@bonsae/create-nrg`, the vitest configs, setup files, tsconfigs, dependencies, and folder structure described below are already in place. You can skip the setup sections and go straight to the API and examples.
 :::
 
+## Dependencies
+
+NRG bundles most test infrastructure as direct dependencies, so installing `@bonsae/nrg` gives you everything you need out of the box — including happy-dom, Playwright, browser test utilities, and Vue plugin integration. You only need to install two packages yourself:
+
+| Package | Why |
+|---------|-----|
+| `vitest` | The test runner. It's a peer dependency because your project controls the version and runs it directly via CLI scripts. |
+| `@vitest/coverage-istanbul` or `@vitest/coverage-v8` | Coverage providers are optional — only needed when running with `--coverage`. Install whichever provider you configure in your vitest configs. |
+
+```bash
+pnpm add -D vitest
+# optional: install a coverage provider
+pnpm add -D @vitest/coverage-istanbul  # for browser-based tests (component, e2e)
+pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, client unit)
+```
+
 ## Test Types
 
 ### Server
@@ -57,6 +73,8 @@ Client **E2E** tests start a real Node-RED instance with your nodes installed an
 ```bash
 pnpm add -D vitest
 ```
+
+No additional dependencies needed — NRG provides the test utilities and mocks.
 
 #### 2. Create a tsconfig
 
@@ -434,8 +452,10 @@ Client unit tests cover pure TypeScript logic — validation functions, formatte
 #### 1. Install dependencies
 
 ```bash
-pnpm add -D vitest happy-dom
+pnpm add -D vitest
 ```
+
+No additional dependencies needed — NRG ships `happy-dom` as a direct dependency for the test environment.
 
 #### 2. Create a tsconfig
 
@@ -528,8 +548,10 @@ Component tests render your Vue editor components in a real browser with mocked 
 #### 1. Install dependencies
 
 ```bash
-pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitest/coverage-istanbul @vitejs/plugin-vue
+pnpm add -D vitest
 ```
+
+No additional dependencies needed — NRG ships `@vitejs/plugin-vue`, `@vitest/browser-playwright`, `vitest-browser-vue`, and `playwright` as direct dependencies.
 
 #### 2. Create a tsconfig
 
@@ -702,8 +724,10 @@ E2E tests start a real Node-RED instance with your nodes installed and drive the
 #### 1. Install dependencies
 
 ```bash
-pnpm add -D playwright vitest
+pnpm add -D vitest
 ```
+
+No additional dependencies needed — NRG ships `playwright` as a direct dependency.
 
 #### 2. Create a tsconfig
 

@@ -304,6 +304,7 @@ function generatePackageJson() {
       "./tsconfig/test/client/e2e.json": "./tsconfig/test/client/e2e.json",
     },
     peerDependencies: rootPkg.peerDependencies,
+    peerDependenciesMeta: rootPkg.peerDependenciesMeta,
     dependencies: rootPkg.dependencies,
   };
   writeFileSync("dist/package.json", JSON.stringify(distPkg, null, 2) + "\n");
