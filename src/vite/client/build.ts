@@ -158,7 +158,7 @@ async function build(
   const config: InlineConfig = {
     configFile: false,
     logLevel: "warn",
-    base: `/${path.join("resources", buildContext.packageName)}`,
+    base: `/resources/${buildContext.packageName}`,
     publicDir: path.resolve(srcDir, "public"),
     resolve: {
       alias: {
@@ -188,9 +188,9 @@ async function build(
         external,
         treeshake: false,
         output: {
-          entryFileNames: path.join("resources", "index.[hash].js"),
-          chunkFileNames: path.join("resources", "vendor.[hash].js"),
-          assetFileNames: path.join("resources", "[name].[hash].[ext]"),
+          entryFileNames: "resources/index.[hash].js",
+          chunkFileNames: "resources/vendor.[hash].js",
+          assetFileNames: "resources/[name].[hash].[ext]",
           globals,
           paths: {
             vue: "/nrg/assets/vue.esm-browser.prod.js",

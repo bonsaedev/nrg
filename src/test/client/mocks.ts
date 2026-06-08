@@ -145,6 +145,17 @@ function createJQ(el: Element | null): any {
       return jq;
     },
 
+    off(event?: string) {
+      if (event) {
+        delete state.listeners[event];
+      } else {
+        for (const key of Object.keys(state.listeners)) {
+          delete state.listeners[key];
+        }
+      }
+      return jq;
+    },
+
     val(value?: any) {
       if (value !== undefined) {
         if (

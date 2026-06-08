@@ -132,6 +132,7 @@ export default defineComponent({
         const targetDiv = this.$el.querySelector(
           ".red-ui-typedInput-container",
         );
+        if (!targetDiv) return;
         if (newVal) {
           targetDiv.classList.add("input-error");
         } else {

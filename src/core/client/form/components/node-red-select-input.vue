@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, type PropType } from "vue";
+import { defineComponent, shallowRef, type PropType } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
@@ -85,6 +85,11 @@ export default defineComponent({
     },
   },
   emits: ["update:modelValue", "update:value"],
+  setup() {
+    return {
+      selectWidget: shallowRef<any>(null),
+    };
+  },
   computed: {
     effectiveValue() {
       return this.modelValue !== undefined ? this.modelValue : this.value;
@@ -93,6 +98,7 @@ export default defineComponent({
   mounted() {
     const inputElement = this.$refs.selectInput as HTMLInputElement;
     const $selectInput = $(inputElement);
+    this.selectWidget = $selectInput;
     $selectInput.typedInput({
       types: [
         {
@@ -115,6 +121,12 @@ export default defineComponent({
       this.$emit("update:modelValue", newValue);
       this.$emit("update:value", newValue);
     });
+  },
+  beforeUnmount() {
+    if (this.selectWidget) {
+      this.selectWidget.off("change");
+      this.selectWidget = null;
+    }
   },
 });
 </script>

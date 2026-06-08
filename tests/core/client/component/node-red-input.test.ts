@@ -93,7 +93,7 @@ describe("NodeRedInput", () => {
     expect(onInput).toHaveBeenCalled();
   });
 
-  test("password type masks value on blur when __PWD__", async () => {
+  test("password type masks __PWD__ value on mount", async () => {
     const screen = render(NodeRedInput, {
       props: { value: "__PWD__", type: "password" },
     });

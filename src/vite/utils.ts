@@ -32,8 +32,12 @@ function copyFiles(targets: CopyTarget[], outDir: string): void {
 function getPackageName(): string {
   const pkgPath = path.resolve("./package.json");
   if (fs.existsSync(pkgPath)) {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as PackageJson;
-    return pkg.name;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as PackageJson;
+      return pkg.name;
+    } catch {
+      return "node-red-nodes";
+    }
   }
 
   return "node-red-nodes";

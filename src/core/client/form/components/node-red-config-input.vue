@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, shallowRef } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 export default defineComponent({
   components: { NodeRedInputLabel },
@@ -59,6 +59,11 @@ export default defineComponent({
     },
   },
   emits: ["update:modelValue", "update:value"],
+  setup() {
+    return {
+      jqInput: shallowRef<any>(null),
+    };
+  },
   computed: {
     inputId() {
       return "node-input-" + this.propName;
@@ -76,6 +81,7 @@ export default defineComponent({
     );
 
     const input = $("#" + this.inputId);
+    this.jqInput = input;
     input.on("change", () => {
       const val = input.val() as string;
       // "_ADD_" is Node-RED's internal placeholder for "Add new..." —
@@ -86,6 +92,12 @@ export default defineComponent({
     });
 
     input.val(this.effectiveValue || "_ADD_");
+  },
+  beforeUnmount() {
+    if (this.jqInput) {
+      this.jqInput.off("change");
+      this.jqInput = null;
+    }
   },
 });
 </script>
