@@ -22,9 +22,12 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 | `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`, `useFormNode`, `Infer`) |
 | `@bonsae/nrg/vite` | Vite plugin for building and developing Node-RED packages |
 | `@bonsae/nrg/test/server/unit` | Server unit test helpers (`createNode`, `createRED`, `MockRED`) |
-| `@bonsae/nrg/test/client/unit` | Client unit test config and mocks (`defaultConfig`, `createRED`, `createJQuery`) |
+| `@bonsae/nrg/test/server/unit/config` | Server unit test default vitest config (`defaultConfig`) |
+| `@bonsae/nrg/test/client/unit` | Client unit test mocks (`createRED`, `createJQuery`, `useFormNode`) |
+| `@bonsae/nrg/test/client/unit/config` | Client unit test default vitest config (`defaultConfig`) |
 | `@bonsae/nrg/test/client/unit/setup` | Setup file that installs `RED` and `$` mocks on `window` |
-| `@bonsae/nrg/test/client/component` | Client component test helpers (`createNode`, `defaultConfig`, `createRED`, `createJQuery`) |
+| `@bonsae/nrg/test/client/component` | Client component test helpers (`createNode`, `createRED`, `createJQuery`, `useFormNode`) |
+| `@bonsae/nrg/test/client/component/config` | Client component test default vitest config (`defaultConfig`) |
 | `@bonsae/nrg/test/client/component/setup` | Setup file that installs `RED` and `$` mocks on `window` with Vue i18n |
 | `@bonsae/nrg/test/client/e2e` | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`, `setup`, `teardown`) |
 | `@bonsae/nrg/tsconfig/base.json` | Base TypeScript configuration |
@@ -174,15 +177,15 @@ describe("my-node", () => {
 Test client-side TypeScript logic (validation, utilities) with mocked `RED` and `$` globals:
 
 ```typescript
-// vitest.config.ts
-import { defineConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+// vitest.client.unit.config.ts
+import { defineConfig, mergeConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/unit/config";
 
-export default defineConfig({
+export default mergeConfig(defaultConfig, defineConfig({
   test: {
-    ...defaultConfig,
+    include: ["tests/client/unit/**/*.test.ts"],
   },
-});
+}));
 ```
 
 ```typescript
@@ -199,46 +202,49 @@ describe("myUtil", () => {
 
 ### Client Component Tests
 
-Test your Vue editor components with mocked Node-RED globals:
+Test your Vue editor components with mocked Node-RED globals. Components that use `useFormNode()` receive their node data via Vue's `provide`/`inject` — use `createNode().provide` to supply it in tests:
 
 ```typescript
-// vitest.config.ts
-import { defineConfig } from "vitest/config";
-import { playwright } from "@vitest/browser-playwright";
-import vue from "@vitejs/plugin-vue";
-import { defaultConfig } from "@bonsae/nrg/test/client/component";
+// vitest.client.component.config.ts
+import { defineConfig, mergeConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/component/config";
 
-export default defineConfig({
-  plugins: [vue()],
+export default mergeConfig(defaultConfig, defineConfig({
   test: {
-    ...defaultConfig,
-    browser: {
-      ...defaultConfig.browser,
-      provider: playwright(),
-    },
+    include: ["tests/client/component/**/*.test.ts"],
   },
-});
+}));
 ```
 
 ```typescript
-// tests/client/component/my-component.test.ts
+// tests/client/component/my-form.test.ts
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { createNode } from "@bonsae/nrg/test/client/component";
-import MyComponent from "../src/client/components/my-component.vue";
+import MyForm from "../src/client/components/my-form.vue";
 
-describe("MyComponent", () => {
-  test("renders with node props", async () => {
-    const { node } = createNode({ name: "test" });
-    const screen = render(MyComponent, {
-      props: { node },
+describe("MyForm", () => {
+  test("renders fields from injected node", async () => {
+    const { provide } = createNode({ name: "test", url: "https://example.com" });
+    const screen = render(MyForm, {
+      global: { provide },
     });
-    await expect.element(screen.getByText("test")).toBeInTheDocument();
+    await expect.element(screen.getByDisplayValue("test")).toBeInTheDocument();
   });
 
-  test("calls RED.editor API", async () => {
-    const { node, RED } = createNode();
-    render(MyComponent, { props: { node, value: "" } });
+  test("accesses node id for API calls", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => ({}) });
+    vi.stubGlobal("fetch", fetchSpy);
+    const { node, provide } = createNode({ name: "test" });
+    render(MyForm, { global: { provide } });
+    await vi.waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(`my-api/${node.id}`);
+    });
+  });
+
+  test("asserts RED.editor API calls", async () => {
+    const { RED, provide } = createNode();
+    render(MyForm, { global: { provide } });
     expect(RED.editor.createEditor).toHaveBeenCalled();
   });
 });

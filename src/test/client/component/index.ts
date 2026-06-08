@@ -4,15 +4,7 @@ import type { MockRED } from "../mocks";
 
 export type { MockRED, MockEditor } from "../mocks";
 export { createRED, createJQuery } from "../mocks";
-
-export const defaultConfig = {
-  testTimeout: 30_000,
-  setupFiles: ["@bonsae/nrg/test/client/component/setup"],
-  browser: {
-    enabled: true,
-    instances: [{ browser: "chromium" }],
-  },
-};
+export { useFormNode } from "../../../core/client/use-form-node";
 
 export interface TestNode {
   id: string;
@@ -23,9 +15,16 @@ export interface TestNode {
   [key: string]: any;
 }
 
+interface FormProvide {
+  __nrg_form_node: TestNode;
+  __nrg_form_schema: Record<string, any>;
+  __nrg_form_errors: Record<string, string>;
+}
+
 interface CreateNodeResult {
   node: TestNode;
   RED: MockRED;
+  provide: FormProvide;
 }
 
 export function createNode(
@@ -41,7 +40,12 @@ export function createNode(
   };
   const RED = getMockRED();
   spyOnRED(RED);
-  return { node, RED };
+  const provide: FormProvide = {
+    __nrg_form_node: node,
+    __nrg_form_schema: {},
+    __nrg_form_errors: {},
+  };
+  return { node, RED, provide };
 }
 
 function spyIfNeeded(obj: any, method: string): void {

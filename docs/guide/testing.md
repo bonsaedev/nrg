@@ -70,18 +70,22 @@ pnpm add -D vitest
 
 #### 3. Create a vitest config
 
-No special configuration is required — Vitest picks up your `vite.config.ts` or uses defaults. If you want a dedicated config:
-
 ```typescript
 // vitest.server.unit.config.ts
-import { defineConfig } from "vitest/config";
+import { defineConfig, mergeConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/server/unit/config";
 
-export default defineConfig({
+export default mergeConfig(defaultConfig, defineConfig({
   test: {
     include: ["tests/server/**/*.test.ts"],
   },
-});
+}));
 ```
+
+The `defaultConfig` provides:
+
+- `testTimeout: 30_000`
+- `@` alias pointing to `src/` in your project root
 
 #### 4. Add a test script
 
@@ -147,6 +151,7 @@ import { createNode } from "@bonsae/nrg/test/server/unit";
 import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
 import MyNode from "../src/server/nodes/my-node";
 import Splitter from "../src/server/nodes/splitter";
+import Router from "../src/server/nodes/router";
 import RemoteServer from "../src/server/nodes/remote-server";
 
 describe("my-node", () => {
@@ -449,15 +454,14 @@ pnpm add -D vitest happy-dom
 
 ```typescript
 // vitest.client.unit.config.ts
-import { defineConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/unit";
+import { defineConfig, mergeConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/unit/config";
 
-export default defineConfig({
+export default mergeConfig(defaultConfig, defineConfig({
   test: {
-    ...defaultConfig,
     include: ["tests/client/unit/**/*.test.ts"],
   },
-});
+}));
 ```
 
 The `defaultConfig` provides:
@@ -465,6 +469,8 @@ The `defaultConfig` provides:
 - `testTimeout: 30_000`
 - `environment: "happy-dom"` for `window`, `document`, and other browser globals
 - `setupFiles` pointing to the built-in setup that installs `RED` and `$` mocks on `window`
+- `@` alias pointing to `src/` in your project root
+- `@bonsae/nrg/client` alias resolved to the test library (so `useFormNode` imports work without a runtime bundle)
 
 #### 4. Add a test script
 
@@ -543,42 +549,36 @@ pnpm add -D vitest vitest-browser-vue @vitest/browser-playwright @vitest/coverag
 
 ```typescript
 // vitest.client.component.config.ts
-import { defineConfig } from "vitest/config";
-import { playwright } from "@vitest/browser-playwright";
-import vue from "@vitejs/plugin-vue";
-import { defaultConfig } from "@bonsae/nrg/test/client/component";
+import { defineConfig, mergeConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/component/config";
 
-export default defineConfig({
-  plugins: [vue()],
+export default mergeConfig(defaultConfig, defineConfig({
   test: {
-    ...defaultConfig,
     include: ["tests/client/component/**/*.test.ts"],
-    browser: {
-      ...defaultConfig.browser,
-      provider: playwright(),
-    },
   },
-});
+}));
 ```
 
 The `defaultConfig` provides:
 
+- Vue plugin (`@vitejs/plugin-vue`)
+- Playwright browser provider with chromium, firefox, and webkit instances
 - `testTimeout: 30_000`
 - `setupFiles` pointing to the built-in setup that installs `$` and `RED` mocks on `window` and configures Vue i18n
-- `browser.enabled: true` with a single chromium instance
+- `@` alias pointing to `src/` in your project root
+- `@bonsae/nrg/client` alias resolved to the test library (so `useFormNode` imports work without a runtime bundle)
 
-You can add more browser instances if you want cross-browser coverage:
+To test on a single browser only, override the `browser.instances` array:
 
 ```typescript
-browser: {
-  ...defaultConfig.browser,
-  instances: [
-    { browser: "chromium" },
-    { browser: "firefox" },
-    { browser: "webkit" },
-  ],
-  provider: playwright(),
-},
+export default mergeConfig(defaultConfig, defineConfig({
+  test: {
+    include: ["tests/client/component/**/*.test.ts"],
+    browser: {
+      instances: [{ browser: "chromium" }],
+    },
+  },
+}));
 ```
 
 #### 4. Add a test script
@@ -593,26 +593,29 @@ browser: {
 
 ### API
 
-#### `defaultConfig`
-
-Vitest test config with browser mode enabled (chromium), setup files, and timeout. Spread it into your `defineConfig` and add `provider: playwright()` in the `browser` override.
-
 #### `createNode(overrides?)`
 
-Creates a mock Node-RED node object for passing as a component prop. Returns `{ node, RED }` — a `TestNode` with sensible defaults (`id`, `type`, `changed`, `_def`, `_`) and the mock `RED` instance with all methods wrapped in `vi.spyOn`.
+Creates a mock Node-RED node object and the `provide` object needed by `useFormNode()` components. Returns `{ node, RED, provide }` — a `TestNode` with sensible defaults (`id`, `type`, `changed`, `_def`, `_`), the mock `RED` instance with all methods wrapped in `vi.spyOn`, and a `provide` object that maps the internal injection keys (`__nrg_form_node`, `__nrg_form_schema`, `__nrg_form_errors`).
 
-Because every RED method is spied, you can assert on calls directly without manual setup:
+Pass `provide` to Vue Test Utils' `global.provide` so components that call `useFormNode()` receive the node, schema, and errors via `inject()`:
 
 ```typescript
-const { node, RED } = createNode({ name: "test", retries: 3 });
-render(MyComponent, { props: { node } });
+const { provide } = createNode({ name: "test", retries: 3 });
+render(MyForm, { global: { provide } });
+```
+
+When you also need the node or RED instance (e.g. to assert on `node.id` or spy on RED methods), destructure them:
+
+```typescript
+const { node, RED, provide } = createNode({ name: "test" });
+render(MyForm, { global: { provide } });
 expect(RED.editor.createEditor).toHaveBeenCalled();
 ```
 
-You can override any method per test while keeping the default implementation for the rest:
+You can override any RED method per test while keeping the default implementation for the rest:
 
 ```typescript
-const { node, RED } = createNode();
+const { RED, provide } = createNode();
 RED.nodes.dirty.mockReturnValue(true);
 ```
 
@@ -637,22 +640,33 @@ The mock provides:
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { createNode } from "@bonsae/nrg/test/client/component";
+import MyForm from "../../../src/client/components/my-form.vue";
 
-describe("editor component", () => {
-  test("asserts RED.editor.createEditor was called", async () => {
-    const { node, RED } = createNode();
-    render(MyEditorInput, { props: { node, value: "test content" } });
+describe("my-form component", () => {
+  test("renders fields from injected node", async () => {
+    const { provide } = createNode({ name: "test", url: "https://example.com" });
+    const screen = render(MyForm, {
+      global: { provide },
+    });
+    await expect.element(screen.getByDisplayValue("test")).toBeInTheDocument();
+  });
+
+  test("accesses node id for API calls", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => ({}) });
+    vi.stubGlobal("fetch", fetchSpy);
+    const { node, provide } = createNode({ name: "test" });
+    render(MyForm, { global: { provide } });
     await vi.waitFor(() => {
-      expect(RED.editor.createEditor).toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledWith(`my-api/${node.id}`);
     });
   });
 
-  test("renders node form", async () => {
-    const { node } = createNode({ name: "test" });
-    const screen = render(MyForm, {
-      props: { node },
+  test("asserts RED.editor API calls", async () => {
+    const { RED, provide } = createNode();
+    render(MyForm, { global: { provide } });
+    await vi.waitFor(() => {
+      expect(RED.editor.createEditor).toHaveBeenCalled();
     });
-    await expect.element(screen.getByText("test")).toBeInTheDocument();
   });
 
   test("validates required fields", async () => {
@@ -671,57 +685,6 @@ describe("editor component", () => {
     input.value = "new value";
     input.dispatchEvent(new Event("input"));
     expect(onUpdate).toHaveBeenCalledWith("new value");
-  });
-});
-```
-
-### Testing `useFormNode` Components
-
-Components that use `useFormNode()` need the injection keys provided by the NRG form wrapper. Use Vue's `global.provide` option to supply them in tests:
-
-```typescript
-import { describe, test, expect } from "vitest";
-import { render } from "vitest-browser-vue";
-import { createNode } from "@bonsae/nrg/test/client/component";
-import MyForm from "../../../src/client/components/my-node.vue";
-
-describe("my-node form (useFormNode)", () => {
-  test("renders fields from injected node", async () => {
-    const { node } = createNode({ name: "test", url: "https://example.com" });
-    const errors = {};
-    const schema = { properties: { name: {}, url: {} } };
-
-    const screen = render(MyForm, {
-      global: {
-        provide: {
-          __nrg_form_node: node,
-          __nrg_form_schema: schema,
-          __nrg_form_errors: errors,
-        },
-      },
-    });
-
-    await expect.element(screen.getByDisplayValue("test")).toBeInTheDocument();
-  });
-
-  test("displays validation errors", async () => {
-    const { node } = createNode({ name: "" });
-    const errors = { "node.name": "must NOT have fewer than 1 characters" };
-    const schema = { properties: { name: {} } };
-
-    const screen = render(MyForm, {
-      global: {
-        provide: {
-          __nrg_form_node: node,
-          __nrg_form_schema: schema,
-          __nrg_form_errors: errors,
-        },
-      },
-    });
-
-    await expect
-      .element(screen.getByText("must NOT have fewer than 1 characters"))
-      .toBeInTheDocument();
   });
 });
 ```

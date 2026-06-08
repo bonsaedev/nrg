@@ -982,6 +982,49 @@ The `useFormNode` composable uses the same TypeBox schemas you defined on the se
 This example shows an HTTP request form that conditionally shows/hides fields and validates them based on user selections — things the auto-generated form can't do on its own:
 
 ```vue
+<script setup lang="ts">
+import { computed } from "vue";
+import { useFormNode } from "@bonsae/nrg/client";
+import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/http-request";
+
+const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
+
+const methods = [
+  { value: "GET", label: "GET" },
+  { value: "POST", label: "POST" },
+  { value: "PUT", label: "PUT" },
+  { value: "PATCH", label: "PATCH" },
+  { value: "DELETE", label: "DELETE" },
+];
+
+const authTypes = [
+  { value: "none", label: "None" },
+  { value: "basic", label: "Basic" },
+  { value: "bearer", label: "Bearer Token" },
+];
+
+const hasBody = computed(() => ["POST", "PUT", "PATCH"].includes(node.method));
+
+const validationErrors = computed(() => {
+  const result: Record<string, string> = {};
+  if (!node.url) result.url = "URL is required";
+  if (hasBody.value && !node.body) {
+    result.body = `Body is required for ${node.method} requests`;
+  }
+  if (node.authType === "basic") {
+    if (!node.username) result.username = "Username is required";
+    if (!node.password) result.password = "Password is required";
+  }
+  if (node.authType === "bearer" && !node.token) {
+    result.token = "Token is required";
+  }
+  if (node.retries > 0 && !node.retryDelay) {
+    result.retryDelay = "Retry delay is required when retries > 0";
+  }
+  return result;
+});
+</script>
+
 <template>
   <div>
     <div class="form-row">
@@ -1089,66 +1132,13 @@ This example shows an HTTP request form that conditionally shows/hides fields an
     </div>
   </div>
 </template>
-
-<script lang="ts">
-import { defineComponent } from "vue";
-
-export default defineComponent({
-  props: {
-    node: { type: Object, required: true },
-    errors: { type: Object, default: () => ({}) },
-  },
-  computed: {
-    hasBody(): boolean {
-      return ["POST", "PUT", "PATCH"].includes(this.node.method);
-    },
-    validationErrors(): Record<string, string> {
-      const errors: Record<string, string> = {};
-
-      if (!this.node.url) {
-        errors.url = "URL is required";
-      }
-      if (this.hasBody && !this.node.body) {
-        errors.body = `Body is required for ${this.node.method} requests`;
-      }
-      if (this.node.authType === "basic") {
-        if (!this.node.username) errors.username = "Username is required";
-        if (!this.node.password) errors.password = "Password is required";
-      }
-      if (this.node.authType === "bearer" && !this.node.token) {
-        errors.token = "Token is required";
-      }
-      if (this.node.retries > 0 && !this.node.retryDelay) {
-        errors.retryDelay = "Retry delay is required when retries > 0";
-      }
-      return errors;
-    },
-  },
-  data() {
-    return {
-      methods: [
-        { value: "GET", label: "GET" },
-        { value: "POST", label: "POST" },
-        { value: "PUT", label: "PUT" },
-        { value: "PATCH", label: "PATCH" },
-        { value: "DELETE", label: "DELETE" },
-      ],
-      authTypes: [
-        { value: "none", label: "None" },
-        { value: "basic", label: "Basic" },
-        { value: "bearer", label: "Bearer Token" },
-      ],
-    };
-  },
-});
-</script>
 ```
 
 This form demonstrates:
 - **Conditional visibility** — body editor only appears for POST/PUT/PATCH, auth fields appear based on auth type, retry delay only shows when retries > 0
 - **Custom validation** — computed `validationErrors` with context-aware messages, evaluated reactively as the user types
 - **Icons and labels** — every field uses the `icon` prop for Font Awesome icons
-- **Schema + custom errors together** — `errors` from AJV schema validation and `validationErrors` from custom logic can be used side by side
+- **Schema + custom errors together** — `errors` from AJV schema validation via `useFormNode()` and `validationErrors` from custom logic can be used side by side
 
 ### Built-in Form Components
 

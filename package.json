@@ -77,15 +77,18 @@
       "types": "./dist/types/test-server-unit.d.ts",
       "default": "./dist/test/server/unit/index.js"
     },
+    "./test/server/unit/config": "./dist/test/server/unit/config.js",
     "./test/client/component": {
       "types": "./dist/types/test-client-component.d.ts",
       "default": "./dist/test/client/component/index.js"
     },
+    "./test/client/component/config": "./dist/test/client/component/config.js",
     "./test/client/component/setup": "./dist/test/client/component/setup.js",
     "./test/client/unit": {
       "types": "./dist/types/test-client-unit.d.ts",
       "default": "./dist/test/client/unit/index.js"
     },
+    "./test/client/unit/config": "./dist/test/client/unit/config.js",
     "./test/client/unit/setup": "./dist/test/client/unit/setup.js",
     "./test/client/e2e": {
       "types": "./dist/types/test-client-e2e.d.ts",

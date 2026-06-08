@@ -1,19 +1,14 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, mergeConfig } from "vitest/config";
 import path from "path";
-import { playwright } from "@vitest/browser-playwright";
-import vue from "@vitejs/plugin-vue";
-import { defaultConfig } from "./src/test/client/component";
+import { defaultConfig } from "./src/test/client/component/config";
 
-export default defineConfig({
-  plugins: [vue()],
+export default mergeConfig(defaultConfig, defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
       "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
     },
   },
   test: {
-    ...defaultConfig,
     setupFiles: ["tests/core/client/component/setup.ts"],
     include: ["tests/core/client/component/**/*.test.ts"],
     coverage: {
@@ -22,14 +17,5 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       include: ["src/core/client/form/components/**/*.{ts,vue}"],
     },
-    browser: {
-      ...defaultConfig.browser,
-      instances: [
-        { browser: "chromium" },
-        { browser: "firefox" },
-        { browser: "webkit" },
-      ],
-      provider: playwright(),
-    },
   },
-});
+}));
