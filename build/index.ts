@@ -31,7 +31,14 @@ const DTS_FLAGS =
 // Helpers
 // ---------------------------------------------------------------------------
 
-function esbuild(entry, { format, platform = "node", outfile, outdir }) {
+interface EsbuildOptions {
+  format: string;
+  platform?: string;
+  outfile?: string;
+  outdir?: string;
+}
+
+function esbuild(entry: string, { format, platform = "node", outfile, outdir }: EsbuildOptions) {
   const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
   execSync(
     `esbuild ${entry} --bundle --packages=external --format=${format} --platform=${platform} ${out}`,
