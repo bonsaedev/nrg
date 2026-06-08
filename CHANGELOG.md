@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.2](https://github.com/bonsaedev/nrg/compare/v0.18.1...v0.18.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* add playwright and vitest-browser-vue as optional peer deps ([dcb43c4](https://github.com/bonsaedev/nrg/commit/dcb43c475368f2c64b8ed8fd3ade5ac8aa0d38ca))
+
 ## [0.18.1](https://github.com/bonsaedev/nrg/compare/v0.18.0...v0.18.1) (2026-06-08)
 
 
