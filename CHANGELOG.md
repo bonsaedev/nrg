@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.4](https://github.com/bonsaedev/nrg/compare/v0.18.3...v0.18.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* resolve node-red from local node_modules and fix Windows userDir path ([e584f2a](https://github.com/bonsaedev/nrg/commit/e584f2aee0a8c67df3d9688ddfe5ccb719bc86b0))
+
 ## [0.18.3](https://github.com/bonsaedev/nrg/compare/v0.18.2...v0.18.3) (2026-06-08)
 
 
