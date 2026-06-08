@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.3](https://github.com/bonsaedev/nrg/compare/v0.18.2...v0.18.3) (2026-06-08)
+
+
+### Bug Fixes
+
+* resolve node-red binary directly to avoid Windows stdout buffering ([cbcf1b4](https://github.com/bonsaedev/nrg/commit/cbcf1b49bd1d11b4281b0e54fa9e79bc436d65af))
+
 ## [0.18.2](https://github.com/bonsaedev/nrg/compare/v0.18.1...v0.18.2) (2026-06-08)
 
 
