@@ -145,13 +145,21 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 
 ## Testing
 
-NRG provides four test libraries and bundles all test infrastructure (happy-dom, Playwright, Vue plugin, browser utilities) as direct dependencies. The only package you need to install yourself is `vitest`:
+NRG provides four test libraries and bundles most test infrastructure as direct dependencies. Install `vitest` plus any optional peer dependencies you need:
 
 ```bash
 pnpm add -D vitest
 ```
 
-Coverage providers are optional peer dependencies — install `@vitest/coverage-v8` or `@vitest/coverage-istanbul` only if you run with `--coverage`.
+Optional peer dependencies:
+
+| Package | When to install |
+| --- | --- |
+| `@vitest/browser-playwright` | Component tests (Playwright browser provider for Vitest) |
+| `playwright` | Component tests or E2E tests (direct `import` in test files) |
+| `vitest-browser-vue` | Component tests (`render` helper for Vue components) |
+| `@vitest/coverage-v8` | Coverage with `--coverage` (V8 provider) |
+| `@vitest/coverage-istanbul` | Coverage with `--coverage` (Istanbul provider) |
 
 - `@bonsae/nrg/test/server/unit` — server-side unit tests
 - `@bonsae/nrg/test/client/unit` — client-side unit tests (TypeScript logic)

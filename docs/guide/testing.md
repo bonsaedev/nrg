@@ -8,16 +8,25 @@ If you created your project with `@bonsae/create-nrg`, the vitest configs, setup
 
 ## Dependencies
 
-NRG bundles most test infrastructure as direct dependencies, so installing `@bonsae/nrg` gives you everything you need out of the box — including happy-dom, Playwright, browser test utilities, and Vue plugin integration. You only need to install two packages yourself:
+NRG bundles most test infrastructure as direct dependencies, so installing `@bonsae/nrg` gives you everything you need out of the box — including happy-dom, browser test utilities, and Vue plugin integration. You only need to install `vitest` plus any optional peer dependencies for the test types you use:
 
-| Package | Why |
-|---------|-----|
-| `vitest` | The test runner. It's a peer dependency because your project controls the version and runs it directly via CLI scripts. |
-| `@vitest/coverage-istanbul` or `@vitest/coverage-v8` | Coverage providers are optional — only needed when running with `--coverage`. Install whichever provider you configure in your vitest configs. |
+| Package | Required for | Why it's a peer dep |
+|---------|-------------|---------------------|
+| `vitest` | All tests | Test runner — your project controls the version and runs it via CLI |
+| `@vitest/browser-playwright` | Component tests | Playwright browser provider for Vitest — imported in vitest config files |
+| `playwright` | Component tests, E2E tests | Test files import it directly (e.g., `import { chromium } from "playwright"`) |
+| `vitest-browser-vue` | Component tests | Provides the `render` helper for mounting Vue components in browser tests |
+| `@vitest/coverage-v8` | Coverage (Node.js tests) | Optional — only needed when running with `--coverage` |
+| `@vitest/coverage-istanbul` | Coverage (browser tests) | Optional — only needed when running with `--coverage` |
 
 ```bash
+# required
 pnpm add -D vitest
-# optional: install a coverage provider
+
+# for component tests
+pnpm add -D @vitest/browser-playwright playwright vitest-browser-vue
+
+# optional: coverage providers
 pnpm add -D @vitest/coverage-istanbul  # for browser-based tests (component, e2e)
 pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, client unit)
 ```
