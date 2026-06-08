@@ -1,5 +1,19 @@
 # Changelog
 
+# [0.18.0](https://github.com/bonsaedev/nrg/compare/v0.17.0...v0.18.0) (2026-06-08)
+
+
+### Bug Fixes
+
+* address review issues across client, vite, and test infrastructure ([78cd843](https://github.com/bonsaedev/nrg/commit/78cd843716d19e08ef0b90947d3c15ceb8a02893))
+* use shallowRef to prevent Vue proxy from breaking editor and jQuery widgets ([19a3152](https://github.com/bonsaedev/nrg/commit/19a3152f294bc50c03d968706067585fce7f9a74))
+
+
+### Features
+
+* add client-side type inference and useFormNode composable ([b608225](https://github.com/bonsaedev/nrg/commit/b608225e425e695a688be0cd1349d7508c896532))
+* add sent(portName) overload to test helper for typed named-port access ([44a668b](https://github.com/bonsaedev/nrg/commit/44a668b9d27c8c45acc3fe61d93bbd450796c873))
+
 # [0.17.0](https://github.com/bonsaedev/nrg/compare/v0.16.0...v0.17.0) (2026-06-07)
 
 
