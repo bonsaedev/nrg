@@ -132,7 +132,8 @@ Every node returned by `createNode` has these helpers:
 | `node.close(removed?)` | Trigger the `closed()` lifecycle hook |
 | `node.reset()` | Clear all captured sent messages, statuses, and logs |
 | `node.sent()` | All raw messages passed to `send()` |
-| `node.sent(port)` | Messages sent to a specific output port |
+| `node.sent(port)` | Messages sent to a specific output port (numeric index) |
+| `node.sent(name)` | Messages sent to a named output port (resolved from `outputsSchema` keys) |
 | `node.statuses()` | All `status()` calls |
 | `node.logged(level?)` | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`) |
 | `node.warned()` | Warning messages |

@@ -5,6 +5,7 @@ import type { NodeRedNode } from "../../../core/server/types";
 import type { NodeConstructor as NodeClass } from "../../../core/server/nodes/types/node";
 import type { MockRED } from "./mocks";
 import { WIRE_HANDLERS } from "../../../core/server/nodes/symbols";
+import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {
   config?: Record<string, any>;
@@ -16,11 +17,21 @@ interface CreateNodeOptions {
 type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
 type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
 
+type PortNames<T> = [T] extends [Record<string, Record<string, any>>]
+  ? string extends keyof T
+    ? never
+    : keyof T & string
+  : never;
+
+type PortMessage<T, P extends string> =
+  T extends Record<string, any> ? (P extends keyof T ? T[P] : never) : never;
+
 interface TestNodeHelpers<TInput = any, TOutput = any> {
   receive(msg: TInput): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
   sent(): TOutput[];
+  sent<P extends PortNames<TOutput>>(port: P): PortMessage<TOutput, P>[];
   sent(port: number): any[];
   statuses(): any[];
   logged(level?: "info" | "warn" | "error" | "debug"): string[];
@@ -56,6 +67,7 @@ function buildConfig(
 function attachHelpers<T>(
   node: T,
   nodeRedNode: any,
+  NodeClass: NodeClass,
 ): T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>> {
   const sentMessages: any[] = [];
   const statusCalls: any[] = [];
@@ -93,8 +105,23 @@ function attachHelpers<T>(
       nodeRedNode.warn.mockClear();
       nodeRedNode.error.mockClear();
     },
-    sent(port?: number): any[] {
+    sent(port?: number | string): any[] {
       if (port === undefined) return [...sentMessages];
+      if (typeof port === "string") {
+        const schema = NodeClass.outputsSchema;
+        if (
+          !schema ||
+          Array.isArray(schema) ||
+          (typeof schema === "object" && Kind in schema)
+        ) {
+          return [];
+        }
+        const idx = Object.keys(schema).indexOf(port);
+        if (idx === -1) return [];
+        return sentMessages
+          .map((msg) => (Array.isArray(msg) ? msg[idx] : undefined))
+          .filter((msg) => msg != null);
+      }
       return sentMessages
         .map((msg) =>
           Array.isArray(msg) ? msg[port] : port === 0 ? msg : undefined,
@@ -210,7 +237,11 @@ async function createNode<T extends NodeClass>(
   const node = new NodeClass(RED, nodeRedNode, config, credentials);
 
   // Attach helpers before created() so status/send calls during created() are captured
-  const augmented = attachHelpers<InstanceType<T>>(node, nodeRedNode);
+  const augmented = attachHelpers<InstanceType<T>>(
+    node,
+    nodeRedNode,
+    NodeClass,
+  );
 
   // Wire up event handlers (same path as production)
   const createdPromise = Promise.resolve(node.created?.());

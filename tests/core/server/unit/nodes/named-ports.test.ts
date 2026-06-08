@@ -86,11 +86,8 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      const sent = node.sent();
-      expect(sent).toHaveLength(1);
-      const msg = sent[0] as unknown as unknown[];
-      expect(msg[0]).toEqual({ payload: "ok" });
-      expect(msg[1]).toBeUndefined();
+      expect(node.sent("success")).toEqual([{ payload: "ok" }]);
+      expect(node.sent("failure")).toEqual([]);
     });
 
     it("sends to second named port", async () => {
@@ -109,11 +106,8 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      const sent = node.sent();
-      expect(sent).toHaveLength(1);
-      const msg = sent[0] as unknown as unknown[];
-      expect(msg[0]).toBeUndefined();
-      expect(msg[1]).toEqual({ payload: { reason: "bad" } });
+      expect(node.sent("success")).toEqual([]);
+      expect(node.sent("failure")).toEqual([{ payload: { reason: "bad" } }]);
     });
 
     it("sends to named port alongside builtin ports", async () => {
@@ -132,11 +126,7 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      const sent = node.sent();
-      expect(sent.length).toBeGreaterThanOrEqual(1);
-      // Named port "success" → index 0
-      const successSend = sent[0] as unknown as unknown[];
-      expect(successSend[0]).toEqual({ payload: "ok" });
+      expect(node.sent("success")).toEqual([{ payload: "ok" }]);
     });
 
     it("silently drops message for unknown named port", async () => {
@@ -175,13 +165,8 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      const sent = node.sent();
-      // The message is placed at index 5 in the output array
-      // which creates a sparse send (undefined at indices 0-4)
-      expect(sent).toHaveLength(1);
-      const msg = sent[0] as unknown as unknown[];
-      expect(msg[5]).toEqual({ payload: "oob" });
-      expect(msg[0]).toBeUndefined();
+      expect(node.sent(5)).toEqual([{ payload: "oob" }]);
+      expect(node.sent(0)).toEqual([]);
     });
 
     it("sends by numeric index with record schema", async () => {
@@ -200,9 +185,7 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      const sent = node.sent();
-      expect(sent).toHaveLength(1);
-      expect((sent[0] as unknown as unknown[])[0]).toEqual({ payload: "by-index" });
+      expect(node.sent(0)).toEqual([{ payload: "by-index" }]);
     });
   });
 
