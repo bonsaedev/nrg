@@ -1,5 +1,5 @@
 import type { ChildProcess } from "child_process";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import getPort from "get-port";
 import detect from "detect-port";
 import { builtinModules } from "module";
@@ -7,6 +7,7 @@ import treeKill from "tree-kill";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { pathToFileURL } from "url";
 import { build as esbuild } from "esbuild";
 import { withTimeout, retry } from "./async-utils";
 import { NodeRedStartError } from "./errors";
@@ -109,7 +110,7 @@ class NodeRedLauncher implements INodeRedLauncher {
       define: {
         "import.meta.dirname": JSON.stringify(settingsDir),
         "import.meta.filename": JSON.stringify(settingsFile),
-        "import.meta.url": JSON.stringify(`file://${settingsFile}`),
+        "import.meta.url": JSON.stringify(pathToFileURL(settingsFile).href),
       },
       external: [...nodeBuiltins, "node-red", "@node-red/*"],
     });
@@ -169,6 +170,61 @@ module.exports = settings;
     return finalRuntimeSettingsFilepath;
   }
 
+  private resolveNodeRedEntryPoint(): string {
+    const resolverScript = path.join(
+      os.tmpdir(),
+      `nrg-resolve-node-red-${process.pid}.cjs`,
+    );
+
+    fs.writeFileSync(
+      resolverScript,
+      `const fs = require("fs");
+const path = require("path");
+const isWin = process.platform === "win32";
+const binName = isWin ? "node-red.cmd" : "node-red";
+const dirs = process.env.PATH.split(path.delimiter);
+for (const d of dirs) {
+  const f = path.join(d, binName);
+  if (fs.existsSync(f)) {
+    if (isWin) {
+      const nodeRedDir = path.resolve(d, "..", "node-red");
+      const pkg = JSON.parse(fs.readFileSync(path.join(nodeRedDir, "package.json"), "utf-8"));
+      const bin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin["node-red"];
+      process.stdout.write(path.resolve(nodeRedDir, bin));
+    } else {
+      process.stdout.write(fs.realpathSync(f));
+    }
+    break;
+  }
+}`,
+    );
+
+    try {
+      const entryPoint = (
+        execSync(
+          `npx --yes -p ${this.nodeRedCommand} -c "node ${resolverScript}"`,
+          { encoding: "utf-8", timeout: 120_000 },
+        ) as string
+      ).trim();
+
+      if (!entryPoint || !fs.existsSync(entryPoint)) {
+        throw new NodeRedStartError(
+          new Error(
+            `Could not resolve node-red entry point: ${entryPoint || "(empty)"}`,
+          ),
+        );
+      }
+
+      return entryPoint;
+    } finally {
+      try {
+        fs.unlinkSync(resolverScript);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+  }
+
   private log(line: string): void {
     if (line.includes("Server now running at")) {
       return;
@@ -199,6 +255,8 @@ module.exports = settings;
       }
     }
 
+    const nodeRedEntryPoint = this.resolveNodeRedEntryPoint();
+
     const startProcess = (): Promise<void> => {
       // eslint-disable-next-line no-async-promise-executor
       return new Promise(async (resolve, reject) => {
@@ -210,11 +268,10 @@ module.exports = settings;
           this.isReady = false;
 
           this.process = spawn(
-            "npx",
-            [this.nodeRedCommand, "-s", settingsPath, ...args],
+            process.execPath,
+            [nodeRedEntryPoint, "-s", settingsPath, ...args],
             {
               stdio: ["ignore", "pipe", "pipe"],
-              shell: true,
             },
           );
 
