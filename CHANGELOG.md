@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/bonsaedev/nrg/compare/v0.18.0...v0.18.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* use standalone vitest configs to avoid self-referencing package specifier ([65f8854](https://github.com/bonsaedev/nrg/commit/65f885456b8633251da5b0292f410520173cae88))
+
 # [0.18.0](https://github.com/bonsaedev/nrg/compare/v0.17.0...v0.18.0) (2026-06-08)
 
 

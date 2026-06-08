@@ -1,6 +1,6 @@
 {
   "name": "@bonsae/nrg",
-  "version": "0.18.0",
+  "version": "0.18.1",
   "description": "NRG framework — build Node-RED nodes with Vue 3, TypeScript, and JSON Schema",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
@@ -110,8 +110,12 @@
     "@vitest/coverage-v8": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@vitest/coverage-istanbul": { "optional": true },
-    "@vitest/coverage-v8": { "optional": true }
+    "@vitest/coverage-istanbul": {
+      "optional": true
+    },
+    "@vitest/coverage-v8": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",
