@@ -67,7 +67,7 @@
 <script lang="ts">
 import { type JSONSchemaType } from "ajv";
 import type { PropType } from "vue";
-import { defineComponent } from "vue";
+import { defineComponent, shallowRef } from "vue";
 import { debounce } from "es-toolkit";
 import { validateForm } from "../validation";
 
@@ -96,6 +96,13 @@ export default defineComponent({
       }>,
       required: true,
     },
+  },
+  setup() {
+    return {
+      debouncedValidate: shallowRef<
+        (((...args: any[]) => void) & { cancel?: () => void }) | null
+      >(null),
+    };
   },
   data() {
     return {

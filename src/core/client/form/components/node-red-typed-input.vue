@@ -29,7 +29,7 @@ export default defineComponent({
   components: { NodeRedInputLabel },
   props: {
     modelValue: {
-      type: Object,
+      type: Object as PropType<{ value: string; type: string } | undefined>,
       default: undefined,
       validator: function (obj: { value: string; type: string } | undefined) {
         if (obj === undefined) return true;
@@ -51,7 +51,7 @@ export default defineComponent({
       },
     },
     value: {
-      type: Object,
+      type: Object as PropType<{ value: string; type: string } | undefined>,
       default: undefined,
       validator: function (obj: { value: string; type: string } | undefined) {
         if (obj === undefined) return true;

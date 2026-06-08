@@ -128,6 +128,9 @@
       "eslint --fix",
       "prettier --write"
     ],
+    "tests/**/*.ts": [
+      "prettier --write"
+    ],
     "src/**/*.json": [
       "prettier --write"
     ]
