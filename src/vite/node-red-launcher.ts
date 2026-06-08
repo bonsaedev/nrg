@@ -2,7 +2,7 @@ import type { ChildProcess } from "child_process";
 import { spawn, execSync } from "child_process";
 import getPort from "get-port";
 import detect from "detect-port";
-import { builtinModules } from "module";
+import { builtinModules, createRequire } from "module";
 import treeKill from "tree-kill";
 import fs from "fs";
 import os from "os";
@@ -130,7 +130,7 @@ class NodeRedLauncher implements INodeRedLauncher {
 
     const outDir = path.resolve(this.outDir).split(path.sep).join("/");
     const cwd = process.cwd().split(path.sep).join("/");
-    const userDir = path.resolve(cwd, ".node-red");
+    const userDir = path.resolve(cwd, ".node-red").split(path.sep).join("/");
     const finalRuntimeSettingsFile = compiledRuntimeSettingsFilepath
       ? `
 const compiledRuntimeSettings = require("${compiledRuntimeSettingsFilepath
@@ -170,7 +170,34 @@ module.exports = settings;
     return finalRuntimeSettingsFilepath;
   }
 
+  private resolveFromLocalNodeModules(): string | null {
+    try {
+      const require_ = createRequire(path.join(process.cwd(), "package.json"));
+      const pkgJsonPath = require_.resolve("node-red/package.json");
+      const pkgDir = path.dirname(pkgJsonPath);
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+      const bin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.["node-red"];
+      if (!bin) return null;
+      const entry = path.resolve(pkgDir, bin);
+      return fs.existsSync(entry) ? entry : null;
+    } catch {
+      return null;
+    }
+  }
+
   private resolveNodeRedEntryPoint(): string {
+    this.logger.info(`Resolving ${this.nodeRedCommand} entry point...`);
+
+    const localEntry = this.resolveFromLocalNodeModules();
+    if (localEntry) {
+      this.logger.info(`Resolved from local node_modules: ${localEntry}`);
+      return localEntry;
+    }
+
+    this.logger.info(
+      `Not found locally, downloading via npx (this may take a while)...`,
+    );
+
     const resolverScript = path.join(
       os.tmpdir(),
       `nrg-resolve-node-red-${process.pid}.cjs`,
@@ -203,7 +230,7 @@ for (const d of dirs) {
       const entryPoint = (
         execSync(
           `npx --yes -p ${this.nodeRedCommand} -c "node ${resolverScript}"`,
-          { encoding: "utf-8", timeout: 120_000 },
+          { encoding: "utf-8", timeout: 300_000 },
         ) as string
       ).trim();
 
@@ -215,6 +242,7 @@ for (const d of dirs) {
         );
       }
 
+      this.logger.info(`Resolved via npx: ${entryPoint}`);
       return entryPoint;
     } finally {
       try {
