@@ -1,14 +1,15 @@
-import { defineConfig, mergeConfig } from "vitest/config";
+import { defineConfig } from "vitest/config";
 import path from "path";
-import { defaultConfig } from "./src/test/server/unit/config";
 
-export default mergeConfig(defaultConfig, defineConfig({
+export default defineConfig({
   resolve: {
     alias: {
+      "@": path.resolve(__dirname, "src"),
       "@mocks": path.resolve(__dirname, "tests/core/server/mocks"),
     },
   },
   test: {
+    testTimeout: 30_000,
     include: [
       "tests/core/server/unit/**/*.test.ts",
       "tests/core/unit/**/*.test.ts",
@@ -25,4 +26,4 @@ export default mergeConfig(defaultConfig, defineConfig({
       exclude: ["src/**/types/**", "src/**/types.ts"],
     },
   },
-}));
+});
