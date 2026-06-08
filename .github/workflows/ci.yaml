@@ -184,3 +184,44 @@ jobs:
           name: client-e2e-screenshots
           path: test-results/screenshots/
           if-no-files-found: ignore
+
+  vite-integration:
+    name: Vite Integration Tests (${{ matrix.os }})
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.11.0
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+        env:
+          HUSKY: 0
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Vite Integration Tests
+        run: pnpm tsx tests/vite/integration/vite-integration.ts --timeout=300000
