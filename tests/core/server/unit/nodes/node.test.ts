@@ -425,4 +425,43 @@ describe("Node", () => {
       expect(node.on).toHaveBeenCalledWith("input", cb);
     });
   });
+
+  describe("created hook error handling", () => {
+    it("should not produce an unhandled rejection when created() throws", async () => {
+      class FailingCreatedNode extends Node {
+        static override readonly type = "failing-created-node";
+        static override readonly category = "function";
+
+        override async created() {
+          throw new Error("init failed");
+        }
+      }
+
+      const RED = createRED();
+      initValidator(RED);
+      await FailingCreatedNode.register(RED);
+
+      const constructorFn = vi.mocked(RED.nodes.registerType).mock.calls[0][1];
+      const nodeRedNode = createNodeRedNode();
+
+      const unhandledRejection = vi.fn();
+      process.on("unhandledRejection", unhandledRejection);
+
+      try {
+        constructorFn.call(nodeRedNode, {
+          id: "n1",
+          type: "failing-created-node",
+          name: "",
+        });
+        await new Promise((r) => setTimeout(r, 50));
+
+        expect(nodeRedNode.error).toHaveBeenCalledWith(
+          "Error during created hook: init failed",
+        );
+        expect(unhandledRejection).not.toHaveBeenCalled();
+      } finally {
+        process.removeListener("unhandledRejection", unhandledRejection);
+      }
+    });
+  });
 });

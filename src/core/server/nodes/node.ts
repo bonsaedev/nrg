@@ -129,6 +129,7 @@ abstract class Node<
             throw error;
           },
         );
+        createdPromise.catch(() => {});
 
         node[WIRE_HANDLERS](this, createdPromise);
       },
@@ -141,7 +142,14 @@ abstract class Node<
     );
 
     NodeClass.validateSettings(RED);
-    await Promise.resolve(NodeClass.registered?.(RED));
+    try {
+      await Promise.resolve(NodeClass.registered?.(RED));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      RED.log.error(
+        `Error during registered hook for ${NodeClass.type}: ${message}`,
+      );
+    }
   }
 
   protected readonly RED: RED;
