@@ -13,40 +13,24 @@
 
 Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vitest.
 
-## Package Exports
-
-| Export | Description |
-| --- | --- |
-| `@bonsae/nrg` | Root entry — `defineRuntimeSettings` |
-| `@bonsae/nrg/server` | Server node classes, schema utilities, validation (`IONode`, `ConfigNode`, `defineIONode`, `defineConfigNode`, `defineModule`, `SchemaType`, `defineSchema`, `Infer`) |
-| `@bonsae/nrg/client` | Client-side registration (`registerTypes`, `defineNode`, `useFormNode`, `Infer`) |
-| `@bonsae/nrg/vite` | Vite plugin for building and developing Node-RED packages |
-| `@bonsae/nrg/test/server/unit` | Server unit test helpers (`createNode`, `createRED`, `MockRED`) |
-| `@bonsae/nrg/test/server/unit/config` | Server unit test default vitest config (`defaultConfig`) |
-| `@bonsae/nrg/test/client/unit` | Client unit test mocks (`createRED`, `createJQuery`, `useFormNode`) |
-| `@bonsae/nrg/test/client/unit/config` | Client unit test default vitest config (`defaultConfig`) |
-| `@bonsae/nrg/test/client/unit/setup` | Setup file that installs `RED` and `$` mocks on `window` |
-| `@bonsae/nrg/test/client/component` | Client component test helpers (`createNode`, `createRED`, `createJQuery`, `useFormNode`) |
-| `@bonsae/nrg/test/client/component/config` | Client component test default vitest config (`defaultConfig`) |
-| `@bonsae/nrg/test/client/component/setup` | Setup file that installs `RED` and `$` mocks on `window` with Vue i18n |
-| `@bonsae/nrg/test/client/e2e` | Browser E2E test helpers (`NodeRedEditor`, `NodeRedField`, `setup`, `teardown`) |
-| `@bonsae/nrg/tsconfig/base.json` | Base TypeScript configuration |
-| `@bonsae/nrg/tsconfig/core/server.json` | Core server source tsconfig |
-| `@bonsae/nrg/tsconfig/core/client.json` | Core client source tsconfig |
-| `@bonsae/nrg/tsconfig/test/server/unit.json` | Server unit test tsconfig |
-| `@bonsae/nrg/tsconfig/test/client/unit.json` | Client unit test tsconfig |
-| `@bonsae/nrg/tsconfig/test/client/component.json` | Client component test tsconfig |
-| `@bonsae/nrg/tsconfig/test/client/e2e.json` | Client E2E test tsconfig |
-
 ## Quick Start
 
 ```bash
-# In your Node-RED package project
 pnpm add @bonsae/nrg
-pnpm add -D vite vue
+pnpm add -D vite vue node-red
 ```
 
 > `vite` and `vue` are dev dependencies because they are only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
+
+### Node-RED Resolution
+
+The vite plugin needs a Node-RED instance for the dev server. It resolves it in this order:
+
+1. **`runtime.version`** — if specified in the plugin config, downloads that exact version via `npx` (overrides any locally installed version)
+2. **Local `node_modules`** — if `node-red` is installed as a dependency, it is used directly (fastest)
+3. **Fallback** — downloads the latest `node-red` via `npx`
+
+Installing `node-red` as a dev dependency is recommended for fast, reliable dev server startup across all platforms (especially Windows). If you need a specific version (e.g., a beta), set `runtime.version` in the plugin config instead.
 
 **vite.config.ts**
 
@@ -153,13 +137,13 @@ pnpm add -D vitest
 
 Optional peer dependencies:
 
-| Package | When to install |
-| --- | --- |
-| `@vitest/browser-playwright` | Component tests (Playwright browser provider for Vitest) |
-| `playwright` | Component tests or E2E tests (direct `import` in test files) |
-| `vitest-browser-vue` | Component tests (`render` helper for Vue components) |
-| `@vitest/coverage-v8` | Coverage with `--coverage` (V8 provider) |
-| `@vitest/coverage-istanbul` | Coverage with `--coverage` (Istanbul provider) |
+| Package                      | When to install                                              |
+| ---------------------------- | ------------------------------------------------------------ |
+| `@vitest/browser-playwright` | Component tests (Playwright browser provider for Vitest)     |
+| `playwright`                 | Component tests or E2E tests (direct `import` in test files) |
+| `vitest-browser-vue`         | Component tests (`render` helper for Vue components)         |
+| `@vitest/coverage-v8`        | Coverage with `--coverage` (V8 provider)                     |
+| `@vitest/coverage-istanbul`  | Coverage with `--coverage` (Istanbul provider)               |
 
 - `@bonsae/nrg/test/server/unit` — server-side unit tests
 - `@bonsae/nrg/test/client/unit` — client-side unit tests (TypeScript logic)
@@ -195,11 +179,14 @@ Test client-side TypeScript logic (validation, utilities) with mocked `RED` and 
 import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/client/unit/config";
 
-export default mergeConfig(defaultConfig, defineConfig({
-  test: {
-    include: ["tests/client/unit/**/*.test.ts"],
-  },
-}));
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/client/unit/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 ```typescript
@@ -223,11 +210,14 @@ Test your Vue editor components with mocked Node-RED globals. Components that us
 import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/client/component/config";
 
-export default mergeConfig(defaultConfig, defineConfig({
-  test: {
-    include: ["tests/client/component/**/*.test.ts"],
-  },
-}));
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/client/component/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 ```typescript
@@ -239,7 +229,10 @@ import MyForm from "../src/client/components/my-form.vue";
 
 describe("MyForm", () => {
   test("renders fields from injected node", async () => {
-    const { provide } = createNode({ name: "test", url: "https://example.com" });
+    const { provide } = createNode({
+      name: "test",
+      url: "https://example.com",
+    });
     const screen = render(MyForm, {
       global: { provide },
     });

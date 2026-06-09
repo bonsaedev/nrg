@@ -188,14 +188,22 @@ module.exports = settings;
   private resolveNodeRedEntryPoint(): string {
     this.logger.info(`Resolving ${this.nodeRedCommand} entry point...`);
 
-    const localEntry = this.resolveFromLocalNodeModules();
-    if (localEntry) {
-      this.logger.info(`Resolved from local node_modules: ${localEntry}`);
-      return localEntry;
+    const hasExplicitVersion =
+      this.options.runtime?.version !== undefined &&
+      this.options.runtime.version !== "latest";
+
+    if (!hasExplicitVersion) {
+      const localEntry = this.resolveFromLocalNodeModules();
+      if (localEntry) {
+        this.logger.info(`Resolved from local node_modules: ${localEntry}`);
+        return localEntry;
+      }
     }
 
     this.logger.info(
-      `Not found locally, downloading via npx (this may take a while)...`,
+      hasExplicitVersion
+        ? `Using configured version (${this.options.runtime!.version}), downloading via npx...`
+        : `Not found locally, downloading via npx (this may take a while)...`,
     );
 
     const resolverScript = path.join(
