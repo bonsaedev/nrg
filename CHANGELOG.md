@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.18.5](https://github.com/bonsaedev/nrg/compare/v0.18.4...v0.18.5) (2026-06-09)
+
+
+### Bug Fixes
+
+* document node-red resolution order and recommend as dev dependency ([812bda7](https://github.com/bonsaedev/nrg/commit/812bda7f9955d21ad69d8fa7ca09003b7545c978))
+* handle errors in created and registered hooks gracefully ([315790b](https://github.com/bonsaedev/nrg/commit/315790b5943946483aa9a5c9a130c0d1a35d3fd6))
+* remove required from validated default to prevent NR short-circuit ([c7ab341](https://github.com/bonsaedev/nrg/commit/c7ab3417c0e7625fef54f77d25641c2287cdc66a))
+
 ## [0.18.4](https://github.com/bonsaedev/nrg/compare/v0.18.3...v0.18.4) (2026-06-08)
 
 
