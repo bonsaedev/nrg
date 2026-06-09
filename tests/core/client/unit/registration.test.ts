@@ -155,6 +155,7 @@ describe("registerType", () => {
 
     const registered = spy.mock.calls[0][1];
     expect(registered.defaults.name.validate).toBeTypeOf("function");
+    expect(registered.defaults.name.required).toBeUndefined();
     expect(registered.defaults.count.validate).toBeUndefined();
   });
 
@@ -488,13 +489,13 @@ describe("registerType — oneditsave", () => {
       _def: { category: "config" },
       users: [],
     };
-    const nodeSpy = vi.spyOn(RED.nodes, "node" as any).mockImplementation(
-      ((id: string) => {
-        if (id === "old-srv") return oldCfg;
-        if (id === "new-srv") return newCfg;
-        return null;
-      }) as any,
-    );
+    const nodeSpy = vi.spyOn(RED.nodes, "node" as any).mockImplementation(((
+      id: string,
+    ) => {
+      if (id === "old-srv") return oldCfg;
+      if (id === "new-srv") return newCfg;
+      return null;
+    }) as any);
 
     registered.oneditsave.call(node);
 
@@ -535,9 +536,7 @@ describe("registerType — oneditsave", () => {
       _def: { category: "config" },
       users: [{ id: "n1" }],
     };
-    const nodeSpy = vi
-      .spyOn(RED.nodes, "node" as any)
-      .mockReturnValue(cfg);
+    const nodeSpy = vi.spyOn(RED.nodes, "node" as any).mockReturnValue(cfg);
 
     registered.oneditsave.call(node);
 
@@ -620,7 +619,8 @@ describe("registerTypes", () => {
 
   it("throws when any registration fails", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    spy.mockImplementationOnce(() => {})
+    spy
+      .mockImplementationOnce(() => {})
       .mockImplementationOnce(() => {
         throw new Error("fail");
       });

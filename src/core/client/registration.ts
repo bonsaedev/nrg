@@ -158,8 +158,9 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     if (validationSchema && defaults) {
       const firstProp = Object.keys(defaults)[0];
       if (firstProp) {
+        const { required: _required, ...rest } = defaults[firstProp];
         defaults[firstProp] = {
-          ...defaults[firstProp],
+          ...rest,
           validate: function (this: NodeRedNode, _value: any, _opt: any) {
             return validateNode(this, validationSchema);
           },
