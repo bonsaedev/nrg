@@ -40,6 +40,7 @@ const ConfigsSchema = defineSchema(
       "x-nrg-form": { editorLanguage: "html" },
     } as any),
     server: SchemaType.NodeRef(TestConfig),
+    errorPort: SchemaType.Boolean({ default: false }),
   },
   { $id: "all-fields-node:configs" },
 );

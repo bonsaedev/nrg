@@ -18,6 +18,10 @@ export default class AllFieldsNode extends IONode<Config, Credentials> {
   static override readonly inputSchema: Schema = SchemaType.Object({});
   static override readonly outputsSchema: Schema = SchemaType.Object({});
 
+  async created() {
+    this.status({ fill: "green", shape: "dot", text: "ready" });
+  }
+
   async input(msg: any) {
     this.send(msg);
   }
