@@ -1,7 +1,7 @@
 import "../globals";
 import { beforeEach } from "vitest";
 import { config } from "vitest-browser-vue";
-import { createRED, createJQuery } from "../mocks";
+import { createRED, createJQuery, resetRED } from "../mocks";
 import NodeRedInput from "../../../core/client/form/components/node-red-input.vue";
 import NodeRedTypedInput from "../../../core/client/form/components/node-red-typed-input.vue";
 import NodeRedConfigInput from "../../../core/client/form/components/node-red-config-input.vue";
@@ -30,6 +30,9 @@ config.global.components = {
 window.$ = createJQuery();
 window.RED = createRED();
 
+// Reset RED state per test (registries, listeners, subscriptions, settings)
+// while keeping the same object — module-scope `const RED = window.RED`
+// captures in test files stay valid.
 beforeEach(() => {
-  window.RED = createRED();
+  resetRED(window.RED);
 });

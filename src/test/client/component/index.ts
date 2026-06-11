@@ -87,12 +87,13 @@ export function createNode(
   const RED = getMockRED();
   spyOnRED(RED);
 
-  // Always (re)set the lookup so fake nodes from a previous createNode call
-  // in the same file don't leak into this one.
-  const registry = Object.fromEntries((opts.nodes ?? []).map((n) => [n.id, n]));
-  vi.mocked(RED.nodes.node).mockImplementation(
-    (id: string) => (registry[id] ?? null) as any,
-  );
+  // Always reset the registry so fake nodes from a previous createNode call
+  // in the same file don't leak into this one. The fakes are resolvable via
+  // RED.nodes.node(id) and listed by eachConfig/eachNode/filterNodes.
+  RED.nodes.clear();
+  for (const fake of opts.nodes ?? []) {
+    RED.nodes.add(fake);
+  }
 
   const errors: Record<string, string> = reactive(
     validationSchema ? validateForm(node, validationSchema) : {},
@@ -134,12 +135,18 @@ function spyOnRED(RED: MockRED): void {
   spyIfNeeded(RED.tray, "show");
   spyIfNeeded(RED.tray, "close");
   spyIfNeeded(RED.popover, "tooltip");
+  spyIfNeeded(RED.popover, "create");
   spyIfNeeded(RED.nodes, "registerType");
   spyIfNeeded(RED.nodes, "node");
+  spyIfNeeded(RED.nodes, "add");
+  spyIfNeeded(RED.nodes, "remove");
+  spyIfNeeded(RED.nodes, "getType");
   spyIfNeeded(RED.nodes, "dirty");
   spyIfNeeded(RED.events, "on");
   spyIfNeeded(RED.events, "off");
   spyIfNeeded(RED.events, "emit");
+  spyIfNeeded(RED.comms, "subscribe");
+  spyIfNeeded(RED.comms, "unsubscribe");
 }
 
 function getMockRED(): MockRED {

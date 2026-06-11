@@ -1,5 +1,12 @@
 interface JQState {
-  typedInput: { value: string; type: string };
+  typedInput: {
+    value: string;
+    type: string;
+    types?: any[];
+    disabled?: boolean;
+    hidden?: boolean;
+    width?: string | number;
+  };
   listeners: Record<string, ((...args: any[]) => any)[]>;
 }
 

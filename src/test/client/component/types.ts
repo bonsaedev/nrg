@@ -1,9 +1,16 @@
 import type { JsonSchemaObject } from "../../../core/client/types";
+import type { MockRED } from "../mocks";
 
 export { useFormNode } from "../../../core/client/use-form-node";
 
-export type { MockRED, MockEditor } from "../mocks";
-export { createRED, createJQuery } from "../mocks";
+export type {
+  MockRED,
+  MockSettings,
+  MockEditor,
+  MockNotification,
+  MockPopover,
+  MockTooltip,
+} from "../mocks";
 
 export interface TestNode {
   id: string;
@@ -24,7 +31,7 @@ export interface FormProvide {
 export interface CreateNodeResult {
   node: TestNode;
   errors: Record<string, string>;
-  RED: Record<string, any>;
+  RED: MockRED;
   provide: FormProvide;
 }
 
