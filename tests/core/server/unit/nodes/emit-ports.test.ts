@@ -350,8 +350,8 @@ describe("emit ports", () => {
         inputSchema: SchemaType.Object({}),
         outputsSchema: SchemaType.Object({}),
         configSchema: ConfigSchema,
-        async input(msg) {
-          this.sendToPort(0, { ...msg, payload: "record" });
+        async input() {
+          this.sendToPort(0, "record");
         },
       });
 
@@ -367,9 +367,13 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect((sent[0] as unknown[])[0]).toEqual(
-        expect.objectContaining({ payload: "record" }),
-      );
+      // the value is wrapped under the return key; the input is spread as
+      // context and kept under `input` as lineage
+      expect((sent[0] as unknown[])[0]).toEqual({
+        payload: "go",
+        output: "record",
+        input: { payload: "go" },
+      });
     });
 
     it("sends to status port via status() method", async () => {

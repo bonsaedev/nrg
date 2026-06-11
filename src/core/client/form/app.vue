@@ -54,6 +54,24 @@
       />
     </div>
   </div>
+  <div v-if="hasReturnProperty" class="form-row nrg-return-property">
+    <NodeRedToggle
+      :model-value="returnPropertyOverride"
+      :label="
+        resolveLabel(
+          'toggles.returnPropertyOverride',
+          'Override return prop key',
+        )
+      "
+      @update:model-value="onReturnPropertyToggle"
+    />
+    <NodeRedInput
+      v-if="returnPropertyOverride"
+      v-model:value="localNode.returnProperty"
+      :label="resolveLabel('configs.returnProperty', 'Return key')"
+      :error="errors['node.returnProperty']"
+    />
+  </div>
   <div style="width: 100%; padding-bottom: 12px">
     <NodeRedNodeForm
       :node="localNode"
@@ -70,6 +88,7 @@ import type { PropType } from "vue";
 import { defineComponent, shallowRef } from "vue";
 import { debounce } from "es-toolkit";
 import { validateForm } from "../validation";
+import type { NodeRedNode } from "../types";
 
 export default defineComponent({
   name: "NodeRedVueApp",
@@ -82,7 +101,7 @@ export default defineComponent({
   },
   props: {
     node: {
-      type: Object,
+      type: Object as PropType<NodeRedNode>,
       required: true,
     },
     schema: {
@@ -108,9 +127,21 @@ export default defineComponent({
     return {
       localNode: this.node,
       errors: {} as Record<string, string>,
+      returnPropertyOverride: false,
     };
   },
   computed: {
+    hasReturnProperty(): boolean {
+      return this.schema?.properties?.returnProperty !== undefined;
+    },
+    returnPropertyDefault(): string {
+      const declared = this.schema?.properties?.returnProperty as
+        | { default?: unknown }
+        | undefined;
+      return typeof declared?.default === "string" && declared.default
+        ? declared.default
+        : "output";
+    },
     hasErrorPort(): boolean {
       return this.schema?.properties?.errorPort !== undefined;
     },
@@ -130,6 +161,20 @@ export default defineComponent({
     this.debouncedValidate = debounce(() => this.validate(), 150);
   },
   beforeMount() {
+    // returnProperty: nodes saved before the prop existed have no value — seed the
+    // schema default; the override toggle reflects whether the stored key
+    // differs from the node's default return key.
+    if (this.hasReturnProperty) {
+      if (
+        typeof this.localNode.returnProperty !== "string" ||
+        !this.localNode.returnProperty.trim()
+      ) {
+        this.localNode.returnProperty = this.returnPropertyDefault;
+      }
+      this.returnPropertyOverride =
+        this.localNode.returnProperty !== this.returnPropertyDefault;
+    }
+
     // Normalize array-typed properties to actual arrays. Nodes saved with an
     // older version of the code may have stored array values as comma-separated
     // strings; this ensures validation and future saves always see real arrays.
@@ -171,7 +216,7 @@ export default defineComponent({
         this.$watch(
           () => this.localNode[prop],
           () => {
-            this.debouncedValidate();
+            this.debouncedValidate?.();
           },
           { deep: true },
         );
@@ -183,7 +228,7 @@ export default defineComponent({
         this.$watch(
           () => this.localNode.credentials[prop],
           (newVal: any, oldVal: any) => {
-            this.debouncedValidate();
+            this.debouncedValidate?.();
 
             if (
               this.localNode._def.credentials[prop].type === "password" &&
@@ -236,6 +281,12 @@ export default defineComponent({
       if (this.localNode.completePort) count++;
       if (this.localNode.statusPort) count++;
       this.localNode.outputs = count;
+    },
+    onReturnPropertyToggle(enabled: boolean) {
+      this.returnPropertyOverride = enabled;
+      if (!enabled) {
+        this.localNode.returnProperty = this.returnPropertyDefault;
+      }
     },
   },
 });

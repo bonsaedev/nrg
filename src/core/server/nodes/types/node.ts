@@ -1,4 +1,4 @@
-import type { Static } from "@sinclair/typebox";
+import type { Static, TSchema } from "@sinclair/typebox";
 import type { Schema } from "../../schemas/types";
 import type { NodeConfigSchema } from "../../schemas";
 import type { RED, NodeRedNode } from "../../../server/types";
@@ -22,7 +22,9 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   readonly credentialsSchema?: Schema;
   readonly settingsSchema?: Schema;
   readonly inputSchema?: Schema;
-  readonly outputsSchema?: Schema | Schema[] | Record<string, Schema>;
+  // any schema shape: with returnProperty the raw sent value is validated,
+  // and results are frequently non-objects
+  readonly outputsSchema?: TSchema | TSchema[] | Record<string, TSchema>;
   readonly validateInput?: boolean;
   readonly validateOutput?: boolean;
   readonly name: string;

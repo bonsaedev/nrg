@@ -30,6 +30,7 @@ export {
   defineIONode,
   defineConfigNode,
 } from "./nodes";
+export type { ContextMode } from "./nodes";
 export type {
   NodeConstructor,
   INode,

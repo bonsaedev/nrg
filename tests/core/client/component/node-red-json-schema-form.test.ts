@@ -4,6 +4,30 @@ import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-s
 import { createNode } from "@/test/client/component";
 
 describe("NodeRedJsonSchemaForm", () => {
+  test("skips the built-in returnProperty field (rendered by the app shell)", () => {
+    const { node } = createNode({ name: "n", returnProperty: "payload" });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: {
+            name: { type: "string", title: "Name" },
+            returnProperty: {
+              type: "string",
+              title: "Return key",
+              default: "payload",
+            },
+          },
+        },
+      },
+    });
+    expect(screen.container.textContent).not.toContain("Return key");
+    expect(screen.container.querySelectorAll('input[type="text"]').length).toBe(
+      1,
+    ); // only "name"
+  });
+
   test("renders string field as text input", async () => {
     const { node } = createNode({ name: "my-node" });
     const screen = render(NodeRedJsonSchemaForm, {
@@ -16,12 +40,9 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     await expect.element(screen.getByText("Name")).toBeInTheDocument();
-    const input = screen.container.querySelector(
-      'input[type="text"]',
-    );
+    const input = screen.container.querySelector('input[type="text"]');
     expect(input).not.toBeNull();
   });
 
@@ -37,12 +58,9 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     await expect.element(screen.getByText("Timeout")).toBeInTheDocument();
-    const input = screen.container.querySelector(
-      'input[type="number"]',
-    );
+    const input = screen.container.querySelector('input[type="number"]');
     expect(input).not.toBeNull();
   });
 
@@ -58,11 +76,8 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
-    const input = screen.container.querySelector(
-      'input[type="number"]',
-    );
+    const input = screen.container.querySelector('input[type="number"]');
     expect(input).not.toBeNull();
   });
 
@@ -82,7 +97,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const toggle = screen.container.querySelector(".nrg-toggle");
     expect(toggle).not.toBeNull();
@@ -100,11 +114,8 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
-    const checkbox = screen.container.querySelector(
-      'input[type="checkbox"]',
-    );
+    const checkbox = screen.container.querySelector('input[type="checkbox"]');
     expect(checkbox).not.toBeNull();
     const toggle = screen.container.querySelector(".nrg-toggle");
     expect(toggle).toBeNull();
@@ -126,7 +137,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     await expect.element(screen.getByText("Color")).toBeInTheDocument();
     const selectInput = screen.container.querySelector(
@@ -150,7 +160,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const selectInput = screen.container.querySelector(
       "input.node-input-select",
@@ -174,7 +183,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const selectInput = screen.container.querySelector(
       "input.node-input-select",
@@ -203,7 +211,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const typedInput = screen.container.querySelector(
       "input.node-red-typed-input",
@@ -227,11 +234,8 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
-    const configInput = screen.container.querySelector(
-      "#node-input-server",
-    );
+    const configInput = screen.container.querySelector("#node-input-server");
     expect(configInput).not.toBeNull();
   });
 
@@ -253,7 +257,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     await expect.element(screen.getByText("Custom")).toBeInTheDocument();
     const allInputs = screen.container.querySelectorAll("input");
@@ -284,7 +287,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     await expect.element(screen.getByText("API Key")).toBeInTheDocument();
     await expect.element(screen.getByText("Username")).toBeInTheDocument();
@@ -308,7 +310,6 @@ describe("NodeRedJsonSchemaForm", () => {
         },
         errors: { "node.name": "Name is required" },
       },
-
     });
     await expect
       .element(screen.getByText("Name is required"))
@@ -331,7 +332,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const passwordInput = screen.container.querySelector(
       'input[type="password"]',
@@ -351,7 +351,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const textarea = screen.container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -373,7 +372,6 @@ describe("NodeRedJsonSchemaForm", () => {
           },
         },
       },
-
     });
     const editorWrapper = screen.container.querySelector(".editor-wrapper");
     expect(editorWrapper).not.toBeNull();
@@ -386,7 +384,6 @@ describe("NodeRedJsonSchemaForm", () => {
         node,
         schema: { type: "object", properties: {} },
       },
-
     });
     const formRows = screen.container.querySelectorAll(".form-row");
     expect(formRows.length).toBe(0);

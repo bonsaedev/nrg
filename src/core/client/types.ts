@@ -72,6 +72,20 @@ export interface NodeRedNode {
   _app?: App | null;
   _: (str: string) => string;
 
+  // -- framework-managed config props --
+  /** dynamic port count (base outputs + enabled built-in ports) */
+  outputs?: number;
+  /** injected when the node has an inputSchema */
+  validateInput?: boolean;
+  /** injected when the node has an outputsSchema */
+  validateOutput?: boolean;
+  /** present when the node's configSchema declares SchemaType.ReturnProperty() */
+  returnProperty?: string;
+  /** built-in port toggles, present when declared in the configSchema */
+  errorPort?: boolean;
+  completePort?: boolean;
+  statusPort?: boolean;
+
   [key: string]: any;
 }
 
@@ -146,11 +160,15 @@ export interface RuntimeNodeDefinition extends NodeDefinition {
   configSchema?: JsonSchemaObject;
   credentialsSchema?: JsonSchemaObject;
   inputSchema?: JsonSchemaObject;
-  /** single port, positional ports, or named ports (key = port name) */
+  /**
+   * Single port, positional ports, or named ports (key = port name).
+   * Not constrained to object schemas: with returnProperty the raw sent
+   * value is validated, so results may be any schema shape.
+   */
   outputsSchema?:
-    | JsonSchemaObject
-    | JsonSchemaObject[]
-    | Record<string, JsonSchemaObject>;
+    | JsonPropertySchema
+    | JsonPropertySchema[]
+    | Record<string, JsonPropertySchema>;
 }
 
 export interface NodeDefaults {

@@ -17,6 +17,7 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
   Static<typeof IONodeConfigSchema> & {
     validateInput?: boolean;
     validateOutput?: boolean;
+    returnProperty?: string;
   };
 
 type IONodeCredentials<TCredentials = any> = NodeCredentials<TCredentials>;

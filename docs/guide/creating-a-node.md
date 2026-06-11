@@ -593,8 +593,9 @@ export default class MyNode extends IONode<
 
   async input(msg: Record<string, any>) {
     const apiKey = this.credentials?.apiKey;
-    msg.payload = `${this.config.prefix}: ${msg.payload}`;
-    this.send(msg);
+    // send the result value — the framework puts it at msg.output and keeps
+    // the incoming message under msg.input
+    this.send(`${this.config.prefix}: ${msg.output}`);
   }
 
   async closed(removed?: boolean) {
@@ -669,11 +670,11 @@ export default defineIONode({
     try {
       const result = await process(msg);
       // Type-safe: msg must match SuccessSchema
-      this.sendToPort("success", { payload: result });
+      this.sendToPort("success", result);
       //              ^^^^^^^^^ autocompletes: "success" | "failure"
     } catch (err) {
       // Type-safe: msg must match FailureSchema
-      this.sendToPort("failure", { payload: { reason: String(err) } });
+      this.sendToPort("failure", { reason: String(err) });
     }
   },
 });
@@ -728,8 +729,8 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(msg)` | Send a message to the next node |
-| `this.sendToPort(port, msg)` | Send a message to a user-defined output port by index or name. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
+| `this.send(msg, contextMode?)` | Send a message to the next node. With `returnProperty` declared, `contextMode` (`"nest"` \| `"carry"` \| `"reset"`, default `"nest"`) controls how the incoming context is carried — see [Context modes](./schemas#context-modes). |
+| `this.sendToPort(port, msg, contextMode?)` | Send a message to a user-defined output port by index or name. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -817,7 +818,7 @@ export default class HttpClient extends IONode<Config> {
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
     const response = await fetch(this.config.url);
     this.status({ fill: "green", shape: "dot", text: "done" });
-    this.send({ payload: await response.json() });
+    this.send(await response.json());
   }
 }
 ```
@@ -1401,9 +1402,9 @@ export default defineIONode({
   async input(msg) {
     try {
       const id = await process(msg);
-      this.sendToPort("success", { payload: { ok: true, id } });
+      this.sendToPort("success", { ok: true, id });
     } catch (err) {
-      this.sendToPort("failed", { payload: { ok: false, reason: String(err) } });
+      this.sendToPort("failed", { ok: false, reason: String(err) });
     }
   },
 });
@@ -1422,9 +1423,9 @@ export default defineIONode({
     try {
       const id = await process(msg);
       // Tuple typing: [successPort, failedPort]
-      this.send([{ payload: { ok: true, id } }, null]);
+      this.send([{ ok: true, id }, null]);
     } catch (err) {
-      this.send([null, { payload: { ok: false, reason: String(err) } }]);
+      this.send([null, { ok: false, reason: String(err) }]);
     }
   },
 });

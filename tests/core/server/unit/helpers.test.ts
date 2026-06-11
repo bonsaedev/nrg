@@ -296,7 +296,7 @@ describe("createNode", () => {
     await node.receive({ payload: "world" });
 
     expect(node.sent()).toHaveLength(1);
-    expect(node.sent(0)).toEqual([{ payload: "hello world" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "hello world" }]);
   });
 
   it("should capture status calls", async () => {
@@ -340,7 +340,7 @@ describe("createNode", () => {
 
     await node.receive({ payload: "b" });
     expect(node.sent()).toHaveLength(1);
-    expect(node.sent(0)).toEqual([{ payload: "hello b" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "hello b" }]);
   });
 });
 
@@ -391,7 +391,7 @@ describe("node.receive", () => {
     });
 
     await node.receive({ payload: "there" });
-    expect(node.sent()).toEqual([{ payload: "hey there" }]);
+    expect(node.sent().map((m) => m.output)).toEqual([{ payload: "hey there" }]);
   });
 
   it("should handle multiple messages", async () => {
@@ -401,7 +401,7 @@ describe("node.receive", () => {
     await node.receive({ payload: "b" });
 
     expect(node.sent()).toHaveLength(2);
-    expect(node.sent(0)).toEqual([
+    expect(node.sent(0).map((m) => m.output)).toEqual([
       { payload: "hello a" },
       { payload: "hello b" },
     ]);
@@ -415,8 +415,8 @@ describe("node.receive", () => {
     await node.receive({ payload: 75 });
     await node.receive({ payload: 30 });
 
-    expect(node.sent(0)).toEqual([{ payload: 75, label: "above" }]);
-    expect(node.sent(1)).toEqual([{ payload: 30, label: "below" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 75, label: "above" }]);
+    expect(node.sent(1).map((m) => m.output)).toEqual([{ payload: 30, label: "below" }]);
   });
 
   it("should return empty array for port with no messages", async () => {
@@ -433,8 +433,8 @@ describe("node.receive", () => {
 
     await node.receive({ payload: "hello" });
 
-    expect(node.sent(0)).toEqual([{ payload: "hello", port: 0 }]);
-    expect(node.sent(1)).toEqual([{ payload: "hello", port: 1 }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "hello", port: 0 }]);
+    expect(node.sent(1).map((m) => m.output)).toEqual([{ payload: "hello", port: 1 }]);
   });
 });
 
@@ -460,7 +460,7 @@ describe("credentials", () => {
     });
 
     await node.receive({ payload: "test" });
-    expect(node.sent(0)).toEqual([{ payload: "test", auth: "secret-123" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "test", auth: "secret-123" }]);
   });
 
   it("should handle missing credentials", async () => {
@@ -480,7 +480,7 @@ describe("TypedInput resolution", () => {
     });
 
     await node.receive({ payload: "from-msg" });
-    expect(node.sent(0)).toEqual([{ payload: "from-msg", auth: "key" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "from-msg", auth: "key" }]);
   });
 
   it("should resolve string literal via TypedInput", async () => {
@@ -490,7 +490,7 @@ describe("TypedInput resolution", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: "hello", auth: "key" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "hello", auth: "key" }]);
   });
 
   it("should resolve number via TypedInput", async () => {
@@ -500,7 +500,7 @@ describe("TypedInput resolution", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: 42, auth: "key" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 42, auth: "key" }]);
   });
 });
 
@@ -526,7 +526,7 @@ describe("context store", () => {
     await node.receive({});
     await node.receive({});
 
-    expect(node.sent(0)).toEqual([{ payload: 1 }, { payload: 2 }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 1 }, { payload: 2 }]);
   });
 
   it("should support flow context get/set", async () => {
@@ -534,7 +534,7 @@ describe("context store", () => {
 
     await node.receive({ scope: "flow" });
 
-    expect(node.sent(0)).toEqual([{ payload: "flow-value" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "flow-value" }]);
   });
 
   it("should support global context get/set", async () => {
@@ -542,7 +542,7 @@ describe("context store", () => {
 
     await node.receive({ scope: "global" });
 
-    expect(node.sent(0)).toEqual([{ payload: "global-value" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "global-value" }]);
   });
 });
 
@@ -553,7 +553,7 @@ describe("i18n", () => {
     await node.receive({});
 
     // RED._ mock returns the key prefixed with node type
-    expect(node.sent(0)).toEqual([{ payload: "test-i18n.greeting" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "test-i18n.greeting" }]);
   });
 
   it("should support __placeholder__ substitutions by default", async () => {
@@ -572,7 +572,7 @@ describe("factory API (defineIONode / defineConfigNode)", () => {
 
     expect(node.logged("info")).toContain("factory io created");
     await node.receive({ payload: "hello" });
-    expect(node.sent(0)).toEqual([{ payload: "> hello" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "> hello" }]);
   });
 
   it("should work with defineConfigNode", async () => {
@@ -588,7 +588,7 @@ describe("factory API (defineIONode / defineConfigNode)", () => {
     });
 
     await node.receive({ payload: "test" });
-    expect(node.sent(0)).toEqual([{ payload: ">> test" }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: ">> test" }]);
   });
 });
 
@@ -599,13 +599,13 @@ describe("settings", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: 3000 }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 3000 }]);
   });
 
   it("should use default settings when not provided", async () => {
     const { node } = await createNode(TestSettingsNode);
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: 5000 }]);
+    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 5000 }]);
   });
 });

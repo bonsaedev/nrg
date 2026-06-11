@@ -158,7 +158,7 @@ describe("IONode", () => {
         static override readonly category = "function";
         static override readonly color = "#ffffff" as const;
         public override async input() {
-          this.send({ payload: "result" });
+          this.send("result");
         }
       }
 
@@ -170,7 +170,9 @@ describe("IONode", () => {
       const done = vi.fn();
       await node.emit("input", {}, send, done);
 
-      expect(send).toHaveBeenCalledWith({ payload: "result" });
+      // every send wraps under the return key (default "output") with the
+      // input lineage
+      expect(send).toHaveBeenCalledWith({ output: "result", input: {} });
     });
 
     it("should fall back to node.send outside input handler", () => {
@@ -179,8 +181,8 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
-      instance.send({ payload: "test" });
-      expect(node.send).toHaveBeenCalledWith({ payload: "test" });
+      instance.send("test");
+      expect(node.send).toHaveBeenCalledWith({ output: "test", input: {} });
     });
 
     it("should validate per-port with array of schemas", () => {
@@ -214,9 +216,11 @@ describe("IONode", () => {
       expect(() => instance.send([{ result: "" }, null])).toThrow();
     });
 
-    it("should validate array of messages against single schema", () => {
-      const outputSchema = defineSchema(
-        { payload: SchemaType.String({ minLength: 1 }) },
+    it("validates an array sent from a single-output node as the value", () => {
+      // A single-output node treats an array argument as the value (not as
+      // per-port messages), so the schema describes the array itself.
+      const outputSchema = SchemaType.Array(
+        SchemaType.String({ minLength: 1 }),
         { $id: "io-output-single-array-test" },
       );
 
@@ -234,13 +238,11 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new SingleSchemaArrayNode(RED, node, {}, {});
 
-      // Valid array of messages
-      expect(() =>
-        instance.send([{ payload: "a" }, null, { payload: "b" }]),
-      ).not.toThrow();
+      // Valid: the array value matches the array schema
+      expect(() => instance.send(["a", "b"])).not.toThrow();
 
-      // Invalid: one message fails
-      expect(() => instance.send([{ payload: "" }])).toThrow();
+      // Invalid: an element fails the item schema
+      expect(() => instance.send(["a", ""])).toThrow();
     });
 
     it("should validate output when validateOutput is true", () => {

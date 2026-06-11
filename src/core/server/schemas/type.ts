@@ -33,12 +33,32 @@ function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
 }
 
 /**
+ * Declares the built-in `returnProperty` config property: the node's result is
+ * merged into the incoming message at this key (`{ ...msg, [key]: result,
+ * input: msg }`), and the full prior message is kept under `input` so the
+ * provenance chain is recoverable. The default key is `"output"`; declaring
+ * this property only lets the flow author override that key per node in the
+ * editor (every node already has a return key of `"output"`).
+ */
+function ReturnProperty(options?: NrgSchemaOptions & { default?: string }) {
+  return BaseType.String({
+    description:
+      "Message property that receives this node's result. The rest of the incoming message is propagated unchanged, and the prior message is kept under `input`.",
+    pattern: "^[A-Za-z_$][A-Za-z0-9_$]*$",
+    default: "output",
+    ...options,
+  });
+}
+
+/**
  * Extended TypeBox type builder with NRG-specific schema types.
- * Includes all standard TypeBox types plus {@link NodeRef} and {@link TypedInput}.
+ * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput}
+ * and {@link ReturnProperty}.
  */
 const SchemaType = Object.assign({}, BaseType, {
   NodeRef,
   TypedInput,
+  ReturnProperty,
 });
 
 function markNonValidatable<T extends TSchema>(schema: T): T {

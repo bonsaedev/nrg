@@ -86,7 +86,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent("success")).toEqual([{ payload: "ok" }]);
+      expect(node.sent("success")).toEqual([
+        { output: { payload: "ok" }, input: {} },
+      ]);
       expect(node.sent("failure")).toEqual([]);
     });
 
@@ -107,7 +109,9 @@ describe("named output ports", () => {
       await node.receive({});
 
       expect(node.sent("success")).toEqual([]);
-      expect(node.sent("failure")).toEqual([{ payload: { reason: "bad" } }]);
+      expect(node.sent("failure")).toEqual([
+        { output: { payload: { reason: "bad" } }, input: {} },
+      ]);
     });
 
     it("sends to named port alongside builtin ports", async () => {
@@ -126,7 +130,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent("success")).toEqual([{ payload: "ok" }]);
+      expect(node.sent("success")).toEqual([
+        { output: { payload: "ok" }, input: {} },
+      ]);
     });
 
     it("silently drops message for unknown named port", async () => {
@@ -165,7 +171,7 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent(5)).toEqual([{ payload: "oob" }]);
+      expect(node.sent(5)).toEqual([{ output: { payload: "oob" }, input: {} }]);
       expect(node.sent(0)).toEqual([]);
     });
 
@@ -185,7 +191,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent(0)).toEqual([{ payload: "by-index" }]);
+      expect(node.sent(0)).toEqual([
+        { output: { payload: "by-index" }, input: {} },
+      ]);
     });
   });
 

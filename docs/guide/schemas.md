@@ -65,6 +65,84 @@ export default class MyNode extends IONode<Config> {
 
 Default values from the schema are used by the editor to initialize new node instances.
 
+### Output and the message envelope
+
+Every node produces an **`output`**. `this.send(x)` always means "x is the
+result" — never "x is the whole outgoing message". The framework merges the
+value into the incoming message and keeps the full prior message under
+**`input`**:
+
+```
+this.send(result)
+// outgoing: { ...msg, output: result, input: msg }
+```
+
+So upstream context propagates automatically, and nothing the result overwrites
+is ever lost — `msg.input` recovers the entire prior message, and the `input`
+chain accumulates one frame per node into a **provenance trail** you can inspect
+in the debug panel (`msg.input.input.output`…). `outputsSchema` describes the
+result value (output validation runs before the merge).
+
+This means a node sets only `output` — it does not set arbitrary top-level
+message properties. Multi-value results go under `output` as one object:
+
+```typescript
+this.send({ records, totalSize, done }); // msg.output = { records, totalSize, done }
+```
+
+To interoperate with Node-RED core nodes (which key on `msg.payload`,
+`msg.topic`, etc.), use a `change`/`set` node at the boundary to map `output`
+onto the property the core node expects.
+
+#### Overriding the return key
+
+Every node's return key is `"output"`. Declaring `returnProperty` doesn't create
+the key — it only exposes it so the **flow author** can rename it per node in the
+editor:
+
+```typescript
+const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    returnProperty: SchemaType.ReturnProperty(), // default key: "output"
+  },
+  { $id: "my-node:configs" },
+);
+```
+
+- The node may set a different default with
+  `SchemaType.ReturnProperty({ default: "data" })`.
+- Flow authors override the key in the editor ("Override return prop key"
+  toggle). Keys must be valid JavaScript identifiers — validated in the editor
+  and again at node construction.
+- Named-port sends (`sendToPort`) are wrapped the same way. Built-in
+  **complete** and **error** ports also carry `input` (so a flow resumed off
+  the complete port — e.g. an iterator continuing after all elements — keeps
+  the same lineage); the **status** port is a notification and stays raw.
+
+#### Context modes
+
+`send()` and `sendToPort()` take an optional second argument controlling how the
+incoming context is carried (default `"nest"`):
+
+```typescript
+this.send(result);            // "nest"  — { ...msg, output: result, input: msg }
+this.send(result, "carry");   // keep all keys (incl. upstream input), don't grow the chain
+this.send(result, "reset");   // { output: result } — drop inherited context, start fresh
+```
+
+- **nest** (default): full provenance — every prior value recoverable via the
+  `input` chain. The chain grows one frame per node; fine for linear flows,
+  call `delete msg.input` when continuing into a loop.
+- **carry**: context flows (including any upstream `input`) but this node isn't
+  recorded — use for pass-through/utility nodes that shouldn't grow the trail.
+- **reset**: the outgoing message is only the result — use for source/reset
+  nodes that intentionally start a fresh context.
+
+The framework never deep-clones (so streams, Buffers, and class instances pass
+through intact); Node-RED's runtime clones messages 2..N on fan-out, so parallel
+output branches are already isolated from each other at delivery.
+
 ## Credentials Schema
 
 Credentials are stored separately and encrypted by Node-RED. Define them with `credentialsSchema`:

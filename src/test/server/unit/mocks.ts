@@ -137,12 +137,17 @@ function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
         },
       ),
       generateId: vi.fn(() => "mock-id"),
-      cloneMessage: vi.fn((msg: any) => ({ ...msg })),
+      cloneMessage: vi.fn((msg: any) => structuredClone(msg)),
       ensureString: vi.fn((o: any) => String(o)),
       ensureBuffer: vi.fn(),
       compareObjects: vi.fn(),
-      getMessageProperty: vi.fn(),
-      setMessageProperty: vi.fn(),
+      getMessageProperty: vi.fn((msg: any, prop: string) =>
+        getProperty(msg, prop),
+      ),
+      setMessageProperty: vi.fn(
+        (msg: any, prop: string, value: any, createMissing?: boolean) =>
+          setProperty(msg, prop, value, createMissing ?? false),
+      ),
       getObjectProperty: vi.fn(),
       setObjectProperty: vi.fn(),
       normalisePropertyExpression: vi.fn(),
@@ -168,6 +173,25 @@ function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
 
 function getProperty(obj: any, path: string): any {
   return path.split(".").reduce((acc, key) => acc?.[key], obj);
+}
+
+function setProperty(
+  obj: any,
+  path: string,
+  value: any,
+  createMissing: boolean,
+): boolean {
+  const keys = path.split(".");
+  let target = obj;
+  for (const key of keys.slice(0, -1)) {
+    if (target[key] == null || typeof target[key] !== "object") {
+      if (!createMissing) return false;
+      target[key] = {};
+    }
+    target = target[key];
+  }
+  target[keys[keys.length - 1]] = value;
+  return true;
 }
 
 function createContextStore() {

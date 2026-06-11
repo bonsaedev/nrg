@@ -27,103 +27,113 @@ function localesGenerator(options: {
   // Users can override any key in their own label files.
   const frameworkLabels: Record<string, Record<string, unknown>> = {
     "en-US": {
-      configs: { name: "Name" },
+      configs: { name: "Name", returnProperty: "Return key" },
       toggles: {
         validateInput: "Validate Input",
         validateOutput: "Validate Output",
         errorPort: "Error Port",
         completePort: "Complete Port",
         statusPort: "Status Port",
+        returnPropertyOverride: "Override return prop key",
       },
     },
     de: {
-      configs: { name: "Name" },
+      configs: { name: "Name", returnProperty: "Rückgabe-Schlüssel" },
       toggles: {
         validateInput: "Eingabe validieren",
         validateOutput: "Ausgabe validieren",
         errorPort: "Fehler-Port",
         completePort: "Abschluss-Port",
         statusPort: "Status-Port",
+        returnPropertyOverride: "Rückgabe-Schlüssel überschreiben",
       },
     },
     "es-ES": {
-      configs: { name: "Nombre" },
+      configs: { name: "Nombre", returnProperty: "Clave de retorno" },
       toggles: {
         validateInput: "Validar entrada",
         validateOutput: "Validar salida",
         errorPort: "Puerto de error",
         completePort: "Puerto de completado",
         statusPort: "Puerto de estado",
+        returnPropertyOverride: "Sobrescribir clave de retorno",
       },
     },
     fr: {
-      configs: { name: "Nom" },
+      configs: { name: "Nom", returnProperty: "Clé de retour" },
       toggles: {
         validateInput: "Valider l'entrée",
         validateOutput: "Valider la sortie",
         errorPort: "Port d'erreur",
         completePort: "Port de complétion",
         statusPort: "Port de statut",
+        returnPropertyOverride: "Remplacer la clé de retour",
       },
     },
     ko: {
-      configs: { name: "이름" },
+      configs: { name: "이름", returnProperty: "반환 키" },
       toggles: {
         validateInput: "입력 검증",
         validateOutput: "출력 검증",
         errorPort: "오류 포트",
         completePort: "완료 포트",
         statusPort: "상태 포트",
+        returnPropertyOverride: "반환 키 재정의",
       },
     },
     "pt-BR": {
-      configs: { name: "Nome" },
+      configs: { name: "Nome", returnProperty: "Chave de retorno" },
       toggles: {
         validateInput: "Validar Entrada",
         validateOutput: "Validar Saída",
         errorPort: "Porta de Erro",
         completePort: "Porta de Conclusão",
         statusPort: "Porta de Status",
+        returnPropertyOverride: "Sobrescrever chave de retorno",
       },
     },
     ru: {
-      configs: { name: "Имя" },
+      configs: { name: "Имя", returnProperty: "Ключ возврата" },
       toggles: {
         validateInput: "Проверить вход",
         validateOutput: "Проверить выход",
         errorPort: "Порт ошибки",
         completePort: "Порт завершения",
         statusPort: "Порт статуса",
+        returnPropertyOverride: "Переопределить ключ возврата",
       },
     },
     ja: {
-      configs: { name: "名前" },
+      configs: { name: "名前", returnProperty: "戻りキー" },
       toggles: {
         validateInput: "入力検証",
         validateOutput: "出力検証",
         errorPort: "エラーポート",
         completePort: "完了ポート",
         statusPort: "ステータスポート",
+        returnPropertyOverride: "戻りキーを上書き",
       },
     },
     "zh-CN": {
-      configs: { name: "名称" },
+      configs: { name: "名称", returnProperty: "返回键" },
       toggles: {
         validateInput: "验证输入",
         validateOutput: "验证输出",
         errorPort: "错误端口",
         completePort: "完成端口",
         statusPort: "状态端口",
+        returnPropertyOverride: "覆盖返回键",
       },
     },
     "zh-TW": {
-      configs: { name: "名稱" },
+      configs: { name: "名稱", returnProperty: "返回鍵" },
       toggles: {
         validateInput: "驗證輸入",
         validateOutput: "驗證輸出",
         errorPort: "錯誤端口",
         completePort: "完成端口",
         statusPort: "狀態端口",
+        returnPropertyOverride: "覆蓋返回鍵",
       },
     },
   };

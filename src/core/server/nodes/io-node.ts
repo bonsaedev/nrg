@@ -1,3 +1,4 @@
+import type { TSchema } from "@sinclair/typebox";
 import type { Schema } from "../schemas/types";
 import type { RED, NodeRedNode } from "../../server/types";
 import { Node } from "./node";
@@ -19,9 +20,42 @@ type BuiltinPortFlags = {
   [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;
 };
 
+type ReturnPropertyConfig = {
+  returnProperty?: string;
+};
+
+const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+/** Key holding the append-only lineage of prior input messages. Visible in
+ * the debug panel by design — it is the node's provenance chain. */
+const INPUT_KEY = "input";
+
+/**
+ * Controls how an outgoing message carries the incoming message's context:
+ * - `"nest"` (default): keep all incoming keys and push the full input under
+ *   `input`, so the prior message — including any value the result overwrites
+ *   — is always recoverable (`msg.input.output`). The `input` chain
+ *   accumulates one frame per node, forming a provenance trail visible in the
+ *   debug panel.
+ * - `"carry"`: keep all incoming keys (including any upstream `input`) but do
+ *   not record this node — context flows through without growing.
+ * - `"reset"`: drop all inherited context; the outgoing message is only the
+ *   result at the return key.
+ */
+export type ContextMode = "nest" | "carry" | "reset";
+
 /**
  * Base class for nodes that process messages. Provides input/output handling,
  * schema validation, status updates, and emit port management.
+ *
+ * Every node has a return key (`"output"` by default): the value passed to
+ * `send()` is merged into the incoming message at that key and the full prior
+ * message is kept under `input` (`{ ...msg, [returnKey]: result, input: msg }`),
+ * so upstream properties propagate and the provenance chain is recoverable.
+ * Declaring `returnProperty` in the `configSchema` only lets the flow author
+ * override the key in the editor — it does not change that a return key always
+ * exists. `this.send(x)` always means "x is the result", never "x is the whole
+ * message".
  *
  * @example
  * ```ts
@@ -31,7 +65,8 @@ type BuiltinPortFlags = {
  *   static readonly color = "#ffffff" as const;
  *
  *   async input(msg: Input) {
- *     this.send({ payload: msg.payload.toUpperCase() });
+ *     // sends { ...msg, output: <result>, input: msg }
+ *     this.send(msg.output.toUpperCase());
  *   }
  * }
  * ```
@@ -49,10 +84,12 @@ abstract class IONode<
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
   public static readonly inputSchema?: Schema;
+  // outputsSchema accepts any schema shape: with returnProperty the raw sent
+  // value is validated, and results are frequently non-objects.
   public static readonly outputsSchema?:
-    | Schema
-    | Schema[]
-    | Record<string, Schema>;
+    | TSchema
+    | TSchema[]
+    | Record<string, TSchema>;
   public static readonly validateInput: boolean = false;
   public static readonly validateOutput: boolean = false;
 
@@ -86,6 +123,12 @@ abstract class IONode<
   }
 
   #send: ((msg: any) => void) | undefined;
+  /**
+   * Most recent input message — the spread base for returnProperty wrapping. Not
+   * cleared after input() so late async sends merge with the last received
+   * message.
+   */
+  #currentInputMsg: unknown;
 
   declare public readonly config: IONodeConfig<TConfig>;
   protected override readonly context: IONodeContext;
@@ -114,6 +157,14 @@ abstract class IONode<
     fn.global = setupContext(context.global);
 
     this.context = fn as any;
+
+    const returnPropertyKey = this.#returnPropertyKey();
+    if (!RETURN_PROPERTY_PATTERN.test(returnPropertyKey)) {
+      throw new NrgError(
+        `Invalid returnProperty key "${returnPropertyKey}" in ${(this.constructor as typeof IONode).type} — ` +
+          `it must be a valid JavaScript identifier (letters, digits, _, $; not starting with a digit)`,
+      );
+    }
   }
 
   override [WIRE_HANDLERS](
@@ -140,14 +191,18 @@ abstract class IONode<
 
         try {
           nodeRedNode.log("Calling input");
+          this.#currentInputMsg = msg;
           await Promise.resolve(this.#input(msg as TInput, send));
 
-          // Send to complete port if enabled
+          // Send to complete port if enabled. Nest the input so a flow
+          // resumed off the complete port (e.g. an iterator continuing after
+          // all elements) carries the same `input` lineage as a normal send.
           this.#sendToPort("complete", {
             ...(msg as Record<string, unknown>),
             complete: {
               source: this.#nodeSource(),
             },
+            [INPUT_KEY]: msg,
           });
 
           done();
@@ -158,13 +213,15 @@ abstract class IONode<
               ? error.message
               : "Unknown error during input handling";
 
-          // Send to error port if enabled
+          // Send to error port if enabled — carry the input lineage too, so
+          // error branches continue the flow with the same context.
           this.#sendToPort("error", {
             ...(msg as Record<string, unknown>),
             error: {
               message: errorMsg,
               source: this.#nodeSource(),
             },
+            [INPUT_KEY]: msg,
           });
 
           if (error instanceof Error) {
@@ -207,8 +264,16 @@ abstract class IONode<
     }
   }
 
-  public send(msg: TOutput) {
+  public send(msg: TOutput, contextMode: ContextMode = "nest") {
     const NodeClass = this.constructor as typeof IONode;
+    // With returnProperty declared on a single-output node, the argument is
+    // always THE value — arrays included. Node-RED's array-as-ports
+    // convention only applies to multi-output nodes, where each slot is a
+    // separate value to wrap.
+    // Every node has a return key, so a single-output node always treats the
+    // argument as the value (arrays included). Multi-output nodes still use
+    // Node-RED's array-as-ports convention.
+    const sendsValue = this.baseOutputs <= 1;
     const shouldValidateOutput =
       this.config.validateOutput ?? NodeClass.validateOutput;
     if (shouldValidateOutput && NodeClass.outputsSchema) {
@@ -228,7 +293,7 @@ abstract class IONode<
         }
       } else if (isSchemaLike(rawSchema)) {
         // Single schema
-        if (Array.isArray(msg)) {
+        if (Array.isArray(msg) && !sendsValue) {
           const msgs = msg as unknown[];
           for (let i = 0; i < msgs.length; i++) {
             if (msgs[i] == null) continue;
@@ -261,14 +326,78 @@ abstract class IONode<
       this.log("Output is valid");
     }
 
-    const out = Array.isArray(msg)
-      ? (msg as unknown[]).slice(0, this.baseOutputs)
-      : msg;
+    const truncated =
+      Array.isArray(msg) && !sendsValue
+        ? (msg as unknown[]).slice(0, this.baseOutputs)
+        : msg;
+    const out =
+      Array.isArray(truncated) && !sendsValue
+        ? truncated.map((m) =>
+            m == null ? m : this.#wrapOutgoing(m, contextMode),
+          )
+        : truncated == null
+          ? truncated
+          : this.#wrapOutgoing(truncated, contextMode);
     if (this.#send) {
       this.#send(out);
     } else {
       this.node.send(out);
     }
+  }
+
+  /**
+   * Resolves the active return key. `null` = the node did not declare
+   * `returnProperty` in its configSchema, so its code owns the outgoing message
+   * shape (no wrapping).
+   */
+  /**
+   * Every node has a return property — `"output"` by default. Declaring
+   * `SchemaType.ReturnProperty()` in the configSchema doesn't create it; it
+   * only exposes the key to the flow author so they can override it in the
+   * editor (and lets the node pick a different default). So `this.send(x)`
+   * always means "x is the value at the return key", never "x is the whole
+   * outgoing message".
+   */
+  #returnPropertyKey(): string {
+    const NodeClass = this.constructor as typeof IONode;
+    const declared = (
+      NodeClass.configSchema as
+        | { properties?: Record<string, { default?: unknown }> }
+        | undefined
+    )?.properties?.returnProperty;
+
+    // flow-author override (only possible when the prop is declared + editable)
+    const configured = (this.config as unknown as ReturnPropertyConfig)
+      .returnProperty;
+    if (typeof configured === "string" && configured.trim()) {
+      return configured.trim();
+    }
+    // node-defined default via ReturnProperty({ default: "data" }), else output
+    if (declared && typeof declared.default === "string" && declared.default) {
+      return declared.default;
+    }
+    return "output";
+  }
+
+  /**
+   * Merges a sent value into the incoming message at the returnProperty key so
+   * upstream message properties propagate. A fresh base is built per call so
+   * multi-port sends never share an object.
+   */
+  #wrapOutgoing(value: unknown, mode: ContextMode = "nest"): unknown {
+    const key = this.#returnPropertyKey();
+    const input = (this.#currentInputMsg as Record<string, unknown>) ?? {};
+    if (mode === "reset") {
+      return { [key]: value };
+    }
+    if (mode === "carry") {
+      return { ...input, [key]: value };
+    }
+    // "nest" — preserve the full input under `input` so nothing the result
+    // overwrites is ever lost. Spread is shallow (clone-free, any-object-safe);
+    // Node-RED's runtime clones messages 2..N on fan-out, so per-branch
+    // isolation is handled at delivery.
+    return { ...input, [key]: value, [INPUT_KEY]: input };
   }
 
   // --- Built-in port management ---
@@ -302,13 +431,20 @@ abstract class IONode<
           ? keyof TOutput & string
           : never)
       | number,
-  >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
+  >(
+    port: P,
+    msg: P extends keyof TOutput ? TOutput[P] : unknown,
+    contextMode: ContextMode = "nest",
+  ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
         `sendToPort("${port}") is not allowed. Built-in ports are managed by the framework.`,
       );
     }
-    this.#sendToPort(port, msg);
+    this.#sendToPort(
+      port,
+      msg == null ? msg : this.#wrapOutgoing(msg, contextMode),
+    );
   }
 
   #sendToPort(port: number | string, msg: unknown) {
@@ -373,6 +509,7 @@ abstract class IONode<
           message,
           source: this.#nodeSource(),
         },
+        [INPUT_KEY]: msg,
       });
     }
   }
