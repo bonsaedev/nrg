@@ -99,7 +99,13 @@ jobs:
           path: dist/
 
       - name: Vite E2E Tests
-        run: pnpm vitest run --config vitest.vite.e2e.config.ts
+        run: pnpm vitest run --config vitest.vite.e2e.config.ts --coverage
+
+      - name: Upload Coverage
+        if: always()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   client-component:
     name: Client Component Tests

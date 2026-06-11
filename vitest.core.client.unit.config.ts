@@ -31,6 +31,7 @@ export default defineConfig({
         "src/core/client/registration.ts",
         "src/core/client/state.ts",
         "src/core/client/labels.ts",
+        "src/core/client/form/index.ts",
       ],
     },
   },

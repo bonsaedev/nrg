@@ -43,7 +43,17 @@ export default defineConfig({
       provider: "istanbul",
       reportsDirectory: "coverage/client-component",
       reporter: ["text", "lcov"],
-      include: ["src/core/client/form/components/**/*.{ts,vue}"],
+      // Everything the browser-mode tests exercise: the whole client plane
+      // plus the shipped component-test utilities and mocks they validate.
+      include: [
+        "src/core/client/**/*.{ts,vue}",
+        "src/core/constants.ts",
+        "src/test/client/mocks.ts",
+        "src/test/client/component/index.ts",
+        "src/test/client/component/jquery.ts",
+        "src/test/client/component/setup.ts",
+      ],
+      exclude: ["src/**/types.ts", "src/**/*.d.ts"],
     },
   },
 });

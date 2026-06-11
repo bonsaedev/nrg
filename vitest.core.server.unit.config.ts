@@ -22,8 +22,11 @@ export default defineConfig({
         "src/core/server/**/*.ts",
         "src/core/validator.ts",
         "src/core/errors.ts",
+        "src/core/constants.ts",
+        "src/test/server/unit/index.ts",
+        "src/test/server/unit/mocks.ts",
       ],
-      exclude: ["src/**/types/**", "src/**/types.ts"],
+      exclude: ["src/**/types/**", "src/**/types.ts", "src/**/*.d.ts"],
     },
   },
 });
