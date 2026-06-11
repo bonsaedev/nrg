@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/bonsaedev/nrg/compare/v0.19.0...v0.19.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* remove the dev-server editor path slug ([08ff547](https://github.com/bonsaedev/nrg/commit/08ff547a7a613880182624839d6038135cb60202))
+
 # [0.19.0](https://github.com/bonsaedev/nrg/compare/v0.18.5...v0.19.0) (2026-06-11)
 
 
