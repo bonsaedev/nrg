@@ -13,9 +13,7 @@ describe("NodeRedTypedInput", () => {
     const screen = render(NodeRedTypedInput, {
       props: DEFAULT_PROPS,
     });
-    const input = screen.container.querySelector(
-      "input.node-red-typed-input",
-    );
+    const input = screen.container.querySelector("input.node-red-typed-input");
     expect(input).not.toBeNull();
   });
 
@@ -50,9 +48,7 @@ describe("NodeRedTypedInput", () => {
     const screen = render(NodeRedTypedInput, {
       props: { ...DEFAULT_PROPS, error: "Invalid value" },
     });
-    await expect
-      .element(screen.getByText("Invalid value"))
-      .toBeInTheDocument();
+    await expect.element(screen.getByText("Invalid value")).toBeInTheDocument();
   });
 
   test("shows required asterisk", async () => {
@@ -122,9 +118,67 @@ describe("NodeRedTypedInput", () => {
         value: { value: "test", type: "msg" },
       },
     });
+    const input = screen.container.querySelector("input.node-red-typed-input");
+    expect(input).not.toBeNull();
+  });
+});
+
+describe("NodeRedTypedInput edge paths", () => {
+  test("warns when the provided type is not in the allowed types", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    render(NodeRedTypedInput, {
+      props: { value: { value: "", type: "bogus" }, types: ["str", "num"] },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Validation failed: type (bogus)"),
+    );
+    warn.mockRestore();
+  });
+
+  test("error prop toggles the input-error class on the widget container", async () => {
+    const screen = render(NodeRedTypedInput, {
+      props: { value: { value: "", type: "str" }, error: "" },
+    });
+    // the real jQuery widget renders this container; the mock doesn't,
+    // so provide one for the watcher to decorate
+    const fake = document.createElement("div");
+    fake.className = "red-ui-typedInput-container";
+    screen.container.firstElementChild!.appendChild(fake);
+
+    await screen.rerender({ error: "boom" });
+    await vi.waitFor(() => {
+      expect(fake.classList.contains("input-error")).toBe(true);
+    });
+
+    await screen.rerender({ error: "" });
+    await vi.waitFor(() => {
+      expect(fake.classList.contains("input-error")).toBe(false);
+    });
+  });
+
+  test("value-attribute mutations emit updates (plain text typing path)", async () => {
+    const onUpdate = vi.fn();
+    const screen = render(NodeRedTypedInput, {
+      props: {
+        value: { value: "old", type: "str" },
+        "onUpdate:value": onUpdate,
+      },
+    });
     const input = screen.container.querySelector(
       "input.node-red-typed-input",
-    );
-    expect(input).not.toBeNull();
+    ) as HTMLInputElement;
+    // let the mounted() $nextTick attach the MutationObserver
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // typedInput("value", ...) writes the value attribute, which is exactly
+    // what the real widget does while the user types into a plain text input
+    window.$(input).typedInput("value", "typed-text");
+
+    await vi.waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith({
+        value: "typed-text",
+        type: "str",
+      });
+    });
   });
 });
