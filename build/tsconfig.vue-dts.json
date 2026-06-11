@@ -8,11 +8,10 @@
     "skipLibCheck": true,
     "noImplicitAny": false,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "rootDir": "../src/core/client/form/components",
+    "rootDir": "../src/core",
     "declaration": true,
     "emitDeclarationOnly": true,
-    "noEmitOnError": false,
-    "outDir": "../dist/types/shims/form/components"
+    "outDir": "../dist/types/shims"
   },
   "files": [
     "../src/core/client/globals.d.ts",

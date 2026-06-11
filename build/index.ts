@@ -110,12 +110,33 @@ function buildVitePlugin() {
   console.log("✓ Built vite plugin to dist/vite/");
 }
 
-function buildTestUtils() {
+async function buildTestUtils() {
   esbuild("src/test/server/unit/index.ts", { format: "esm", outdir: "dist/test/server/unit" });
   esbuild("src/test/server/unit/config.ts", { format: "esm", outdir: "dist/test/server/unit" });
-  esbuild("src/test/client/component/index.ts", { format: "esm", outdir: "dist/test/client/component" });
+  // NOTE: index.ts and setup.ts import .vue SFCs (real form components for
+  // plugin tests), which esbuild can't bundle — use vite with the vue plugin.
+  await viteBuild({
+    configFile: false,
+    logLevel: "warn",
+    plugins: [vue()],
+    build: {
+      outDir: path.join(DIST, "test/client/component"),
+      emptyOutDir: false,
+      lib: {
+        entry: {
+          index: path.resolve(ROOT, "src/test/client/component/index.ts"),
+          setup: path.resolve(ROOT, "src/test/client/component/setup.ts"),
+        },
+        formats: ["es"],
+      },
+      rollupOptions: {
+        // Externalize all bare imports (vue, vitest, ajv, ...) — plugin
+        // projects resolve them from their own node_modules.
+        external: (id) => !id.startsWith(".") && !path.isAbsolute(id),
+      },
+    },
+  });
   esbuild("src/test/client/component/config.ts", { format: "esm", outdir: "dist/test/client/component" });
-  esbuild("src/test/client/component/setup.ts", { format: "esm", outdir: "dist/test/client/component" });
   esbuild("src/test/client/unit/index.ts", { format: "esm", outdir: "dist/test/client/unit" });
   esbuild("src/test/client/unit/config.ts", { format: "esm", outdir: "dist/test/client/unit" });
   esbuild("src/test/client/unit/setup.ts", { format: "esm", outdir: "dist/test/client/unit" });
@@ -166,30 +187,37 @@ export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
 
 function generateComponentTypes() {
   // Emit .vue.d.ts declarations for each component via vue-tsc.
-  // Some components use non-reactive instance properties (this.$input, this.editorInstance)
-  // that vue-tsc reports as errors, but noEmitOnError:false still emits correct declarations.
-  try {
-    execSync("npx vue-tsc -p build/tsconfig.vue-dts.json", { stdio: "inherit" });
-  } catch {
-    // vue-tsc exits non-zero on type errors even with noEmitOnError:false
-  }
+  // rootDir spans src/core (not just form/components): tsc emits a declaration
+  // for every non-declaration file in the program, and files outside rootDir
+  // land beside their source instead of under outDir. Mirroring src/core under
+  // shims/ also keeps the relative imports inside the emitted files resolvable
+  // (client/form/components → ../../types → shims/client/types.d.ts).
+  execSync("npx vue-tsc -p build/tsconfig.vue-dts.json", { stdio: "inherit" });
 
   // Post-process vue-tsc output: inline the type to remove the
-  // `typeof __VLS_export` indirection that Volar can't resolve in consumers.
-  const componentsDir = "dist/types/shims/form/components";
+  // `typeof __VLS_export` indirection that Volar can't resolve in consumers,
+  // keeping the preamble (imports and local type declarations) the inlined
+  // type still references.
+  const componentsDir = "dist/types/shims/client/form/components";
   const vueFiles = readdirSync(componentsDir).filter((f) => f.endsWith(".vue.d.ts"));
 
   for (const file of vueFiles) {
     const filePath = path.join(componentsDir, file);
-    let content = readFileSync(filePath, "utf-8");
+    const content = readFileSync(filePath, "utf-8");
     const match = content.match(
-      /declare const __VLS_export:\s*([\s\S]+)$/
+      /declare const _default: typeof __VLS_export;\s*export default _default;\s*declare const __VLS_export:\s*([\s\S]+)$/
     );
-    if (match) {
-      const actualType = match[1].trimEnd().replace(/;$/, "");
-      content = `declare const _default: ${actualType};\nexport default _default;\n`;
-      writeFileSync(filePath, content);
+    if (!match) {
+      throw new Error(
+        `Unexpected vue-tsc declaration shape in ${filePath} — update the __VLS_export post-processing in generateComponentTypes()`,
+      );
     }
+    const preamble = content.slice(0, match.index);
+    const actualType = match[1].trimEnd().replace(/;$/, "");
+    writeFileSync(
+      filePath,
+      `${preamble}declare const _default: ${actualType};\nexport default _default;\n`,
+    );
   }
 
   const entries = vueFiles.map((file) => {
@@ -198,7 +226,7 @@ function generateComponentTypes() {
       .split("-")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join("");
-    return `    ${componentName}: (typeof import("./form/components/${baseName}.vue"))["default"];`;
+    return `    ${componentName}: (typeof import("./client/form/components/${baseName}.vue"))["default"];`;
   });
 
   const componentsDts = `/**
@@ -227,9 +255,11 @@ function copyAssets() {
   mkdirSync("dist/tsconfig", { recursive: true });
   cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
 
-  mkdirSync("dist/types/shims", { recursive: true });
+  mkdirSync("dist/types/shims/client", { recursive: true });
   copyFileSync("src/core/client/shims-vue.d.ts", "dist/types/shims/shims-vue.d.ts");
-  copyFileSync("src/core/client/globals.d.ts", "dist/types/shims/globals.d.ts");
+  // mirrors its source location so its ../constants import resolves to the
+  // vue-tsc-emitted shims/constants.d.ts
+  copyFileSync("src/core/client/globals.d.ts", "dist/types/shims/client/globals.d.ts");
 
   copyFileSync("src/core/server/typebox.d.ts", "dist/types/shims/typebox.d.ts");
   // canonical vocabulary lives at the core root; the copy lands next to
@@ -322,7 +352,7 @@ buildServer();
 await buildClient();
 buildRootEntry();
 buildVitePlugin();
-buildTestUtils();
+await buildTestUtils();
 generateTypes();
 copyAssets();
 generateComponentTypes();
