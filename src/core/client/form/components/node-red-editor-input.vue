@@ -261,18 +261,21 @@ export default defineComponent({
       let expandedEditor: any;
 
       const onCancel = () => {
+        // the editor can be destroyed (tray closed, component unmounted)
+        // before this deferred focus fires — guard against a null instance
         setTimeout(() => {
-          this.editorInstance.focus();
+          this.editorInstance?.focus();
         }, 250);
         RED.tray.close();
       };
 
       const onDone = () => {
         expandedEditor.saveView();
-        this.editorInstance.setValue(expandedEditor.getValue(), -1);
+        this.editorInstance?.setValue(expandedEditor.getValue(), -1);
+        // the editor can be destroyed before this deferred restore fires
         setTimeout(() => {
-          this.editorInstance.restoreView();
-          this.editorInstance.focus();
+          this.editorInstance?.restoreView();
+          this.editorInstance?.focus();
         }, 250);
         RED.tray.close();
       };
