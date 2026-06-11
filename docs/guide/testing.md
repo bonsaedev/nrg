@@ -46,12 +46,12 @@ Server tests instantiate your node class with mocked Node-RED internals and exer
 | Type | What it tests | Speed | Library |
 |------|--------------|-------|---------|
 | **Unit** | Pure TypeScript logic used by client code (validation, utilities, helpers) | Fast (happy-dom) | `@bonsae/nrg/test/client/unit` |
-| **Component** | Vue editor components — rendering, props, events, RED API interactions | Medium (headless browsers) | `@bonsae/nrg/test/client/component` |
+| **Component** | Vue editor components — rendering, reactivity, user interactions, validation, RED API calls | Medium (headless browsers) | `@bonsae/nrg/test/client/component` |
 | **E2E** | Full editor round-trip — form rendering, validation, TypedInput, config selectors, i18n | Slow (real Node-RED instance) | `@bonsae/nrg/test/client/e2e` |
 
 Client **unit** tests cover standalone TypeScript modules (validation logic, format helpers, etc.) without rendering Vue components. They run in a happy-dom environment with mocked `RED` and `$` globals.
 
-Client **component** tests render individual Vue components with Vitest browser mode and mocked Node-RED globals. They verify that components respond to props, emit events, and call the RED API correctly.
+Client **component** tests render individual Vue components with Vitest browser mode and mocked Node-RED globals. The node and errors returned by `createNode()` are reactive — mutate them directly to drive conditional rendering, schema-driven validation, and RED API calls. Monaco editors and jQuery widget visuals stay mocked — that's what E2E is for.
 
 Client **E2E** tests start a real Node-RED instance with your nodes installed and drive the editor with Playwright. They test the full stack — schema-driven form generation, validation messages, TypedInput widgets, config node selectors, and locale resolution.
 
@@ -67,11 +67,23 @@ Client **E2E** tests start a real Node-RED instance with your nodes installed an
 | A helper function formats data correctly | Client unit |
 | My Vue form renders the right fields | Client component |
 | A component emits `update:modelValue` on input | Client component |
+| Changing one field reveals or hides another | Client component |
+| Fixing an invalid value clears its validation error | Client component |
+| A NodeRef field rejects ids of unregistered config nodes | Client component |
 | `RED.editor.createEditor` is called on mount | Client component |
 | The editor form shows a validation error for empty required fields | Client E2E |
 | A TypedInput dropdown offers the correct types | Client E2E |
 | Config node selector shows registered config nodes | Client E2E |
+| Creating a config node from the node editor works end to end | Client E2E |
+| Toggling a built-in port changes the node's ports on the canvas | Client E2E |
 | Translations display correctly in the editor | Client E2E |
+
+`NodeDefinition` lifecycle hooks (`label()`, `paletteLabel()`, `outputLabels()`, `button.onclick`, `onEditResize`) need no special tooling — they are plain functions. Call them in a client unit test with a fake `this`:
+
+```typescript
+const def = defineNode({ /* ... */ });
+expect(def.label!.call({ name: "My Node" } as any)).toBe("My Node");
+```
 
 ## Server Unit Testing
 
@@ -624,15 +636,53 @@ export default mergeConfig(defaultConfig, defineConfig({
 
 ### API
 
-#### `createNode(overrides?)`
+#### `createNode(options?)`
 
-Creates a mock Node-RED node object and the `provide` object needed by `useFormNode()` components. Returns `{ node, RED, provide }` — a `TestNode` with sensible defaults (`id`, `type`, `changed`, `_def`, `_`), the mock `RED` instance with all methods wrapped in `vi.spyOn`, and a `provide` object that maps the internal injection keys (`__nrg_form_node`, `__nrg_form_schema`, `__nrg_form_errors`).
+Creates a **reactive** mock Node-RED node and the `provide` object needed by `useFormNode()` components. Returns `{ node, errors, RED, provide }` — the node and errors are wrapped in Vue `reactive()`, so mutating them in a test re-renders mounted components and re-runs validation, exactly like the real editor.
 
-Pass `provide` to Vue Test Utils' `global.provide` so components that call `useFormNode()` receive the node, schema, and errors via `inject()`:
+| Option | Description |
+|--------|-------------|
+| `configs` | Initial config values, spread onto the node |
+| `credentials` | Initial credential values, nested under `node.credentials` |
+| `configSchema` | Schema for the configs — enables automatic validation |
+| `credentialsSchema` | Schema for the credentials — errors are keyed `node.credentials.<prop>` |
+| `nodes` | Fake config nodes resolvable via `RED.nodes.node(id)` — required for NodeRef field validation |
+
+A plain object without any of these keys is shorthand for `configs`:
 
 ```typescript
 const { provide } = createNode({ name: "test", retries: 3 });
 render(MyForm, { global: { provide } });
+```
+
+When a schema is provided, `errors` is populated immediately and kept in sync as the node changes. Schemas can be your real TypeBox schemas imported straight from your server schema modules — no conversion needed:
+
+```typescript
+import { ConfigsSchema, CredentialsSchema } from "../../../src/server/schemas/my-node";
+
+const { node, errors, provide } = createNode({
+  configs: { name: "" },
+  credentials: { token: "" },
+  configSchema: ConfigsSchema,
+  credentialsSchema: CredentialsSchema,
+});
+expect(errors["node.name"]).toBeDefined(); // invalid initial state
+
+node.name = "valid";
+await vi.waitFor(() => {
+  expect(errors["node.name"]).toBeUndefined(); // revalidated reactively
+});
+```
+
+Fields declared with `SchemaType.NodeRef` validate that the referenced config node exists — register fakes with `nodes`:
+
+```typescript
+const { errors } = createNode({
+  configs: { connection: "cfg-1" },
+  configSchema: ConfigsSchema,
+  nodes: [{ id: "cfg-1", type: "my-config" }],
+});
+expect(errors["node.connection"]).toBeUndefined();
 ```
 
 When you also need the node or RED instance (e.g. to assert on `node.id` or spy on RED methods), destructure them:
@@ -652,18 +702,57 @@ RED.nodes.dirty.mockReturnValue(true);
 
 `vi.restoreAllMocks()` safely strips the spies. The next `createNode` call re-applies fresh ones, so tests stay isolated.
 
-The mock provides:
+The mock implements the editor's `RED` contract with working state, reset between tests by the built-in setup:
 
-| Namespace | Methods |
-|-----------|---------|
+| Namespace | Behavior |
+|-----------|----------|
 | `RED._` | `_(key)` — returns the key as-is |
-| `RED.editor` | `createEditor(options)`, `prepareConfigNodeSelect(...)`, `validateNode(...)` |
+| `RED.editor` | `createEditor(options)` returns a working mock editor — `getValue`/`setValue`, and `setValue` fires `getSession().on("change")` listeners like real ACE/Monaco. `prepareConfigNodeSelect(...)`, `validateNode(...)` |
 | `RED.tray` | `show(...)`, `close()` |
-| `RED.popover` | `tooltip(...)` |
-| `RED.nodes` | `registerType(...)`, `node(...)`, `dirty(...)` |
-| `RED.events` | `on(...)`, `off(...)`, `emit(...)` |
-| `RED.settings` | `Record<string, any>` — empty object, reset each test via `beforeEach` in setup |
-| `RED.notify` | `notify(...)` — no-op |
+| `RED.popover` | `create(options)` and `tooltip(...)` — both return chainable instances |
+| `RED.nodes` | A working registry: `add`/`node`/`remove`/`clear`, `registerType`/`getType`, `eachNode`/`eachConfig`/`filterNodes`, `filterLinks`/`addLink`, `dirty()` getter/setter, `id()`. `createNode({ nodes })` fakes are visible to all of these |
+| `RED.events` | A functioning event bus — `emit` dispatches to `on` listeners, so tests can drive components subscribed to editor events |
+| `RED.comms` | `subscribe`/`unsubscribe` plus a test-only `publish(topic, msg)` to simulate runtime messages — `+` and `#` topic wildcards supported |
+| `RED.settings` | `get`/`set`/`remove` plus direct property access (exportable settings appear as direct properties) |
+| `RED.notify` | Returns a notification handle with `update()` and `close()` |
+
+Drive a component that listens to runtime state:
+
+```typescript
+const { RED, provide } = createNode({});
+render(DeployStatus, { global: { provide } });
+
+RED.comms.publish("nrg/deploy/job-1", { state: "done" });
+await vi.waitFor(() => {
+  // assert the component rendered the update
+});
+```
+
+Editor instances created by components are reachable through the spy:
+
+```typescript
+const instance = vi.mocked(RED.editor.createEditor).mock.results[0].value;
+instance.setValue("new code"); // fires the component's change listener
+```
+
+#### Driving state in tests
+
+Both `node` and `errors` are plain reactive objects — there are no special setters. Mutate them directly and mounted components react, exactly like in the real editor:
+
+```typescript
+const { node, errors, provide } = createNode({ name: "ok" });
+const component = render(MyForm, { global: { provide } });
+
+node.name = "renamed"; // form re-renders, schema (if any) revalidates
+
+errors["node.connection"] = "Connection is required"; // simulate an error
+await vi.waitFor(() => {
+  // assert how your component renders the error
+});
+delete errors["node.connection"]; // clear it
+```
+
+Note that when a `configSchema` is provided, validation owns `errors` — manual entries are recomputed away on the next node mutation. Inject errors by hand only in schema-less setups.
 
 ### Examples
 
@@ -671,15 +760,16 @@ The mock provides:
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { createNode } from "@bonsae/nrg/test/client/component";
+import { ConfigsSchema } from "../../../src/server/schemas/my-node";
 import MyForm from "../../../src/client/components/my-form.vue";
 
 describe("my-form component", () => {
   test("renders fields from injected node", async () => {
     const { provide } = createNode({ name: "test", url: "https://example.com" });
-    const screen = render(MyForm, {
+    const component = render(MyForm, {
       global: { provide },
     });
-    await expect.element(screen.getByDisplayValue("test")).toBeInTheDocument();
+    await expect.element(component.getByDisplayValue("test")).toBeInTheDocument();
   });
 
   test("accesses node id for API calls", async () => {
@@ -701,21 +791,48 @@ describe("my-form component", () => {
   });
 
   test("validates required fields", async () => {
-    const screen = render(MyInput, {
+    const component = render(MyInput, {
       props: { value: "", label: "Name", required: true },
     });
-    await expect.element(screen.getByText("*")).toBeInTheDocument();
+    await expect.element(component.getByText("*")).toBeInTheDocument();
   });
 
   test("emits v-model updates", async () => {
     const onUpdate = vi.fn();
-    const screen = render(MyInput, {
+    const component = render(MyInput, {
       props: { value: "", "onUpdate:modelValue": onUpdate },
     });
-    const input = screen.container.querySelector("input") as HTMLInputElement;
+    const input = component.container.querySelector("input") as HTMLInputElement;
     input.value = "new value";
     input.dispatchEvent(new Event("input"));
     expect(onUpdate).toHaveBeenCalledWith("new value");
+  });
+
+  test("reveals conditional fields when the node changes", async () => {
+    const { node, provide } = createNode({ apexType: "invocable" });
+    const component = render(MyForm, { global: { provide } });
+    expect(component.container.textContent).not.toContain("URL Mapping");
+
+    node.apexType = "rest"; // reactive — the form re-renders
+
+    await vi.waitFor(() => {
+      expect(component.container.textContent).toContain("URL Mapping");
+    });
+  });
+
+  test("clears the validation error once the node is valid", async () => {
+    const { node, errors, provide } = createNode({
+      configs: { name: "" },
+      configSchema: ConfigsSchema,
+    });
+    render(MyForm, { global: { provide } });
+    expect(errors["node.name"]).toBeDefined();
+
+    node.name = "My Node";
+
+    await vi.waitFor(() => {
+      expect(errors["node.name"]).toBeUndefined();
+    });
   });
 });
 ```
@@ -874,12 +991,30 @@ const editor = new NodeRedEditor(page, port, {
 | `editor.editNode(nodeId)` | Open the edit dialog for a node |
 | `editor.clickDone()` | Click the Done button and wait for the tray to close |
 | `editor.clickCancel()` | Click the Cancel button and wait for the tray to close |
-| `editor.field(label)` | Get a `NodeRedField` for the form row with the given label |
+| `editor.clickConfigDone()` | Close the config-node tray stacked above the node tray |
+| `editor.clickConfigCancel()` | Cancel the config-node tray |
+| `editor.field(label)` | Get a `NodeRedField` for the form row with the given label (scoped to the topmost tray) |
+| `editor.getNode(nodeId)` | JSON-safe snapshot of a node in the editor model — assert persistence after `clickDone()` |
+| `editor.clickDeploy()` | Click Deploy (confirming the dialog if needed) and wait for a clean workspace |
+| `editor.getDeployedFlow()` | Fetch the deployed flow from the runtime (`GET /flows`) |
+| `editor.getNodePortCount(nodeId)` | Count the output ports rendered for a node on the canvas |
+| `editor.getNodeLabel(nodeId)` | The node's label text on the canvas |
+| `editor.getNodeStatus(nodeId)` | The status text under the node (`""` when none) |
 | `editor.deployFlow(flow)` | Deploy a flow via the REST API and reload the page |
 | `editor.screenshot(name)` | Take a full-page screenshot, returns the file path |
-| `editor.expectNoPageErrors()` | Assert no uncaught JavaScript errors occurred |
+| `editor.closeAllTrays()` | Best-effort close of every open tray — keeps a failed test from leaking state |
+| `editor.expectNoPageErrors()` | Assert no uncaught JavaScript errors occurred, then clear the list — call it from `afterEach` |
 | `editor.tray` | Locator for the tray body wrapper |
 | `editor.errors` | Array of captured page error messages |
+
+Isolate tests from each other and fail any test that triggers an uncaught editor error:
+
+```typescript
+afterEach(async () => {
+  await editor.closeAllTrays();
+  editor.expectNoPageErrors();
+});
+```
 
 #### `NodeRedField`
 
@@ -925,16 +1060,38 @@ const name = editor.field("Name");
 | `field.select` | Locator for the `<select>` element |
 | `field.editButton` | Locator for the edit (pencil) button |
 | `field.addButton` | Locator for the add (plus) button |
+| `field.openAddConfig()` | Click + and wait for the config tray to open |
+| `field.openEditConfig()` | Click the pencil and wait for the config tray to open |
 | `field.getSelectedOption()` | Get the selected option value |
 | `field.getSelectedOptionLabel()` | Get the selected option display text |
 | `field.getOptions()` | Get all option labels (excludes "Add new ...") |
+
+Once the config tray is open, `editor.field(label)` resolves fields inside it (fields are scoped to the topmost tray). Close it with `editor.clickConfigDone()` — the node tray underneath stays open:
+
+```typescript
+await editor.editNode("n1");
+const server = editor.field("Server");
+await server.openAddConfig();
+await editor.field("Host").fill("example.com"); // config tray field
+await editor.clickConfigDone();
+expect(await server.getSelectedOptionLabel()).toBe("example.com");
+await editor.clickDone();
+```
 
 **Code editor fields**:
 
 | Method / Property | Description |
 |-------------------|-------------|
 | `field.editorWrapper` | Locator for the code editor wrapper |
+| `field.getEditorValue()` | Read the code editor's content (Monaco, ACE fallback) |
+| `field.setEditorValue(value)` | Replace the code editor's content |
 | `field.expandButton` | Locator for the expand button |
+
+**Autocomplete** (TypedInput types with an `autoComplete` source):
+
+| Method / Property | Description |
+|-------------------|-------------|
+| `field.getAutoCompleteSuggestions(prefix)` | Type `prefix` and return the suggestion labels that appear |
 
 **Array text fields**:
 
@@ -1120,4 +1277,17 @@ describe.each(BROWSERS)("my-node editor ($name)", ({ type }) => {
 
   // ... tests run once per browser engine
 });
+```
+
+### Testing locales
+
+Node-RED resolves the editor language from the browser. Force a locale through the Playwright context to assert translated labels:
+
+```typescript
+const page = await browser.newPage({ locale: "pt-BR" });
+const editor = new NodeRedEditor(page, port);
+await editor.open();
+
+await editor.editNode("n1");
+await editor.field("Nome").expectVisible(); // pt-BR label from your locale files
 ```
