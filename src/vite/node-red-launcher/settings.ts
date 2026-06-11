@@ -115,6 +115,12 @@ if (!settings.nodesDir.includes(${outDirLiteral})) {
 if(!settings.flowFile){
   settings.flowFile = "flows.json";
 }
+// the welcome tour overlay intercepts pointer events — fatal for e2e and
+// noise for dev; explicit user settings still win
+settings.editorTheme = settings.editorTheme || {};
+if (settings.editorTheme.tours === undefined) {
+  settings.editorTheme.tours = false;
+}
 module.exports = settings;
 `
     : `
@@ -123,6 +129,8 @@ const settings = {
   userDir: ${userDirLiteral},
   flowFile: "flows.json",
   nodesDir: [${outDirLiteral}],
+  // the welcome tour overlay intercepts pointer events — fatal for e2e
+  editorTheme: { tours: false },
 };
 module.exports = settings;
 `;
