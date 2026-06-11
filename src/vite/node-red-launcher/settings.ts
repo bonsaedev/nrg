@@ -73,7 +73,7 @@ async function compileRuntimeSettingsFile(
 async function generateRuntimeSettings(
   options: GenerateRuntimeSettingsOptions,
 ): Promise<RuntimeSettings> {
-  const { outDir, port, settingsFilepath, httpAdminRoot, logger } = options;
+  const { outDir, port, settingsFilepath, logger } = options;
   const tempFiles: string[] = [];
 
   const userRuntimeSettingsFilepath = findUserRuntimeSettingsFilepath(
@@ -98,17 +98,6 @@ async function generateRuntimeSettings(
   const userDirLiteral = JSON.stringify(userDir);
   const outDirLiteral = JSON.stringify(normalizedOutDir);
 
-  // the dev server proxies the editor under a path prefix; httpAdminRoot must
-  // match so Node-RED generates URLs the proxy recognizes. It is
-  // framework-managed (like uiPort), so it overrides any user httpAdminRoot
-  // while developing
-  const httpAdminRootAssignment = httpAdminRoot
-    ? `settings.httpAdminRoot = ${JSON.stringify(httpAdminRoot)};\n`
-    : "";
-  const httpAdminRootEntry = httpAdminRoot
-    ? `\n  httpAdminRoot: ${JSON.stringify(httpAdminRoot)},`
-    : "";
-
   const finalRuntimeSettingsFile = compiledRuntimeSettingsFilepath
     ? `
 const compiledRuntimeSettings = require(${JSON.stringify(
@@ -116,7 +105,7 @@ const compiledRuntimeSettings = require(${JSON.stringify(
       )});
 const settings = compiledRuntimeSettings.default || compiledRuntimeSettings;
 settings.uiPort = ${port};
-${httpAdminRootAssignment}if(!settings.userDir){
+if(!settings.userDir){
     settings.userDir = ${userDirLiteral};
 }
 settings.nodesDir = settings.nodesDir || [];
@@ -139,7 +128,7 @@ const settings = {
   uiPort: ${port},
   userDir: ${userDirLiteral},
   flowFile: "flows.json",
-  nodesDir: [${outDirLiteral}],${httpAdminRootEntry}
+  nodesDir: [${outDirLiteral}],
   // the welcome tour overlay intercepts pointer events — fatal for e2e
   editorTheme: { tours: false },
 };

@@ -8,7 +8,7 @@ import {
   DEFAULT_EXTRA_FILES_COPY_TARGETS,
   DEFAULT_OUTPUT_DIR,
 } from "./defaults";
-import { getPackageName, mergeOptions, resolveSlug } from "./utils";
+import { getPackageName, mergeOptions } from "./utils";
 import { NodeRedLauncher } from "./node-red-launcher";
 import { serverPlugin, buildPlugin } from "./plugins";
 
@@ -52,11 +52,9 @@ function nrg(options: NrgPluginOptions = {}): Plugin[] {
     packageName: getPackageName(),
     isDev: process.env.NODE_ENV === "development",
   };
-  const slug = resolveSlug(server.slug);
   const nodeRedLauncher = new NodeRedLauncher(
     resolvedOutDir,
     nodeRedLauncherOptions,
-    slug,
   );
 
   return [

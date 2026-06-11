@@ -122,18 +122,6 @@ describe("NodeRedLauncher", () => {
       ).toBe(500);
     });
 
-    it("slug and basePath default to empty/root", () => {
-      const launcher = new NodeRedLauncher("dist", {});
-      expect(launcher.slug).toBe("");
-      expect(launcher.basePath).toBe("/");
-    });
-
-    it("basePath wraps the configured slug in slashes", () => {
-      const launcher = new NodeRedLauncher("dist", {}, "my-app");
-      expect(launcher.slug).toBe("my-app");
-      expect(launcher.basePath).toBe("/my-app/");
-    });
-
     it("pid returns null when no process", () => {
       expect(new NodeRedLauncher("dist", {}).pid).toBeNull();
     });
@@ -181,27 +169,6 @@ describe("NodeRedLauncher", () => {
           args: ["--safe"],
         }),
       );
-    });
-
-    it("mounts the editor under the slug via httpAdminRoot", async () => {
-      mockHappyStart();
-      const launcher = new NodeRedLauncher("dist", {}, "my-app");
-
-      await launcher.start();
-
-      expect(generateRuntimeSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ httpAdminRoot: "/my-app/" }),
-      );
-    });
-
-    it("leaves httpAdminRoot unset when there is no slug", async () => {
-      mockHappyStart();
-      const launcher = new NodeRedLauncher("dist", {});
-
-      await launcher.start();
-
-      const opts = vi.mocked(generateRuntimeSettings).mock.calls[0][0];
-      expect(opts.httpAdminRoot).toBeUndefined();
     });
 
     it("passes the configured version to the resolver", async () => {

@@ -85,15 +85,6 @@ interface NodeRedLauncherOptions {
 interface ServerOptions {
   /** Options for the Node-RED dev server launcher. */
   nodeRed?: NodeRedLauncherOptions;
-  /**
-   * URL-safe path slug the dev server mounts the Node-RED editor under, so
-   * several `nrg dev` instances can be told apart by path (e.g. behind a
-   * shared reverse proxy) — the editor is served at
-   * `http://host:port/<slug>/`. Must match `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`;
-   * an invalid value is rejected rather than rewritten.
-   * @default the slugified project folder name
-   */
-  slug?: string;
 }
 
 /**
@@ -118,7 +109,7 @@ interface BuildOptions {
  * `build` for the production bundle.
  */
 interface NrgPluginOptions {
-  /** Dev server options (Node-RED launcher, editor path slug). */
+  /** Dev server options (Node-RED launcher). */
   server?: ServerOptions;
   /** Production build options (output dir, server/client bundles, copies). */
   build?: BuildOptions;
@@ -177,10 +168,6 @@ interface NodeRedLauncher {
   cleanup(): void;
   flushLogs(): void;
   readonly preferredPort: number;
-  /** URL-safe path slug the editor is mounted under (empty for root). */
-  readonly slug: string;
-  /** Path prefix derived from the slug — `/<slug>/`, or `/` when no slug. */
-  readonly basePath: string;
   readonly restartDelay: number;
   readonly pid: number | null;
 }

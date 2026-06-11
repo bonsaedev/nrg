@@ -26,13 +26,6 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
     buildContext,
   } = options;
 
-  // the editor is mounted under the slug (basePath is "/<slug>/", or "/" when
-  // no slug); scope the proxy to that prefix so several dev servers behind a
-  // shared reverse proxy don't collide. The slug is validated URL-safe, so it
-  // is safe to embed directly in the proxy's RegExp key.
-  const { slug, basePath } = nodeRedLauncher;
-  const proxyKey = slug ? `^/${slug}(?:/|\\?|$)` : "^/.*";
-
   let nodeRedPort: number;
   let initialStartDone = false;
   let isStarting = false;
@@ -80,7 +73,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
 
       const proxyConfig = server.config.server.proxy;
       if (proxyConfig && typeof proxyConfig === "object") {
-        const rule = proxyConfig[proxyKey];
+        const rule = proxyConfig["^/.*"];
         if (rule && typeof rule === "object") {
           (rule as any).target = `http://127.0.0.1:${nodeRedPort}`;
         }
@@ -114,7 +107,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
   ) => {
     console.log();
     console.log(
-      `  ${color.cyan("Vite")}      ${color.dim("➜")}  ${color.cyan(`http://127.0.0.1:${vitePort}${basePath}`)}`,
+      `  ${color.cyan("Vite")}      ${color.dim("➜")}  ${color.cyan(`http://127.0.0.1:${vitePort}/`)}`,
     );
     if (nodeRedPorts.actual != nodeRedPorts.preferred) {
       console.log(
@@ -138,7 +131,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
         server: {
           host: "127.0.0.1",
           proxy: {
-            [proxyKey]: {
+            "^/.*": {
               target: `http://127.0.0.1:${nodeRedLauncher.preferredPort}`,
               changeOrigin: true,
               ws: true,
@@ -180,20 +173,6 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
 
     async configureServer(viteServer) {
       server = viteServer;
-
-      // the bare dev URL ("/") isn't matched by the slug-scoped proxy — send it
-      // on to the prefixed editor so opening the printed root URL still works
-      if (slug) {
-        server.middlewares.use((req, res, next) => {
-          if (req.url === "/" || req.url === "") {
-            res.statusCode = 302;
-            res.setHeader("Location", basePath);
-            res.end();
-            return;
-          }
-          next();
-        });
-      }
 
       logger.intro();
       await start(true);

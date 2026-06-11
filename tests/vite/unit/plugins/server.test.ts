@@ -15,8 +15,6 @@ function fakeLauncher(over: Partial<NodeRedLauncher> = {}): NodeRedLauncher {
     cleanup: () => {},
     flushLogs: () => {},
     preferredPort: 1880,
-    slug: "",
-    basePath: "/",
     restartDelay: 1000,
     pid: null,
     ...over,
@@ -36,32 +34,18 @@ function pluginConfig(launcher: NodeRedLauncher) {
 }
 
 describe("serverPlugin proxy", () => {
-  it("scopes the proxy to the slug and targets the preferred port", () => {
-    const cfg = pluginConfig(
-      fakeLauncher({
-        slug: "my-app",
-        basePath: "/my-app/",
-        preferredPort: 1881,
-      }),
-    );
+  it("proxies everything to the preferred Node-RED port", () => {
+    const cfg = pluginConfig(fakeLauncher({ preferredPort: 1881 }));
 
     const proxy = cfg.server.proxy;
-    const keys = Object.keys(proxy);
-    expect(keys).toEqual(["^/my-app(?:/|\\?|$)"]);
-    expect(proxy[keys[0]].target).toBe("http://127.0.0.1:1881");
-    expect(proxy[keys[0]].ws).toBe(true);
-    expect(proxy[keys[0]].changeOrigin).toBe(true);
-  });
-
-  it("falls back to a catch-all proxy when there is no slug", () => {
-    const cfg = pluginConfig(fakeLauncher({ slug: "", basePath: "/" }));
-    expect(Object.keys(cfg.server.proxy)).toEqual(["^/.*"]);
+    expect(Object.keys(proxy)).toEqual(["^/.*"]);
+    expect(proxy["^/.*"].target).toBe("http://127.0.0.1:1881");
+    expect(proxy["^/.*"].ws).toBe(true);
+    expect(proxy["^/.*"].changeOrigin).toBe(true);
   });
 
   it("binds the dev server to loopback", () => {
-    const cfg = pluginConfig(
-      fakeLauncher({ slug: "my-app", basePath: "/my-app/" }),
-    );
+    const cfg = pluginConfig(fakeLauncher());
     expect(cfg.server.host).toBe("127.0.0.1");
   });
 });
