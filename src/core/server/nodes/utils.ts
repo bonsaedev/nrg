@@ -1,5 +1,5 @@
 import { Kind } from "@sinclair/typebox";
-import type { ResolveNodeRefs, Schema } from "../schemas/types";
+import type { ResolvedStatic, Schema } from "../schemas/types";
 import type { RED, NodeRedNode, NodeRedContextStore } from "../types";
 import type { NodeContextStore } from "./types";
 import { NrgError } from "../../errors";
@@ -45,7 +45,7 @@ interface SetupConfigProxyOptions<T extends object> {
 
 function setupConfigProxy<T extends object>(
   opts: SetupConfigProxyOptions<T>,
-): ResolveNodeRefs<T> {
+): ResolvedStatic<T> {
   const { RED, node, config, schema } = opts;
   const SKIP_PROPS = new Set(["id", "_id", "_users"]);
 
@@ -120,7 +120,7 @@ function setupConfigProxy<T extends object>(
     return proxy;
   };
 
-  return createProxy(config) as ResolveNodeRefs<T>;
+  return createProxy(config) as ResolvedStatic<T>;
 }
 
 export { isSchemaLike, setupConfigProxy, setupContext };

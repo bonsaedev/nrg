@@ -8,7 +8,7 @@ import type {
 } from "@sinclair/typebox";
 import type { TYPED_INPUT_TYPES } from "../../../constants";
 import type TypedInput from "../../typed-input";
-import type { NrgSchemaExtensions } from "../../schema-options";
+import type { JsonSchemaObjectExtensions } from "../../schema-options";
 import type {
   NodeSourceSchema,
   ErrorPortSchema,
@@ -16,10 +16,7 @@ import type {
   StatusPortSchema,
 } from "../base";
 
-interface NodeRefResolved<T = any> {
-  readonly __nrg_node_ref: true;
-  readonly __instance: T;
-}
+import type { NodeRefResolved } from "../../../brands";
 
 /** Schema type representing a reference to a config node. Resolves to the node instance at runtime. */
 interface TNodeRef<T = any> extends TSchema {
@@ -30,7 +27,14 @@ interface TNodeRef<T = any> extends TSchema {
   "x-nrg-node-type"?: string;
 }
 
-type ResolveNodeRefs<T> =
+/**
+ * Maps a schema's static type to the values server node code sees at
+ * runtime: NodeRef brands resolve to the referenced node instance and
+ * TypedInputs stay as their resolving wrapper. The client counterpart
+ * (`EditorStatic` in client/types) maps the same brands — shared via
+ * core/brands — to raw editor form values instead.
+ */
+type ResolvedStatic<T> =
   T extends NodeRefResolved<infer I>
     ? I
     : T extends TypedInput<any>
@@ -38,9 +42,9 @@ type ResolveNodeRefs<T> =
       : T extends (...args: any[]) => any
         ? T
         : T extends Array<infer Item>
-          ? ResolveNodeRefs<Item>[]
+          ? ResolvedStatic<Item>[]
           : T extends object
-            ? { [K in keyof T]: ResolveNodeRefs<T[K]> }
+            ? { [K in keyof T]: ResolvedStatic<T[K]> }
             : T;
 
 /**
@@ -53,10 +57,10 @@ type ResolveNodeRefs<T> =
  * giving `sendToPort()` proper autocomplete in class-based nodes.
  */
 type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
-  ? ResolveNodeRefs<Static<T>>
+  ? ResolvedStatic<Static<T>>
   : {
       [K in keyof T & string]: T[K] extends TSchema
-        ? ResolveNodeRefs<Static<T[K]>>
+        ? ResolvedStatic<Static<T[K]>>
         : never;
     };
 
@@ -69,7 +73,7 @@ interface TTypedInput<T = unknown> extends TSchema {
   "x-nrg-typed-input": true;
 }
 
-interface NrgSchemaOptions extends SchemaOptions, NrgSchemaExtensions {}
+interface NrgSchemaOptions extends SchemaOptions, JsonSchemaObjectExtensions {}
 
 /** An NRG object schema created by {@link defineSchema}. */
 type Schema<T extends TProperties = TProperties> = TObject<T>;
@@ -93,7 +97,7 @@ export {
   Infer,
   InferOr,
   InferOutputs,
-  ResolveNodeRefs,
+  ResolvedStatic,
   NodeRefResolved,
   TNodeRef,
   TTypedInput,

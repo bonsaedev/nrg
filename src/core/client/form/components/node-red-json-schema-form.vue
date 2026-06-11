@@ -159,6 +159,7 @@ import NodeRedTypedInput from "./node-red-typed-input.vue";
 import NodeRedConfigInput from "./node-red-config-input.vue";
 import NodeRedEditorInput from "./node-red-editor-input.vue";
 import { BUILTIN_PORT_KEYS } from "../../../constants";
+import type { JsonPropertySchema } from "../../types";
 
 // System fields managed by Node-RED — not shown in the editor form.
 const SKIP_FIELDS = new Set([
@@ -179,30 +180,9 @@ const SKIP_FIELDS = new Set([
 
 const BUILTIN_PORT_FIELDS = new Set<string>(BUILTIN_PORT_KEYS);
 
-interface NrgFormOptions {
-  icon?: string;
-  typedInputTypes?: (
-    | NodeRED.DefaultTypedInputType
-    | NodeRED.TypedInputTypeDefinition
-  )[];
-  editorLanguage?: string;
-  toggle?: boolean;
-}
-
-interface FieldSchema {
-  type?: string | string[];
-  properties?: Record<string, FieldSchema>;
-  required?: string[];
-  enum?: any[];
-  format?: string;
-  title?: string;
-  description?: string;
-  default?: any;
-  items?: FieldSchema;
-  "x-nrg-node-type"?: string;
-  "x-nrg-form"?: NrgFormOptions;
-  [key: string]: any;
-}
+// The schema vocabulary is shared with the server (core/schema-options) and
+// surfaced through the client types — no local re-declarations.
+type FieldSchema = JsonPropertySchema;
 
 interface FormField {
   key: string;
@@ -273,7 +253,8 @@ function buildField(
       icon,
       inputType: "typed",
       required,
-      types: form.typedInputTypes,
+      // serialized schemas carry plain strings; trust them as typed-input type names
+      types: form.typedInputTypes as FormField["types"],
     };
   }
 

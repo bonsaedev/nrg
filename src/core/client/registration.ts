@@ -1,5 +1,5 @@
 import type { Component } from "vue";
-import { validateNode } from "./validation";
+import { validateNode, composeValidationSchema } from "./validation";
 import { mountApp, unmountApp } from "./form";
 import { getNodeState, getChanges, applyState } from "./state";
 import {
@@ -12,8 +12,8 @@ import type {
   NodeRedNode,
   NodeFormDefinition,
   NodeDefinition,
+  RuntimeNodeDefinition,
   NodeFeatures,
-  MergedNodeDefinition,
   NodeDefaults,
 } from "./types";
 
@@ -82,27 +82,6 @@ function syncConfigInputs(
   });
 }
 
-function composeValidationSchema(
-  nodeDefinition: MergedNodeDefinition,
-): Record<string, any> | undefined {
-  if (
-    nodeDefinition.configSchema &&
-    nodeDefinition.credentialsSchema?.properties
-  ) {
-    return {
-      ...nodeDefinition.configSchema,
-      properties: {
-        ...nodeDefinition.configSchema.properties,
-        credentials: {
-          type: "object",
-          properties: nodeDefinition.credentialsSchema.properties,
-        },
-      },
-    };
-  }
-  return nodeDefinition.configSchema;
-}
-
 function computeBuiltinPortOutputs(
   defaults: NodeDefaults,
   baseOutputs: number,
@@ -126,7 +105,7 @@ function computeBuiltinPortOutputs(
 async function registerType(definition: NodeDefinition): Promise<void> {
   const { type } = definition;
   try {
-    const nodeDefinition: MergedNodeDefinition = {
+    const nodeDefinition: RuntimeNodeDefinition = {
       ...(_schemas[type] ?? {}),
       ...definition,
     };
@@ -144,7 +123,10 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       html: `<div id="${appContainerId}"></div>`,
     }).appendTo("body");
 
-    const validationSchema = composeValidationSchema(nodeDefinition);
+    const validationSchema = composeValidationSchema(
+      nodeDefinition.configSchema,
+      nodeDefinition.credentialsSchema,
+    );
 
     let hasBuiltinPorts = false;
     let baseOutputs = nodeDefinition.outputs || 0;

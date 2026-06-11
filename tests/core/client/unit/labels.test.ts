@@ -104,7 +104,10 @@ describe("createDefaultOutputLabels", () => {
   it("returns record-based port names", () => {
     const fn = createDefaultOutputLabels(
       "my-node",
-      { success: {}, failure: {} },
+      {
+        success: { type: "object" as const },
+        failure: { type: "object" as const },
+      },
       false,
       0,
     );
@@ -114,13 +117,23 @@ describe("createDefaultOutputLabels", () => {
   });
 
   it("falls through for index beyond record ports", () => {
-    const fn = createDefaultOutputLabels("my-node", { success: {} }, false, 0);
+    const fn = createDefaultOutputLabels(
+      "my-node",
+      { success: { type: "object" as const } },
+      false,
+      0,
+    );
     const node = mockNode();
     expect(fn.call(node, 1)).toBeUndefined();
   });
 
   it("skips record check for array-based outputsSchema", () => {
-    const fn = createDefaultOutputLabels("my-node", [{}], false, 0);
+    const fn = createDefaultOutputLabels(
+      "my-node",
+      [{ type: "object" as const }],
+      false,
+      0,
+    );
     const node = mockNode();
     expect(fn.call(node, 0)).toBeUndefined();
   });
@@ -159,9 +172,12 @@ describe("createDefaultOutputLabels", () => {
 
   it("falls through to i18n after builtin ports", () => {
     const fn = createDefaultOutputLabels("my-node", undefined, true, 1);
-    const node = mockNode({ "my-node.outputLabels.0": "Main" }, {
-      errorPort: true,
-    });
+    const node = mockNode(
+      { "my-node.outputLabels.0": "Main" },
+      {
+        errorPort: true,
+      },
+    );
     expect(fn.call(node, 0)).toBe("Main");
     expect(fn.call(node, 1)).toBe("Error");
   });
@@ -181,7 +197,10 @@ describe("createDefaultOutputLabels", () => {
   it("labels record ports then builtin ports in combined mode", () => {
     const fn = createDefaultOutputLabels(
       "my-node",
-      { success: {}, failure: {} },
+      {
+        success: { type: "object" as const },
+        failure: { type: "object" as const },
+      },
       true,
       2,
     );

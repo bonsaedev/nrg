@@ -1,11 +1,4 @@
-export interface NrgSchemaExtensions {
-  format?: "node-id" | "flow-id" | "topic-path" | (string & {});
-  exportable?: boolean;
-  "x-nrg-node-type"?: string;
-  "x-nrg-form"?: {
-    icon?: string;
-    typedInputTypes?: string[];
-    editorLanguage?: string;
-    toggle?: boolean;
-  };
-}
+// Canonical definition lives at the shared core root; this stub keeps the
+// server-tree import path (and the dist shim copied next to typebox.d.ts)
+// stable.
+export type { JsonSchemaObjectExtensions } from "../schema-options";

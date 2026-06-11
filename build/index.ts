@@ -232,7 +232,9 @@ function copyAssets() {
   copyFileSync("src/core/client/globals.d.ts", "dist/types/shims/globals.d.ts");
 
   copyFileSync("src/core/server/typebox.d.ts", "dist/types/shims/typebox.d.ts");
-  copyFileSync("src/core/server/schema-options.ts", "dist/types/shims/schema-options.d.ts");
+  // canonical vocabulary lives at the core root; the copy lands next to
+  // typebox.d.ts which imports it as ./schema-options
+  copyFileSync("src/core/schema-options.ts", "dist/types/shims/schema-options.d.ts");
 
   cpSync("src/schemas", "dist/schemas", { recursive: true });
 

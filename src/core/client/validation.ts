@@ -1,6 +1,7 @@
 import jsonpointer from "jsonpointer";
 import { Validator } from "../validator";
 import type { ErrorObject } from "ajv";
+import type { JsonSchemaObject } from "./types";
 
 const validator = new Validator({
   customKeywords: [
@@ -25,6 +26,30 @@ const validator = new Validator({
     "topic-path": (data: string) => /^[a-zA-Z0-9/_-]+$/.test(data),
   },
 });
+
+/**
+ * Merges a config schema and a credentials schema into the single validation
+ * schema used by both the error triangle and inline form errors. Credentials
+ * are nested under a `credentials` object property, mirroring the node shape.
+ */
+function composeValidationSchema(
+  configSchema?: JsonSchemaObject,
+  credentialsSchema?: JsonSchemaObject,
+): JsonSchemaObject | undefined {
+  if (configSchema && credentialsSchema?.properties) {
+    return {
+      ...configSchema,
+      properties: {
+        ...configSchema.properties,
+        credentials: {
+          type: "object",
+          properties: credentialsSchema.properties,
+        },
+      },
+    };
+  }
+  return configSchema;
+}
 
 /**
  * Runs AJV validation and returns the raw error array — empty when valid.
@@ -101,4 +126,4 @@ function validateForm(subject: any, schema: any): Record<string, string> {
     );
 }
 
-export { validateNode, validateForm };
+export { composeValidationSchema, validateNode, validateForm };

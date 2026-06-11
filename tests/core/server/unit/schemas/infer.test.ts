@@ -2,6 +2,7 @@ import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
 import type { TNodeRef, TTypedInput, Infer } from "@/core/server/schemas/types";
 import type TypedInput from "@/core/server/typed-input";
+import type { TypedInputResolved } from "@/core/brands";
 
 function nodeRef<T>(): TNodeRef<T> {
   return { [Kind]: "NodeRef", type: "string", format: "node-id" } as any;
@@ -47,6 +48,13 @@ describe("Server Infer", () => {
     expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{
       target: TypedInput<string>;
     }>();
+  });
+
+  it("TypedInput class satisfies the shared TypedInputResolved brand", () => {
+    // the client's EditorStatic matches TypedInputResolved structurally —
+    // if TypedInput stops satisfying the brand, client inference would
+    // silently degrade, so this must stay a compile-time guarantee
+    expectTypeOf<TypedInput<string>>().toMatchTypeOf<TypedInputResolved>();
   });
 
   it("infers arrays", () => {

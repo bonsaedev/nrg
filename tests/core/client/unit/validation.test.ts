@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateNode, validateForm } from "@/core/client/validation";
+import {
+  composeValidationSchema,
+  validateNode,
+  validateForm,
+} from "@/core/client/validation";
 
 const baseSchema = {
   type: "object",
@@ -160,10 +164,7 @@ describe("validateForm", () => {
       },
       additionalProperties: true,
     };
-    const result = validateForm(
-      { type: "vf-cred", credentials: {} },
-      schema,
-    );
+    const result = validateForm({ type: "vf-cred", credentials: {} }, schema);
     expect(result).toHaveProperty("node.credentials.apiKey");
   });
 
@@ -212,8 +213,12 @@ describe("custom formats", () => {
       properties: { id: { type: "string", format: "node-id" } },
       additionalProperties: true,
     };
-    expect(validateNode({ type: "fmt-nid", id: "abc-123_XY" }, schema)).toBe(true);
-    expect(validateNode({ type: "fmt-nid", id: "bad id!" }, schema)).not.toBe(true);
+    expect(validateNode({ type: "fmt-nid", id: "abc-123_XY" }, schema)).toBe(
+      true,
+    );
+    expect(validateNode({ type: "fmt-nid", id: "bad id!" }, schema)).not.toBe(
+      true,
+    );
   });
 
   it("validates flow-id format", () => {
@@ -222,8 +227,12 @@ describe("custom formats", () => {
       properties: { fid: { type: "string", format: "flow-id" } },
       additionalProperties: true,
     };
-    expect(validateNode({ type: "fmt-fid", fid: "abcdef0123456789" }, schema)).toBe(true);
-    expect(validateNode({ type: "fmt-fid", fid: "not-hex" }, schema)).not.toBe(true);
+    expect(
+      validateNode({ type: "fmt-fid", fid: "abcdef0123456789" }, schema),
+    ).toBe(true);
+    expect(validateNode({ type: "fmt-fid", fid: "not-hex" }, schema)).not.toBe(
+      true,
+    );
   });
 
   it("rejects flow-id with wrong length or uppercase", () => {
@@ -233,11 +242,17 @@ describe("custom formats", () => {
       additionalProperties: true,
     };
     // 15 chars — too short
-    expect(validateNode({ type: "fmt-fid", fid: "abcdef012345678" }, schema)).not.toBe(true);
+    expect(
+      validateNode({ type: "fmt-fid", fid: "abcdef012345678" }, schema),
+    ).not.toBe(true);
     // 17 chars — too long
-    expect(validateNode({ type: "fmt-fid", fid: "abcdef01234567890" }, schema)).not.toBe(true);
+    expect(
+      validateNode({ type: "fmt-fid", fid: "abcdef01234567890" }, schema),
+    ).not.toBe(true);
     // uppercase hex — invalid
-    expect(validateNode({ type: "fmt-fid", fid: "ABCDEF0123456789" }, schema)).not.toBe(true);
+    expect(
+      validateNode({ type: "fmt-fid", fid: "ABCDEF0123456789" }, schema),
+    ).not.toBe(true);
     // empty string — also invalid (regex requires exactly 16 hex chars)
     expect(validateNode({ type: "fmt-fid", fid: "" }, schema)).not.toBe(true);
   });
@@ -248,8 +263,12 @@ describe("custom formats", () => {
       properties: { topic: { type: "string", format: "topic-path" } },
       additionalProperties: true,
     };
-    expect(validateNode({ type: "fmt-tp", topic: "a/b/c_1-2" }, schema)).toBe(true);
-    expect(validateNode({ type: "fmt-tp", topic: "bad path!" }, schema)).not.toBe(true);
+    expect(validateNode({ type: "fmt-tp", topic: "a/b/c_1-2" }, schema)).toBe(
+      true,
+    );
+    expect(
+      validateNode({ type: "fmt-tp", topic: "bad path!" }, schema),
+    ).not.toBe(true);
   });
 });
 
@@ -280,7 +299,9 @@ describe("x-nrg-node-type keyword", () => {
       },
       additionalProperties: true,
     };
-    expect(validateNode({ type: "kw-nrt", connection: "cfg1" }, schema)).toBe(true);
+    expect(validateNode({ type: "kw-nrt", connection: "cfg1" }, schema)).toBe(
+      true,
+    );
     expect(spy).toHaveBeenCalledWith("cfg1");
   });
 
@@ -294,7 +315,9 @@ describe("x-nrg-node-type keyword", () => {
       },
       additionalProperties: true,
     };
-    expect(validateNode({ type: "kw-nrt", connection: "cfg1" }, schema)).not.toBe(true);
+    expect(
+      validateNode({ type: "kw-nrt", connection: "cfg1" }, schema),
+    ).not.toBe(true);
   });
 
   it("fails when RED.nodes.node returns null", () => {
@@ -307,6 +330,71 @@ describe("x-nrg-node-type keyword", () => {
       },
       additionalProperties: true,
     };
-    expect(validateNode({ type: "kw-nrt", connection: "cfg1" }, schema)).not.toBe(true);
+    expect(
+      validateNode({ type: "kw-nrt", connection: "cfg1" }, schema),
+    ).not.toBe(true);
+  });
+});
+
+describe("composeValidationSchema", () => {
+  const configSchema = {
+    type: "object",
+    properties: {
+      name: { type: "string", minLength: 1 },
+    },
+    required: ["name"],
+  } as any;
+
+  const credentialsSchema = {
+    type: "object",
+    properties: {
+      token: { type: "string", format: "password", minLength: 1 },
+    },
+  } as any;
+
+  it("returns undefined when no config schema", () => {
+    expect(composeValidationSchema(undefined, undefined)).toBeUndefined();
+    expect(
+      composeValidationSchema(undefined, credentialsSchema),
+    ).toBeUndefined();
+  });
+
+  it("returns config schema as-is when no credentials schema", () => {
+    expect(composeValidationSchema(configSchema, undefined)).toBe(configSchema);
+  });
+
+  it("nests credentials properties under a credentials object", () => {
+    const composed = composeValidationSchema(configSchema, credentialsSchema);
+    expect(composed).toEqual({
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 1 },
+        credentials: {
+          type: "object",
+          properties: {
+            token: { type: "string", format: "password", minLength: 1 },
+          },
+        },
+      },
+      required: ["name"],
+    });
+  });
+
+  it("does not mutate the input schemas", () => {
+    const configCopy = JSON.parse(JSON.stringify(configSchema));
+    const credsCopy = JSON.parse(JSON.stringify(credentialsSchema));
+    composeValidationSchema(configSchema, credentialsSchema);
+    expect(configSchema).toEqual(configCopy);
+    expect(credentialsSchema).toEqual(credsCopy);
+  });
+
+  it("composed schema validates config and credential fields together", () => {
+    const composed = composeValidationSchema(configSchema, credentialsSchema)!;
+    const errors = validateForm(
+      { type: "compose-test", name: "", credentials: { token: "" } },
+      composed,
+    );
+    expect(errors["node.name"]).toBeDefined();
+    expect(errors["node.credentials.token"]).toBeDefined();
   });
 });

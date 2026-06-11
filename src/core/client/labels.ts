@@ -1,4 +1,4 @@
-import type { NodeRedNode } from "./types";
+import type { NodeRedNode, RuntimeNodeDefinition } from "./types";
 
 function resolveI18n(node: NodeRedNode, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -33,7 +33,7 @@ function createDefaultInputLabels(type: string) {
 
 function createDefaultOutputLabels(
   type: string,
-  outputsSchema: any,
+  outputsSchema: RuntimeNodeDefinition["outputsSchema"],
   hasBuiltinPorts: boolean,
   baseOutputs: number,
 ) {

@@ -1,28 +1,14 @@
 import { inject } from "vue";
 import type { TSchema, Static } from "@sinclair/typebox";
-import type { NodeRedNode, TypedInputValue } from "./types";
-import type { NodeRefResolved } from "../server/schemas/types";
-
-type _ToClient<T> =
-  T extends NodeRefResolved<any>
-    ? string
-    : T extends { resolve(...args: any[]): any; value: unknown; type: string }
-      ? TypedInputValue
-      : T extends (...args: any[]) => any
-        ? T
-        : T extends Array<infer I>
-          ? _ToClient<I>[]
-          : T extends object
-            ? { [K in keyof T]: _ToClient<T[K]> }
-            : T;
+import type { NodeRedNode, EditorStatic } from "./types";
 
 interface FormNode<
   TConfig extends TSchema = TSchema,
   TCredentials extends TSchema = TSchema,
 > {
   node: NodeRedNode &
-    _ToClient<Static<TConfig>> & {
-      credentials: _ToClient<Static<TCredentials>> & Record<string, any>;
+    EditorStatic<Static<TConfig>> & {
+      credentials: EditorStatic<Static<TCredentials>> & Record<string, any>;
     };
   schema: Record<string, any>;
   errors: Record<string, string>;
