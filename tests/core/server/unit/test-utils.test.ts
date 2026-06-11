@@ -32,6 +32,23 @@ describe("createRED", () => {
     );
   });
 
+  test("addCredentials merges and getCredentials reads them back", () => {
+    const red = createRED();
+    red.nodes.addCredentials("cfg-1", { accessToken: "a", refreshToken: "r" });
+    expect(red.nodes.getCredentials("cfg-1")).toEqual({
+      accessToken: "a",
+      refreshToken: "r",
+    });
+
+    // merge — a partial update keeps untouched keys
+    red.nodes.addCredentials("cfg-1", { accessToken: "a2" });
+    expect(red.nodes.getCredentials("cfg-1")).toEqual({
+      accessToken: "a2",
+      refreshToken: "r",
+    });
+    expect(red.nodes.getCredentials("missing")).toBeUndefined();
+  });
+
   test("registerNode makes nodes resolvable via getNode", () => {
     const red = createRED();
     red.registerNode("n1", { id: "n1", type: "custom" } as any);

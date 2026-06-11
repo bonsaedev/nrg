@@ -60,6 +60,8 @@ interface NodeRedNodes {
   getNode(id: string): (NodeRedNode & { _node?: INode }) | undefined;
   createNode(node: NodeRedNode, config: Record<string, any>): void;
   getCredentials(id: string): Record<string, any> | undefined;
+  /** Merge credentials into a node's stored credential set (runtime API). */
+  addCredentials(id: string, credentials: Record<string, any>): void;
   eachNode(callback: (node: any) => void): void;
   getType(type: string): any;
   getNodeInfo(type: string): any;

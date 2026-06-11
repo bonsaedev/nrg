@@ -10,6 +10,7 @@ interface MockRED extends RED {
 function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
   const { settings = {} } = options;
   const nodes: Record<string, any> = {};
+  const credentials: Record<string, Record<string, any>> = {};
 
   const red = {
     log: {
@@ -36,7 +37,10 @@ function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
       getNode: vi.fn((id: string) => nodes[id]),
       registerType: vi.fn(),
       createNode: vi.fn(),
-      getCredentials: vi.fn(),
+      getCredentials: vi.fn((id: string) => credentials[id]),
+      addCredentials: vi.fn((id: string, creds: Record<string, any>) => {
+        credentials[id] = { ...credentials[id], ...creds };
+      }),
       eachNode: vi.fn(),
       getType: vi.fn(),
       getNodeInfo: vi.fn(),
