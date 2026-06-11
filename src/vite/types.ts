@@ -80,21 +80,48 @@ interface NodeRedLauncherOptions {
 }
 
 /**
- * Options for the `nodeRed()` Vite plugin.
- *
- * All options are optional — defaults work for the standard `src/` directory layout.
+ * Options for the dev server that runs and fronts the local Node-RED instance.
  */
-interface NodeRedPluginOptions {
+interface ServerOptions {
+  /** Options for the Node-RED dev server launcher. */
+  nodeRed?: NodeRedLauncherOptions;
+  /**
+   * URL-safe path slug the dev server mounts the Node-RED editor under, so
+   * several `nrg dev` instances can be told apart by path (e.g. behind a
+   * shared reverse proxy) — the editor is served at
+   * `http://host:port/<slug>/`. Must match `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`;
+   * an invalid value is rejected rather than rewritten.
+   * @default the slugified project folder name
+   */
+  slug?: string;
+}
+
+/**
+ * Options for building the distributable Node-RED package.
+ */
+interface BuildOptions {
   /** Output directory for the built Node-RED package. @default "./dist" */
   outDir?: string;
-  /** Options for building the client-side editor UI. */
-  clientBuildOptions?: ClientBuildOptions;
   /** Options for building the server-side node runtime. */
-  serverBuildOptions?: ServerBuildOptions;
-  /** Options for the Node-RED dev server launcher. */
-  nodeRedLauncherOptions?: NodeRedLauncherOptions;
+  server?: ServerBuildOptions;
+  /** Options for building the client-side editor UI. */
+  client?: ClientBuildOptions;
   /** Extra files to copy into the output directory (e.g., LICENSE, README). */
   extraFilesCopyTargets?: CopyTarget[];
+}
+
+/**
+ * Options for the `nrg()` Vite plugin.
+ *
+ * All options are optional — defaults work for the standard `src/` directory
+ * layout. Options are grouped by concern: `server` for the dev server and
+ * `build` for the production bundle.
+ */
+interface NrgPluginOptions {
+  /** Dev server options (Node-RED launcher, editor path slug). */
+  server?: ServerOptions;
+  /** Production build options (output dir, server/client bundles, copies). */
+  build?: BuildOptions;
 }
 
 interface PackageJson {
@@ -150,6 +177,10 @@ interface NodeRedLauncher {
   cleanup(): void;
   flushLogs(): void;
   readonly preferredPort: number;
+  /** URL-safe path slug the editor is mounted under (empty for root). */
+  readonly slug: string;
+  /** Path prefix derived from the slug — `/<slug>/`, or `/` when no slug. */
+  readonly basePath: string;
   readonly restartDelay: number;
   readonly pid: number | null;
 }
@@ -164,6 +195,7 @@ interface ServerPluginOptions {
 
 export {
   BuildContext,
+  BuildOptions,
   BuildPluginOptions,
   ClientBuildOptions,
   CopyTarget,
@@ -171,8 +203,9 @@ export {
   LoggerOptions,
   NodeRedLauncher,
   NodeRedLauncherOptions,
-  NodeRedPluginOptions,
+  NrgPluginOptions,
   PackageJson,
   ServerBuildOptions,
+  ServerOptions,
   ServerPluginOptions,
 };

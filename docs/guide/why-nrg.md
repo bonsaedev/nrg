@@ -219,10 +219,10 @@ All handled by one Vite plugin:
 ```typescript
 // vite.config.ts
 import { defineConfig } from "vite";
-import { nodeRed } from "@bonsae/nrg/vite";
+import { nrg } from "@bonsae/nrg/vite";
 
 export default defineConfig({
-  plugins: [nodeRed()],
+  plugins: [nrg()],
 });
 ```
 

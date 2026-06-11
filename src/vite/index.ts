@@ -1,2 +1,2 @@
-export { nodeRed } from "./plugin";
-export type { NodeRedPluginOptions } from "./types";
+export { nrg } from "./plugin";
+export type { NrgPluginOptions, ServerOptions, BuildOptions } from "./types";

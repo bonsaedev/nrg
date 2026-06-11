@@ -14,6 +14,8 @@ interface GenerateRuntimeSettingsOptions {
   outDir: string;
   port: number;
   settingsFilepath?: string;
+  /** When set, mounts the Node-RED editor/admin API under this path prefix. */
+  httpAdminRoot?: string;
   logger: Logger;
 }
 

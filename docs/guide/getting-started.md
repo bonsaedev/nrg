@@ -49,10 +49,10 @@ Create a `vite.config.ts` at the project root:
 
 ```typescript
 import { defineConfig } from "vite";
-import { nodeRed } from "@bonsae/nrg/vite";
+import { nrg } from "@bonsae/nrg/vite";
 
 export default defineConfig({
-  plugins: [nodeRed()],
+  plugins: [nrg()],
 });
 ```
 

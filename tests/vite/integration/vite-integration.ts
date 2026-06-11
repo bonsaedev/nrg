@@ -22,12 +22,14 @@ const PACKAGE_JSON = {
 
 const VITE_CONFIG = `\
 import { defineConfig } from "vite";
-import { nodeRed } from "@bonsae/nrg/vite";
+import { nrg } from "@bonsae/nrg/vite";
 
 export default defineConfig({
   plugins: [
-    nodeRed({
-      extraFilesCopyTargets: [],
+    nrg({
+      build: {
+        extraFilesCopyTargets: [],
+      },
     }),
   ],
 });

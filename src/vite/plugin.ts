@@ -1,6 +1,6 @@
 import type { Plugin } from "vite";
 import path from "path";
-import type { NodeRedPluginOptions } from "./types";
+import type { NrgPluginOptions } from "./types";
 import {
   DEFAULT_CLIENT_BUILD_OPTIONS,
   DEFAULT_SERVER_BUILD_OPTIONS,
@@ -8,7 +8,7 @@ import {
   DEFAULT_EXTRA_FILES_COPY_TARGETS,
   DEFAULT_OUTPUT_DIR,
 } from "./defaults";
-import { getPackageName, mergeOptions } from "./utils";
+import { getPackageName, mergeOptions, resolveSlug } from "./utils";
 import { NodeRedLauncher } from "./node-red-launcher";
 import { serverPlugin, buildPlugin } from "./plugins";
 
@@ -20,30 +20,31 @@ import { serverPlugin, buildPlugin } from "./plugins";
  * ```ts
  * // vite.config.ts
  * import { defineConfig } from "vite";
- * import { nodeRed } from "@bonsae/nrg/vite";
+ * import { nrg } from "@bonsae/nrg/vite";
  *
  * export default defineConfig({
- *   plugins: [nodeRed()],
+ *   plugins: [nrg()],
  * });
  * ```
  */
-function nodeRed(options: NodeRedPluginOptions = {}): Plugin[] {
-  const { outDir = DEFAULT_OUTPUT_DIR } = options;
+function nrg(options: NrgPluginOptions = {}): Plugin[] {
+  const { build = {}, server = {} } = options;
+  const { outDir = DEFAULT_OUTPUT_DIR } = build;
 
   const clientBuildOptions = mergeOptions(
     DEFAULT_CLIENT_BUILD_OPTIONS,
-    options.clientBuildOptions,
+    build.client,
   );
   const serverBuildOptions = mergeOptions(
     DEFAULT_SERVER_BUILD_OPTIONS,
-    options.serverBuildOptions,
+    build.server,
   );
   const nodeRedLauncherOptions = mergeOptions(
     DEFAULT_NODE_RED_LAUNCHER_OPTIONS,
-    options.nodeRedLauncherOptions,
+    server.nodeRed,
   );
   const extraFilesCopyTargets =
-    options.extraFilesCopyTargets ?? DEFAULT_EXTRA_FILES_COPY_TARGETS;
+    build.extraFilesCopyTargets ?? DEFAULT_EXTRA_FILES_COPY_TARGETS;
 
   const resolvedOutDir = path.resolve(outDir);
   const buildContext = {
@@ -51,9 +52,11 @@ function nodeRed(options: NodeRedPluginOptions = {}): Plugin[] {
     packageName: getPackageName(),
     isDev: process.env.NODE_ENV === "development",
   };
+  const slug = resolveSlug(server.slug);
   const nodeRedLauncher = new NodeRedLauncher(
     resolvedOutDir,
     nodeRedLauncherOptions,
+    slug,
   );
 
   return [
@@ -73,4 +76,4 @@ function nodeRed(options: NodeRedPluginOptions = {}): Plugin[] {
   ];
 }
 
-export { nodeRed };
+export { nrg };

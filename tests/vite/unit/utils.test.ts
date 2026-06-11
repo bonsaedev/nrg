@@ -1,8 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { mergeOptions, cleanDir, copyFiles, getPackageName } from "@/vite/utils";
+import {
+  mergeOptions,
+  cleanDir,
+  copyFiles,
+  getPackageName,
+  resolveSlug,
+  slugify,
+  SLUG_PATTERN,
+} from "@/vite/utils";
+import { ConfigError } from "@/vite/errors";
 
 describe("mergeOptions", () => {
   it("should return a copy of defaults when no overrides", () => {
@@ -150,8 +159,12 @@ describe("copyFiles", () => {
 
     copyFiles([{ src: subDir, dest: "sub" }], destDir);
 
-    expect(fs.readFileSync(path.join(destDir, "sub", "a.txt"), "utf-8")).toBe("aaa");
-    expect(fs.readFileSync(path.join(destDir, "sub", "b.txt"), "utf-8")).toBe("bbb");
+    expect(fs.readFileSync(path.join(destDir, "sub", "a.txt"), "utf-8")).toBe(
+      "aaa",
+    );
+    expect(fs.readFileSync(path.join(destDir, "sub", "b.txt"), "utf-8")).toBe(
+      "bbb",
+    );
   });
 
   it("should skip non-existent sources", () => {
@@ -166,7 +179,10 @@ describe("copyFiles", () => {
     copyFiles([{ src: srcFile, dest: "deep/nested/file.txt" }], destDir);
 
     expect(
-      fs.readFileSync(path.join(destDir, "deep", "nested", "file.txt"), "utf-8"),
+      fs.readFileSync(
+        path.join(destDir, "deep", "nested", "file.txt"),
+        "utf-8",
+      ),
     ).toBe("data");
   });
 });
@@ -187,5 +203,75 @@ describe("getPackageName", () => {
     } finally {
       process.chdir(originalCwd);
     }
+  });
+});
+
+describe("slugify", () => {
+  it("lowercases and hyphenates separators", () => {
+    expect(slugify("My Project")).toBe("my-project");
+  });
+
+  it("collapses runs of non-alphanumerics and trims them", () => {
+    expect(slugify("  __Foo!!Bar__  ")).toBe("foo-bar");
+  });
+
+  it("strips accents down to ASCII", () => {
+    expect(slugify("Café Münchën")).toBe("cafe-munchen");
+  });
+
+  it("returns an empty string when nothing slug-worthy remains", () => {
+    expect(slugify("!!!")).toBe("");
+  });
+
+  it("leaves an already-valid slug unchanged", () => {
+    expect(slugify("already-valid-1")).toBe("already-valid-1");
+  });
+});
+
+describe("resolveSlug", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns a valid user-provided slug unchanged", () => {
+    expect(resolveSlug("my-app")).toBe("my-app");
+  });
+
+  it("trims surrounding whitespace from a valid slug", () => {
+    expect(resolveSlug("  my-app  ")).toBe("my-app");
+  });
+
+  it("rejects an invalid slug with a helpful suggestion", () => {
+    expect(() => resolveSlug("My App")).toThrow(ConfigError);
+    expect(() => resolveSlug("My App")).toThrow(/my-app/);
+  });
+
+  it("rejects leading, trailing and doubled hyphens", () => {
+    for (const bad of ["-x", "x-", "a--b"]) {
+      expect(() => resolveSlug(bad)).toThrow(ConfigError);
+    }
+  });
+
+  it("defaults to the slugified project folder name", () => {
+    vi.spyOn(process, "cwd").mockReturnValue(
+      path.join(path.sep, "work", "My Project"),
+    );
+    expect(resolveSlug()).toBe("my-project");
+  });
+
+  it("falls back to 'app' when the folder name yields nothing", () => {
+    vi.spyOn(process, "cwd").mockReturnValue(
+      path.join(path.sep, "work", "!!!"),
+    );
+    expect(resolveSlug()).toBe("app");
+  });
+});
+
+describe("SLUG_PATTERN", () => {
+  it("accepts URL-safe slugs and rejects everything else", () => {
+    expect(SLUG_PATTERN.test("good-slug-1")).toBe(true);
+    expect(SLUG_PATTERN.test("Bad Slug")).toBe(false);
+    expect(SLUG_PATTERN.test("-leading")).toBe(false);
+    expect(SLUG_PATTERN.test("double--hyphen")).toBe(false);
   });
 });

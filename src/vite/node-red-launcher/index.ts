@@ -22,11 +22,17 @@ class NodeRedLauncher implements INodeRedLauncher {
 
   private readonly outDir: string;
   private readonly options: NodeRedLauncherOptions;
+  private readonly _slug: string;
   private readonly logger: Logger;
 
-  constructor(outDir: string, options: NodeRedLauncherOptions) {
+  constructor(
+    outDir: string,
+    options: NodeRedLauncherOptions,
+    slug: string = "",
+  ) {
     this.outDir = outDir;
     this.options = options;
+    this._slug = slug;
     this.logger = new Logger({
       name: "vite-plugin-node-red",
       prefix: "node-red",
@@ -35,6 +41,14 @@ class NodeRedLauncher implements INodeRedLauncher {
 
   get preferredPort(): number {
     return this.options.runtime?.port ?? 1880;
+  }
+
+  get slug(): string {
+    return this._slug;
+  }
+
+  get basePath(): string {
+    return this._slug ? `/${this._slug}/` : "/";
   }
 
   get restartDelay(): number {
@@ -138,6 +152,7 @@ class NodeRedLauncher implements INodeRedLauncher {
         outDir: this.outDir,
         port: this.port,
         settingsFilepath: this.options.runtime?.settingsFilepath,
+        httpAdminRoot: this._slug ? this.basePath : undefined,
         logger: this.logger,
       });
       for (const file of settings.tempFiles) {

@@ -162,6 +162,53 @@ describe("node-red-launcher/settings", () => {
       expect(content).not.toContain("require(");
     });
 
+    it("mounts the editor under httpAdminRoot in default settings", async () => {
+      const result = await generateRuntimeSettings({
+        outDir: "dist",
+        port: 1880,
+        httpAdminRoot: "/my-app/",
+        logger,
+      });
+      createdFiles.push(...result.tempFiles);
+
+      const content = fs.readFileSync(result.filepath, "utf-8");
+      expect(content).toContain('httpAdminRoot: "/my-app/"');
+
+      const moduleStub: { exports: Record<string, any> } = { exports: {} };
+      new Function("module", "require", content)(moduleStub, () => ({}));
+      expect(moduleStub.exports.httpAdminRoot).toBe("/my-app/");
+      expect(moduleStub.exports.uiPort).toBe(1880);
+    });
+
+    it("omits httpAdminRoot from default settings when not provided", async () => {
+      const result = await generateRuntimeSettings({
+        outDir: "dist",
+        port: 1880,
+        logger,
+      });
+      createdFiles.push(...result.tempFiles);
+
+      const content = fs.readFileSync(result.filepath, "utf-8");
+      expect(content).not.toContain("httpAdminRoot");
+    });
+
+    it("sets httpAdminRoot on user settings when provided", async () => {
+      vi.mocked(esbuildBuild).mockResolvedValue({} as any);
+      const settingsPath = path.join(tmpDir, "node-red.settings.ts");
+      fs.writeFileSync(settingsPath, "export default {};");
+
+      const result = await generateRuntimeSettings({
+        outDir: "dist",
+        port: 1880,
+        httpAdminRoot: "/my-app/",
+        logger,
+      });
+      createdFiles.push(...result.tempFiles);
+
+      const content = fs.readFileSync(result.filepath, "utf-8");
+      expect(content).toContain('settings.httpAdminRoot = "/my-app/"');
+    });
+
     it("generates settings with user config when settings file exists", async () => {
       vi.mocked(esbuildBuild).mockResolvedValue({} as any);
 

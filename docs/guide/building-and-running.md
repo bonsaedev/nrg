@@ -16,6 +16,8 @@ This will:
 
 Server-side changes trigger a full Node-RED restart. Client-side changes trigger a browser page reload. The flow editor state (your flow definitions) is preserved across restarts.
 
+The editor is served under a path slug derived from your project folder name — e.g. `http://127.0.0.1:5173/my-nodes/` — so several `nrg dev` instances can run behind a single reverse proxy without their URLs colliding. Opening the bare root URL redirects to the slug. Set `server.slug` to override it (see [Plugin Options](#plugin-options)).
+
 ### Node-RED Settings
 
 To customize the Node-RED runtime, create a `node-red.settings.ts` at the project root:
@@ -103,49 +105,68 @@ npm install your-package-name
 
 ## Plugin Options
 
-The `nodeRed()` Vite plugin accepts an optional configuration object:
+The `nrg()` Vite plugin accepts an optional configuration object, grouped into `server` (dev server) and `build` (production bundle):
 
 ```typescript
 import { defineConfig } from "vite";
-import { nodeRed } from "@bonsae/nrg/vite";
+import { nrg } from "@bonsae/nrg/vite";
 
 export default defineConfig({
   plugins: [
-    nodeRed({
-      outDir: "./dist",
-      serverBuildOptions: {
-        srcDir: "./src/server",
-        entry: "index.ts",
-        format: "esm",
-        nodeTarget: "node22",
-        types: true,
-      },
-      clientBuildOptions: {
-        srcDir: "./src/client",
-        entry: "index.ts",
-        format: "es",
-      },
-      nodeRedLauncherOptions: {
-        runtime: {
-          port: 1880,
-          settingsFilepath: "./node-red.settings.ts",
-          version: "latest",
+    nrg({
+      server: {
+        nodeRed: {
+          runtime: {
+            port: 1880,
+            settingsFilepath: "./node-red.settings.ts",
+            version: "latest",
+          },
+          restartDelay: 1000,
         },
-        restartDelay: 1000,
+        // defaults to the slugified project folder name
+        slug: "my-nodes",
+      },
+      build: {
+        outDir: "./dist",
+        server: {
+          srcDir: "./src/server",
+          entry: "index.ts",
+          format: "esm",
+          nodeTarget: "node22",
+          types: true,
+        },
+        client: {
+          srcDir: "./src/client",
+          entry: "index.ts",
+          format: "es",
+        },
       },
     }),
   ],
 });
 ```
 
-### `NodeRedPluginOptions`
+### `NrgPluginOptions`
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `server` | — | Dev server options (Node-RED launcher, editor path slug) |
+| `build` | — | Production build options (output dir, server/client bundles, copies) |
+
+### `ServerOptions` (the `server` group)
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `nodeRed` | — | Options for the Node-RED dev server launcher (see [`NodeRedLauncherOptions`](#noderedlauncheroptions)) |
+| `slug` | slugified folder name | URL-safe path the editor is mounted under — `http://host:port/<slug>/`. Must match `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`; an invalid value is rejected rather than rewritten |
+
+### `BuildOptions` (the `build` group)
 
 | Option | Default | Description |
 | --- | --- | --- |
 | `outDir` | `"./dist"` | Output directory for the built Node-RED package |
-| `serverBuildOptions` | — | Options for building the server-side node runtime |
-| `clientBuildOptions` | — | Options for building the client-side editor UI |
-| `nodeRedLauncherOptions` | — | Options for the Node-RED dev server launcher |
+| `server` | — | Options for building the server-side node runtime (see [`ServerBuildOptions`](#serverbuildoptions)) |
+| `client` | — | Options for building the client-side editor UI (see [`ClientBuildOptions`](#clientbuildoptions)) |
 | `extraFilesCopyTargets` | `[]` | Extra files to copy into the output directory (e.g., LICENSE, README) |
 
 ### `ServerBuildOptions`

@@ -4,7 +4,7 @@ An NRG project follows a convention-based layout. The Vite plugin discovers file
 
 ```
 my-node-red-nodes/
-├── vite.config.ts                 # Vite + nodeRed() plugin
+├── vite.config.ts                 # Vite + nrg() plugin
 ├── tsconfig.json                  # Root TypeScript config (references)
 ├── package.json
 ├── node-red.settings.ts           # Optional Node-RED runtime settings
