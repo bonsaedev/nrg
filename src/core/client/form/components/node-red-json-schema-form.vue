@@ -16,12 +16,7 @@
           :model-value="node[field.key]"
           :label="field.label"
           :icon="field.icon"
-          @update:model-value="
-            (val: boolean) => {
-              node[field.key] = val;
-              if (field.isBuiltinPort) recalculateOutputs();
-            }
-          "
+          @update:model-value="(val: boolean) => (node[field.key] = val)"
         />
       </div>
 
@@ -38,7 +33,6 @@
           @change="
             (e) => {
               node[field.key] = (e.target as HTMLInputElement).checked;
-              if (field.isBuiltinPort) recalculateOutputs();
             }
           "
         />
@@ -179,8 +173,6 @@ const SKIP_FIELDS = new Set([
   ...BUILTIN_PORT_KEYS,
 ]);
 
-const BUILTIN_PORT_FIELDS = new Set<string>(BUILTIN_PORT_KEYS);
-
 // The schema vocabulary is shared with the server (core/schema-options) and
 // surfaced through the client types — no local re-declarations.
 type FieldSchema = JsonPropertySchema;
@@ -206,7 +198,6 @@ interface FormField {
   configType?: string;
   language?: string;
   toggle?: boolean;
-  isBuiltinPort?: boolean;
 }
 
 function formatLabel(key: string): string {
@@ -318,7 +309,6 @@ function buildField(
         inputType: "boolean",
         required,
         toggle: form.toggle,
-        isBuiltinPort: BUILTIN_PORT_FIELDS.has(key),
       };
 
     case "number":
@@ -460,21 +450,6 @@ export default defineComponent({
     },
   },
   methods: {
-    recalculateOutputs() {
-      if (!this.schema?.properties) return;
-      const hasBuiltinFields = Object.keys(this.schema.properties).some((k) =>
-        BUILTIN_PORT_FIELDS.has(k),
-      );
-      if (!hasBuiltinFields) return;
-
-      // Find base outputs from the node definition (static outputs count)
-      const baseOutputs = this.node._def?.outputs ?? 0;
-      let count = baseOutputs;
-      if (this.node.errorPort) count++;
-      if (this.node.completePort) count++;
-      if (this.node.statusPort) count++;
-      this.node.outputs = count;
-    },
     resolveI18n(prefix: string, key: string): string | undefined {
       const resolved = this.$i18n(`${prefix}.${key}`);
       const fullKey = `${this.node.type}.${prefix}.${key}`;
