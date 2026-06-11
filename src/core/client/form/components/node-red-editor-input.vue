@@ -169,7 +169,9 @@ export default defineComponent({
     // setter still intercepts assignments. shallowRef only tracks .value
     // reassignment without proxying the value itself.
     return {
-      editor: shallowRef<any>(null),
+      // NOTE: must not be named "editor" — the template's ref="editor" would
+      // overwrite this with the DOM element on every re-render.
+      editorInstance: shallowRef<any>(null),
       expandedEditorTray: shallowRef<any>(null),
     };
   },
@@ -194,13 +196,13 @@ export default defineComponent({
     this.createExpandeEditorTray();
   },
   beforeUnmount() {
-    if (this.editor) {
+    if (this.editorInstance) {
       try {
-        this.editor.destroy();
+        this.editorInstance.destroy();
       } catch (err) {
         console.error(`Error destroying editor for ID ${this.editorId}:`, err);
       }
-      this.editor = null;
+      this.editorInstance = null;
     }
   },
   methods: {
@@ -241,36 +243,36 @@ export default defineComponent({
       });
     },
     createEditorInstance() {
-      this.editor = RED.editor.createEditor({
+      this.editorInstance = RED.editor.createEditor({
         id: this.editorId,
         mode: this.language,
         value: this.effectiveValue,
       });
-      this.editor.getSession().on("change", () => {
-        const currentValue = this.editor.getValue();
+      this.editorInstance.getSession().on("change", () => {
+        const currentValue = this.editorInstance.getValue();
         if (currentValue !== this.effectiveValue) {
           this.$emit("update:modelValue", currentValue);
           this.$emit("update:value", currentValue);
         }
       });
-      this.$emit("editor-ready", this.editor);
+      this.$emit("editor-ready", this.editorInstance);
     },
     createExpandeEditorTray() {
       let expandedEditor: any;
 
       const onCancel = () => {
         setTimeout(() => {
-          this.editor.focus();
+          this.editorInstance.focus();
         }, 250);
         RED.tray.close();
       };
 
       const onDone = () => {
         expandedEditor.saveView();
-        this.editor.setValue(expandedEditor.getValue(), -1);
+        this.editorInstance.setValue(expandedEditor.getValue(), -1);
         setTimeout(() => {
-          this.editor.restoreView();
-          this.editor.focus();
+          this.editorInstance.restoreView();
+          this.editorInstance.focus();
         }, 250);
         RED.tray.close();
       };

@@ -88,9 +88,7 @@ describe("NodeRedEditorInput", () => {
     const screen = render(NodeRedEditorInput, {
       props: { value: "", error: "Invalid JSON" },
     });
-    await expect
-      .element(screen.getByText("Invalid JSON"))
-      .toBeInTheDocument();
+    await expect.element(screen.getByText("Invalid JSON")).toBeInTheDocument();
   });
 
   test("hides error when empty", async () => {
@@ -138,26 +136,24 @@ describe("NodeRedEditorInput", () => {
 
   test("editor change handler fires and emits update events", async () => {
     let changeCb: (() => void) | null = null;
-    const mockCreateEditor = vi
-      .fn()
-      .mockImplementation((options: any) => {
-        let currentValue = options.value || "";
-        return {
-          getValue: () => currentValue,
-          setValue: (val: string) => {
-            currentValue = val;
+    const mockCreateEditor = vi.fn().mockImplementation((options: any) => {
+      let currentValue = options.value || "";
+      return {
+        getValue: () => currentValue,
+        setValue: (val: string) => {
+          currentValue = val;
+        },
+        getSession: () => ({
+          on: (_event: string, cb: () => void) => {
+            changeCb = cb;
           },
-          getSession: () => ({
-            on: (_event: string, cb: () => void) => {
-              changeCb = cb;
-            },
-          }),
-          focus: () => {},
-          destroy: () => {},
-          saveView: () => {},
-          restoreView: () => {},
-        };
-      });
+        }),
+        focus: () => {},
+        destroy: () => {},
+        saveView: () => {},
+        restoreView: () => {},
+      };
+    });
     (RED.editor.createEditor as any) = mockCreateEditor;
 
     const onUpdate = vi.fn();
@@ -184,25 +180,133 @@ describe("NodeRedEditorInput", () => {
 
   test("editor destroy on unmount does not throw", async () => {
     const destroySpy = vi.fn();
-    const mockCreateEditor = vi.fn().mockImplementation((options: any) => ({
-      getValue: () => options.value || "",
-      setValue: () => {},
-      getSession: () => ({ on: () => {} }),
-      focus: () => {},
-      destroy: destroySpy,
-      saveView: () => {},
-      restoreView: () => {},
-    }));
-    (RED.editor.createEditor as any) = mockCreateEditor;
+    // one-shot override so the shared factory reverts for later tests
+    vi.mocked(RED.editor.createEditor).mockImplementationOnce(
+      (options: any) => ({
+        getValue: () => options.value || "",
+        setValue: () => {},
+        getSession: () => ({ on: () => {} }),
+        focus: () => {},
+        destroy: destroySpy,
+        saveView: () => {},
+        restoreView: () => {},
+      }),
+    );
 
     const screen = render(NodeRedEditorInput, {
       props: { value: "temp" },
     });
     await vi.waitFor(() => {
-      expect(mockCreateEditor).toHaveBeenCalled();
+      expect(RED.editor.createEditor).toHaveBeenCalled();
     });
 
     screen.unmount();
     expect(destroySpy).toHaveBeenCalled();
+  });
+});
+
+describe("NodeRedEditorInput expand tray", () => {
+  const { RED } = createNode();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function openExpandedTray(props: Record<string, any> = {}) {
+    const onUpdate = vi.fn();
+    const onTrayOpen = vi.fn();
+    const onTrayClose = vi.fn();
+    const screen = render(NodeRedEditorInput, {
+      props: {
+        value: "initial code",
+        language: "json",
+        "onUpdate:value": onUpdate,
+        onTrayOpen,
+        onTrayClose,
+        ...props,
+      },
+    });
+    await vi.waitFor(() => {
+      expect(RED.editor.createEditor).toHaveBeenCalled();
+    });
+
+    screen.container.querySelector<HTMLElement>(".expand-button")!.click();
+    expect(RED.tray.show).toHaveBeenCalledTimes(1);
+    const trayOptions = vi.mocked(RED.tray.show).mock.calls.at(-1)![0];
+
+    // simulate Node-RED mounting the tray DOM and invoking open()
+    const trayEl = document.createElement("div");
+    trayEl.innerHTML = '<div class="red-ui-tray-body"></div>';
+    document.body.appendChild(trayEl);
+    trayOptions.open(window.$(trayEl));
+
+    const expanded = vi.mocked(RED.editor.createEditor).mock.results.at(-1)!
+      .value as ReturnType<typeof RED.editor.createEditor>;
+
+    return {
+      screen,
+      trayOptions,
+      trayEl,
+      expanded,
+      onUpdate,
+      onTrayOpen,
+      onTrayClose,
+    };
+  }
+
+  test("open mounts an expanded editor seeded with the field value", async () => {
+    const { trayOptions, trayEl, expanded, onTrayOpen } =
+      await openExpandedTray();
+
+    expect(onTrayOpen).toHaveBeenCalled();
+    expect(expanded.getValue()).toBe("initial code");
+    expect(vi.mocked(RED.editor.createEditor).mock.calls.at(-1)![0].id).toBe(
+      "expanded-editor-input",
+    );
+    expect(trayEl.querySelector("#expanded-editor-input")).not.toBeNull();
+    expect(trayEl.querySelector(".red-ui-tray-footer")).not.toBeNull();
+
+    trayOptions.close();
+    trayEl.remove();
+  });
+
+  test("Done copies the expanded value back into the inline editor", async () => {
+    const { trayOptions, trayEl, expanded, onTrayClose } =
+      await openExpandedTray();
+    const inline = vi.mocked(RED.editor.createEditor).mock.results[0]
+      .value as ReturnType<typeof RED.editor.createEditor>;
+
+    expanded.setValue("expanded edit");
+    const done = trayOptions.buttons.find(
+      (b: any) => b.id === "node-dialog-ok",
+    );
+    done.click();
+
+    expect(RED.tray.close).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(inline.getValue()).toBe("expanded edit");
+    });
+
+    trayOptions.close();
+    expect(onTrayClose).toHaveBeenCalled();
+    expect(trayEl.querySelector(".red-ui-tray-footer")).toBeNull();
+    trayEl.remove();
+  });
+
+  test("Cancel closes the tray without copying the value", async () => {
+    const { trayOptions, trayEl, expanded, onUpdate } =
+      await openExpandedTray();
+
+    expanded.setValue("discarded");
+    const cancel = trayOptions.buttons.find(
+      (b: any) => b.id === "node-dialog-cancel",
+    );
+    cancel.click();
+
+    expect(RED.tray.close).toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalledWith("discarded");
+
+    trayOptions.close();
+    trayEl.remove();
   });
 });
