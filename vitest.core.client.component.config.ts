@@ -23,6 +23,9 @@ export default defineConfig({
       allow: [".."],
     },
   },
+  optimizeDeps: {
+    include: ["jsonpointer", "ajv", "ajv-formats", "ajv-errors"],
+  },
   test: {
     testTimeout: 30_000,
     setupFiles: ["tests/core/client/component/setup.ts"],

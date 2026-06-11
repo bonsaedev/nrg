@@ -3,6 +3,11 @@
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"]
   },
-  "include": ["**/*.ts", "../globals.ts"],
+  "include": [
+    "**/*.ts",
+    "../globals.ts",
+    "../../../core/client/globals.d.ts",
+    "../../../core/client/shims-vue.d.ts"
+  ],
   "exclude": ["node_modules"]
 }

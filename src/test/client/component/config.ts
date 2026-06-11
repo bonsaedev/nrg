@@ -18,6 +18,17 @@ export const defaultConfig = {
       allow: [".."],
     },
   },
+  optimizeDeps: {
+    // @bonsae/nrg/server is a CJS bundle — prebundling converts it so browser
+    // tests can import TypeBox schemas straight from server schema modules.
+    include: [
+      "@bonsae/nrg/server",
+      "jsonpointer",
+      "ajv",
+      "ajv-formats",
+      "ajv-errors",
+    ],
+  },
   test: {
     testTimeout: 30_000,
     setupFiles: ["@bonsae/nrg/test/client/component/setup"],

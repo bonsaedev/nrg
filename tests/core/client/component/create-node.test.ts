@@ -1,0 +1,278 @@
+import { describe, test, expect, vi } from "vitest";
+import { render } from "vitest-browser-vue";
+import { defineComponent, h } from "vue";
+import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { createNode, useFormNode } from "@/test/client/component";
+
+const NAME_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string", minLength: 1 },
+  },
+  required: ["name"],
+  additionalProperties: true,
+} as any;
+
+const Probe = defineComponent({
+  setup() {
+    const { node, errors } = useFormNode();
+    return () =>
+      h("div", [
+        h("span", { class: "probe-name" }, String(node.name ?? "")),
+        node.show ? h("span", { class: "probe-conditional" }, "on") : null,
+        h("span", { class: "probe-error" }, errors["node.name"] ?? ""),
+      ]);
+  },
+});
+
+describe("createNode", () => {
+  test("legacy shorthand still works", () => {
+    const { node, errors, provide } = createNode({ name: "x", custom: 1 });
+    expect(node.name).toBe("x");
+    expect(node.custom).toBe(1);
+    expect(errors).toEqual({});
+    expect(provide.__nrg_form_node).toBe(node);
+  });
+
+  test("node mutations re-render dependent components", async () => {
+    const { node, provide } = createNode({ name: "initial", show: false });
+    const component = render(Probe, { global: { provide } });
+
+    expect(component.container.querySelector(".probe-name")!.textContent).toBe(
+      "initial",
+    );
+    expect(component.container.querySelector(".probe-conditional")).toBeNull();
+
+    node.name = "updated";
+    node.show = true;
+
+    await vi.waitFor(() => {
+      expect(
+        component.container.querySelector(".probe-name")!.textContent,
+      ).toBe("updated");
+      expect(
+        component.container.querySelector(".probe-conditional"),
+      ).not.toBeNull();
+    });
+  });
+
+  test("configSchema populates errors for invalid initial state", () => {
+    const { errors } = createNode({
+      configs: { name: "" },
+      configSchema: NAME_SCHEMA,
+    });
+    expect(errors["node.name"]).toBeDefined();
+  });
+
+  test("errors clear reactively when node becomes valid", async () => {
+    const { node, errors } = createNode({
+      configs: { name: "" },
+      configSchema: NAME_SCHEMA,
+    });
+    expect(errors["node.name"]).toBeDefined();
+
+    node.name = "valid";
+
+    await vi.waitFor(() => {
+      expect(errors["node.name"]).toBeUndefined();
+    });
+  });
+
+  test("errors appear reactively when node becomes invalid", async () => {
+    const { node, errors, provide } = createNode({
+      configs: { name: "ok" },
+      configSchema: NAME_SCHEMA,
+    });
+    expect(errors["node.name"]).toBeUndefined();
+    const component = render(Probe, { global: { provide } });
+
+    node.name = "";
+
+    await vi.waitFor(() => {
+      expect(errors["node.name"]).toBeDefined();
+      expect(
+        component.container.querySelector(".probe-error")!.textContent,
+      ).not.toBe("");
+    });
+  });
+
+  test("credentialsSchema errors are nested under credentials", () => {
+    const { errors } = createNode({
+      configs: { name: "x" },
+      credentials: { token: "" },
+      configSchema: NAME_SCHEMA,
+      credentialsSchema: {
+        type: "object",
+        properties: { token: { type: "string", minLength: 1 } },
+      } as any,
+    });
+    expect(errors["node.credentials.token"]).toBeDefined();
+  });
+
+  test("credential errors clear when fixed", async () => {
+    const { node, errors } = createNode({
+      configs: { name: "x" },
+      credentials: { token: "" },
+      configSchema: NAME_SCHEMA,
+      credentialsSchema: {
+        type: "object",
+        properties: { token: { type: "string", minLength: 1 } },
+      } as any,
+    });
+    expect(errors["node.credentials.token"]).toBeDefined();
+
+    node.credentials!.token = "secret";
+
+    await vi.waitFor(() => {
+      expect(errors["node.credentials.token"]).toBeUndefined();
+    });
+  });
+
+  test("NodeRef fields validate against fake nodes", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        connection: {
+          type: "string",
+          format: "node-id",
+          "x-nrg-node-type": "my-config",
+          minLength: 1,
+        },
+      },
+      additionalProperties: true,
+    } as any;
+
+    const missing = createNode({
+      configs: { connection: "unknown-id" },
+      configSchema: schema,
+    });
+    expect(missing.errors["node.connection"]).toBeDefined();
+
+    const registered = createNode({
+      configs: { connection: "cfg-1" },
+      configSchema: schema,
+      nodes: [{ id: "cfg-1", type: "my-config" }],
+    });
+    expect(registered.errors["node.connection"]).toBeUndefined();
+  });
+
+  test("different schemas in the same file do not collide", () => {
+    const first = createNode({
+      configs: { name: "" },
+      configSchema: NAME_SCHEMA,
+    });
+    const second = createNode({
+      configs: { count: "not-a-number" },
+      configSchema: {
+        type: "object",
+        properties: { count: { type: "number" } },
+        additionalProperties: true,
+      } as any,
+    });
+    expect(first.errors["node.name"]).toBeDefined();
+    expect(second.errors["node.count"]).toBeDefined();
+    expect(second.errors["node.name"]).toBeUndefined();
+  });
+
+  test("does not mutate the caller's schema object", () => {
+    const schema = JSON.parse(JSON.stringify(NAME_SCHEMA));
+    createNode({ configs: { name: "" }, configSchema: schema });
+    expect(schema.$id).toBeUndefined();
+  });
+
+  test("schemas with the same $id do not poison each other's validators", async () => {
+    // real schema modules ship $id — the second composition must not reuse
+    // the first's cached compile (which lacked the credentials branch)
+    const ConfigsSchema = defineSchema(
+      { name: SchemaType.String({ default: "" }) },
+      { $id: "shared-id:configs" },
+    );
+    const CredentialsSchema = defineSchema(
+      { token: SchemaType.String({ minLength: 1 }) },
+      { $id: "shared-id:credentials" },
+    );
+
+    const first = createNode({
+      configs: { name: "ok" },
+      configSchema: ConfigsSchema,
+    });
+    expect(first.errors).toEqual({});
+
+    const second = createNode({
+      configs: { name: "ok" },
+      credentials: { token: "" },
+      configSchema: ConfigsSchema,
+      credentialsSchema: CredentialsSchema,
+    });
+    expect(second.errors["node.credentials.token"]).toBeDefined();
+  });
+
+  test("accepts TypeBox schemas straight from server schema modules", async () => {
+    const ConfigsSchema = defineSchema({
+      name: SchemaType.String({ minLength: 1 }),
+    });
+    const CredentialsSchema = defineSchema({
+      token: SchemaType.String({ minLength: 1 }),
+    });
+
+    const { node, errors } = createNode({
+      configs: { name: "" },
+      credentials: { token: "" },
+      configSchema: ConfigsSchema,
+      credentialsSchema: CredentialsSchema,
+    });
+    expect(errors["node.name"]).toBeDefined();
+    expect(errors["node.credentials.token"]).toBeDefined();
+
+    node.name = "valid";
+    node.credentials!.token = "secret";
+
+    await vi.waitFor(() => {
+      expect(errors["node.name"]).toBeUndefined();
+      expect(errors["node.credentials.token"]).toBeUndefined();
+    });
+  });
+});
+
+describe("useFormNode", () => {
+  test("throws a helpful error outside an NRG-mounted form", () => {
+    const Probe = defineComponent({
+      setup() {
+        let message = "";
+        try {
+          useFormNode();
+        } catch (e: any) {
+          message = e.message;
+        }
+        return () => h("span", { class: "thrown" }, message);
+      },
+    });
+    const component = render(Probe); // no provide on purpose
+    expect(component.container.querySelector(".thrown")!.textContent).toContain(
+      "useFormNode() must be called inside",
+    );
+  });
+});
+
+describe("errors", () => {
+  test("direct mutations are reactive and components see them", async () => {
+    const { errors, provide } = createNode({ name: "ok" });
+    const component = render(Probe, { global: { provide } });
+
+    errors["node.name"] = "Custom error";
+
+    await vi.waitFor(() => {
+      expect(
+        component.container.querySelector(".probe-error")!.textContent,
+      ).toBe("Custom error");
+    });
+
+    delete errors["node.name"];
+
+    await vi.waitFor(() => {
+      expect(
+        component.container.querySelector(".probe-error")!.textContent,
+      ).toBe("");
+    });
+  });
+});

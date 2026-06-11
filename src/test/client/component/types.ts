@@ -1,8 +1,9 @@
-import type { MockRED } from "../mocks";
+import type { JsonSchemaObject } from "../../../core/client/types";
+
+export { useFormNode } from "../../../core/client/use-form-node";
 
 export type { MockRED, MockEditor } from "../mocks";
 export { createRED, createJQuery } from "../mocks";
-export { useFormNode } from "../../../core/client/use-form-node";
 
 export interface TestNode {
   id: string;
@@ -10,21 +11,32 @@ export interface TestNode {
   changed: boolean;
   _def: Record<string, any>;
   _: (key: string) => string;
+  credentials?: Record<string, any>;
   [key: string]: any;
 }
 
-interface FormProvide {
+export interface FormProvide {
   __nrg_form_node: TestNode;
   __nrg_form_schema: Record<string, any>;
   __nrg_form_errors: Record<string, string>;
 }
 
-interface CreateNodeResult {
+export interface CreateNodeResult {
   node: TestNode;
-  RED: MockRED;
+  errors: Record<string, string>;
+  RED: Record<string, any>;
   provide: FormProvide;
 }
 
+export interface CreateNodeOptions {
+  configs?: Record<string, any>;
+  credentials?: Record<string, any>;
+  configSchema?: JsonSchemaObject;
+  credentialsSchema?: JsonSchemaObject;
+  /** Fake config nodes resolvable via RED.nodes.node(id) — required for NodeRef field validation. */
+  nodes?: Array<{ id: string; type: string } & Record<string, any>>;
+}
+
 export declare function createNode(
-  overrides?: Record<string, any>,
+  options?: CreateNodeOptions | Record<string, any>,
 ): CreateNodeResult;

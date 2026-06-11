@@ -1,9 +1,13 @@
 import "../globals";
 import { vi } from "vitest";
+import { reactive, watch } from "vue";
+import type { JsonSchemaObject } from "../../../core/client/types";
 import type { MockRED } from "../mocks";
+import {
+  validateForm,
+  composeValidationSchema,
+} from "../../../core/client/validation";
 
-export type { MockRED, MockEditor } from "../mocks";
-export { createRED, createJQuery } from "../mocks";
 export { useFormNode } from "../../../core/client/use-form-node";
 
 export interface TestNode {
@@ -12,40 +16,107 @@ export interface TestNode {
   changed: boolean;
   _def: Record<string, any>;
   _: (key: string) => string;
+  credentials?: Record<string, any>;
   [key: string]: any;
 }
 
-interface FormProvide {
+export interface FormProvide {
   __nrg_form_node: TestNode;
   __nrg_form_schema: Record<string, any>;
   __nrg_form_errors: Record<string, string>;
 }
 
-interface CreateNodeResult {
+export interface CreateNodeResult {
   node: TestNode;
+  errors: Record<string, string>;
   RED: MockRED;
   provide: FormProvide;
 }
 
+export interface CreateNodeOptions {
+  configs?: Record<string, any>;
+  credentials?: Record<string, any>;
+  configSchema?: JsonSchemaObject;
+  credentialsSchema?: JsonSchemaObject;
+  /** Fake config nodes resolvable via RED.nodes.node(id) — required for NodeRef field validation. */
+  nodes?: Array<{ id: string; type: string } & Record<string, any>>;
+}
+
+let counter = 0;
+
 export function createNode(
-  overrides: Record<string, any> = {},
+  options: CreateNodeOptions | Record<string, any> = {},
 ): CreateNodeResult {
-  const node: TestNode = {
-    id: `test-${Math.random().toString(36).slice(2, 10)}`,
-    type: "test-node",
+  const opts: CreateNodeOptions =
+    "configs" in options ||
+    "configSchema" in options ||
+    "credentialsSchema" in options ||
+    "nodes" in options
+      ? (options as CreateNodeOptions)
+      : { configs: options };
+
+  const node: TestNode = reactive({
+    id: `test-${counter}`,
+    // Unique type per node: validateForm caches compiled schemas by
+    // `node-schema-${subject.type}`, so a shared type would silently reuse
+    // the first schema for every later createNode call in the same file.
+    type: `test-node-${counter++}`,
     changed: false,
     _def: { outputs: 1 },
     _: (key: string) => key,
-    ...overrides,
-  };
+    ...opts.configs,
+    credentials: { ...opts.credentials },
+  });
+
+  // Shallow-copy and strip $id: the validator caches compiled schemas by
+  // $id, and real TypeBox schemas ship one — without stripping it, the first
+  // composition in a file would be reused for every later createNode call
+  // (masking e.g. a credentialsSchema added in a later test). The validator
+  // also stamps $id onto what it compiles, so never hand it the caller's
+  // imported schema object.
+  const composed = composeValidationSchema(
+    opts.configSchema,
+    opts.credentialsSchema,
+  ) as Record<string, any> | undefined;
+  let validationSchema: Record<string, any> | undefined;
+  if (composed) {
+    const { $id: _ignored, ...rest } = composed;
+    validationSchema = rest;
+  }
+
   const RED = getMockRED();
   spyOnRED(RED);
+
+  // Always (re)set the lookup so fake nodes from a previous createNode call
+  // in the same file don't leak into this one.
+  const registry = Object.fromEntries((opts.nodes ?? []).map((n) => [n.id, n]));
+  vi.mocked(RED.nodes.node).mockImplementation(
+    (id: string) => (registry[id] ?? null) as any,
+  );
+
+  const errors: Record<string, string> = reactive(
+    validationSchema ? validateForm(node, validationSchema) : {},
+  );
+
+  if (validationSchema) {
+    watch(
+      node,
+      () => {
+        const newErrors = validateForm(node, validationSchema);
+        Object.keys(errors).forEach((k) => delete errors[k]);
+        Object.assign(errors, newErrors);
+      },
+      { deep: true },
+    );
+  }
+
   const provide: FormProvide = {
     __nrg_form_node: node,
-    __nrg_form_schema: {},
-    __nrg_form_errors: {},
+    __nrg_form_schema: validationSchema ?? {},
+    __nrg_form_errors: errors,
   };
-  return { node, RED, provide };
+
+  return { node, errors, RED, provide };
 }
 
 function spyIfNeeded(obj: any, method: string): void {
