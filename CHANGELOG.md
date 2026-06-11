@@ -1,5 +1,26 @@
 # Changelog
 
+# [0.19.0](https://github.com/bonsaedev/nrg/compare/v0.18.5...v0.19.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* disable editor tours in generated runtime settings ([8911336](https://github.com/bonsaedev/nrg/commit/89113369812b9b0b33f905e855df5de3032332eb))
+* emit vue-dts declarations under dist instead of beside sources ([9d0d5bf](https://github.com/bonsaedev/nrg/commit/9d0d5bf2917f985693e44d85936e8ef6228b18c5))
+* guard expanded-editor tray callbacks against teardown ([fa2fbfc](https://github.com/bonsaedev/nrg/commit/fa2fbfcfff580d6f7461ec97596e9e9779441f6f))
+* rename editor instance ref to avoid template ref collision ([83f420d](https://github.com/bonsaedev/nrg/commit/83f420dea32ba566c68abb48580d28b9b82fa115))
+
+
+### Features
+
+* add RED.nodes.addCredentials to types and the server test mock ([8107167](https://github.com/bonsaedev/nrg/commit/81071671f9406955802fdad72ec6814d19684e1a))
+* e2e helpers for config trays, canvas, deploy and code editors ([866836a](https://github.com/bonsaedev/nrg/commit/866836a0a5778e48001af8d6c983b4d3201d6c79))
+* implement the full editor RED contract in the client test mocks ([a538efa](https://github.com/bonsaedev/nrg/commit/a538efabc8eee7a3ab1fffc164767a29e7c844b0))
+* path-slug dev server and regrouped vite plugin API ([131c1fa](https://github.com/bonsaedev/nrg/commit/131c1fa312c54cab86ca6353b5745f26f04260c1))
+* reactive createNode with schema-driven validation for component tests ([2516fab](https://github.com/bonsaedev/nrg/commit/2516faba1f9fe09127820c66fd9b2064fac16f42))
+* returnProperty built-in prop for framework-wrapped sends ([a45da78](https://github.com/bonsaedev/nrg/commit/a45da7872021e3a6ec200e11b0bbc3a304f14e49))
+* share the schema vocabulary and type contracts across planes ([4b5b712](https://github.com/bonsaedev/nrg/commit/4b5b7129537b801d1b6711e892fc155b57b7b86b))
+
 ## [0.18.5](https://github.com/bonsaedev/nrg/compare/v0.18.4...v0.18.5) (2026-06-09)
 
 
