@@ -18,7 +18,7 @@ export default defineConfig({
         "src/vite/async-utils.ts",
         "src/vite/errors.ts",
         "src/vite/logger.ts",
-        "src/vite/node-red-launcher.ts",
+        "src/vite/node-red-launcher/**/*.ts",
         "src/vite/client/plugins/help-generator.ts",
         "src/vite/client/plugins/help-i18n.ts",
         "src/vite/client/plugins/html-generator.ts",
