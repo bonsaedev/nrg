@@ -12,7 +12,8 @@
     "resolveJsonModule": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@mocks/*": ["./tests/core/server/mocks/*"]
+      "@mocks/*": ["./tests/core/server/mocks/*"],
+      "@bonsae/nrg/server": ["./src/core/server/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", "tests/fixtures"]
