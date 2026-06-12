@@ -76,7 +76,9 @@
             <th v-if="hasOutputReturnProperties">
               {{ resolveLabel("outputs.returnProperty", "Return Property") }}
             </th>
-            <th>{{ resolveLabel("outputs.contextMode", "Context Mode") }}</th>
+            <th v-if="hasOutputContextModes">
+              {{ resolveLabel("outputs.contextMode", "Context Mode") }}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -111,12 +113,27 @@
                 "
               />
             </td>
-            <td>
-              <NodeRedSelectInput
+            <td v-if="hasOutputContextModes">
+              <select
+                class="nrg-outputs-context"
                 :value="contextModeFor(port.index)"
-                :options="contextModeOptions"
-                @update:value="(v: string) => setContextMode(port.index, v)"
-              />
+                :disabled="!contextModeEnabled(port.index)"
+                @change="
+                  (e) =>
+                    setContextMode(
+                      port.index,
+                      (e.target as HTMLSelectElement).value,
+                    )
+                "
+              >
+                <option
+                  v-for="opt in contextModeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
             </td>
           </tr>
         </tbody>
@@ -233,6 +250,17 @@ export default defineComponent({
     hasOutputReturnProperties(): boolean {
       return this.schema?.properties?.outputReturnProperties !== undefined;
     },
+    hasOutputContextModes(): boolean {
+      return this.schema?.properties?.outputContextModes !== undefined;
+    },
+    /**
+     * The node author's per-port context-mode defaults, declared in the schema.
+     * A port present here is configurable (its dropdown is enabled and seeded to
+     * this value); a port absent here is locked to `carry`.
+     */
+    authorContextModeDefaults(): Record<number, string> {
+      return this.schema?.properties?.outputContextModes?.default ?? {};
+    },
     hasErrorPort(): boolean {
       return this.schema?.properties?.errorPort !== undefined;
     },
@@ -282,10 +310,6 @@ export default defineComponent({
     contextModeOptions(): { value: string; label: string }[] {
       return [
         {
-          value: "default",
-          label: this.resolveLabel("contextModes.modes.default", "Default"),
-        },
-        {
           value: "carry",
           label: this.resolveLabel("contextModes.modes.carry", "carry"),
         },
@@ -311,7 +335,7 @@ export default defineComponent({
     if (this.features.hasOutputSchema) {
       for (const key of [
         "validateOutputs",
-        "contextModes",
+        "outputContextModes",
         "outputReturnProperties",
       ] as const) {
         const existing = this.localNode[key];
@@ -451,17 +475,23 @@ export default defineComponent({
       }
       this.localNode.outputReturnProperties = next;
     },
+    /** Whether the flow author may edit this port's mode — true only when the
+     * node author declared a schema default for it; otherwise it is locked. */
+    contextModeEnabled(index: number): boolean {
+      return this.authorContextModeDefaults[index] !== undefined;
+    },
     contextModeFor(index: number): string {
-      return this.localNode.contextModes?.[index] ?? "default";
+      return (
+        this.localNode.outputContextModes?.[index] ??
+        this.authorContextModeDefaults[index] ??
+        "carry"
+      );
     },
     setContextMode(index: number, value: string) {
-      const next = { ...(this.localNode.contextModes ?? {}) };
-      if (value === "default") {
-        delete next[index];
-      } else {
-        next[index] = value;
-      }
-      this.localNode.contextModes = next;
+      this.localNode.outputContextModes = {
+        ...(this.localNode.outputContextModes ?? {}),
+        [index]: value,
+      };
     },
   },
 });
@@ -588,9 +618,25 @@ export default defineComponent({
   color: var(--red-ui-form-text-color, inherit);
 }
 
-/* keep the context-mode select compact and centered in its cell */
-.nrg-outputs :deep(.node-input-select) {
+.nrg-outputs-context {
+  width: 100%;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 6px;
   text-align: center;
+  border: 1px solid
+    var(
+      --red-ui-form-input-border-color,
+      var(--red-ui-secondary-border-color, #ccc)
+    );
+  border-radius: 2px;
+  background: var(--red-ui-form-input-background, #fff);
+  color: var(--red-ui-form-text-color, inherit);
+}
+
+.nrg-outputs-context:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 :deep(.node-red-vue-input-error-message) {

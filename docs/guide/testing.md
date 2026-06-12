@@ -605,7 +605,7 @@ A handle to one node in the flow. Harness methods never collide with your node's
 `read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.
 
 ::: tip Reading output
-NRG wraps every `send(result)` as `{ ...incomingMsg, output: result, input: incomingMsg }` — the node's result lives under `output`, incoming fields are preserved at the top level, and the original message is recoverable under `input`. So assertions read `(await node.read()).output`.
+NRG wraps every `send(result)` as `{ ...incomingMsg, output: result }` — the node's result lives under `output` and incoming fields are preserved at the top level. So assertions read `(await node.read()).output`. (Under the `trace` [context mode](./schemas#context-modes) the prior message is also kept under `input`; the default `carry` mode does not grow that chain.)
 :::
 
 ### Examples

@@ -126,20 +126,39 @@ configured by the flow author in the editor's **Outputs** table:
 
 ![The generated editor form, showing the per-port Outputs table](/editor-form.png)
 
-#### Context modes
+#### Context modes {#context-modes}
 
-`send()` and `sendToPort()` take an optional `defaultMode` controlling how the
-incoming context is carried (default `"carry"`):
+`send()` and `sendToPort()` take no mode argument — how each output carries the
+incoming context is resolved **per port** from config, falling back to `carry`.
+`carry` is both the default and the floor; to let the flow author choose a
+different mode per port, declare `outputContextModes`:
 
 ```typescript
-this.send(result);                           // "carry" — { ...msg, output: result }
-this.send(result, { defaultMode: "trace" }); // also keep the prior msg under `input`
-this.send(result, { defaultMode: "reset" }); // { output: result } — drop inherited context
+const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    // port 0 is configurable (its dropdown is seeded to `trace`); every other
+    // port stays locked to `carry`
+    outputContextModes: SchemaType.OutputContextModes({
+      default: { 0: "trace" },
+    }),
+  },
+  { $id: "my-node:configs" },
+);
 ```
 
-- **carry** (default): keep all incoming keys (including any upstream `input`)
-  but don't record this node, so context flows through without the provenance
-  chain growing. The safe default for loops and long chains.
+This surfaces a **Context Mode** column in the editor's Outputs table. A port
+**with** a declared default renders an editable dropdown seeded to that value; a
+port **without** one renders `carry`, disabled — the author opts each port in by
+giving it a default:
+
+![The Outputs table's Context Mode column — ports 0 and 1 have schema defaults so their dropdowns are editable; port 2 has none and is locked to carry, disabled](/context-modes.png)
+
+The three modes:
+
+- **carry** (default/floor): keep all incoming keys (including any upstream
+  `input`) but don't record this node, so context flows through without the
+  provenance chain growing. The safe default for loops and long chains.
 - **trace**: full provenance — keep all incoming keys and also push the prior
   message under `input`, so every overwritten value stays recoverable
   (`msg.input.output`). The chain grows one frame per node; opt in for linear
@@ -147,10 +166,8 @@ this.send(result, { defaultMode: "reset" }); // { output: result } — drop inhe
 - **reset**: the outgoing message is only the result — use for source nodes that
   intentionally start a fresh context.
 
-`defaultMode` is the **node author's** default. The **flow author** can override
-the mode per output port via the **Context Mode** column in the editor's Outputs
-table; their choice wins over `defaultMode`, which in turn wins over the
-`"carry"` fallback.
+Without `outputContextModes`, every port resolves to `carry` and the column is
+hidden. Named-port sends (`sendToPort`) resolve the same per-port mode by index.
 
 The framework never deep-clones (so streams, Buffers, and class instances pass
 through intact); Node-RED's runtime clones messages 2..N on fan-out, so parallel

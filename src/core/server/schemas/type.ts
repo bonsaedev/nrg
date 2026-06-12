@@ -64,14 +64,51 @@ function OutputReturnProperties(
 }
 
 /**
+ * Declares the `outputContextModes` config map: how each output port carries the
+ * incoming message's context, keyed by port index. Declaring it exposes an
+ * editable Context Mode column in the editor — but only for ports the author
+ * gives a default; a port without a default stays locked to `carry`. Without
+ * this declaration every port resolves to `carry` and the column is hidden.
+ *
+ * @example
+ * ```ts
+ * // port 0 is configurable (seeded to `trace`); every other port is `carry`
+ * outputContextModes: SchemaType.OutputContextModes({
+ *   default: { 0: "trace" },
+ * }),
+ * ```
+ */
+function OutputContextModes(
+  options?: NrgSchemaOptions & {
+    default?: Record<number, "carry" | "trace" | "reset">;
+  },
+) {
+  return BaseType.Record(
+    BaseType.Number(),
+    BaseType.Union([
+      BaseType.Literal("carry"),
+      BaseType.Literal("trace"),
+      BaseType.Literal("reset"),
+    ]),
+    {
+      description:
+        "Per-port context mode, keyed by output port index. A missing entry falls back to `carry`.",
+      default: {},
+      ...options,
+    },
+  );
+}
+
+/**
  * Extended TypeBox type builder with NRG-specific schema types.
- * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput}
- * and {@link OutputReturnProperties}.
+ * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput},
+ * {@link OutputReturnProperties} and {@link OutputContextModes}.
  */
 const SchemaType = Object.assign({}, BaseType, {
   NodeRef,
   TypedInput,
   OutputReturnProperties,
+  OutputContextModes,
 });
 
 function markNonValidatable<T extends TSchema>(schema: T): T {

@@ -115,10 +115,11 @@ describe("client build", () => {
     expect(bundleContent).toContain("test-node");
   });
 
-  it("should inject the contextModes per-port default for output nodes", () => {
-    // the inliner adds an (empty) contextModes default so Node-RED persists the
-    // per-port context-mode overrides the editor writes
-    expect(bundleContent).toContain("contextModes");
+  it("should inject the validateOutputs per-port default for output nodes", () => {
+    // the inliner adds an (empty) validateOutputs default so Node-RED persists
+    // the per-port output-validation flags the editor writes. Context modes and
+    // return properties are author-declared, so they are not injected here.
+    expect(bundleContent).toContain("validateOutputs");
   });
 
   it("should inline credential field types", () => {
@@ -263,7 +264,7 @@ describe("client build", () => {
     expect(labels["config-server"].sections.lifecyclePorts).toBe(
       "Lifecycle Ports",
     );
-    expect(labels["config-server"].contextModes.modes.default).toBe("Default");
+    expect(labels["config-server"].contextModes.modes.carry).toBe("carry");
     expect(labels["config-server"].help.learnMore).toBe("Learn more");
   });
 

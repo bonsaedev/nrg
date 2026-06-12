@@ -82,13 +82,14 @@ export interface NodeRedNode {
   completePort?: boolean;
   statusPort?: boolean;
   /**
-   * Per-port output settings, indexed by base-output port; injected (empty) when
-   * the node has an outputsSchema. Read at runtime by IONode.
-   * `outputReturnProperties` is author-declared (SchemaType.OutputReturnProperties)
-   * — present only when the node opts into per-port return keys.
+   * Per-port output settings, indexed by base-output port. `validateOutputs` is
+   * injected (empty) when the node has an outputsSchema; `outputReturnProperties`
+   * and `outputContextModes` are author-declared (SchemaType.*) — present only
+   * when the node opts into per-port return keys / context modes. Read at
+   * runtime by IONode.
    */
   validateOutputs?: Record<number, boolean>;
-  contextModes?: Record<number, "carry" | "trace" | "reset">;
+  outputContextModes?: Record<number, "carry" | "trace" | "reset">;
   outputReturnProperties?: Record<number, string>;
 
   [key: string]: any;

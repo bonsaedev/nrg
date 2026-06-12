@@ -49,7 +49,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "Default",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -88,7 +87,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "Standard",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -127,7 +125,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "Predeterminado",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -166,7 +163,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "Par défaut",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -205,7 +201,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "기본값",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -244,7 +239,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "Padrão",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -283,7 +277,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "По умолчанию",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -322,7 +315,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "デフォルト",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -361,7 +353,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "默认",
           carry: "carry",
           trace: "trace",
           reset: "reset",
@@ -399,7 +390,6 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          default: "預設",
           carry: "carry",
           trace: "trace",
           reset: "reset",

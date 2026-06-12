@@ -49,22 +49,21 @@ const ArrayResultNode = defineIONode({
   },
 });
 
-// Sends a fixed result using the context mode named on the incoming message.
+// Sends a fixed result; the context mode is resolved per port from the
+// flow-author config (`outputContextModes`), falling back to "carry".
 const ModeNode = defineIONode({
   type: "assign-mode",
   configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
+    {
+      name: SchemaType.String({ default: "" }),
+      outputContextModes: SchemaType.OutputContextModes(),
+    },
     { $id: "assign-mode:config" },
   ),
   inputSchema: SchemaType.Object({}),
   outputsSchema: SchemaType.Any(),
-  async input(msg) {
-    const mode = (msg as Record<string, unknown>).mode as
-      | "carry"
-      | "trace"
-      | "reset"
-      | undefined;
-    this.send("R", { defaultMode: mode });
+  async input() {
+    this.send("R");
   },
 });
 
@@ -82,9 +81,11 @@ describe("returnProperty / output convention", () => {
   });
 
   it("trace keeps the overwritten output recoverable under input", async () => {
-    const { node } = await createNode(ModeNode);
+    const { node } = await createNode(ModeNode, {
+      config: { outputContextModes: { 0: "trace" } },
+    });
     // the incoming message already has an output the result will overwrite
-    await node.receive({ output: "previous", value: 5, mode: "trace" });
+    await node.receive({ output: "previous", value: 5 });
 
     const out = node.sent(0)[0] as Record<string, any>;
     expect(out.output).toBe("R");
@@ -92,21 +93,20 @@ describe("returnProperty / output convention", () => {
   });
 
   it("trace accumulates input across hops (provenance chain)", async () => {
-    const { node } = await createNode(ModeNode);
+    const { node } = await createNode(ModeNode, {
+      config: { outputContextModes: { 0: "trace" } },
+    });
     // simulate an upstream node that already nested its own input
     await node.receive({
       value: 5,
-      mode: "trace",
       input: { value: 3, output: "oldest" },
     });
 
     expect(node.sent(0)[0]).toEqual({
       value: 5,
-      mode: "trace",
       output: "R",
       input: {
         value: 5,
-        mode: "trace",
         input: { value: 3, output: "oldest" },
       },
     });
@@ -281,22 +281,21 @@ describe("returnProperty / output convention", () => {
   });
 
   it("carry mode keeps context flowing without nesting", async () => {
+    // carry is the fallback when no per-port mode is configured
     const { node } = await createNode(ModeNode);
-    await node.receive({ topic: "t", mode: "carry" });
+    await node.receive({ topic: "t" });
 
     expect(node.sent(0)[0]).toEqual({
       topic: "t",
-      mode: "carry",
       output: "R",
     });
   });
 
   it("carry mode forwards an existing input untouched", async () => {
     const { node } = await createNode(ModeNode);
-    await node.receive({ mode: "carry", input: { output: "upstream" } });
+    await node.receive({ input: { output: "upstream" } });
 
     expect(node.sent(0)[0]).toEqual({
-      mode: "carry",
       output: "R",
       input: { output: "upstream" }, // carried forward, not re-nested
     });
@@ -307,31 +306,34 @@ describe("returnProperty / output convention", () => {
     // input. Under carry the message must not grow an `input` chain hop to hop
     // (trace would nest one frame per tick and bloat unboundedly).
     const { node } = await createNode(ModeNode);
-    let msg: Record<string, unknown> = { topic: "tick", mode: "carry" };
+    let msg: Record<string, unknown> = { topic: "tick" };
     for (let i = 0; i < 5; i++) {
       await node.receive(msg);
       msg = node.sent(0).at(-1) as Record<string, unknown>;
     }
 
-    expect(msg).toEqual({ topic: "tick", mode: "carry", output: "R" });
+    expect(msg).toEqual({ topic: "tick", output: "R" });
     expect("input" in msg).toBe(false);
   });
 
   it("trace mode nests the input under input", async () => {
-    const { node } = await createNode(ModeNode);
-    await node.receive({ topic: "t", mode: "trace" });
+    const { node } = await createNode(ModeNode, {
+      config: { outputContextModes: { 0: "trace" } },
+    });
+    await node.receive({ topic: "t" });
 
     expect(node.sent(0)[0]).toEqual({
       topic: "t",
-      mode: "trace",
       output: "R",
-      input: { topic: "t", mode: "trace" },
+      input: { topic: "t" },
     });
   });
 
   it("reset mode drops all inherited context", async () => {
-    const { node } = await createNode(ModeNode);
-    await node.receive({ topic: "t", mode: "reset", input: { a: 1 } });
+    const { node } = await createNode(ModeNode, {
+      config: { outputContextModes: { 0: "reset" } },
+    });
+    await node.receive({ topic: "t", input: { a: 1 } });
 
     expect(node.sent(0)[0]).toEqual({ output: "R" });
   });
@@ -478,80 +480,81 @@ describe("returnProperty / output convention", () => {
   });
 });
 
-// The flow author's per-port `contextModes` config (written by the editor)
-// overrides the node author's `defaultMode`. Resolution precedence is
-// config override -> defaultMode -> "carry".
-describe("context-mode per-port config overrides", () => {
+// The flow author's per-port `outputContextModes` config (written by the editor
+// when the node declares OutputContextModes) selects each port's mode.
+// Resolution falls back to "carry" for any port the config does not set.
+describe("context-mode per-port resolution", () => {
   // Multi-output node: one value per port, so each port's resolved mode can be
-  // asserted independently. Author default is "reset".
+  // asserted independently.
   const MultiModeNode = defineIONode({
     type: "ctx-multi",
     configSchema: defineSchema(
-      { name: SchemaType.String({ default: "" }) },
+      {
+        name: SchemaType.String({ default: "" }),
+        outputContextModes: SchemaType.OutputContextModes(),
+      },
       { $id: "ctx-multi:config" },
     ),
     inputSchema: SchemaType.Object({}),
     outputsSchema: [SchemaType.Any(), SchemaType.Any()],
     async input() {
-      this.send(["A", "B"] as never, { defaultMode: "reset" });
+      this.send(["A", "B"] as never);
     },
   });
 
-  // Named-output node: sends to "failure" (index 1) with author default "reset".
+  // Named-output node: sends to "failure" (index 1).
   const NamedModeNode = defineIONode({
     type: "ctx-named",
     configSchema: defineSchema(
-      { name: SchemaType.String({ default: "" }) },
+      {
+        name: SchemaType.String({ default: "" }),
+        outputContextModes: SchemaType.OutputContextModes(),
+      },
       { $id: "ctx-named:config" },
     ),
     inputSchema: SchemaType.Object({}),
     outputsSchema: { success: SchemaType.Any(), failure: SchemaType.Any() },
     async input() {
-      this.sendToPort("failure", { ok: false }, { defaultMode: "reset" });
+      this.sendToPort("failure", { ok: false });
     },
   });
 
-  it("a configured port overrides the node author's defaultMode", async () => {
-    // ModeNode sends with defaultMode = msg.mode ("reset"); config forces trace
+  it("uses the configured mode for a port", async () => {
     const { node } = await createNode(ModeNode, {
-      config: { contextModes: { 0: "trace" } },
+      config: { outputContextModes: { 0: "trace" } },
     });
-    await node.receive({ topic: "t", mode: "reset" });
-
-    expect(node.sent(0)[0]).toEqual({
-      topic: "t",
-      mode: "reset",
-      output: "R",
-      input: { topic: "t", mode: "reset" }, // trace won over reset
-    });
-  });
-
-  it("a configured port overrides the carry floor when no defaultMode is given", async () => {
-    const { node } = await createNode(ModeNode, {
-      config: { contextModes: { 0: "trace" } },
-    });
-    await node.receive({ topic: "t" }); // no mode -> defaultMode undefined
+    await node.receive({ topic: "t" });
 
     expect(node.sent(0)[0]).toEqual({
       topic: "t",
       output: "R",
-      input: { topic: "t" }, // trace won over the carry default
+      input: { topic: "t" }, // trace
     });
   });
 
-  it("an unconfigured port falls back to the node author's defaultMode", async () => {
+  it("falls back to carry on a port the config does not set", async () => {
     // config sets port 1, but ModeNode sends to port 0
     const { node } = await createNode(ModeNode, {
-      config: { contextModes: { 1: "trace" } },
+      config: { outputContextModes: { 1: "trace" } },
     });
-    await node.receive({ topic: "t", mode: "reset" });
+    await node.receive({ topic: "t" });
 
-    expect(node.sent(0)[0]).toEqual({ output: "R" }); // reset (defaultMode)
+    expect(node.sent(0)[0]).toEqual({ topic: "t", output: "R" }); // carry
   });
 
   it("resolves each port independently on a multi-output node", async () => {
     const { node } = await createNode(MultiModeNode, {
-      config: { contextModes: { 0: "trace", 1: "carry" } },
+      config: { outputContextModes: { 0: "trace", 1: "reset" } },
+    });
+    await node.receive({ k: 1 });
+
+    expect(node.sent(0)[0]).toEqual({ k: 1, output: "A", input: { k: 1 } }); // trace
+    expect(node.sent(1)[0]).toEqual({ output: "B" }); // reset
+  });
+
+  it("falls back to carry on ports the config does not set (multi-output)", async () => {
+    const { node } = await createNode(MultiModeNode, {
+      config: { outputContextModes: { 0: "trace" } },
     });
     await node.receive({ k: 1 });
 
@@ -559,20 +562,10 @@ describe("context-mode per-port config overrides", () => {
     expect(node.sent(1)[0]).toEqual({ k: 1, output: "B" }); // carry
   });
 
-  it("falls back to defaultMode on ports the config does not set (multi-output)", async () => {
-    const { node } = await createNode(MultiModeNode, {
-      config: { contextModes: { 0: "trace" } },
-    });
-    await node.receive({ k: 1 });
-
-    expect(node.sent(0)[0]).toEqual({ k: 1, output: "A", input: { k: 1 } }); // trace
-    expect(node.sent(1)[0]).toEqual({ output: "B" }); // reset (defaultMode)
-  });
-
-  it("sendToPort resolves the named port's index for the override", async () => {
+  it("sendToPort resolves the named port's index for the mode", async () => {
     // "failure" is index 1; config sets port 1 to trace
     const { node } = await createNode(NamedModeNode, {
-      config: { contextModes: { 1: "trace" } },
+      config: { outputContextModes: { 1: "trace" } },
     });
     await node.receive({ traceId: "x" });
 
@@ -583,13 +576,16 @@ describe("context-mode per-port config overrides", () => {
     });
   });
 
-  it("sendToPort falls back to defaultMode when the named port is unconfigured", async () => {
+  it("sendToPort falls back to carry when the named port is unconfigured", async () => {
     // config sets port 0 (success); the send goes to port 1 (failure)
     const { node } = await createNode(NamedModeNode, {
-      config: { contextModes: { 0: "trace" } },
+      config: { outputContextModes: { 0: "trace" } },
     });
     await node.receive({ traceId: "x" });
 
-    expect(node.sent("failure")[0]).toEqual({ output: { ok: false } }); // reset
+    expect(node.sent("failure")[0]).toEqual({
+      traceId: "x",
+      output: { ok: false },
+    }); // carry
   });
 });

@@ -23,7 +23,7 @@ describe("NodeRedJsonSchemaForm", () => {
               title: "Validate Outputs",
               default: {},
             },
-            contextModes: {
+            outputContextModes: {
               type: "object",
               title: "Context Modes",
               default: {},

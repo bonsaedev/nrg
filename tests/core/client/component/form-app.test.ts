@@ -6,7 +6,6 @@ import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-s
 import { mountApp, unmountApp } from "@/core/client/form";
 import { createNode } from "@/test/client/component";
 import type { NodeFeatures } from "@/core/client/types";
-import { getJQueryState } from "@/test/client/component/jquery";
 
 const NO_FEATURES: NodeFeatures = {
   hasInputSchema: false,
@@ -177,6 +176,12 @@ describe("app shell — Outputs table", () => {
   const RETURN_SCHEMA = () =>
     nameSchema({ outputReturnProperties: { type: "object", default: {} } });
 
+  // schema that opts into the per-port Context Mode column; `def` is the
+  // author's per-port default map — a port present here is editable, others
+  // render `carry`, disabled.
+  const CONTEXT_SCHEMA = (def: Record<number, string> = {}) =>
+    nameSchema({ outputContextModes: { type: "object", default: def } });
+
   test("renders a row per base output port with its label", () => {
     const { component } = renderApp({
       configs: { name: "x" },
@@ -219,6 +224,31 @@ describe("app shell — Outputs table", () => {
     );
   });
 
+  test("shows the Context Mode column only when the schema declares it", () => {
+    // target the table headers — the subsection help text mentions the term
+    // "Context Mode" regardless of whether the column is rendered
+    const headers = (c: HTMLElement) =>
+      Array.from(c.querySelectorAll(".nrg-outputs thead th")).map((th) =>
+        th.textContent?.trim(),
+      );
+
+    const withCM = renderApp({
+      configs: { name: "x" },
+      schema: CONTEXT_SCHEMA(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    expect(headers(withCM.component.container)).toContain("Context Mode");
+
+    const withoutCM = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    expect(headers(withoutCM.component.container)).not.toContain(
+      "Context Mode",
+    );
+  });
+
   test("the validate checkbox writes validateOutputs[port]", async () => {
     const { node, component } = renderApp({
       configs: { name: "x" },
@@ -250,46 +280,44 @@ describe("app shell — Outputs table", () => {
     });
   });
 
-  test("selecting a context mode writes contextModes[port]", async () => {
+  test("selecting a context mode writes outputContextModes[port]", async () => {
+    // port 0 has a schema default, so its dropdown is editable
     const { node, component } = renderApp({
-      configs: { name: "x" },
-      schema: nameSchema(),
+      configs: { name: "x", outputContextModes: { 0: "carry" } },
+      schema: CONTEXT_SCHEMA({ 0: "carry" }),
       features: OUT_FEATURES([{ index: 0, label: "out" }]),
     });
-    let jq: any;
+    const select = component.container.querySelector(
+      "select.nrg-outputs-context",
+    ) as HTMLSelectElement;
+    expect(select.disabled).toBe(false);
+    select.value = "trace";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
     await vi.waitFor(() => {
-      const select = component.container.querySelector(
-        ".nrg-outputs input.node-input-select",
-      );
-      jq = select && getJQueryState(select as Element);
-      expect(jq?.typedInput).toBeDefined();
-    });
-    jq.typedInput.value = "trace";
-    jq.listeners["change"]?.forEach((cb: (...args: any[]) => void) => cb());
-    await vi.waitFor(() => {
-      expect(node.contextModes).toEqual({ 0: "trace" });
+      expect(node.outputContextModes).toEqual({ 0: "trace" });
     });
   });
 
-  test("choosing Default removes a port's context-mode override", async () => {
-    const { node, component } = renderApp({
-      configs: { name: "x", contextModes: { 0: "trace" } },
-      schema: nameSchema(),
-      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+  test("locks a port with no schema default to carry (disabled)", () => {
+    // only port 0 has a default — port 1 is locked to carry
+    const { component } = renderApp({
+      configs: { name: "x", outputContextModes: { 0: "trace" } },
+      schema: CONTEXT_SCHEMA({ 0: "trace" }),
+      features: OUT_FEATURES([
+        { index: 0, label: "p0" },
+        { index: 1, label: "p1" },
+      ]),
     });
-    let jq: any;
-    await vi.waitFor(() => {
-      const select = component.container.querySelector(
-        ".nrg-outputs input.node-input-select",
-      );
-      jq = select && getJQueryState(select as Element);
-      expect(jq?.typedInput).toBeDefined();
-    });
-    jq.typedInput.value = "default";
-    jq.listeners["change"]?.forEach((cb: (...args: any[]) => void) => cb());
-    await vi.waitFor(() => {
-      expect(node.contextModes).toEqual({});
-    });
+    const selects = component.container.querySelectorAll<HTMLSelectElement>(
+      "select.nrg-outputs-context",
+    );
+    expect(selects.length).toBe(2);
+    // port 0: editable, seeded to its declared default
+    expect(selects[0].disabled).toBe(false);
+    expect(selects[0].value).toBe("trace");
+    // port 1: locked to carry
+    expect(selects[1].disabled).toBe(true);
+    expect(selects[1].value).toBe("carry");
   });
 
   test("grows and shrinks the rows when the node's output count changes (dynamic outputs)", async () => {

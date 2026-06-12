@@ -21,7 +21,7 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
     /** Per-port return properties, keyed by base-output port index. */
     outputReturnProperties?: Record<number, string>;
     /** Per-port context modes, keyed by base-output port index. */
-    contextModes?: Record<number, "carry" | "trace" | "reset">;
+    outputContextModes?: Record<number, "carry" | "trace" | "reset">;
   };
 
 type IONodeCredentials<TCredentials = any> = NodeCredentials<TCredentials>;

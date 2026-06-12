@@ -169,7 +169,7 @@ const SKIP_FIELDS = new Set([
   "validateInput",
   "validateOutputs",
   "outputs",
-  "contextModes",
+  "outputContextModes",
   "outputReturnProperties",
   ...BUILTIN_PORT_KEYS,
 ]);

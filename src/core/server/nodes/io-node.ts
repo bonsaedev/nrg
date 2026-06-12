@@ -39,20 +39,11 @@ type ValidateOutputsConfig = {
 
 type ContextModesConfig = {
   /**
-   * Flow-author per-port context-mode overrides, keyed by base-output port
-   * index. Written by the editor; absent until the author configures a port.
+   * Per-port context modes, keyed by base-output port index. Present only when
+   * the node declares `outputContextModes`; a missing entry falls back to
+   * `"carry"`.
    */
-  contextModes?: Record<number, ContextMode>;
-};
-
-/** Options for {@link IONode.send} and {@link IONode.sendToPort}. */
-type SendOptions = {
-  /**
-   * Node-author default for how the outgoing message carries the incoming
-   * context. The flow author's per-port override (when set) wins; otherwise
-   * this is used, falling back to `"carry"` when omitted.
-   */
-  defaultMode?: ContextMode;
+  outputContextModes?: Record<number, ContextMode>;
 };
 
 const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
@@ -83,14 +74,15 @@ export type ContextMode = "carry" | "trace" | "reset";
  * Every node has a return key (`"output"` by default): the value passed to
  * `send()` is merged into the incoming message at that key
  * (`{ ...msg, [returnKey]: result }`), so upstream properties propagate. By
- * default the context is carried without growing; pass
- * `{ defaultMode: "trace" }` to also keep the full prior message under `input`
- * as a recoverable provenance chain. The return key, output validation, and
- * context mode all resolve per output port; declaring
- * `outputReturnProperties` in the `configSchema` sets per-port default keys and
- * lets the flow author pick a key other than `output` per port — it does not
- * change that a return key always exists. `this.send(x)` always means "x is the result", never "x is the
- * whole message".
+ * default the context is carried without growing; declaring
+ * `outputContextModes` in the `configSchema` lets the flow author pick `trace`
+ * (keep the full prior message under `input` as a recoverable provenance chain)
+ * or `reset` per port. The return key, output validation, and context mode all
+ * resolve per output port; declaring `outputReturnProperties` in the
+ * `configSchema` sets per-port default keys and lets the flow author pick a key
+ * other than `output` per port — it does not change that a return key always
+ * exists. `this.send(x)` always means "x is the result", never "x is the whole
+ * message".
  *
  * @example
  * ```ts
@@ -310,24 +302,19 @@ abstract class IONode<
     }
   }
 
-  public send(msg: TOutput, options?: SendOptions) {
+  public send(msg: TOutput) {
     // Every node has a return key, so a single-output node always treats the
     // argument as the value (arrays included). Multi-output nodes use
     // Node-RED's array-as-ports convention — one value per port, each wrapped,
     // validated, and context-resolved independently.
     const sendsValue = this.baseOutputs <= 1;
-    const defaultMode = options?.defaultMode;
 
     if (Array.isArray(msg) && !sendsValue) {
       const slots = (msg as unknown[]).slice(0, this.baseOutputs);
       const out = slots.map((m, port) => {
         if (m == null) return m;
         this.#validatePort(m, port);
-        return this.#wrapOutgoing(
-          m,
-          this.#resolveContextMode(port, defaultMode),
-          port,
-        );
+        return this.#wrapOutgoing(m, this.#resolveContextMode(port), port);
       });
       this.#deliver(out);
       return;
@@ -338,9 +325,7 @@ abstract class IONode<
       return;
     }
     this.#validatePort(msg, 0);
-    this.#deliver(
-      this.#wrapOutgoing(msg, this.#resolveContextMode(0, defaultMode), 0),
-    );
+    this.#deliver(this.#wrapOutgoing(msg, this.#resolveContextMode(0), 0));
   }
 
   #deliver(out: unknown) {
@@ -399,14 +384,16 @@ abstract class IONode<
   }
 
   /**
-   * Resolves the context mode for a base-output port. Precedence: the flow
-   * author's per-port override (`config.contextModes[port]`) → the node author's
-   * `defaultMode` → `"carry"`.
+   * Resolves the context mode for a base-output port from the flow author's
+   * per-port config (`config.outputContextModes[port]`, written by the editor
+   * when the node declares `outputContextModes`), falling back to `"carry"`.
    */
-  #resolveContextMode(port: number, defaultMode?: ContextMode): ContextMode {
-    const configured = (this.config as unknown as ContextModesConfig)
-      .contextModes?.[port];
-    return configured ?? defaultMode ?? "carry";
+  #resolveContextMode(port: number): ContextMode {
+    return (
+      (this.config as unknown as ContextModesConfig).outputContextModes?.[
+        port
+      ] ?? "carry"
+    );
   }
 
   /**
@@ -464,11 +451,7 @@ abstract class IONode<
           ? keyof TOutput & string
           : never)
       | number,
-  >(
-    port: P,
-    msg: P extends keyof TOutput ? TOutput[P] : unknown,
-    options?: SendOptions,
-  ) {
+  >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
         `sendToPort("${port}") is not allowed. Built-in ports are managed by the framework.`,
@@ -476,7 +459,7 @@ abstract class IONode<
     }
     const portIndex =
       typeof port === "number" ? port : this.#getNamedPortIndex(port);
-    const mode = this.#resolveContextMode(portIndex ?? 0, options?.defaultMode);
+    const mode = this.#resolveContextMode(portIndex ?? 0);
     this.#sendToPort(
       port,
       msg == null ? msg : this.#wrapOutgoing(msg, mode, portIndex ?? 0),

@@ -119,13 +119,13 @@ function nodeDefinitionsInliner(
           defaults.validateInput = { required: false, value: false };
         }
         if (defaults && outputsSchema) {
-          // Per-port output settings, keyed by base-output port index and empty
-          // until the flow author edits a row in the Outputs table. Read at
-          // runtime by IONode (validate / context mode per port). The Return
-          // Property column is author-declared (outputReturnProperties), so its
-          // default comes from the schema rather than being injected here.
+          // Per-port output validation flags, keyed by base-output port index
+          // and empty until the flow author ticks a row in the Outputs table.
+          // Read at runtime by IONode. The Return Property and Context Mode
+          // columns are author-declared (outputReturnProperties /
+          // outputContextModes), so their defaults come from the schema rather
+          // than being injected here.
           defaults.validateOutputs = { required: false, value: {} };
-          defaults.contextModes = { required: false, value: {} };
         }
         const credentials = getCredentialsFromSchema(credentialsSchema);
 

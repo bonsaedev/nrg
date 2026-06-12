@@ -594,7 +594,7 @@ export default class MyNode extends IONode<
   async input(msg: Record<string, any>) {
     const apiKey = this.credentials?.apiKey;
     // send the result value — the framework puts it at msg.output and keeps
-    // the incoming message under msg.input
+    // the incoming message's fields at the top level (the default carry mode)
     this.send(`${this.config.prefix}: ${msg.output}`);
   }
 
@@ -729,8 +729,8 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(msg, options?)` | Send a message to the next node. `options.defaultMode` (`"carry"` \| `"trace"` \| `"reset"`, default `"carry"`) controls how the incoming context is carried — see [Context modes](./schemas#context-modes). |
-| `this.sendToPort(port, msg, options?)` | Send a message to a user-defined output port by index or name. Takes the same `options.defaultMode`. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
+| `this.send(msg)` | Send the node's result to the next node. The framework wraps it as `{ ...msg, <returnProperty>: result }`; how the incoming context is carried is resolved per output port (default `carry`) — see [Context modes](./schemas#context-modes). |
+| `this.sendToPort(port, msg)` | Send the result to a user-defined output port by index or name. The port's context mode resolves the same way. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -837,7 +837,7 @@ nrg generates the node's edit dialog from your schema — you don't write any HT
 
 - **Ports Settings**
   - **Input** — a _Validate_ toggle when the node declares an `inputSchema`.
-  - **Outputs** — a per-port table (one row per base output port) with **Validate**, **Return Property**, and **Context Mode** columns. _Validate_ checks the sent value against that port's schema; _Return Property_ — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key) — sets each port's return key (default `output`); _Context Mode_ picks how each output carries the incoming message — see [Context modes](./schemas#context-modes). The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
+  - **Outputs** — a per-port table (one row per base output port) with a **Validate** column plus optional **Return Property** and **Context Mode** columns. _Validate_ checks the sent value against that port's schema; _Return Property_ — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key) — sets each port's return key (default `output`); _Context Mode_ — shown only when the schema declares [`outputContextModes`](./schemas#context-modes) — picks how each configurable output carries the incoming message (ports without a declared default stay locked to `carry`). The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
 - **Lifecycle Ports** — _Error_, _Complete_, and _Status_ toggles, shown for whichever [built-in ports](#emit-ports) the schema declares.
 
 Each help line links to the relevant docs. Sections only appear when there is something to configure — a node with no input/output schema and no built-in ports shows just its fields.
