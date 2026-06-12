@@ -36,12 +36,22 @@ interface EsbuildOptions {
   platform?: string;
   outfile?: string;
   outdir?: string;
+  /**
+   * Specifiers to force external. `--packages=external` already externalizes
+   * bare imports, but a tsconfig `paths` mapping (auto-discovered by esbuild)
+   * rewrites a matched specifier to a local file BEFORE that check, inlining it.
+   * An explicit `--external:` matches the import as written and short-circuits
+   * the rewrite — used to keep `@bonsae/nrg/server` external in the integration
+   * bundle so it binds to the host's nrg copy at runtime.
+   */
+  external?: string[];
 }
 
-function esbuild(entry: string, { format, platform = "node", outfile, outdir }: EsbuildOptions) {
+function esbuild(entry: string, { format, platform = "node", outfile, outdir, external = [] }: EsbuildOptions) {
   const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
+  const ext = external.map((e) => `--external:${e}`).join(" ");
   execSync(
-    `esbuild ${entry} --bundle --packages=external --format=${format} --platform=${platform} ${out}`,
+    `esbuild ${entry} --bundle --packages=external --format=${format} --platform=${platform} ${out} ${ext}`,
     { stdio: "inherit" },
   );
 }
@@ -113,6 +123,8 @@ function buildVitePlugin() {
 async function buildTestUtils() {
   esbuild("src/test/server/unit/index.ts", { format: "esm", outdir: "dist/test/server/unit" });
   esbuild("src/test/server/unit/config.ts", { format: "esm", outdir: "dist/test/server/unit" });
+  esbuild("src/test/server/integration/index.ts", { format: "esm", outdir: "dist/test/server/integration", external: ["@bonsae/nrg/server"] });
+  esbuild("src/test/server/integration/config.ts", { format: "esm", outdir: "dist/test/server/integration" });
   // NOTE: index.ts and setup.ts import .vue SFCs (real form components for
   // plugin tests), which esbuild can't bundle — use vite with the vue plugin.
   await viteBuild({
@@ -178,6 +190,7 @@ export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
 
   // Test utilities types
   execSync(`npx dts-bundle-generator -o dist/types/test-server-unit.d.ts src/test/server/unit/index.ts ${DTS_FLAGS} --external-types vitest`, { stdio: "inherit" });
+  execSync(`npx dts-bundle-generator -o dist/types/test-server-integration.d.ts src/test/server/integration/index.ts ${DTS_FLAGS}`, { stdio: "inherit" });
   execSync(`npx dts-bundle-generator -o dist/types/test-client-component.d.ts src/test/client/component/types.ts ${DTS_FLAGS}`, { stdio: "inherit" });
   execSync(`npx dts-bundle-generator -o dist/types/test-client-unit.d.ts src/test/client/unit/index.ts ${DTS_FLAGS} --external-types vitest`, { stdio: "inherit" });
   execSync(`npx dts-bundle-generator -o dist/types/test-client-e2e.d.ts src/test/client/e2e/index.ts ${DTS_FLAGS} --external-imports playwright --external-imports playwright-core`, { stdio: "inherit" });
@@ -311,6 +324,11 @@ function generatePackageJson() {
         default: "./test/server/unit/index.js",
       },
       "./test/server/unit/config": "./test/server/unit/config.js",
+      "./test/server/integration": {
+        types: "./types/test-server-integration.d.ts",
+        default: "./test/server/integration/index.js",
+      },
+      "./test/server/integration/config": "./test/server/integration/config.js",
       "./test/client/component": {
         types: "./types/test-client-component.d.ts",
         default: "./test/client/component/index.js",
@@ -331,6 +349,7 @@ function generatePackageJson() {
       "./tsconfig/core/server.json": "./tsconfig/core/server.json",
       "./tsconfig/core/client.json": "./tsconfig/core/client.json",
       "./tsconfig/test/server/unit.json": "./tsconfig/test/server/unit.json",
+      "./tsconfig/test/server/integration.json": "./tsconfig/test/server/integration.json",
       "./tsconfig/test/client/component.json": "./tsconfig/test/client/component.json",
       "./tsconfig/test/client/unit.json": "./tsconfig/test/client/unit.json",
       "./tsconfig/test/client/e2e.json": "./tsconfig/test/client/e2e.json",

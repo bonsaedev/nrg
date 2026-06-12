@@ -129,7 +129,7 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 
 ## Testing
 
-NRG provides four test libraries and bundles most test infrastructure as direct dependencies. Install `vitest` plus any optional peer dependencies you need:
+NRG provides five test libraries and bundles most test infrastructure as direct dependencies. Install `vitest` plus any optional peer dependencies you need:
 
 ```bash
 pnpm add -D vitest
@@ -146,6 +146,7 @@ Optional peer dependencies:
 | `@vitest/coverage-istanbul`  | Coverage with `--coverage` (Istanbul provider)               |
 
 - `@bonsae/nrg/test/server/unit` — server-side unit tests
+- `@bonsae/nrg/test/server/integration` — server-side integration tests (real Node-RED runtime)
 - `@bonsae/nrg/test/client/unit` — client-side unit tests (TypeScript logic)
 - `@bonsae/nrg/test/client/component` — client component tests (Vue + browser)
 - `@bonsae/nrg/test/client/e2e` — browser E2E tests (Playwright)
@@ -166,6 +167,51 @@ describe("my-node", () => {
     await node.receive({ payload: "world" });
 
     expect(node.sent(0)).toEqual([{ payload: "hello world" }]);
+  });
+});
+```
+
+### Server Integration Tests
+
+Boot a real, headless Node-RED runtime, deploy your nodes, and drive them with real messages — verifying config-node resolution, credentials, wiring, and context that unit mocks can't. Integration tests live in `tests/server/integration` (separate from `tests/server/unit`), and the default config targets that folder. Add `node-red` as a dev dependency, then:
+
+```typescript
+// vitest.server.integration.config.ts
+import { defaultConfig } from "@bonsae/nrg/test/server/integration/config";
+
+// targets tests/server/integration/**/*.test.ts out of the box
+export default defaultConfig;
+```
+
+```typescript
+// tests/server/integration/my-node.test.ts
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import {
+  startRuntime,
+  type Runtime,
+} from "@bonsae/nrg/test/server/integration";
+import MyNode from "../../../src/server/nodes/my-node";
+
+describe("my-node (integration)", () => {
+  let runtime: Runtime;
+
+  beforeAll(async () => {
+    runtime = await startRuntime({ nodes: [MyNode] });
+  });
+
+  afterAll(async () => {
+    await runtime.stop();
+  });
+
+  it("processes input in a real runtime", async () => {
+    const flow = runtime.flow();
+    const node = flow.addNode(MyNode, { greeting: "hello" });
+    await flow.deploy();
+
+    await node.receive({ payload: "world" });
+
+    const out = (await node.read()) as { output: { payload: string } };
+    expect(out.output.payload).toBe("hello world");
   });
 });
 ```
@@ -270,6 +316,7 @@ pnpm validate:lint                # eslint
 pnpm validate:format              # prettier check
 pnpm test                         # run all tests
 pnpm test:core:server:unit        # server unit tests
+pnpm test:core:server:integration # server integration tests (real Node-RED)
 pnpm test:core:client:unit        # client unit tests
 pnpm test:core:client:component   # client component tests
 pnpm test:core:client:e2e         # client E2E tests

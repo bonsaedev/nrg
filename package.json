@@ -33,8 +33,10 @@
   "scripts": {
     "test": "pnpm test:core && pnpm test:vite",
     "test:core": "pnpm test:core:server && pnpm test:core:client",
-    "test:core:server": "pnpm test:core:server:unit",
+    "test:core:server": "pnpm test:core:server:unit && pnpm test:core:server:integration",
     "test:core:server:unit": "vitest run --config vitest.core.server.unit.config.ts",
+    "test:core:server:integration": "vitest run --config vitest.core.server.integration.config.ts",
+    "test:core:server:integration:watch": "vitest --config vitest.core.server.integration.config.ts",
     "test:core:server:unit:watch": "vitest --config vitest.core.server.unit.config.ts",
     "test:core:client": "pnpm test:core:client:unit && pnpm test:core:client:component && pnpm test:core:client:e2e",
     "test:core:client:unit": "vitest run --config vitest.core.client.unit.config.ts",
@@ -48,7 +50,7 @@
     "test:vite:e2e": "vitest run --config vitest.vite.e2e.config.ts",
     "build": "tsx build/index.ts",
     "validate": "npm run validate:tsc && npm run validate:lint && npm run validate:format",
-    "validate:tsc": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/client/component/tsconfig.json --noEmit && tsc -p src/test/client/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
+    "validate:tsc": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/server/integration/tsconfig.json --noEmit && tsc -p src/test/client/component/tsconfig.json --noEmit && tsc -p src/test/client/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
     "validate:lint": "eslint src/",
     "validate:format": "prettier --check \"src/**/*.{ts,vue,json}\"",
     "docs:dev": "pnpm --dir docs dev",
@@ -78,6 +80,11 @@
       "default": "./dist/test/server/unit/index.js"
     },
     "./test/server/unit/config": "./dist/test/server/unit/config.js",
+    "./test/server/integration": {
+      "types": "./dist/types/test-server-integration.d.ts",
+      "default": "./dist/test/server/integration/index.js"
+    },
+    "./test/server/integration/config": "./dist/test/server/integration/config.js",
     "./test/client/component": {
       "types": "./dist/types/test-client-component.d.ts",
       "default": "./dist/test/client/component/index.js"
@@ -98,19 +105,20 @@
     "./tsconfig/core/server.json": "./dist/tsconfig/core/server.json",
     "./tsconfig/core/client.json": "./dist/tsconfig/core/client.json",
     "./tsconfig/test/server/unit.json": "./dist/tsconfig/test/server/unit.json",
+    "./tsconfig/test/server/integration.json": "./dist/tsconfig/test/server/integration.json",
     "./tsconfig/test/client/component.json": "./dist/tsconfig/test/client/component.json",
     "./tsconfig/test/client/unit.json": "./dist/tsconfig/test/client/unit.json",
     "./tsconfig/test/client/e2e.json": "./dist/tsconfig/test/client/e2e.json"
   },
   "peerDependencies": {
-    "vite": "^6.0.0",
-    "vitest": "^4.0.0",
-    "vue": "^3.5.14",
+    "@vitest/browser-playwright": "^4.0.0",
     "@vitest/coverage-istanbul": "^4.0.0",
     "@vitest/coverage-v8": "^4.0.0",
-    "@vitest/browser-playwright": "^4.0.0",
     "playwright": "^1.50.0",
-    "vitest-browser-vue": "^2.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^4.0.0",
+    "vitest-browser-vue": "^2.0.0",
+    "vue": "^3.5.14"
   },
   "peerDependenciesMeta": {
     "@vitest/coverage-istanbul": {
@@ -133,6 +141,7 @@
     "@clack/prompts": "^1.0.1",
     "@sinclair/typebox": "^0.34.33",
     "@vitejs/plugin-vue": "^5.2.3",
+    "@vitest/browser-playwright": "^4.1.5",
     "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",
     "ajv-formats": "^3.0.1",
@@ -141,17 +150,16 @@
     "es-toolkit": "^1.37.2",
     "esbuild": "^0.25.4",
     "get-port": "^7.1.0",
+    "happy-dom": "^20.10.2",
     "jsonpointer": "^5.0.1",
     "mime-types": "^3.0.1",
+    "playwright": "^1.60.0",
     "tree-kill": "^1.2.2",
     "typescript": "^5.8.3",
     "vite-plugin-dts": "^4.5.4",
     "vite-plugin-static-copy": "^3.1.0",
-    "vue": "^3.5.14",
-    "@vitest/browser-playwright": "^4.1.5",
-    "happy-dom": "^20.10.2",
-    "playwright": "^1.60.0",
-    "vitest-browser-vue": "^2.1.0"
+    "vitest-browser-vue": "^2.1.0",
+    "vue": "^3.5.14"
   },
   "lint-staged": {
     "src/**/*.{ts,vue}": [
@@ -187,6 +195,7 @@
     "globals": "^16.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "node-red": "5.0.0",
     "prettier": "^3.5.3",
     "semantic-release": "^24.2.4",
     "tsx": "^4.22.4",

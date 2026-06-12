@@ -38,8 +38,11 @@ pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, client 
 | Type | What it tests | Speed | Library |
 |------|--------------|-------|---------|
 | **Unit** | Node lifecycle, input/output routing, config, credentials, context stores, error handling | Fast (Node.js, no browser) | `@bonsae/nrg/test/server/unit` |
+| **Integration** | Deployed nodes in a real Node-RED runtime — flow wiring, NodeRef resolution, credentials, context, multi-node message passing | Medium (boots Node-RED in-process) | `@bonsae/nrg/test/server/integration` |
 
-Server tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
+Server **unit** tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
+
+Server **integration** tests boot a real, headless Node-RED runtime, register your node classes through the same path production uses, deploy a flow, and drive it with real messages. Use them to verify the things mocks can't: that a config node resolves through a real `NodeRef`, that credentials reach a deployed node, that wired nodes pass messages, and that context stores persist across a flow.
 
 ### Client
 
@@ -63,6 +66,10 @@ Client **E2E** tests start a real Node-RED instance with your nodes installed an
 | Node sets status after processing | Server unit |
 | Config node credentials are resolved | Server unit |
 | TypedInput resolves msg/flow/global values | Server unit |
+| Wired nodes pass a message end to end through a flow | Server integration |
+| A real config node resolves and is used by a deployed node | Server integration |
+| Credentials reach a node deployed in a real runtime | Server integration |
+| A node reads or writes real flow/global context | Server integration |
 | A validation utility rejects invalid input | Client unit |
 | A helper function formats data correctly | Client unit |
 | My Vue form renders the right fields | Client component |
@@ -100,10 +107,10 @@ No additional dependencies needed — NRG provides the test utilities and mocks.
 #### 2. Create a tsconfig
 
 ```json
-// tests/server/tsconfig.json
+// tests/server/unit/tsconfig.json
 {
   "extends": "@bonsae/nrg/tsconfig/test/server/unit.json",
-  "include": ["**/*.ts", "../../src/server/**/*.ts"]
+  "include": ["**/*.ts", "../../../src/server/**/*.ts"]
 }
 ```
 
@@ -111,20 +118,19 @@ No additional dependencies needed — NRG provides the test utilities and mocks.
 
 ```typescript
 // vitest.server.unit.config.ts
-import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/server/unit/config";
 
-export default mergeConfig(defaultConfig, defineConfig({
-  test: {
-    include: ["tests/server/**/*.test.ts"],
-  },
-}));
+// targets tests/server/unit/**/*.test.ts out of the box
+export default defaultConfig;
 ```
 
 The `defaultConfig` provides:
 
 - `testTimeout: 30_000`
 - `@` alias pointing to `src/` in your project root
+- `include` targeting `tests/server/unit/**/*.test.ts` — integration tests live in a separate folder (`tests/server/integration`), so the two tiers never overlap
+
+Add your own options (coverage, setup files) by wrapping it with `mergeConfig`.
 
 #### 4. Add a test script
 
@@ -463,6 +469,261 @@ describe("built-in emit ports", () => {
   });
 });
 ```
+
+## Server Integration Testing
+
+Integration tests boot a **real, headless Node-RED runtime** in-process, register your node classes through the same path production uses, deploy a flow, and drive it with real messages. Where unit tests mock Node-RED, integration tests run it — so they verify the seams mocks paper over: config-node `NodeRef` resolution, credentials reaching a deployed node, messages crossing wires, and context stores persisting across a flow.
+
+Node-RED uses process-wide singletons, so each test **file** boots its own runtime in its own forked process and files run one at a time. Start one runtime per file in `beforeAll` and stop it in `afterAll`; deploy a fresh flow per test.
+
+### Setup
+
+#### 1. Install dependencies
+
+```bash
+pnpm add -D vitest node-red
+```
+
+Integration tests embed whatever `node-red` your project has installed — the library never bundles it. Add `node-red` as a dev dependency (the same version range your nodes target).
+
+#### 2. Create a tsconfig
+
+```json
+// tests/server/integration/tsconfig.json
+{
+  "extends": "@bonsae/nrg/tsconfig/test/server/integration.json",
+  "include": ["**/*.ts", "../../../src/server/**/*.ts"]
+}
+```
+
+#### 3. Create a vitest config
+
+```typescript
+// vitest.server.integration.config.ts
+import { defaultConfig } from "@bonsae/nrg/test/server/integration/config";
+
+// targets tests/server/integration/**/*.test.ts out of the box
+export default defaultConfig;
+```
+
+The `defaultConfig` provides:
+
+- `include` targeting `tests/server/integration/**/*.test.ts` — kept in its own folder, separate from the unit tier's `tests/server/unit`
+- `testTimeout: 30_000` and `hookTimeout: 30_000` (booting a runtime takes longer than a unit test)
+- `pool: "forks"` with `fileParallelism: false` — each file gets an isolated process and they run serially, since Node-RED is a process-wide singleton
+- `@` alias pointing to `src/` in your project root
+
+Unit and integration tests are separated by folder — `tests/server/unit` and `tests/server/integration` — so each config picks up only its own tier and a missing `node-red` (or the slower runtime boot) never blocks fast unit feedback. Add your own options (coverage, settings) with `mergeConfig`.
+
+#### 4. Add a test script
+
+```json
+{
+  "scripts": {
+    "test:server:integration": "vitest run --config vitest.server.integration.config.ts"
+  }
+}
+```
+
+::: warning Published vs. linked nrg
+The integration library ships with `@bonsae/nrg`. If your CI installs the published package, this works out of the box. The tests register your nodes against the **same** nrg copy your nodes import (`@bonsae/nrg/server`), so the runtime's `instanceof` checks pass — there is no second copy to clash with.
+:::
+
+### API
+
+#### `startRuntime(options)`
+
+Boots a headless Node-RED runtime with the given node types registered. Returns a `Runtime`.
+
+| Option | Description |
+|--------|-------------|
+| `nodes` | Node classes (IONode / ConfigNode subclasses) to register — config nodes included |
+| `settings` | Extra Node-RED settings merged over the headless defaults (e.g. raise `logging.console.level` to debug a test) |
+
+**Returns:** `Promise<Runtime>`
+
+#### `Runtime`
+
+| Method | Description |
+|--------|-------------|
+| `runtime.flow()` | Start a fresh `Flow` to build, deploy, drive, and inspect |
+| `runtime.stop()` | Stop Node-RED, close the server, and remove the temp user dir |
+
+#### `Flow`
+
+| Method | Description |
+|--------|-------------|
+| `flow.addNode(Cls, config?, opts?)` | Add any node — regular or config. Returns a `NodeRef`. `opts`: `{ id?, name?, credentials? }` |
+| `flow.deploy()` | Build the flow JSON and deploy it; resolves once the flow has started |
+| `flow.clear()` | Drop the built nodes and clear captured messages (reset between tests) |
+
+Pass a config node's `NodeRef` directly as a config value on another node — it serializes to the referenced id and resolves to the live instance, exactly like a real `NodeRef` field.
+
+#### `NodeRef`
+
+A handle to one node in the flow. Harness methods never collide with your node's own methods — the live instance lives inside the runtime.
+
+| Method / Property | Description |
+|-------------------|-------------|
+| `ref.wire(target, port?)` | Wire this node's output `port` (default `0`) to `target`'s input |
+| `ref.receive(msg)` | Deliver a message to this node's input |
+| `ref.read(port?, opts?)` | Consume the next un-read emission (FIFO cursor), awaiting it if not yet sent. `opts.timeout` defaults to `5000`ms |
+| `ref.sent(port?)` | Snapshot of everything this node has emitted (optionally one port) |
+| `ref.received(port?)` | Snapshot of everything delivered to this node's input |
+| `ref.context` | Promise-based access to the node's `node` / `flow` / `global` context stores — preset values before `receive`, assert them after |
+| `ref.id` / `ref.type` | The generated node id and its type |
+
+`read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.
+
+::: tip Reading output
+NRG wraps every `send(result)` as `{ ...incomingMsg, output: result, input: incomingMsg }` — the node's result lives under `output`, incoming fields are preserved at the top level, and the original message is recoverable under `input`. So assertions read `(await node.read()).output`.
+:::
+
+### Examples
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import {
+  startRuntime,
+  type Runtime,
+} from "@bonsae/nrg/test/server/integration";
+import { defineIONode, ConfigNode } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+
+const Doubler = defineIONode({
+  type: "doubler",
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: SchemaType.Object({}),
+  async input(msg) {
+    this.send({ doubled: (msg as { value: number }).value * 2 });
+  },
+});
+
+describe("doubler (integration)", () => {
+  let runtime: Runtime;
+
+  beforeAll(async () => {
+    runtime = await startRuntime({ nodes: [Doubler] });
+  });
+
+  afterAll(async () => {
+    await runtime.stop();
+  });
+
+  it("processes input in a real runtime", async () => {
+    const flow = runtime.flow();
+    const node = flow.addNode(Doubler, {});
+    await flow.deploy();
+
+    await node.receive({ value: 21 });
+
+    const out = (await node.read()) as { output: { doubled: number } };
+    expect(out.output.doubled).toBe(42);
+    expect(node.sent()).toHaveLength(1);
+  });
+});
+```
+
+**Resolving a config node through a real `NodeRef`** — `addNode` the config node, then pass its `NodeRef` as a config value:
+
+```typescript
+class Greeting extends ConfigNode {
+  static override readonly type = "greeting-config";
+  static override readonly configSchema = defineSchema(
+    { greeting: SchemaType.String({ default: "hi" }) },
+    { $id: "greeting-config:config" },
+  );
+  get greeting(): string {
+    return (this.config as { greeting: string }).greeting;
+  }
+}
+
+const Greeter = defineIONode({
+  type: "greeter",
+  configSchema: defineSchema(
+    { source: SchemaType.NodeRef(Greeting, {}) },
+    { $id: "greeter:config" },
+  ),
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: SchemaType.Object({}),
+  async input(msg) {
+    const source = this.config.source as unknown as Greeting;
+    this.send({ text: `${source.greeting}, ${(msg as { who: string }).who}` });
+  },
+});
+
+it("resolves a config node", async () => {
+  const flow = runtime.flow();
+  const greeting = flow.addNode(Greeting, { greeting: "hello" });
+  const greeter = flow.addNode(Greeter, { source: greeting });
+  await flow.deploy();
+
+  await greeter.receive({ who: "world" });
+
+  const out = (await greeter.read()) as { output: { text: string } };
+  expect(out.output.text).toBe("hello, world");
+});
+```
+
+**Wiring nodes together** — `read` the message at the downstream node:
+
+```typescript
+it("delivers a message across a wire", async () => {
+  const flow = runtime.flow();
+  const a = flow.addNode(Doubler, {});
+  const b = flow.addNode(Relay, {});
+  a.wire(b);
+  await flow.deploy();
+
+  await a.receive({ value: 5 });
+
+  const relayed = (await b.read()) as { output: { relayed: boolean } };
+  expect(relayed.output.relayed).toBe(true);
+  expect(b.received().length).toBeGreaterThanOrEqual(1);
+});
+```
+
+**Credentials** reach the deployed node via `addNode`'s third argument:
+
+```typescript
+it("passes credentials to the deployed node", async () => {
+  const flow = runtime.flow();
+  const node = flow.addNode(
+    Secured,
+    {},
+    { credentials: { token: "secret-123" } },
+  );
+  await flow.deploy();
+
+  await node.receive({});
+
+  const out = (await node.read()) as { output: { token: string } };
+  expect(out.output.token).toBe("secret-123");
+});
+```
+
+**Context stores** — preset a value before driving the node, then assert what it stored:
+
+```typescript
+it("reads and writes real flow context", async () => {
+  const flow = runtime.flow();
+  const counter = flow.addNode(Counter, {});
+  await flow.deploy();
+
+  // preset the context before driving the node
+  await counter.context.flow.set("count", 10);
+
+  await counter.receive({});
+
+  const out = (await counter.read()) as { output: { count: number } };
+  expect(out.output.count).toBe(11);
+
+  // assert the stored value directly
+  expect(await counter.context.flow.get("count")).toBe(11);
+});
+```
+
+Need to mock a network boundary (an SDK, an HTTP client)? `vi.mock` it at the top of the file as usual — the real config node, runtime, and wiring still run; only the outermost dependency is faked.
 
 ## Client Unit Testing
 

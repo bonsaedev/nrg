@@ -42,6 +42,9 @@ jobs:
       - name: Server Unit Tests
         run: pnpm vitest run --config vitest.core.server.unit.config.ts --coverage
 
+      - name: Server Integration Tests
+        run: pnpm vitest run --config vitest.core.server.integration.config.ts --coverage
+
       - name: Client Unit Tests
         run: pnpm vitest run --config vitest.core.client.unit.config.ts --coverage
 

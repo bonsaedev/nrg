@@ -10,7 +10,12 @@
     "outDir": "../.dts-tmp",
     "stripInternal": true,
     "esModuleInterop": true,
-    "types": ["node", "jquery"]
+    "types": ["node", "jquery"],
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["src/*"],
+      "@bonsae/nrg/server": ["src/core/server/index.ts"]
+    }
   },
   "include": ["../src/**/*.ts"],
   "exclude": ["../src/**/*.vue", "../tests/**", "../dist/**"]
