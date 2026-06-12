@@ -1,5 +1,19 @@
 # Changelog
 
+# [0.20.0](https://github.com/bonsaedev/nrg/compare/v0.19.1...v0.20.0) (2026-06-12)
+
+
+### Bug Fixes
+
+* map @bonsae/nrg/server to source in the repo tsconfig ([24c7d50](https://github.com/bonsaedev/nrg/commit/24c7d50db432a375ef5c7ca1056a1ec134a445c1))
+
+
+### Features
+
+* expose node context in the unit test harness ([6877547](https://github.com/bonsaedev/nrg/commit/6877547a77944aca24122d3b9b560f5916b6fc2a))
+* server integration testing library ([9503e59](https://github.com/bonsaedev/nrg/commit/9503e591316379a9064659f2da6a8f3957b0e429))
+* ship a default include in every test config and align the docs ([d50e9f2](https://github.com/bonsaedev/nrg/commit/d50e9f2131ad2274298d60fd5e51a7e011c6fafd))
+
 ## [0.19.1](https://github.com/bonsaedev/nrg/compare/v0.19.0...v0.19.1) (2026-06-11)
 
 
