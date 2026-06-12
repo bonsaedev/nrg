@@ -53,6 +53,8 @@
     "validate:tsc": "tsc -p src/core/server/tsconfig.json --noEmit && tsc -p src/core/client/tsconfig.json --noEmit && tsc -p src/vite/tsconfig.json --noEmit && tsc -p src/test/server/unit/tsconfig.json --noEmit && tsc -p src/test/server/integration/tsconfig.json --noEmit && tsc -p src/test/client/component/tsconfig.json --noEmit && tsc -p src/test/client/unit/tsconfig.json --noEmit && tsc -p src/test/client/e2e/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
     "validate:lint": "eslint src/",
     "validate:format": "prettier --check \"src/**/*.{ts,vue,json}\"",
+    "lint": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
     "docs:dev": "pnpm --dir docs dev",
     "docs:build": "pnpm --dir docs build",
     "docs:preview": "pnpm --dir docs preview",
