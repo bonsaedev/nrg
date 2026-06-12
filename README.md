@@ -9,6 +9,9 @@
   <a href="https://socket.dev/npm/package/@bonsae/nrg"><img src="https://badge.socket.dev/npm/package/@bonsae/nrg?v=1" alt="Socket Badge"></a>
 </p>
 
+> [!WARNING]
+> While **nrg** is at `v0`, breaking changes can land in any release and will **not** bump the major version. Pin an exact version and review the release notes before upgrading.
+
 # nrg
 
 Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vitest.
