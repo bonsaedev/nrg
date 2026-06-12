@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/bonsaedev/nrg/compare/v0.21.0...v0.21.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* drive context mode from config schema, not a send() option ([9af61b7](https://github.com/bonsaedev/nrg/commit/9af61b73438423dbc702f5768bc2439c68a08d7e))
+
 # [0.21.0](https://github.com/bonsaedev/nrg/compare/v0.20.1...v0.21.0) (2026-06-12)
 
 
