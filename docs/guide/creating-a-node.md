@@ -729,8 +729,8 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(msg, contextMode?)` | Send a message to the next node. With `returnProperty` declared, `contextMode` (`"nest"` \| `"carry"` \| `"reset"`, default `"nest"`) controls how the incoming context is carried — see [Context modes](./schemas#context-modes). |
-| `this.sendToPort(port, msg, contextMode?)` | Send a message to a user-defined output port by index or name. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
+| `this.send(msg, options?)` | Send a message to the next node. `options.defaultMode` (`"carry"` \| `"trace"` \| `"reset"`, default `"carry"`) controls how the incoming context is carried — see [Context modes](./schemas#context-modes). |
+| `this.sendToPort(port, msg, options?)` | Send a message to a user-defined output port by index or name. Takes the same `options.defaultMode`. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -769,7 +769,7 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-The framework detects these properties by name. When present, toggle switches appear in the editor (similar to the validation toggles for `validateInput`/`validateOutput`). Users can enable or disable each port independently.
+The framework detects these properties by name. When present, toggle switches appear in the editor under a **Lifecycle Ports** section (see [The editor form](#the-editor-form)). Users can enable or disable each port independently.
 
 #### How it works
 
@@ -828,6 +828,19 @@ If the user enables both `errorPort` and `statusPort`, the node gets 3 outputs: 
 ::: tip Backward compatible
 Built-in ports work alongside Node-RED's built-in `catch`, `complete`, and `status` nodes. Enabling a built-in port doesn't disable the implicit behavior — both work simultaneously.
 :::
+
+## The editor form
+
+nrg generates the node's edit dialog from your schema — you don't write any HTML or jQuery. Your config fields render first (with `name` always at the top), followed by two framework-managed sections:
+
+![The generated editor form](/editor-form.png)
+
+- **Ports Settings**
+  - **Input** — a _Validate_ toggle when the node declares an `inputSchema`.
+  - **Outputs** — a per-port table (one row per base output port) with **Validate**, **Return Property**, and **Context Mode** columns. _Validate_ checks the sent value against that port's schema; _Return Property_ — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key) — sets each port's return key (default `output`); _Context Mode_ picks how each output carries the incoming message — see [Context modes](./schemas#context-modes). The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
+- **Lifecycle Ports** — _Error_, _Complete_, and _Status_ toggles, shown for whichever [built-in ports](#emit-ports) the schema declares.
+
+Each help line links to the relevant docs. Sections only appear when there is something to configure — a node with no input/output schema and no built-in ports shows just its fields.
 
 ## Register the Node
 

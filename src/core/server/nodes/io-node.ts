@@ -20,8 +20,39 @@ type BuiltinPortFlags = {
   [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;
 };
 
-type ReturnPropertyConfig = {
-  returnProperty?: string;
+type OutputReturnPropertiesConfig = {
+  /**
+   * Per-port return properties, keyed by base-output port index. Present only
+   * when the node declares `outputReturnProperties`; a missing/empty entry falls
+   * back to `"output"`.
+   */
+  outputReturnProperties?: Record<number, string>;
+};
+
+type ValidateOutputsConfig = {
+  /**
+   * Flow-author per-port output-validation flags, keyed by base-output port
+   * index. Each port falls back to the node's static `validateOutput`.
+   */
+  validateOutputs?: Record<number, boolean>;
+};
+
+type ContextModesConfig = {
+  /**
+   * Flow-author per-port context-mode overrides, keyed by base-output port
+   * index. Written by the editor; absent until the author configures a port.
+   */
+  contextModes?: Record<number, ContextMode>;
+};
+
+/** Options for {@link IONode.send} and {@link IONode.sendToPort}. */
+type SendOptions = {
+  /**
+   * Node-author default for how the outgoing message carries the incoming
+   * context. The flow author's per-port override (when set) wins; otherwise
+   * this is used, falling back to `"carry"` when omitted.
+   */
+  defaultMode?: ContextMode;
 };
 
 const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
@@ -32,30 +63,34 @@ const INPUT_KEY = "input";
 
 /**
  * Controls how an outgoing message carries the incoming message's context:
- * - `"nest"` (default): keep all incoming keys and push the full input under
- *   `input`, so the prior message — including any value the result overwrites
- *   — is always recoverable (`msg.input.output`). The `input` chain
- *   accumulates one frame per node, forming a provenance trail visible in the
- *   debug panel.
- * - `"carry"`: keep all incoming keys (including any upstream `input`) but do
- *   not record this node — context flows through without growing.
+ * - `"carry"` (default): keep all incoming keys — including any upstream
+ *   `input` — but do not record this node, so context flows through without the
+ *   provenance chain growing. The safe default for loops and long chains.
+ * - `"trace"`: keep all incoming keys and also push the full input under
+ *   `input`, so the prior message — including any value the result overwrites —
+ *   stays recoverable (`msg.input.output`). The chain accumulates one frame per
+ *   node, a provenance trail visible in the debug panel; opt in for linear
+ *   flows that want full lineage.
  * - `"reset"`: drop all inherited context; the outgoing message is only the
  *   result at the return key.
  */
-export type ContextMode = "nest" | "carry" | "reset";
+export type ContextMode = "carry" | "trace" | "reset";
 
 /**
  * Base class for nodes that process messages. Provides input/output handling,
  * schema validation, status updates, and emit port management.
  *
  * Every node has a return key (`"output"` by default): the value passed to
- * `send()` is merged into the incoming message at that key and the full prior
- * message is kept under `input` (`{ ...msg, [returnKey]: result, input: msg }`),
- * so upstream properties propagate and the provenance chain is recoverable.
- * Declaring `returnProperty` in the `configSchema` only lets the flow author
- * override the key in the editor — it does not change that a return key always
- * exists. `this.send(x)` always means "x is the result", never "x is the whole
- * message".
+ * `send()` is merged into the incoming message at that key
+ * (`{ ...msg, [returnKey]: result }`), so upstream properties propagate. By
+ * default the context is carried without growing; pass
+ * `{ defaultMode: "trace" }` to also keep the full prior message under `input`
+ * as a recoverable provenance chain. The return key, output validation, and
+ * context mode all resolve per output port; declaring
+ * `outputReturnProperties` in the `configSchema` sets per-port default keys and
+ * lets the flow author pick a key other than `output` per port — it does not
+ * change that a return key always exists. `this.send(x)` always means "x is the result", never "x is the
+ * whole message".
  *
  * @example
  * ```ts
@@ -65,7 +100,7 @@ export type ContextMode = "nest" | "carry" | "reset";
  *   static readonly color = "#ffffff" as const;
  *
  *   async input(msg: Input) {
- *     // sends { ...msg, output: <result>, input: msg }
+ *     // sends { ...msg, output: <result> }
  *     this.send(msg.output.toUpperCase());
  *   }
  * }
@@ -84,8 +119,8 @@ abstract class IONode<
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
   public static readonly inputSchema?: Schema;
-  // outputsSchema accepts any schema shape: with returnProperty the raw sent
-  // value is validated, and results are frequently non-objects.
+  // outputsSchema accepts any schema shape: the raw sent value (per port) is
+  // validated, and results are frequently non-objects.
   public static readonly outputsSchema?:
     | TSchema
     | TSchema[]
@@ -124,7 +159,7 @@ abstract class IONode<
 
   #send: ((msg: any) => void) | undefined;
   /**
-   * Most recent input message — the spread base for returnProperty wrapping. Not
+   * Most recent input message — the spread base for output wrapping. Not
    * cleared after input() so late async sends merge with the last received
    * message.
    */
@@ -158,12 +193,23 @@ abstract class IONode<
 
     this.context = fn as any;
 
-    const returnPropertyKey = this.#returnPropertyKey();
-    if (!RETURN_PROPERTY_PATTERN.test(returnPropertyKey)) {
-      throw new NrgError(
-        `Invalid returnProperty key "${returnPropertyKey}" in ${(this.constructor as typeof IONode).type} — ` +
-          `it must be a valid JavaScript identifier (letters, digits, _, $; not starting with a digit)`,
-      );
+    // Validate any per-port return keys up front.
+    const outputReturnProperties = (
+      this.config as unknown as OutputReturnPropertiesConfig
+    ).outputReturnProperties;
+    if (outputReturnProperties) {
+      for (const [port, key] of Object.entries(outputReturnProperties)) {
+        if (
+          typeof key === "string" &&
+          key.trim() &&
+          !RETURN_PROPERTY_PATTERN.test(key.trim())
+        ) {
+          throw new NrgError(
+            `Invalid return property "${key}" for output port ${port} in ${(this.constructor as typeof IONode).type} — ` +
+              `it must be a valid JavaScript identifier (letters, digits, _, $; not starting with a digit)`,
+          );
+        }
+      }
     }
   }
 
@@ -264,80 +310,40 @@ abstract class IONode<
     }
   }
 
-  public send(msg: TOutput, contextMode: ContextMode = "nest") {
-    const NodeClass = this.constructor as typeof IONode;
-    // With returnProperty declared on a single-output node, the argument is
-    // always THE value — arrays included. Node-RED's array-as-ports
-    // convention only applies to multi-output nodes, where each slot is a
-    // separate value to wrap.
+  public send(msg: TOutput, options?: SendOptions) {
     // Every node has a return key, so a single-output node always treats the
-    // argument as the value (arrays included). Multi-output nodes still use
-    // Node-RED's array-as-ports convention.
+    // argument as the value (arrays included). Multi-output nodes use
+    // Node-RED's array-as-ports convention — one value per port, each wrapped,
+    // validated, and context-resolved independently.
     const sendsValue = this.baseOutputs <= 1;
-    const shouldValidateOutput =
-      this.config.validateOutput ?? NodeClass.validateOutput;
-    if (shouldValidateOutput && NodeClass.outputsSchema) {
-      this.log("Validating output");
-      const rawSchema = NodeClass.outputsSchema;
+    const defaultMode = options?.defaultMode;
 
-      if (Array.isArray(rawSchema)) {
-        // Per-port validation: schemas[i] validates msg[i]
-        const msgs = msg as unknown[];
-        for (let i = 0; i < rawSchema.length; i++) {
-          if (msgs[i] == null) continue;
-          this.RED.validator.validate(msgs[i], rawSchema[i], {
-            cacheKey:
-              rawSchema[i].$id || `${NodeClass.type}:output-schema:${i}`,
-            throwOnError: true,
-          });
-        }
-      } else if (isSchemaLike(rawSchema)) {
-        // Single schema
-        if (Array.isArray(msg) && !sendsValue) {
-          const msgs = msg as unknown[];
-          for (let i = 0; i < msgs.length; i++) {
-            if (msgs[i] == null) continue;
-            this.RED.validator.validate(msgs[i], rawSchema as Schema, {
-              cacheKey:
-                (rawSchema as Schema).$id || `${NodeClass.type}:output-schema`,
-              throwOnError: true,
-            });
-          }
-        } else {
-          this.RED.validator.validate(msg, rawSchema as Schema, {
-            cacheKey:
-              (rawSchema as Schema).$id || `${NodeClass.type}:output-schema`,
-            throwOnError: true,
-          });
-        }
-      } else {
-        // Record of named port schemas — validate per-port by index
-        const schemaArray = Object.values(rawSchema);
-        const msgs = msg as unknown[];
-        for (let i = 0; i < schemaArray.length; i++) {
-          if (msgs[i] == null) continue;
-          this.RED.validator.validate(msgs[i], schemaArray[i], {
-            cacheKey:
-              schemaArray[i].$id || `${NodeClass.type}:output-schema:${i}`,
-            throwOnError: true,
-          });
-        }
-      }
-      this.log("Output is valid");
+    if (Array.isArray(msg) && !sendsValue) {
+      const slots = (msg as unknown[]).slice(0, this.baseOutputs);
+      const out = slots.map((m, port) => {
+        if (m == null) return m;
+        this.#validatePort(m, port);
+        return this.#wrapOutgoing(
+          m,
+          this.#resolveContextMode(port, defaultMode),
+          port,
+        );
+      });
+      this.#deliver(out);
+      return;
     }
 
-    const truncated =
-      Array.isArray(msg) && !sendsValue
-        ? (msg as unknown[]).slice(0, this.baseOutputs)
-        : msg;
-    const out =
-      Array.isArray(truncated) && !sendsValue
-        ? truncated.map((m) =>
-            m == null ? m : this.#wrapOutgoing(m, contextMode),
-          )
-        : truncated == null
-          ? truncated
-          : this.#wrapOutgoing(truncated, contextMode);
+    if (msg == null) {
+      this.#deliver(msg);
+      return;
+    }
+    this.#validatePort(msg, 0);
+    this.#deliver(
+      this.#wrapOutgoing(msg, this.#resolveContextMode(0, defaultMode), 0),
+    );
+  }
+
+  #deliver(out: unknown) {
     if (this.#send) {
       this.#send(out);
     } else {
@@ -346,37 +352,61 @@ abstract class IONode<
   }
 
   /**
-   * Resolves the active return key. `null` = the node did not declare
-   * `returnProperty` in its configSchema, so its code owns the outgoing message
-   * shape (no wrapping).
+   * Per-port output validation. A port validates when its flow-author flag
+   * (`config.validateOutputs[port]`) — or the node's static `validateOutput`
+   * fallback — is on and a schema exists for that port.
    */
-  /**
-   * Every node has a return property — `"output"` by default. Declaring
-   * `SchemaType.ReturnProperty()` in the configSchema doesn't create it; it
-   * only exposes the key to the flow author so they can override it in the
-   * editor (and lets the node pick a different default). So `this.send(x)`
-   * always means "x is the value at the return key", never "x is the whole
-   * outgoing message".
-   */
-  #returnPropertyKey(): string {
+  #validatePort(value: unknown, port: number) {
     const NodeClass = this.constructor as typeof IONode;
-    const declared = (
-      NodeClass.configSchema as
-        | { properties?: Record<string, { default?: unknown }> }
-        | undefined
-    )?.properties?.returnProperty;
+    const configured = (this.config as unknown as ValidateOutputsConfig)
+      .validateOutputs?.[port];
+    if (!(configured ?? NodeClass.validateOutput)) return;
 
-    // flow-author override (only possible when the prop is declared + editable)
-    const configured = (this.config as unknown as ReturnPropertyConfig)
-      .returnProperty;
+    const schema = this.#outputSchemaForPort(port);
+    if (!schema) return;
+    this.log("Validating output");
+    this.RED.validator.validate(value, schema, {
+      cacheKey: schema.$id || `${NodeClass.type}:output-schema:${port}`,
+      throwOnError: true,
+    });
+    this.log("Output is valid");
+  }
+
+  /** Resolves the output schema for a base-output port: array → `[port]`,
+   * record → the port-th value, single schema → itself. */
+  #outputSchemaForPort(port: number): Schema | undefined {
+    const raw = (this.constructor as typeof IONode).outputsSchema;
+    if (!raw) return undefined;
+    if (Array.isArray(raw)) return raw[port] as Schema | undefined;
+    if (isSchemaLike(raw)) return raw as Schema;
+    return Object.values(raw)[port] as Schema | undefined;
+  }
+
+  /**
+   * The return key for an output port — `"output"` unless a custom one is set
+   * via `outputReturnProperties[port]` (author default and/or flow-author
+   * override, only possible when the node declares `outputReturnProperties`).
+   * `this.send(x)` always means "x is the value at this port's return key",
+   * never "x is the whole outgoing message".
+   */
+  #returnPropertyKey(port: number): string {
+    const configured = (this.config as unknown as OutputReturnPropertiesConfig)
+      .outputReturnProperties?.[port];
     if (typeof configured === "string" && configured.trim()) {
       return configured.trim();
     }
-    // node-defined default via ReturnProperty({ default: "data" }), else output
-    if (declared && typeof declared.default === "string" && declared.default) {
-      return declared.default;
-    }
     return "output";
+  }
+
+  /**
+   * Resolves the context mode for a base-output port. Precedence: the flow
+   * author's per-port override (`config.contextModes[port]`) → the node author's
+   * `defaultMode` → `"carry"`.
+   */
+  #resolveContextMode(port: number, defaultMode?: ContextMode): ContextMode {
+    const configured = (this.config as unknown as ContextModesConfig)
+      .contextModes?.[port];
+    return configured ?? defaultMode ?? "carry";
   }
 
   /**
@@ -384,20 +414,23 @@ abstract class IONode<
    * upstream message properties propagate. A fresh base is built per call so
    * multi-port sends never share an object.
    */
-  #wrapOutgoing(value: unknown, mode: ContextMode = "nest"): unknown {
-    const key = this.#returnPropertyKey();
+  #wrapOutgoing(value: unknown, mode: ContextMode, port: number): unknown {
+    const key = this.#returnPropertyKey(port);
     const input = (this.#currentInputMsg as Record<string, unknown>) ?? {};
     if (mode === "reset") {
       return { [key]: value };
     }
-    if (mode === "carry") {
-      return { ...input, [key]: value };
+    if (mode === "trace") {
+      // preserve the full input under `input` so nothing the result overwrites
+      // is ever lost. Spread is shallow (clone-free, any-object-safe);
+      // Node-RED's runtime clones messages 2..N on fan-out, so per-branch
+      // isolation is handled at delivery.
+      return { ...input, [key]: value, [INPUT_KEY]: input };
     }
-    // "nest" — preserve the full input under `input` so nothing the result
-    // overwrites is ever lost. Spread is shallow (clone-free, any-object-safe);
-    // Node-RED's runtime clones messages 2..N on fan-out, so per-branch
-    // isolation is handled at delivery.
-    return { ...input, [key]: value, [INPUT_KEY]: input };
+    // "carry" (default) — keep all incoming keys (including any upstream
+    // `input`) but don't record this node, so context flows through without the
+    // provenance chain growing.
+    return { ...input, [key]: value };
   }
 
   // --- Built-in port management ---
@@ -434,16 +467,19 @@ abstract class IONode<
   >(
     port: P,
     msg: P extends keyof TOutput ? TOutput[P] : unknown,
-    contextMode: ContextMode = "nest",
+    options?: SendOptions,
   ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
         `sendToPort("${port}") is not allowed. Built-in ports are managed by the framework.`,
       );
     }
+    const portIndex =
+      typeof port === "number" ? port : this.#getNamedPortIndex(port);
+    const mode = this.#resolveContextMode(portIndex ?? 0, options?.defaultMode);
     this.#sendToPort(
       port,
-      msg == null ? msg : this.#wrapOutgoing(msg, contextMode),
+      msg == null ? msg : this.#wrapOutgoing(msg, mode, portIndex ?? 0),
     );
   }
 

@@ -57,7 +57,13 @@ export class NodeRedEditor {
     options?: { screenshotDir?: string },
   ) {
     this.screenshotDir = options?.screenshotDir ?? "test-results/screenshots";
-    page.on("pageerror", (err) => this.errors.push(err.message));
+    page.on("pageerror", (err) => {
+      // "ResizeObserver loop ..." is a benign browser warning the editor and
+      // jQuery typedInput widgets fire on rapid layout changes — never a real
+      // failure, and unfixable in app code, so don't let it fail tests.
+      if (err.message.includes("ResizeObserver")) return;
+      this.errors.push(err.message);
+    });
   }
 
   async screenshot(name: string): Promise<string> {
@@ -342,6 +348,7 @@ export class NodeRedField {
   }
 
   async toggle(): Promise<void> {
+    await this.toggleSlider.scrollIntoViewIfNeeded();
     await this.toggleSlider.click();
   }
 

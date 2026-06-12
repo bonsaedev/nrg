@@ -33,9 +33,7 @@ describe("locales-generator", () => {
       const base = createTmpDir();
       const { outDir, docsDir, labelsDir } = setupDirs(base);
       const plugin = localesGenerator({ outDir, docsDir, labelsDir });
-      expect(plugin.name).toBe(
-        "vite-plugin-node-red:client:locales-generator",
-      );
+      expect(plugin.name).toBe("vite-plugin-node-red:client:locales-generator");
     });
 
     it("applies to build", () => {
@@ -151,7 +149,7 @@ describe("locales-generator", () => {
       expect(output["my-node"].configs.host).toBe("Host");
       // Framework default injected
       expect(output["my-node"].toggles).toBeDefined();
-      expect(output["my-node"].toggles.validateInput).toBe("Validate Input");
+      expect(output["my-node"].toggles.validateInput).toBe("Validate");
     });
 
     it("falls back to en-US framework labels for unknown languages", () => {
@@ -175,7 +173,7 @@ describe("locales-generator", () => {
       );
       // Should have ja framework labels
       expect(output["my-node"].configs.name).toBe("名前");
-      expect(output["my-node"].toggles.validateInput).toBe("入力検証");
+      expect(output["my-node"].toggles.validateInput).toBe("検証");
     });
 
     it("throws on invalid language codes", () => {

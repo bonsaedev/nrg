@@ -69,19 +69,18 @@ Default values from the schema are used by the editor to initialize new node ins
 
 Every node produces an **`output`**. `this.send(x)` always means "x is the
 result" — never "x is the whole outgoing message". The framework merges the
-value into the incoming message and keeps the full prior message under
-**`input`**:
+value into the incoming message:
 
 ```
 this.send(result)
-// outgoing: { ...msg, output: result, input: msg }
+// outgoing: { ...msg, output: result }
 ```
 
-So upstream context propagates automatically, and nothing the result overwrites
-is ever lost — `msg.input` recovers the entire prior message, and the `input`
-chain accumulates one frame per node into a **provenance trail** you can inspect
-in the debug panel (`msg.input.input.output`…). `outputsSchema` describes the
-result value (output validation runs before the merge).
+So upstream context propagates automatically. By default (`carry` mode) the
+context flows through without growing; opt into `trace` mode to also keep the
+full prior message under **`input`** as a recoverable **provenance trail**
+(`msg.input.output`…) — see [Context modes](#context-modes). `outputsSchema`
+describes the result value (output validation runs before the merge).
 
 This means a node sets only `output` — it does not set arbitrary top-level
 message properties. Multi-value results go under `output` as one object:
@@ -94,50 +93,64 @@ To interoperate with Node-RED core nodes (which key on `msg.payload`,
 `msg.topic`, etc.), use a `change`/`set` node at the boundary to map `output`
 onto the property the core node expects.
 
-#### Overriding the return key
+#### Custom return properties per port {#overriding-the-return-key}
 
-Every node's return key is `"output"`. Declaring `returnProperty` doesn't create
-the key — it only exposes it so the **flow author** can rename it per node in the
-editor:
+Every output port's return key is `"output"`. Declaring `outputReturnProperties`
+lets the node author set a different default **per port** — and surfaces an
+editable **Return Property** column in the editor's Outputs table so flow authors
+can override each port's key:
 
 ```typescript
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
-    returnProperty: SchemaType.ReturnProperty(), // default key: "output"
+    // port 0 defaults to `result`; every other port falls back to `output`
+    outputReturnProperties: SchemaType.OutputReturnProperties({
+      default: { 0: "result" },
+    }),
   },
   { $id: "my-node:configs" },
 );
 ```
 
-- The node may set a different default with
-  `SchemaType.ReturnProperty({ default: "data" })`.
-- Flow authors override the key in the editor ("Override return prop key"
-  toggle). Keys must be valid JavaScript identifiers — validated in the editor
-  and again at node construction.
-- Named-port sends (`sendToPort`) are wrapped the same way. Built-in
-  **complete** and **error** ports also carry `input` (so a flow resumed off
-  the complete port — e.g. an iterator continuing after all elements — keeps
-  the same lineage); the **status** port is a notification and stays raw.
+- Keyed by output port index; a missing or empty entry falls back to `"output"`.
+- Keys must be valid JavaScript identifiers — validated in the editor and again
+  at node construction.
+- Named-port sends (`sendToPort`) resolve the same per-port key by index.
+- Built-in **complete** and **error** ports always carry `input` (so a flow
+  resumed off the complete port — e.g. an iterator continuing after all elements
+  — keeps the same lineage); the **status** port is a notification and stays raw.
+
+These per-port settings — validation, return property, and context mode — are
+configured by the flow author in the editor's **Outputs** table:
+
+![The generated editor form, showing the per-port Outputs table](/editor-form.png)
 
 #### Context modes
 
-`send()` and `sendToPort()` take an optional second argument controlling how the
-incoming context is carried (default `"nest"`):
+`send()` and `sendToPort()` take an optional `defaultMode` controlling how the
+incoming context is carried (default `"carry"`):
 
 ```typescript
-this.send(result);            // "nest"  — { ...msg, output: result, input: msg }
-this.send(result, "carry");   // keep all keys (incl. upstream input), don't grow the chain
-this.send(result, "reset");   // { output: result } — drop inherited context, start fresh
+this.send(result);                           // "carry" — { ...msg, output: result }
+this.send(result, { defaultMode: "trace" }); // also keep the prior msg under `input`
+this.send(result, { defaultMode: "reset" }); // { output: result } — drop inherited context
 ```
 
-- **nest** (default): full provenance — every prior value recoverable via the
-  `input` chain. The chain grows one frame per node; fine for linear flows,
-  call `delete msg.input` when continuing into a loop.
-- **carry**: context flows (including any upstream `input`) but this node isn't
-  recorded — use for pass-through/utility nodes that shouldn't grow the trail.
-- **reset**: the outgoing message is only the result — use for source/reset
-  nodes that intentionally start a fresh context.
+- **carry** (default): keep all incoming keys (including any upstream `input`)
+  but don't record this node, so context flows through without the provenance
+  chain growing. The safe default for loops and long chains.
+- **trace**: full provenance — keep all incoming keys and also push the prior
+  message under `input`, so every overwritten value stays recoverable
+  (`msg.input.output`). The chain grows one frame per node; opt in for linear
+  flows that want lineage.
+- **reset**: the outgoing message is only the result — use for source nodes that
+  intentionally start a fresh context.
+
+`defaultMode` is the **node author's** default. The **flow author** can override
+the mode per output port via the **Context Mode** column in the editor's Outputs
+table; their choice wins over `defaultMode`, which in turn wins over the
+`"carry"` fallback.
 
 The framework never deep-clones (so streams, Buffers, and class instances pass
 through intact); Node-RED's runtime clones messages 2..N on fan-out, so parallel

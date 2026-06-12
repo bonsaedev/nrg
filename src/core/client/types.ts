@@ -77,14 +77,19 @@ export interface NodeRedNode {
   outputs?: number;
   /** injected when the node has an inputSchema */
   validateInput?: boolean;
-  /** injected when the node has an outputsSchema */
-  validateOutput?: boolean;
-  /** present when the node's configSchema declares SchemaType.ReturnProperty() */
-  returnProperty?: string;
   /** built-in port toggles, present when declared in the configSchema */
   errorPort?: boolean;
   completePort?: boolean;
   statusPort?: boolean;
+  /**
+   * Per-port output settings, indexed by base-output port; injected (empty) when
+   * the node has an outputsSchema. Read at runtime by IONode.
+   * `outputReturnProperties` is author-declared (SchemaType.OutputReturnProperties)
+   * — present only when the node opts into per-port return keys.
+   */
+  validateOutputs?: Record<number, boolean>;
+  contextModes?: Record<number, "carry" | "trace" | "reset">;
+  outputReturnProperties?: Record<number, string>;
 
   [key: string]: any;
 }
@@ -193,6 +198,11 @@ export interface NodeCredentials {
 export interface NodeFeatures {
   hasInputSchema: boolean;
   hasOutputSchema: boolean;
+  /**
+   * Base output ports (excludes built-in error/complete/status), in port-index
+   * order. Drives the per-port context-mode rows in the Outputs subsection.
+   */
+  outputPorts: { index: number; label: string }[];
 }
 
 // -- Client-side type inference --

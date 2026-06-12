@@ -4,7 +4,7 @@ import TestConfig from "../nodes/test-config";
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "", minLength: 1 }),
-    returnProperty: SchemaType.ReturnProperty(),
+    outputReturnProperties: SchemaType.OutputReturnProperties(),
     count: SchemaType.Integer({ default: 0, minimum: 1, maximum: 100 }),
     rate: SchemaType.Number({ default: 1.5, minimum: 0.1, maximum: 10 }),
     enabled: SchemaType.Boolean({

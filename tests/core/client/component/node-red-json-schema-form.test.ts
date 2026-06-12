@@ -4,8 +4,8 @@ import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-s
 import { createNode } from "@/test/client/component";
 
 describe("NodeRedJsonSchemaForm", () => {
-  test("skips the built-in returnProperty field (rendered by the app shell)", () => {
-    const { node } = createNode({ name: "n", returnProperty: "payload" });
+  test("skips the built-in per-port output fields (rendered by the app shell)", () => {
+    const { node } = createNode({ name: "n", outputReturnProperties: {} });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -13,16 +13,29 @@ describe("NodeRedJsonSchemaForm", () => {
           type: "object",
           properties: {
             name: { type: "string", title: "Name" },
-            returnProperty: {
-              type: "string",
-              title: "Return key",
-              default: "payload",
+            outputReturnProperties: {
+              type: "object",
+              title: "Return Properties",
+              default: {},
+            },
+            validateOutputs: {
+              type: "object",
+              title: "Validate Outputs",
+              default: {},
+            },
+            contextModes: {
+              type: "object",
+              title: "Context Modes",
+              default: {},
             },
           },
         },
       },
     });
-    expect(screen.container.textContent).not.toContain("Return key");
+    // all framework-managed output fields are rendered by the app shell, not here
+    expect(screen.container.textContent).not.toContain("Return Properties");
+    expect(screen.container.textContent).not.toContain("Validate Outputs");
+    expect(screen.container.textContent).not.toContain("Context Modes");
     expect(screen.container.querySelectorAll('input[type="text"]').length).toBe(
       1,
     ); // only "name"

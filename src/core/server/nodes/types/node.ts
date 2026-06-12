@@ -22,7 +22,7 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   readonly credentialsSchema?: Schema;
   readonly settingsSchema?: Schema;
   readonly inputSchema?: Schema;
-  // any schema shape: with returnProperty the raw sent value is validated,
+  // any schema shape: the raw sent value (per output port) is validated,
   // and results are frequently non-objects
   readonly outputsSchema?: TSchema | TSchema[] | Record<string, TSchema>;
   readonly validateInput?: boolean;

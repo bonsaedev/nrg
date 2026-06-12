@@ -5,8 +5,14 @@ import NodeRedVueApp from "@/core/client/form/app.vue";
 import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-schema-form.vue";
 import { mountApp, unmountApp } from "@/core/client/form";
 import { createNode } from "@/test/client/component";
+import type { NodeFeatures } from "@/core/client/types";
+import { getJQueryState } from "@/test/client/component/jquery";
 
-const NO_FEATURES = { hasInputSchema: false, hasOutputSchema: false };
+const NO_FEATURES: NodeFeatures = {
+  hasInputSchema: false,
+  hasOutputSchema: false,
+  outputPorts: [],
+};
 
 function nameSchema(extra: Record<string, any> = {}): any {
   return {
@@ -26,7 +32,7 @@ function renderApp(options: {
   defaults?: Record<string, any>;
   credentialDefs?: Record<string, any>;
   schema: any;
-  features?: { hasInputSchema: boolean; hasOutputSchema: boolean };
+  features?: NodeFeatures;
   form?: any;
 }) {
   const { node } = createNode({ configs: options.configs ?? {} });
@@ -64,43 +70,44 @@ function toggleFor(container: HTMLElement, label: string): HTMLElement {
   return el.closest("label.nrg-toggle") as HTMLElement;
 }
 
-describe("app shell — validation toggles", () => {
-  test("renders validate toggles only for declared schemas", () => {
+describe("app shell — input validation", () => {
+  test("renders the Validate toggle when an input schema is declared", () => {
     const { component } = renderApp({
       configs: { name: "x" },
       schema: nameSchema(),
-      features: { hasInputSchema: true, hasOutputSchema: false },
+      features: {
+        hasInputSchema: true,
+        hasOutputSchema: false,
+        outputPorts: [],
+      },
     });
-    expect(component.container.textContent).toContain("Validate Input");
-    expect(component.container.textContent).not.toContain("Validate Output");
+    expect(toggleFor(component.container, "Validate")).toBeTruthy();
   });
 
-  test("toggling writes validateInput/validateOutput on the node", async () => {
+  test("toggling Validate writes validateInput on the node", async () => {
     const { node, component } = renderApp({
-      configs: { name: "x", validateInput: false, validateOutput: false },
+      configs: { name: "x", validateInput: false },
       schema: nameSchema(),
-      features: { hasInputSchema: true, hasOutputSchema: true },
+      features: {
+        hasInputSchema: true,
+        hasOutputSchema: false,
+        outputPorts: [],
+      },
     });
 
-    toggleFor(component.container, "Validate Input")
-      .querySelector("input")!
-      .click();
-    toggleFor(component.container, "Validate Output")
-      .querySelector("input")!
-      .click();
+    toggleFor(component.container, "Validate").querySelector("input")!.click();
 
     await vi.waitFor(() => {
       expect(node.validateInput).toBe(true);
-      expect(node.validateOutput).toBe(true);
     });
   });
 
-  test("renders neither toggle row without schemas", () => {
+  test("renders no Ports Settings section without schemas or ports", () => {
     const { component } = renderApp({
       configs: { name: "x" },
       schema: nameSchema(),
     });
-    expect(component.container.querySelector(".nrg-toggles-grid")).toBeNull();
+    expect(component.container.querySelector(".nrg-section")).toBeNull();
   });
 });
 
@@ -157,83 +164,195 @@ describe("app shell — built-in port toggles", () => {
   });
 });
 
-describe("app shell — returnProperty", () => {
+describe("app shell — Outputs table", () => {
+  const OUT_FEATURES = (
+    ports: { index: number; label: string }[],
+  ): NodeFeatures => ({
+    hasInputSchema: false,
+    hasOutputSchema: true,
+    outputPorts: ports,
+  });
+
+  // schema that opts into the per-port Return Property column
   const RETURN_SCHEMA = () =>
-    nameSchema({
-      returnProperty: {
-        type: "string",
-        pattern: "^[A-Za-z_$][A-Za-z0-9_$]*$",
-        default: "output",
-      },
-    });
+    nameSchema({ outputReturnProperties: { type: "object", default: {} } });
 
-  test("seeds the schema default and hides the input when not overridden", () => {
-    const { node, component } = renderApp({
-      configs: { name: "x" },
-      schema: RETURN_SCHEMA(),
-    });
-    expect(node.returnProperty).toBe("output");
-    expect(component.container.textContent).toContain(
-      "Override return prop key",
-    );
-    expect(component.container.textContent).not.toContain("Return key");
-  });
-
-  test("starts overridden when the stored key differs from the default", () => {
-    const { component } = renderApp({
-      configs: { name: "x", returnProperty: "result" },
-      schema: RETURN_SCHEMA(),
-    });
-    expect(component.container.textContent).toContain("Return key");
-    expect(
-      component.container.querySelector<HTMLInputElement>(
-        ".nrg-return-property input[type='text']",
-      )!.value,
-    ).toBe("result");
-  });
-
-  test("toggling override on shows the input; off resets to the default", async () => {
-    const { node, component } = renderApp({
-      configs: { name: "x", returnProperty: "result" },
-      schema: RETURN_SCHEMA(),
-    });
-
-    toggleFor(component.container, "Override return prop key")
-      .querySelector("input")!
-      .click();
-
-    await vi.waitFor(() => {
-      expect(node.returnProperty).toBe("output");
-      expect(component.container.textContent).not.toContain("Return key");
-    });
-  });
-
-  test("invalid keys surface a validation error on the input", async () => {
-    const { node, component } = renderApp({
-      configs: { name: "x", returnProperty: "result" },
-      defaults: { returnProperty: { value: "output" } },
-      schema: RETURN_SCHEMA(),
-    });
-
-    node.returnProperty = "1-bad-key";
-
-    await vi.waitFor(() => {
-      expect(
-        component.container.querySelector(
-          ".nrg-return-property .node-red-vue-input-error-message",
-        )?.textContent,
-      ).toBeTruthy();
-    });
-  });
-
-  test("does not render the row when the schema omits returnProperty", () => {
+  test("renders a row per base output port with its label", () => {
     const { component } = renderApp({
       configs: { name: "x" },
       schema: nameSchema(),
+      features: OUT_FEATURES([
+        { index: 0, label: "success" },
+        { index: 1, label: "failure" },
+      ]),
     });
-    expect(component.container.textContent).not.toContain(
-      "Override return prop key",
+    const rows = component.container.querySelectorAll(".nrg-outputs tbody tr");
+    expect(rows.length).toBe(2);
+    expect(rows[0].textContent).toContain("success");
+    expect(rows[1].textContent).toContain("failure");
+  });
+
+  test("omits the Outputs table when there are no base output ports", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: OUT_FEATURES([]),
+    });
+    expect(component.container.querySelector(".nrg-outputs")).toBeNull();
+  });
+
+  test("shows the Return Property column only when the schema declares it", () => {
+    const withRP = renderApp({
+      configs: { name: "x" },
+      schema: RETURN_SCHEMA(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    expect(withRP.component.container.textContent).toContain("Return Property");
+
+    const withoutRP = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    expect(withoutRP.component.container.textContent).not.toContain(
+      "Return Property",
     );
+  });
+
+  test("the validate checkbox writes validateOutputs[port]", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    const checkbox = component.container.querySelector(
+      ".nrg-outputs-flag input[type='checkbox']",
+    ) as HTMLInputElement;
+    checkbox.click();
+    await vi.waitFor(() => {
+      expect(node.validateOutputs).toEqual({ 0: true });
+    });
+  });
+
+  test("editing the return property writes outputReturnProperties[port]", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x" },
+      schema: RETURN_SCHEMA(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    const input = component.container.querySelector(
+      "input.nrg-outputs-return",
+    ) as HTMLInputElement;
+    input.value = "result";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(node.outputReturnProperties).toEqual({ 0: "result" });
+    });
+  });
+
+  test("selecting a context mode writes contextModes[port]", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    let jq: any;
+    await vi.waitFor(() => {
+      const select = component.container.querySelector(
+        ".nrg-outputs input.node-input-select",
+      );
+      jq = select && getJQueryState(select as Element);
+      expect(jq?.typedInput).toBeDefined();
+    });
+    jq.typedInput.value = "trace";
+    jq.listeners["change"]?.forEach((cb: (...args: any[]) => void) => cb());
+    await vi.waitFor(() => {
+      expect(node.contextModes).toEqual({ 0: "trace" });
+    });
+  });
+
+  test("choosing Default removes a port's context-mode override", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x", contextModes: { 0: "trace" } },
+      schema: nameSchema(),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    let jq: any;
+    await vi.waitFor(() => {
+      const select = component.container.querySelector(
+        ".nrg-outputs input.node-input-select",
+      );
+      jq = select && getJQueryState(select as Element);
+      expect(jq?.typedInput).toBeDefined();
+    });
+    jq.typedInput.value = "default";
+    jq.listeners["change"]?.forEach((cb: (...args: any[]) => void) => cb());
+    await vi.waitFor(() => {
+      expect(node.contextModes).toEqual({});
+    });
+  });
+
+  test("grows and shrinks the rows when the node's output count changes (dynamic outputs)", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x", outputs: 1 },
+      schema: nameSchema(),
+      features: OUT_FEATURES([{ index: 0, label: "Output 0" }]),
+    });
+    const rowCount = () =>
+      component.container.querySelectorAll(".nrg-outputs tbody tr").length;
+
+    expect(rowCount()).toBe(1);
+
+    // a config field bumps the node's base output count -> table grows
+    node.outputs = 3;
+    await vi.waitFor(() => {
+      expect(rowCount()).toBe(3);
+      const rows = component.container.querySelectorAll(
+        ".nrg-outputs tbody tr",
+      );
+      expect(rows[2].textContent).toContain("Output 2");
+    });
+
+    // ...and shrinks back when the count drops
+    node.outputs = 2;
+    await vi.waitFor(() => expect(rowCount()).toBe(2));
+  });
+
+  test("falls back to the static port count when outputs is inconsistent with lifecycle ports", () => {
+    // outputs (1) < enabled lifecycle ports (2) — a flow that toggled ports
+    // without updating `outputs`. The table must still show the base ports.
+    const { component } = renderApp({
+      configs: { name: "x", outputs: 1, errorPort: true, completePort: true },
+      schema: nameSchema({
+        errorPort: { type: "boolean" },
+        completePort: { type: "boolean" },
+      }),
+      features: OUT_FEATURES([{ index: 0, label: "out" }]),
+    });
+    expect(
+      component.container.querySelectorAll(".nrg-outputs tbody tr").length,
+    ).toBe(1);
+  });
+
+  test("counts only base outputs, excluding enabled lifecycle ports", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x", outputs: 1, errorPort: false },
+      schema: nameSchema({ errorPort: { type: "boolean" } }),
+      features: OUT_FEATURES([{ index: 0, label: "Output 0" }]),
+    });
+    expect(
+      component.container.querySelectorAll(".nrg-outputs tbody tr").length,
+    ).toBe(1);
+
+    // enabling the error port bumps total outputs to 2, but the base count
+    // (and therefore the table) stays at 1 row
+    node.errorPort = true;
+    node.outputs = 2;
+    await vi.waitFor(() => {
+      expect(
+        component.container.querySelectorAll(".nrg-outputs tbody tr").length,
+      ).toBe(1);
+    });
   });
 });
 

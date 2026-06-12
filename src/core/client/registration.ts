@@ -102,6 +102,28 @@ function computeBuiltinPortOutputs(
   return { hasBuiltinPorts, baseOutputs };
 }
 
+/**
+ * Resolves the base output ports (excluding built-in error/complete/status) the
+ * context-mode rows configure. Named-port schemas (record) label each port by
+ * its key; positional/single schemas fall back to `Output {index}`.
+ */
+function computeOutputPorts(
+  outputsSchema: RuntimeNodeDefinition["outputsSchema"],
+  baseOutputs: number,
+): { index: number; label: string }[] {
+  const isNamed =
+    !!outputsSchema &&
+    typeof outputsSchema === "object" &&
+    !Array.isArray(outputsSchema) &&
+    !("type" in outputsSchema || "properties" in outputsSchema);
+  const names = isNamed ? Object.keys(outputsSchema as object) : [];
+  const ports: { index: number; label: string }[] = [];
+  for (let i = 0; i < baseOutputs; i++) {
+    ports.push({ index: i, label: names[i] ?? `Output ${i}` });
+  }
+  return ports;
+}
+
 async function registerType(definition: NodeDefinition): Promise<void> {
   const { type } = definition;
   try {
@@ -136,6 +158,10 @@ async function registerType(definition: NodeDefinition): Promise<void> {
         baseOutputs,
       ));
     }
+    const outputPorts = computeOutputPorts(
+      nodeDefinition.outputsSchema,
+      baseOutputs,
+    );
 
     if (validationSchema && defaults) {
       const firstProp = Object.keys(defaults)[0];
@@ -157,6 +183,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       const features: NodeFeatures = {
         hasInputSchema: !!nodeDefinition.inputSchema,
         hasOutputSchema: !!nodeDefinition.outputsSchema,
+        outputPorts,
       };
       mountApp(this, form, validationSchema, features, appContainerId);
     }

@@ -322,6 +322,23 @@ describe.each(BROWSERS)(
       await expect.poll(() => editor.getNodePortCount("n1")).toBe(1);
     });
 
+    test("renders the sectioned ports form (Ports Settings + Lifecycle Ports)", async () => {
+      await editor.editNode("n3");
+      const tray = editor.page.locator(".red-ui-tray").last();
+      const titles = await tray.locator(".nrg-section-title").allInnerTexts();
+      expect(titles).toEqual(
+        expect.arrayContaining(["Ports Settings", "Lifecycle Ports"]),
+      );
+      // the Outputs table renders one row for the single base output port
+      expect(await tray.locator(".nrg-outputs tbody tr").count()).toBe(1);
+      // capture the basic node form once for the docs
+      if (name === "chromium") {
+        await editor.page.waitForTimeout(300);
+        await tray.screenshot({ path: "docs/public/editor-form.png" });
+      }
+      await editor.clickCancel();
+    });
+
     test("edited values persist on the node model after Done", async () => {
       await editor.editNode("n1");
       await editor.field("Name").fill("persisted-name");

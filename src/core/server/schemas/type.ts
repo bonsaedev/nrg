@@ -33,32 +33,45 @@ function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
 }
 
 /**
- * Declares the built-in `returnProperty` config property: the node's result is
- * merged into the incoming message at this key (`{ ...msg, [key]: result,
- * input: msg }`), and the full prior message is kept under `input` so the
- * provenance chain is recoverable. The default key is `"output"`; declaring
- * this property only lets the flow author override that key per node in the
- * editor (every node already has a return key of `"output"`).
+ * Declares the `outputReturnProperties` config map: the return property for
+ * each output port, keyed by port index. A missing entry falls back to the
+ * built-in `output` key. The node author supplies per-port defaults here;
+ * declaring it also exposes an editable Return Property column per port in the
+ * editor so flow authors can override them. Without it, every output uses
+ * `output`.
+ *
+ * @example
+ * ```ts
+ * // port 0 defaults to `result`; every other port falls back to `output`
+ * outputReturnProperties: SchemaType.OutputReturnProperties({
+ *   default: { 0: "result" },
+ * }),
+ * ```
  */
-function ReturnProperty(options?: NrgSchemaOptions & { default?: string }) {
-  return BaseType.String({
-    description:
-      "Message property that receives this node's result. The rest of the incoming message is propagated unchanged, and the prior message is kept under `input`.",
-    pattern: "^[A-Za-z_$][A-Za-z0-9_$]*$",
-    default: "output",
-    ...options,
-  });
+function OutputReturnProperties(
+  options?: NrgSchemaOptions & { default?: Record<number, string> },
+) {
+  return BaseType.Record(
+    BaseType.Number(),
+    BaseType.String({ pattern: "^[A-Za-z_$][A-Za-z0-9_$]*$" }),
+    {
+      description:
+        "Per-port return property, keyed by output port index. A missing entry falls back to `output`.",
+      default: {},
+      ...options,
+    },
+  );
 }
 
 /**
  * Extended TypeBox type builder with NRG-specific schema types.
  * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput}
- * and {@link ReturnProperty}.
+ * and {@link OutputReturnProperties}.
  */
 const SchemaType = Object.assign({}, BaseType, {
   NodeRef,
   TypedInput,
-  ReturnProperty,
+  OutputReturnProperties,
 });
 
 function markNonValidatable<T extends TSchema>(schema: T): T {

@@ -170,9 +170,9 @@ describe("IONode", () => {
       const done = vi.fn();
       await node.emit("input", {}, send, done);
 
-      // every send wraps under the return key (default "output") with the
-      // input lineage
-      expect(send).toHaveBeenCalledWith({ output: "result", input: {} });
+      // every send wraps under the return key (default "output"); carry (the
+      // default mode) keeps incoming context without recording lineage
+      expect(send).toHaveBeenCalledWith({ output: "result" });
     });
 
     it("should fall back to node.send outside input handler", () => {
@@ -182,7 +182,7 @@ describe("IONode", () => {
       const instance = new TestIONode(RED, node, {}, {});
 
       instance.send("test");
-      expect(node.send).toHaveBeenCalledWith({ output: "test", input: {} });
+      expect(node.send).toHaveBeenCalledWith({ output: "test" });
     });
 
     it("should validate per-port with array of schemas", () => {

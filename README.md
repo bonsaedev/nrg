@@ -130,6 +130,14 @@ export default defineModule({
 
 See the [consumer template](https://github.com/AllanOricil/node-red-vue-template) for a complete example.
 
+### The generated editor form
+
+nrg builds the node's edit dialog from your schema — no HTML or jQuery. Your config fields render first, then a **Ports Settings** section (input/output validation, return key, and per-port [context modes](https://bonsaedev.github.io/nrg/guide/schemas#context-modes)) and a **Lifecycle Ports** section (error / complete / status):
+
+<p align="center">
+  <img alt="nrg generated editor form" src="docs/public/editor-form.png" width="360"/>
+</p>
+
 ## Testing
 
 NRG provides five test libraries and bundles most test infrastructure as direct dependencies. Install `vitest` plus any optional peer dependencies you need:

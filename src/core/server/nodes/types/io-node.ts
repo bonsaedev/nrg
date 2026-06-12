@@ -16,8 +16,12 @@ type IONodeContextScope = NodeContextScope;
 type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
   Static<typeof IONodeConfigSchema> & {
     validateInput?: boolean;
-    validateOutput?: boolean;
-    returnProperty?: string;
+    /** Per-port output-validation flags, keyed by base-output port index. */
+    validateOutputs?: Record<number, boolean>;
+    /** Per-port return properties, keyed by base-output port index. */
+    outputReturnProperties?: Record<number, string>;
+    /** Per-port context modes, keyed by base-output port index. */
+    contextModes?: Record<number, "carry" | "trace" | "reset">;
   };
 
 type IONodeCredentials<TCredentials = any> = NodeCredentials<TCredentials>;

@@ -47,6 +47,19 @@ export const FIXTURE_FLOW: Record<string, unknown>[] = [
     wires: [[]],
   },
   {
+    id: "n3",
+    type: "basic-node",
+    z: "tab1",
+    name: "Greeter",
+    errorPort: true,
+    completePort: true,
+    statusPort: false,
+    outputs: 3, // 1 base + error + complete (keeps the canvas in sync)
+    x: 250,
+    y: 380,
+    wires: [[], [], []],
+  },
+  {
     id: "cfg1",
     type: "test-config",
     name: "Test Server",

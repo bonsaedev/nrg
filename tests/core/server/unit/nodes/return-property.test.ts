@@ -4,8 +4,8 @@ import { defineIONode } from "@/core/server/nodes";
 import { defineSchema, SchemaType } from "@/core/server/schemas";
 
 // Every node has a return key ("output" by default) whether or not it
-// declares returnProperty — declaring it only lets the flow author override
-// the key in the editor.
+// declares outputReturnProperties — declaring it only lets the flow author set
+// a custom key per output port in the editor.
 const PlainNode = defineIONode({
   type: "assign-plain",
   configSchema: defineSchema(
@@ -24,7 +24,7 @@ const OverridableNode = defineIONode({
   configSchema: defineSchema(
     {
       name: SchemaType.String({ default: "" }),
-      returnProperty: SchemaType.ReturnProperty(),
+      outputReturnProperties: SchemaType.OutputReturnProperties(),
     },
     { $id: "assign-overridable:config" },
   ),
@@ -60,11 +60,11 @@ const ModeNode = defineIONode({
   outputsSchema: SchemaType.Any(),
   async input(msg) {
     const mode = (msg as Record<string, unknown>).mode as
-      | "nest"
       | "carry"
+      | "trace"
       | "reset"
       | undefined;
-    this.send("R", mode);
+    this.send("R", { defaultMode: mode });
   },
 });
 
@@ -78,33 +78,35 @@ describe("returnProperty / output convention", () => {
       correlationId: "c1",
       value: 21,
       output: { doubled: 42 },
-      input: { topic: "orders", correlationId: "c1", value: 21 },
     });
   });
 
-  it("keeps the overwritten output recoverable under input", async () => {
-    const { node } = await createNode(PlainNode);
+  it("trace keeps the overwritten output recoverable under input", async () => {
+    const { node } = await createNode(ModeNode);
     // the incoming message already has an output the result will overwrite
-    await node.receive({ output: "previous", value: 5 });
+    await node.receive({ output: "previous", value: 5, mode: "trace" });
 
     const out = node.sent(0)[0] as Record<string, any>;
-    expect(out.output).toEqual({ doubled: 10 });
+    expect(out.output).toBe("R");
     expect(out.input.output).toBe("previous"); // not lost
   });
 
-  it("accumulates input across hops (provenance chain)", async () => {
-    const { node } = await createNode(PlainNode);
+  it("trace accumulates input across hops (provenance chain)", async () => {
+    const { node } = await createNode(ModeNode);
     // simulate an upstream node that already nested its own input
     await node.receive({
       value: 5,
+      mode: "trace",
       input: { value: 3, output: "oldest" },
     });
 
     expect(node.sent(0)[0]).toEqual({
       value: 5,
-      output: { doubled: 10 },
+      mode: "trace",
+      output: "R",
       input: {
         value: 5,
+        mode: "trace",
         input: { value: 3, output: "oldest" },
       },
     });
@@ -119,7 +121,6 @@ describe("returnProperty / output convention", () => {
       topic: "list",
       size: 2,
       output: [{ id: 0 }, { id: 1 }],
-      input: { topic: "list", size: 2 },
     });
   });
 
@@ -144,13 +145,12 @@ describe("returnProperty / output convention", () => {
     expect(node.sent(0)[0]).toEqual({
       size: 1,
       output: [{ id: 0 }],
-      input: { size: 1 },
     });
   });
 
-  it("uses the flow-configured key override when declared", async () => {
+  it("uses the flow-configured per-port return property when declared", async () => {
     const { node } = await createNode(OverridableNode, {
-      config: { returnProperty: "result" },
+      config: { outputReturnProperties: { 0: "result" } },
     });
     await node.receive({ value: 5, keep: true });
 
@@ -158,17 +158,18 @@ describe("returnProperty / output convention", () => {
       value: 5,
       keep: true,
       result: { doubled: 10 },
-      input: { value: 5, keep: true },
     });
   });
 
-  it("supports a node-defined default key", async () => {
+  it("supports a node-defined default return property per port", async () => {
     const CustomDefault = defineIONode({
       type: "assign-custom-default",
       configSchema: defineSchema(
         {
           name: SchemaType.String({ default: "" }),
-          returnProperty: SchemaType.ReturnProperty({ default: "data" }),
+          outputReturnProperties: SchemaType.OutputReturnProperties({
+            default: { 0: "data" },
+          }),
         },
         { $id: "assign-custom-default:config" },
       ),
@@ -182,20 +183,46 @@ describe("returnProperty / output convention", () => {
     const { node } = await createNode(CustomDefault);
     await node.receive({ a: 1 });
 
-    expect(node.sent(0)[0]).toEqual({ a: 1, data: "ok", input: { a: 1 } });
+    expect(node.sent(0)[0]).toEqual({ a: 1, data: "ok" });
   });
 
   it("falls back to output when the configured key is empty", async () => {
     const { node } = await createNode(OverridableNode, {
-      config: { returnProperty: "   " },
+      config: { outputReturnProperties: { 0: "   " } },
     });
     await node.receive({ value: 1 });
 
     expect(node.sent(0)[0]).toEqual({
       value: 1,
       output: { doubled: 2 },
-      input: { value: 1 },
     });
+  });
+
+  it("resolves a custom return property per port on a multi-output node", async () => {
+    const MultiReturn = defineIONode({
+      type: "assign-multi-return",
+      configSchema: defineSchema(
+        {
+          name: SchemaType.String({ default: "" }),
+          outputReturnProperties: SchemaType.OutputReturnProperties(),
+        },
+        { $id: "assign-multi-return:config" },
+      ),
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: [SchemaType.Any(), SchemaType.Any()],
+      async input() {
+        this.send(["A", "B"] as never);
+      },
+    });
+
+    const { node } = await createNode(MultiReturn, {
+      // port 0 -> "ok", port 1 unset -> "output"
+      config: { outputReturnProperties: { 0: "ok" } },
+    });
+    await node.receive({ k: 1 });
+
+    expect(node.sent(0)[0]).toEqual({ k: 1, ok: "A" });
+    expect(node.sent(1)[0]).toEqual({ k: 1, output: "B" });
   });
 
   it("wraps each slot of a multi-port send without sharing the top-level object", async () => {
@@ -216,7 +243,7 @@ describe("returnProperty / output convention", () => {
     await node.receive({ keep: 1 });
 
     const out0 = node.sent(0)[0] as Record<string, unknown>;
-    expect(out0).toEqual({ keep: 1, output: "first", input: { keep: 1 } });
+    expect(out0).toEqual({ keep: 1, output: "first" });
     expect(node.sent(1)).toEqual([]);
 
     // mutating a slot's top-level object must not affect anything else
@@ -224,7 +251,6 @@ describe("returnProperty / output convention", () => {
     expect(node.sent(0)[0]).toEqual({
       keep: 999,
       output: "first",
-      input: { keep: 1 },
     });
   });
 
@@ -251,7 +277,6 @@ describe("returnProperty / output convention", () => {
     expect(node.sent("success")[0]).toEqual({
       traceId: "x",
       output: { ok: true },
-      input: { traceId: "x" },
     });
   });
 
@@ -274,6 +299,33 @@ describe("returnProperty / output convention", () => {
       mode: "carry",
       output: "R",
       input: { output: "upstream" }, // carried forward, not re-nested
+    });
+  });
+
+  it("carry keeps a looped message flat across many hops", async () => {
+    // The motivating case: a delay-loop feeds each send back in as the next
+    // input. Under carry the message must not grow an `input` chain hop to hop
+    // (trace would nest one frame per tick and bloat unboundedly).
+    const { node } = await createNode(ModeNode);
+    let msg: Record<string, unknown> = { topic: "tick", mode: "carry" };
+    for (let i = 0; i < 5; i++) {
+      await node.receive(msg);
+      msg = node.sent(0).at(-1) as Record<string, unknown>;
+    }
+
+    expect(msg).toEqual({ topic: "tick", mode: "carry", output: "R" });
+    expect("input" in msg).toBe(false);
+  });
+
+  it("trace mode nests the input under input", async () => {
+    const { node } = await createNode(ModeNode);
+    await node.receive({ topic: "t", mode: "trace" });
+
+    expect(node.sent(0)[0]).toEqual({
+      topic: "t",
+      mode: "trace",
+      output: "R",
+      input: { topic: "t", mode: "trace" },
     });
   });
 
@@ -352,11 +404,10 @@ describe("returnProperty / output convention", () => {
       value: 4,
       extra: "kept",
       output: { doubled: 8 },
-      input: { value: 4, extra: "kept" },
     });
   });
 
-  it("wraps late async sends with the most recent input", async () => {
+  it("late async sends carry the most recent input message", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
 
@@ -384,15 +435,161 @@ describe("returnProperty / output convention", () => {
     expect(node.sent(0)[0]).toEqual({
       seq: 2,
       output: "late",
-      input: { seq: 2 },
     });
   });
 
-  it("rejects invalid configured keys at construction", async () => {
+  it("rejects invalid configured return properties at construction", async () => {
     for (const bad of ["my key", "1abc", "a.b", "a-b"]) {
       await expect(
-        createNode(OverridableNode, { config: { returnProperty: bad } }),
-      ).rejects.toThrow(/Invalid returnProperty key/);
+        createNode(OverridableNode, {
+          config: { outputReturnProperties: { 0: bad } },
+        }),
+      ).rejects.toThrow(/Invalid return property/);
     }
+  });
+
+  it("validates a port only when its validate flag is on", async () => {
+    const Node = defineIONode({
+      type: "assign-pp-validate",
+      configSchema: defineSchema(
+        { name: SchemaType.String({ default: "" }) },
+        { $id: "assign-pp-validate:config" },
+      ),
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: SchemaType.Object(
+        { n: SchemaType.Number() },
+        { $id: "assign-pp-validate:out" },
+      ),
+      async input(msg) {
+        this.send({ n: (msg as Record<string, unknown>).n } as never);
+      },
+    });
+
+    // no per-port flag -> a bad value passes through unvalidated
+    const a = await createNode(Node);
+    await a.node.receive({ n: "bad" });
+    expect(a.node.sent(0)[0]).toEqual({ n: "bad", output: { n: "bad" } });
+
+    // validateOutputs[0] = true -> the bad value is rejected
+    const b = await createNode(Node, {
+      config: { validateOutputs: { 0: true } },
+    });
+    await expect(b.node.receive({ n: "bad" })).rejects.toThrow();
+  });
+});
+
+// The flow author's per-port `contextModes` config (written by the editor)
+// overrides the node author's `defaultMode`. Resolution precedence is
+// config override -> defaultMode -> "carry".
+describe("context-mode per-port config overrides", () => {
+  // Multi-output node: one value per port, so each port's resolved mode can be
+  // asserted independently. Author default is "reset".
+  const MultiModeNode = defineIONode({
+    type: "ctx-multi",
+    configSchema: defineSchema(
+      { name: SchemaType.String({ default: "" }) },
+      { $id: "ctx-multi:config" },
+    ),
+    inputSchema: SchemaType.Object({}),
+    outputsSchema: [SchemaType.Any(), SchemaType.Any()],
+    async input() {
+      this.send(["A", "B"] as never, { defaultMode: "reset" });
+    },
+  });
+
+  // Named-output node: sends to "failure" (index 1) with author default "reset".
+  const NamedModeNode = defineIONode({
+    type: "ctx-named",
+    configSchema: defineSchema(
+      { name: SchemaType.String({ default: "" }) },
+      { $id: "ctx-named:config" },
+    ),
+    inputSchema: SchemaType.Object({}),
+    outputsSchema: { success: SchemaType.Any(), failure: SchemaType.Any() },
+    async input() {
+      this.sendToPort("failure", { ok: false }, { defaultMode: "reset" });
+    },
+  });
+
+  it("a configured port overrides the node author's defaultMode", async () => {
+    // ModeNode sends with defaultMode = msg.mode ("reset"); config forces trace
+    const { node } = await createNode(ModeNode, {
+      config: { contextModes: { 0: "trace" } },
+    });
+    await node.receive({ topic: "t", mode: "reset" });
+
+    expect(node.sent(0)[0]).toEqual({
+      topic: "t",
+      mode: "reset",
+      output: "R",
+      input: { topic: "t", mode: "reset" }, // trace won over reset
+    });
+  });
+
+  it("a configured port overrides the carry floor when no defaultMode is given", async () => {
+    const { node } = await createNode(ModeNode, {
+      config: { contextModes: { 0: "trace" } },
+    });
+    await node.receive({ topic: "t" }); // no mode -> defaultMode undefined
+
+    expect(node.sent(0)[0]).toEqual({
+      topic: "t",
+      output: "R",
+      input: { topic: "t" }, // trace won over the carry default
+    });
+  });
+
+  it("an unconfigured port falls back to the node author's defaultMode", async () => {
+    // config sets port 1, but ModeNode sends to port 0
+    const { node } = await createNode(ModeNode, {
+      config: { contextModes: { 1: "trace" } },
+    });
+    await node.receive({ topic: "t", mode: "reset" });
+
+    expect(node.sent(0)[0]).toEqual({ output: "R" }); // reset (defaultMode)
+  });
+
+  it("resolves each port independently on a multi-output node", async () => {
+    const { node } = await createNode(MultiModeNode, {
+      config: { contextModes: { 0: "trace", 1: "carry" } },
+    });
+    await node.receive({ k: 1 });
+
+    expect(node.sent(0)[0]).toEqual({ k: 1, output: "A", input: { k: 1 } }); // trace
+    expect(node.sent(1)[0]).toEqual({ k: 1, output: "B" }); // carry
+  });
+
+  it("falls back to defaultMode on ports the config does not set (multi-output)", async () => {
+    const { node } = await createNode(MultiModeNode, {
+      config: { contextModes: { 0: "trace" } },
+    });
+    await node.receive({ k: 1 });
+
+    expect(node.sent(0)[0]).toEqual({ k: 1, output: "A", input: { k: 1 } }); // trace
+    expect(node.sent(1)[0]).toEqual({ output: "B" }); // reset (defaultMode)
+  });
+
+  it("sendToPort resolves the named port's index for the override", async () => {
+    // "failure" is index 1; config sets port 1 to trace
+    const { node } = await createNode(NamedModeNode, {
+      config: { contextModes: { 1: "trace" } },
+    });
+    await node.receive({ traceId: "x" });
+
+    expect(node.sent("failure")[0]).toEqual({
+      traceId: "x",
+      output: { ok: false },
+      input: { traceId: "x" },
+    });
+  });
+
+  it("sendToPort falls back to defaultMode when the named port is unconfigured", async () => {
+    // config sets port 0 (success); the send goes to port 1 (failure)
+    const { node } = await createNode(NamedModeNode, {
+      config: { contextModes: { 0: "trace" } },
+    });
+    await node.receive({ traceId: "x" });
+
+    expect(node.sent("failure")[0]).toEqual({ output: { ok: false } }); // reset
   });
 });

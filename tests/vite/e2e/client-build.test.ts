@@ -115,6 +115,12 @@ describe("client build", () => {
     expect(bundleContent).toContain("test-node");
   });
 
+  it("should inject the contextModes per-port default for output nodes", () => {
+    // the inliner adds an (empty) contextModes default so Node-RED persists the
+    // per-port context-mode overrides the editor writes
+    expect(bundleContent).toContain("contextModes");
+  });
+
   it("should inline credential field types", () => {
     expect(bundleContent).toContain("password");
   });
@@ -247,10 +253,18 @@ describe("client build", () => {
     );
     // config-server has user labels but no configs.name — framework should inject it
     expect(labels["config-server"].configs.name).toBe("Name");
-    expect(labels["config-server"].toggles.validateInput).toBe(
-      "Validate Input",
-    );
+    expect(labels["config-server"].toggles.validateInput).toBe("Validate");
     expect(labels["config-server"].toggles.errorPort).toBe("Error Port");
+    // per-port Outputs table + Lifecycle Ports editor labels
+    expect(labels["config-server"].outputs.contextMode).toBe("Context Mode");
+    expect(labels["config-server"].outputs.returnProperty).toBe(
+      "Return Property",
+    );
+    expect(labels["config-server"].sections.lifecyclePorts).toBe(
+      "Lifecycle Ports",
+    );
+    expect(labels["config-server"].contextModes.modes.default).toBe("Default");
+    expect(labels["config-server"].help.learnMore).toBe("Learn more");
   });
 
   it("should not overwrite user labels with framework defaults", () => {
@@ -272,8 +286,9 @@ describe("client build", () => {
     if (!fs.existsSync(dePath)) return;
     const labels = JSON.parse(fs.readFileSync(dePath, "utf-8"));
     expect(labels["config-server"].configs.name).toBe("Name");
-    expect(labels["config-server"].toggles.validateInput).toBe(
-      "Eingabe validieren",
+    expect(labels["config-server"].toggles.validateInput).toBe("Validieren");
+    expect(labels["config-server"].sections.lifecyclePorts).toBe(
+      "Lebenszyklus-Ports",
     );
   });
 });

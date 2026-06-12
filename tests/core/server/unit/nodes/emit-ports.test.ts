@@ -367,12 +367,11 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      // the value is wrapped under the return key; the input is spread as
-      // context and kept under `input` as lineage
+      // the value is wrapped under the return key; carry (the default mode)
+      // spreads the incoming context but does not record lineage
       expect((sent[0] as unknown[])[0]).toEqual({
         payload: "go",
         output: "record",
-        input: { payload: "go" },
       });
     });
 

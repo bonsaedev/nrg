@@ -11,7 +11,7 @@ import {
   registerTypes,
   __setSchemas,
 } from "@/core/client/registration";
-import { unmountApp } from "@/core/client/form";
+import { mountApp, unmountApp } from "@/core/client/form";
 
 const RED = window.RED;
 
@@ -342,6 +342,58 @@ describe("registerType — builtin ports", () => {
     expect(registered.outputLabels.call(node, 1)).toBe("Error");
     expect(registered.outputLabels.call(node, 2)).toBe("Complete");
     expect(registered.outputLabels.call(node, 3)).toBe("Status");
+  });
+});
+
+describe("registerType — output ports (context modes)", () => {
+  let spy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    spy = spyOnRegisterType();
+    vi.clearAllMocks();
+  });
+
+  // oneditprepare builds `features` (incl. outputPorts) and hands it to
+  // mountApp (mocked) as its 4th argument.
+  function featuresFor(registered: any) {
+    registered.oneditprepare.call({});
+    return vi.mocked(mountApp).mock.calls[0][3] as {
+      outputPorts: { index: number; label: string }[];
+    };
+  }
+
+  it("labels base output ports by name for a record outputsSchema", async () => {
+    __setSchemas({
+      "ctx-named-node": {
+        outputsSchema: { success: {}, failure: {} },
+        outputs: 2,
+      },
+    });
+    await registerType({ type: "ctx-named-node", category: "function" });
+
+    expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
+      { index: 0, label: "success" },
+      { index: 1, label: "failure" },
+    ]);
+  });
+
+  it("labels positional ports Output N when unnamed", async () => {
+    __setSchemas({
+      "ctx-array-node": { outputsSchema: [{}, {}], outputs: 2 },
+    });
+    await registerType({ type: "ctx-array-node", category: "function" });
+
+    expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
+      { index: 0, label: "Output 0" },
+      { index: 1, label: "Output 1" },
+    ]);
+  });
+
+  it("yields no output ports when the node has no outputs", async () => {
+    __setSchemas({ "ctx-none-node": { defaults: { name: { value: "" } } } });
+    await registerType({ type: "ctx-none-node", category: "function" });
+
+    expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([]);
   });
 });
 

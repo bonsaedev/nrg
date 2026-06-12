@@ -8,4 +8,5 @@ registerTypes([
   customFormNode,
   defineNode({ type: "all-fields-node" }),
   defineNode({ type: "test-config" }),
+  defineNode({ type: "basic-node" }),
 ]);
