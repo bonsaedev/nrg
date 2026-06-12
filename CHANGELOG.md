@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/bonsaedev/nrg/compare/v0.20.0...v0.20.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* declare the vite plugin export as nrg in the generated types ([3587a40](https://github.com/bonsaedev/nrg/commit/3587a409fe44bba5c59b63b9b60ac1ce20f0493e))
+
 # [0.20.0](https://github.com/bonsaedev/nrg/compare/v0.19.1...v0.20.0) (2026-06-12)
 
 
