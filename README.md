@@ -331,6 +331,77 @@ describe("MyForm", () => {
 });
 ```
 
+### Client E2E Tests
+
+Drive the real editor in a live Node-RED instance with Playwright — schema-driven forms, validation, TypedInput, config selectors, and i18n. Install `playwright`, then point a global setup at a flow and walk the editor with `NodeRedEditor`:
+
+```typescript
+// vitest.client.e2e.config.ts
+import { defineConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/client/e2e";
+
+export default defineConfig({
+  test: {
+    ...defaultConfig,
+    globalSetup: "tests/client/e2e/global-setup.ts",
+    include: ["tests/client/e2e/**/*.test.ts"],
+  },
+});
+```
+
+```typescript
+// tests/client/e2e/global-setup.ts
+import {
+  setup as baseSetup,
+  teardown as baseTeardown,
+} from "@bonsae/nrg/test/client/e2e";
+
+export async function setup() {
+  await baseSetup({
+    flow: [
+      { id: "tab1", type: "tab", label: "E2E Tests" },
+      { id: "n1", type: "my-node", z: "tab1", name: "", wires: [[]] },
+    ],
+  });
+}
+
+export async function teardown() {
+  await baseTeardown();
+}
+```
+
+```typescript
+// tests/client/e2e/my-node.test.ts
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
+import { chromium, type Browser } from "playwright";
+import { NodeRedEditor } from "@bonsae/nrg/test/client/e2e";
+
+describe("my-node editor", () => {
+  let browser: Browser;
+  let editor: NodeRedEditor;
+
+  beforeAll(async () => {
+    browser = await chromium.launch();
+    const port = Number(process.env.NODE_RED_PORT);
+    editor = new NodeRedEditor(await browser.newPage(), port);
+    await editor.open();
+  });
+
+  afterAll(() => browser.close());
+
+  test("name field round-trips", async () => {
+    await editor.editNode("n1");
+    const name = editor.field("Name");
+    await name.fill("Test Node");
+    await editor.clickDone();
+
+    await editor.editNode("n1");
+    expect(await name.getValue()).toBe("Test Node");
+    await editor.clickCancel();
+  });
+});
+```
+
 See the [testing guide](https://bonsaedev.github.io/nrg/guide/testing) for full API reference.
 
 ## Development
