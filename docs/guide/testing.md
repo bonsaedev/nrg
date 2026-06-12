@@ -23,12 +23,15 @@ NRG bundles most test infrastructure as direct dependencies, so installing `@bon
 # required
 pnpm add -D vitest
 
+# for server integration tests (a real in-process Node-RED runtime)
+pnpm add -D node-red
+
 # for component tests
 pnpm add -D @vitest/browser-playwright playwright vitest-browser-vue
 
 # optional: coverage providers
 pnpm add -D @vitest/coverage-istanbul  # for browser-based tests (component, e2e)
-pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, client unit)
+pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, server integration, client unit)
 ```
 
 ## Test Types
