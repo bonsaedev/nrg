@@ -19,5 +19,6 @@ export const defaultConfig = {
     testTimeout: 30_000,
     environment: "happy-dom" as const,
     setupFiles: ["@bonsae/nrg/test/client/unit/setup"],
+    include: ["tests/client/unit/**/*.test.ts"],
   },
 };

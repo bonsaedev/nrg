@@ -32,6 +32,7 @@ export const defaultConfig = {
   test: {
     testTimeout: 30_000,
     setupFiles: ["@bonsae/nrg/test/client/component/setup"],
+    include: ["tests/client/component/**/*.test.ts"],
     browser: {
       enabled: true,
       instances: [

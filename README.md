@@ -156,10 +156,28 @@ Optional peer dependencies:
 
 ### Server Unit Tests
 
+Instantiate your node with mocked Node-RED internals and exercise its full lifecycle in-process:
+
 ```typescript
+// vitest.server.unit.config.ts
+import { defineConfig, mergeConfig } from "vitest/config";
+import { defaultConfig } from "@bonsae/nrg/test/server/unit/config";
+
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/server/unit/**/*.test.ts"],
+    },
+  }),
+);
+```
+
+```typescript
+// tests/server/unit/my-node.test.ts
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
-import MyNode from "../src/server/nodes/my-node";
+import MyNode from "../../../src/server/nodes/my-node";
 
 describe("my-node", () => {
   it("should process messages", async () => {
@@ -176,14 +194,21 @@ describe("my-node", () => {
 
 ### Server Integration Tests
 
-Boot a real, headless Node-RED runtime, deploy your nodes, and drive them with real messages — verifying config-node resolution, credentials, wiring, and context that unit mocks can't. Integration tests live in `tests/server/integration` (separate from `tests/server/unit`), and the default config targets that folder. Add `node-red` as a dev dependency, then:
+Boot a real, headless Node-RED runtime, deploy your nodes, and drive them with real messages — verifying config-node resolution, credentials, wiring, and context that unit mocks can't. Integration tests live in `tests/server/integration`, separate from `tests/server/unit`. Add `node-red` as a dev dependency, then:
 
 ```typescript
 // vitest.server.integration.config.ts
+import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/server/integration/config";
 
-// targets tests/server/integration/**/*.test.ts out of the box
-export default defaultConfig;
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/server/integration/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 ```typescript

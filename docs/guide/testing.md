@@ -118,19 +118,24 @@ No additional dependencies needed — NRG provides the test utilities and mocks.
 
 ```typescript
 // vitest.server.unit.config.ts
+import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/server/unit/config";
 
-// targets tests/server/unit/**/*.test.ts out of the box
-export default defaultConfig;
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/server/unit/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 The `defaultConfig` provides:
 
 - `testTimeout: 30_000`
 - `@` alias pointing to `src/` in your project root
-- `include` targeting `tests/server/unit/**/*.test.ts` — integration tests live in a separate folder (`tests/server/integration`), so the two tiers never overlap
-
-Add your own options (coverage, setup files) by wrapping it with `mergeConfig`.
+- a default `include` of `tests/server/unit/**/*.test.ts` — passing it explicitly above keeps the config self-documenting and points it at the unit folder, separate from the integration tier in `tests/server/integration`
 
 #### 4. Add a test script
 
@@ -500,20 +505,27 @@ Integration tests embed whatever `node-red` your project has installed — the l
 
 ```typescript
 // vitest.server.integration.config.ts
+import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/server/integration/config";
 
-// targets tests/server/integration/**/*.test.ts out of the box
-export default defaultConfig;
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/server/integration/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 The `defaultConfig` provides:
 
-- `include` targeting `tests/server/integration/**/*.test.ts` — kept in its own folder, separate from the unit tier's `tests/server/unit`
+- a default `include` of `tests/server/integration/**/*.test.ts` — its own folder, separate from the unit tier's `tests/server/unit`
 - `testTimeout: 30_000` and `hookTimeout: 30_000` (booting a runtime takes longer than a unit test)
 - `pool: "forks"` with `fileParallelism: false` — each file gets an isolated process and they run serially, since Node-RED is a process-wide singleton
 - `@` alias pointing to `src/` in your project root
 
-Unit and integration tests are separated by folder — `tests/server/unit` and `tests/server/integration` — so each config picks up only its own tier and a missing `node-red` (or the slower runtime boot) never blocks fast unit feedback. Add your own options (coverage, settings) with `mergeConfig`.
+Unit and integration tests are separated by folder — `tests/server/unit` and `tests/server/integration` — so each config picks up only its own tier and a missing `node-red` (or the slower runtime boot) never blocks fast unit feedback.
 
 #### 4. Add a test script
 
@@ -773,6 +785,7 @@ The `defaultConfig` provides:
 - `setupFiles` pointing to the built-in setup that installs `RED` and `$` mocks on `window`
 - `@` alias pointing to `src/` in your project root
 - `@bonsae/nrg/client` alias resolved to the test library (so `useFormNode` imports work without a runtime bundle)
+- a default `include` of `tests/client/unit/**/*.test.ts`
 
 #### 4. Add a test script
 
@@ -871,6 +884,7 @@ The `defaultConfig` provides:
 - `setupFiles` pointing to the built-in setup that installs `$` and `RED` mocks on `window` and configures Vue i18n
 - `@` alias pointing to `src/` in your project root
 - `@bonsae/nrg/client` alias resolved to the test library (so `useFormNode` imports work without a runtime bundle)
+- a default `include` of `tests/client/component/**/*.test.ts`
 
 To test on a single browser only, override the `browser.instances` array:
 
@@ -1146,6 +1160,7 @@ The `defaultConfig` provides:
 
 - `testTimeout: 60_000`
 - `hookTimeout: 120_000`
+- a default `include` of `tests/client/e2e/**/*.test.ts`
 
 #### 4. Create a global setup file
 

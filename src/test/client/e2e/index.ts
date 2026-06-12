@@ -17,6 +17,7 @@ export const defaultConfig = {
   testTimeout: 60_000,
   hookTimeout: 120_000,
   globalSetup: ["@bonsae/nrg/test/client/e2e"],
+  include: ["tests/client/e2e/**/*.test.ts"],
 };
 
 let _env: NodeRedTestEnvironment | null = null;
