@@ -180,12 +180,12 @@ export declare function useFormNode<TConfig extends TSchema = TSchema, TCredenti
 };
 `);
 
-  // Vite types — the nodeRed() return type (Plugin[]) crashes dts-bundle-generator,
+  // Vite types — the nrg() return type (Plugin[]) crashes dts-bundle-generator,
   // so we generate from the options interface and append the function signature.
   execSync(`npx dts-bundle-generator -o dist/types/vite.d.ts src/vite/types.ts ${DTS_FLAGS}`, { stdio: "inherit" });
   appendFileSync("dist/types/vite.d.ts", `
 import type { Plugin } from "vite";
-export declare function nodeRed(options?: NodeRedPluginOptions): Plugin[];
+export declare function nrg(options?: NrgPluginOptions): Plugin[];
 `);
 
   // Test utilities types
