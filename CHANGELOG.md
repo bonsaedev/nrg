@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.21.0](https://github.com/bonsaedev/nrg/compare/v0.20.1...v0.21.0) (2026-06-12)
+
+
+### Features
+
+* per-port output settings in a sectioned editor form ([0c368e1](https://github.com/bonsaedev/nrg/commit/0c368e1e0e7fe47867c494797c1f8bac2944d626))
+
 ## [0.20.1](https://github.com/bonsaedev/nrg/compare/v0.20.0...v0.20.1) (2026-06-12)
 
 
