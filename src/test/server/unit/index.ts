@@ -5,6 +5,7 @@ import type { NodeRedNode } from "../../../core/server/types";
 import type { NodeConstructor as NodeClass } from "../../../core/server/nodes/types/node";
 import type { MockRED } from "./mocks";
 import { WIRE_HANDLERS } from "../../../core/server/nodes/symbols";
+import type { NodeContextStore } from "../../../core/server/nodes/types/node";
 import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {
@@ -37,6 +38,14 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
   logged(level?: "info" | "warn" | "error" | "debug"): string[];
   warned(): string[];
   errored(): string[];
+  /** Promise-based access to the node's context stores (node / flow / global). */
+  context: TestNodeContext;
+}
+
+interface TestNodeContext {
+  node: NodeContextStore;
+  flow?: NodeContextStore;
+  global: NodeContextStore;
 }
 
 interface CreateNodeResult<T> {
@@ -149,6 +158,9 @@ function attachHelpers<T>(
     errored() {
       return nodeRedNode.error.mock.calls.map((c: any[]) => c[0]);
     },
+    // expose the node's own (already promise-wrapped) context stores; the
+    // node keeps using the same object internally, callable form included
+    context: (node as unknown as { context: TestNodeContext }).context,
   };
 
   return Object.assign(node as any, helpers);

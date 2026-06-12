@@ -192,6 +192,7 @@ Every node returned by `createNode` has these helpers:
 | `node.logged(level?)` | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`) |
 | `node.warned()` | Warning messages |
 | `node.errored()` | Error messages |
+| `node.context` | Promise-based access to the node's `node` / `flow` / `global` context stores — preset values before `receive`, assert them after |
 
 ### Examples
 
@@ -363,6 +364,19 @@ describe("context store", () => {
     await node.receive({});
 
     expect(node.sent(0)).toEqual([{ payload: 1 }, { payload: 2 }]);
+  });
+
+  it("can preset and assert context directly", async () => {
+    const { node } = await createNode(MyNode);
+
+    // seed the flow store before driving the node...
+    await node.context.flow!.set("count", 10);
+
+    await node.receive({});
+
+    // ...then assert what the node read/wrote
+    expect(node.sent(0)).toEqual([{ payload: 11 }]);
+    expect(await node.context.flow!.get("count")).toBe(11);
   });
 });
 
