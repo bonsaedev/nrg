@@ -64,6 +64,49 @@ describe("IONode", () => {
     });
   });
 
+  describe("outputPortNames (static)", () => {
+    it("returns the keys for a named-ports record schema", () => {
+      class Named extends IONode {
+        static override readonly type = "named-out";
+        static override readonly outputsSchema = {
+          success: SchemaType.Object({}),
+          failure: SchemaType.Object({}),
+        };
+      }
+      expect(Named.outputPortNames).toEqual(["success", "failure"]);
+    });
+
+    it("is undefined for a single schema (Object/Any/Union)", () => {
+      class SingleObj extends IONode {
+        static override readonly type = "single-obj";
+        static override readonly outputsSchema = SchemaType.Object({});
+      }
+      class SingleAny extends IONode {
+        static override readonly type = "single-any";
+        static override readonly outputsSchema = SchemaType.Any({
+          $id: "single-any:out",
+        });
+      }
+      expect(SingleObj.outputPortNames).toBeUndefined();
+      expect(SingleAny.outputPortNames).toBeUndefined();
+    });
+
+    it("is undefined for positional arrays and no schema", () => {
+      class Positional extends IONode {
+        static override readonly type = "positional-out";
+        static override readonly outputsSchema = [
+          SchemaType.Any(),
+          SchemaType.Any(),
+        ];
+      }
+      class NoOut extends IONode {
+        static override readonly type = "no-out";
+      }
+      expect(Positional.outputPortNames).toBeUndefined();
+      expect(NoOut.outputPortNames).toBeUndefined();
+    });
+  });
+
   describe("input handling", () => {
     it("should call input method with message", async () => {
       const RED = createRED();

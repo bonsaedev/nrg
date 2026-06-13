@@ -104,19 +104,15 @@ function computeBuiltinPortOutputs(
 
 /**
  * Resolves the base output ports (excluding built-in error/complete/status) the
- * context-mode rows configure. Named-port schemas (record) label each port by
- * its key; positional/single schemas fall back to `Output {index}`.
+ * context-mode rows configure. Named-port schemas label each port by its name
+ * (resolved server-side in `outputPortNames`); positional/single schemas fall
+ * back to `Output {index}`.
  */
 function computeOutputPorts(
-  outputsSchema: RuntimeNodeDefinition["outputsSchema"],
+  outputPortNames: string[] | undefined,
   baseOutputs: number,
 ): { index: number; label: string }[] {
-  const isNamed =
-    !!outputsSchema &&
-    typeof outputsSchema === "object" &&
-    !Array.isArray(outputsSchema) &&
-    !("type" in outputsSchema || "properties" in outputsSchema);
-  const names = isNamed ? Object.keys(outputsSchema as object) : [];
+  const names = outputPortNames ?? [];
   const ports: { index: number; label: string }[] = [];
   for (let i = 0; i < baseOutputs; i++) {
     ports.push({ index: i, label: names[i] ?? `Output ${i}` });
@@ -159,7 +155,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       ));
     }
     const outputPorts = computeOutputPorts(
-      nodeDefinition.outputsSchema,
+      nodeDefinition.outputPortNames,
       baseOutputs,
     );
 
@@ -248,7 +244,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
         nodeDefinition.outputLabels ||
         createDefaultOutputLabels(
           type,
-          nodeDefinition.outputsSchema,
+          nodeDefinition.outputPortNames,
           hasBuiltinPorts,
           baseOutputs,
         ),

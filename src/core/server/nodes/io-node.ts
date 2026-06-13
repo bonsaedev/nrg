@@ -149,6 +149,19 @@ abstract class IONode<
     return keys.length;
   }
 
+  /**
+   * The names of the base output ports when `outputsSchema` is a record of
+   * named ports (`{ success, failure }`), in declaration order — otherwise
+   * `undefined` (a single schema or a positional array). Resolved here, where
+   * TypeBox's `Kind` symbol is intact, so the editor reads the names directly
+   * instead of guessing them from a serialized (symbol-stripped) schema.
+   */
+  public static get outputPortNames(): string[] | undefined {
+    const s = this.outputsSchema;
+    if (!s || Array.isArray(s) || isSchemaLike(s)) return undefined;
+    return Object.keys(s);
+  }
+
   #send: ((msg: any) => void) | undefined;
   /**
    * Most recent input message — the spread base for output wrapping. Not

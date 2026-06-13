@@ -142,6 +142,9 @@ function nodeDefinitionsInliner(
           icon: iconsDir ? resolveIcon(iconsDir, type) : undefined,
           inputs: NodeClass.inputs,
           outputs: NodeClass.outputs,
+          // Resolved server-side (Kind symbol intact) so the editor labels
+          // named output ports without guessing from the serialized schema.
+          outputPortNames: NodeClass.outputPortNames ?? undefined,
           inputSchema,
           outputsSchema,
         };

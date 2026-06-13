@@ -101,13 +101,10 @@ describe("createDefaultInputLabels", () => {
 });
 
 describe("createDefaultOutputLabels", () => {
-  it("returns record-based port names", () => {
+  it("returns named port labels from outputPortNames", () => {
     const fn = createDefaultOutputLabels(
       "my-node",
-      {
-        success: { type: "object" as const },
-        failure: { type: "object" as const },
-      },
+      ["success", "failure"],
       false,
       0,
     );
@@ -116,37 +113,28 @@ describe("createDefaultOutputLabels", () => {
     expect(fn.call(node, 1)).toBe("failure");
   });
 
-  it("falls through for index beyond record ports", () => {
-    const fn = createDefaultOutputLabels(
-      "my-node",
-      { success: { type: "object" as const } },
-      false,
-      0,
-    );
+  it("falls through for index beyond the named ports", () => {
+    const fn = createDefaultOutputLabels("my-node", ["success"], false, 0);
     const node = mockNode();
     expect(fn.call(node, 1)).toBeUndefined();
   });
 
-  it("skips record check for array-based outputsSchema", () => {
-    const fn = createDefaultOutputLabels(
-      "my-node",
-      [{ type: "object" as const }],
-      false,
-      0,
-    );
+  it("has no names for single/positional outputs (undefined)", () => {
+    // single schemas (Object/Any/Union) and positional arrays resolve to
+    // undefined outputPortNames server-side, so ports stay unnamed here
+    const fn = createDefaultOutputLabels("my-node", undefined, false, 0);
     const node = mockNode();
     expect(fn.call(node, 0)).toBeUndefined();
   });
 
-  it("skips record check for schema with type property", () => {
-    const fn = createDefaultOutputLabels(
-      "my-node",
-      { type: "object", properties: {} },
-      false,
-      0,
-    );
-    const node = mockNode();
-    expect(fn.call(node, 0)).toBeUndefined();
+  it("does not leak onto built-in ports for an unnamed output (regression)", () => {
+    // The Any-schema bug: a single output schema must not name the base port
+    // or push the built-in error port off by one. With undefined names the
+    // base port is unnamed and the error port stays "Error".
+    const fn = createDefaultOutputLabels("my-node", undefined, true, 1);
+    const node = mockNode({}, { errorPort: true });
+    expect(fn.call(node, 0)).toBeUndefined(); // was "description"
+    expect(fn.call(node, 1)).toBe("Error"); // was "$id"
   });
 
   it("labels builtin ports by name", () => {
@@ -194,13 +182,10 @@ describe("createDefaultOutputLabels", () => {
     expect(fn.call(node, 0)).toBeUndefined();
   });
 
-  it("labels record ports then builtin ports in combined mode", () => {
+  it("labels named ports then builtin ports in combined mode", () => {
     const fn = createDefaultOutputLabels(
       "my-node",
-      {
-        success: { type: "object" as const },
-        failure: { type: "object" as const },
-      },
+      ["success", "failure"],
       true,
       2,
     );

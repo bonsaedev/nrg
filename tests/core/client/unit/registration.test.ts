@@ -246,10 +246,10 @@ describe("registerType", () => {
     expect(registered.outputLabels).toBe(outputLabelsFn);
   });
 
-  it("passes record-based outputsSchema to outputLabels", async () => {
+  it("labels output ports from server-resolved outputPortNames", async () => {
     __setSchemas({
       "record-output-node": {
-        outputsSchema: { success: {}, failure: {} },
+        outputPortNames: ["success", "failure"],
       },
     });
 
@@ -362,10 +362,10 @@ describe("registerType — output ports (context modes)", () => {
     };
   }
 
-  it("labels base output ports by name for a record outputsSchema", async () => {
+  it("labels base output ports from server-resolved outputPortNames", async () => {
     __setSchemas({
       "ctx-named-node": {
-        outputsSchema: { success: {}, failure: {} },
+        outputPortNames: ["success", "failure"],
         outputs: 2,
       },
     });

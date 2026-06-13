@@ -1,4 +1,4 @@
-import type { NodeRedNode, RuntimeNodeDefinition } from "./types";
+import type { NodeRedNode } from "./types";
 
 function resolveI18n(node: NodeRedNode, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -33,19 +33,13 @@ function createDefaultInputLabels(type: string) {
 
 function createDefaultOutputLabels(
   type: string,
-  outputsSchema: RuntimeNodeDefinition["outputsSchema"],
+  outputPortNames: string[] | undefined,
   hasBuiltinPorts: boolean,
   baseOutputs: number,
 ) {
   return function (this: NodeRedNode, index: number) {
-    if (
-      outputsSchema &&
-      typeof outputsSchema === "object" &&
-      !Array.isArray(outputsSchema) &&
-      !("type" in outputsSchema || "properties" in outputsSchema)
-    ) {
-      const portNames = Object.keys(outputsSchema);
-      if (index < portNames.length) return portNames[index];
+    if (outputPortNames && index < outputPortNames.length) {
+      return outputPortNames[index];
     }
     if (hasBuiltinPorts) {
       let extraIdx = baseOutputs;

@@ -163,6 +163,13 @@ export interface JsonSchemaObject extends SchemaObject {
 export interface RuntimeNodeDefinition extends NodeDefinition {
   defaults?: NodeDefaults;
   credentials?: NodeCredentials;
+  /**
+   * Names of the base output ports when `outputsSchema` is a record of named
+   * ports, in declaration order; absent for single/positional outputs. Resolved
+   * server-side by the inliner so the editor never guesses port names from the
+   * serialized schema.
+   */
+  outputPortNames?: string[];
   configSchema?: JsonSchemaObject;
   credentialsSchema?: JsonSchemaObject;
   inputSchema?: JsonSchemaObject;
