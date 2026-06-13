@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.2](https://github.com/bonsaedev/nrg/compare/v0.21.1...v0.21.2) (2026-06-13)
+
+
+### Bug Fixes
+
+* resolve named output port labels server-side, not by guessing the schema ([6b57954](https://github.com/bonsaedev/nrg/commit/6b579545ae51f3644f3ca05e5ebbbdbc51db302c))
+
 ## [0.21.1](https://github.com/bonsaedev/nrg/compare/v0.21.0...v0.21.1) (2026-06-12)
 
 
