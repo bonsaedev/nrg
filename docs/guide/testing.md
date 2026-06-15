@@ -195,7 +195,7 @@ Every node returned by `createNode` has these helpers:
 | `node.logged(level?)` | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`) |
 | `node.warned()` | Warning messages |
 | `node.errored()` | Error messages |
-| `node.context` | Promise-based access to the node's `node` / `flow` / `global` context stores — preset values before `receive`, assert them after |
+| `node.context` | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after |
 
 ### Examples
 
@@ -599,7 +599,7 @@ A handle to one node in the flow. Harness methods never collide with your node's
 | `ref.read(port?, opts?)` | Consume the next un-read emission (FIFO cursor), awaiting it if not yet sent. `opts.timeout` defaults to `5000`ms |
 | `ref.sent(port?)` | Snapshot of everything this node has emitted (optionally one port) |
 | `ref.received(port?)` | Snapshot of everything delivered to this node's input |
-| `ref.context` | Promise-based access to the node's `node` / `flow` / `global` context stores — preset values before `receive`, assert them after |
+| `ref.context` | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after |
 | `ref.id` / `ref.type` | The generated node id and its type |
 
 `read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.

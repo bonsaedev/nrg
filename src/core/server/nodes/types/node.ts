@@ -9,6 +9,21 @@ interface NodeContextStore {
   get<T = any>(key: string): Promise<T>;
   set<T = any>(key: string, value: T): Promise<void>;
   keys(): Promise<string[]>;
+  /**
+   * Atomically add `by` (default 1) to a numeric key and return the new value.
+   * Prefer this over `get`+`set` for counters: it's atomic across instances when
+   * the context store supports it (e.g. a DynamoDB `ADD` or Redis `INCR` store),
+   * and serialized within the process otherwise — so concurrent messages never
+   * lose updates.
+   */
+  increment(key: string, by?: number): Promise<number>;
+  /**
+   * Atomic read-modify-write: `fn(current)` returns the next value, applied
+   * atomically (a conditional write + retry on a capable store, a per-key lock
+   * otherwise). `fn` MAY run more than once on a write conflict, so keep it pure
+   * (no side effects).
+   */
+  update<T = any>(key: string, fn: (current: T) => T | Promise<T>): Promise<T>;
 }
 
 interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {

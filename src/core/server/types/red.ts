@@ -176,6 +176,26 @@ interface NodeRedContextStore {
     store: string | undefined,
     callback: (err: Error | null, keys: string[]) => void,
   ): void;
+  /**
+   * Optional atomic add — provided by context stores that support it (e.g.
+   * DynamoDB `ADD` / Redis `INCR`). When absent, nrg serializes in-process.
+   */
+  increment?(
+    key: string,
+    by: number,
+    store: string | undefined,
+    callback: (err: Error | null, value: number) => void,
+  ): void;
+  /**
+   * Optional atomic read-modify-write — provided by stores that support it
+   * (e.g. a DynamoDB conditional write). When absent, nrg serializes in-process.
+   */
+  update?(
+    key: string,
+    fn: (current: any) => any,
+    store: string | undefined,
+    callback: (err: Error | null, value: any) => void,
+  ): void;
 }
 
 export {

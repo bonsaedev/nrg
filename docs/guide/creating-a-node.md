@@ -739,7 +739,47 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 | `this.config.<prop>.resolve(msg?)` | Resolve a TypedInput value |
 | `this.setTimeout(fn, ms)` | Auto-cleared timeout |
 | `this.setInterval(fn, ms)` | Auto-cleared interval |
-| `this.context("flow")` / `this.context("global")` | Access context storage |
+| `this.context.node` / `.flow` / `.global` | Context storage — `get`/`set`/`keys` plus atomic `increment`/`update`. See [Context storage](#context-storage). |
+
+### Context storage
+
+`this.context` is a promise-based view of Node-RED's `node` / `flow` / `global`
+context stores. Use the scope accessors (or the function form for a named store):
+
+```typescript
+await this.context.node.set("lastSeen", Date.now());
+const seen = await this.context.node.get("lastSeen");
+const keys = await this.context.flow.keys();
+const cfg = await this.context("global", "file").get("config"); // function form + named store
+```
+
+#### Atomic counters & read-modify-write {#atomic-context}
+
+`get` + `set` is **last-write-wins**: if two messages read a value, change it, and
+write it back concurrently, one update is silently lost. For counters and
+accumulators, use the atomic methods instead — they keep the read-modify-write in
+one operation:
+
+```typescript
+const visits = await this.context.flow.increment("visits");   // +1, returns the new value
+await this.context.global.increment("bytes", msg.payload.length); // add N
+await this.context.flow.update("ids", (cur) => [...(cur ?? []), msg.id]);
+```
+
+- **`increment(key, by = 1)`** — atomically add to a numeric key; returns the new value.
+- **`update(key, fn)`** — atomic read-modify-write; `fn(current)` returns the next value.
+  `fn` **may run more than once** on a write conflict, so it must be **pure** (no
+  side effects — do I/O outside `update`).
+
+::: tip Why this matters
+These are atomic **across instances** when the configured context store supports it
+(e.g. a DynamoDB or Redis store implements them natively); with a plain
+in-memory/file store they're serialized **within the process**. Either way,
+concurrent messages don't lose updates — which is what you need when a flow is
+scaled horizontally (HA mode, or compiled to a stateless target like AWS Lambda).
+`get`+`set` can't give you this: the "modify" happens in your node, outside the
+store, so there's nothing to serialize it against.
+:::
 
 ### Emit Ports
 
