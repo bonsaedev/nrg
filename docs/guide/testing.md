@@ -863,7 +863,7 @@ Component tests render your Vue editor components in a real browser with mocked 
 pnpm add -D vitest
 ```
 
-No additional dependencies needed — NRG ships `@vitejs/plugin-vue`, `@vitest/browser-playwright`, `vitest-browser-vue`, and `playwright` as direct dependencies.
+NRG ships `@vitejs/plugin-vue` as a direct dependency; `@vitest/browser-playwright`, `vitest-browser-vue`, and `playwright` are optional peer dependencies — install them as shown in [Dependencies](#dependencies).
 
 #### 2. Create a tsconfig
 
@@ -1145,7 +1145,7 @@ E2E tests start a real Node-RED instance with your nodes installed and drive the
 pnpm add -D vitest
 ```
 
-No additional dependencies needed — NRG ships `playwright` as a direct dependency.
+`playwright` is an optional peer dependency — install it as shown in [Dependencies](#dependencies).
 
 #### 2. Create a tsconfig
 
