@@ -9,7 +9,7 @@ import type {
   NodeCredentials,
   NodeSettings,
 } from "./types";
-import { setupConfigProxy } from "./utils";
+import { setupConfigProxy } from "./proxy";
 import { getCredentialsFromSchema } from "../utils";
 import { WIRE_HANDLERS } from "./symbols";
 import { NrgError } from "../../errors";

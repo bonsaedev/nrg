@@ -1,4 +1,4 @@
-import type { TSchema } from "@sinclair/typebox";
+import { Kind, type TSchema } from "@sinclair/typebox";
 import type { Schema } from "../schemas/types";
 import type { RED, NodeRedNode } from "../../server/types";
 import { Node } from "./node";
@@ -13,8 +13,21 @@ import type {
   IONodeConfig,
   IONodeCredentials,
 } from "./types";
-import { isSchemaLike, setupContext } from "./utils";
+import { setupContext } from "./context";
 import { WIRE_HANDLERS } from "./symbols";
+
+/**
+ * Type guard for an `outputsSchema` shape — a single schema, an array of
+ * schemas, a record of named schemas, or `undefined`. Narrows to a single
+ * {@link TSchema} (true only when `obj` carries the TypeBox `Kind` symbol, i.e.
+ * it is one schema rather than an array/record). `TSchema` (not `Schema`/
+ * `TObject`) because a single output port may be a non-object schema.
+ */
+function isSchemaLike(
+  obj: TSchema | TSchema[] | Record<string, TSchema> | undefined,
+): obj is TSchema {
+  return obj != null && typeof obj === "object" && Kind in obj;
+}
 
 type BuiltinPortFlags = {
   [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;

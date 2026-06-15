@@ -7,7 +7,7 @@ import type {
   IConfigNode,
   INode,
 } from "./types";
-import { setupContext } from "./utils";
+import { setupContext } from "./context";
 
 /**
  * Base class for configuration nodes that are shared across multiple nodes

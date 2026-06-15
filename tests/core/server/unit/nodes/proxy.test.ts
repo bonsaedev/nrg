@@ -1,14 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { setupConfigProxy, setupContext } from "@/core/server/nodes/utils";
+import { setupConfigProxy } from "@/core/server/nodes/proxy";
 import { defineSchema, SchemaType } from "@/core/server/schemas";
 import { defineConfigNode } from "@/core/server/nodes/factories";
 import type TypedInput from "@/core/server/typed-input";
 import { NrgError } from "@/core/errors";
-import {
-  createRED,
-  createNodeRedNode,
-  createContextStore,
-} from "@mocks/red";
+import { createRED, createNodeRedNode } from "@mocks/red";
 
 const RemoteServer = defineConfigNode({ type: "remote-server" });
 const SomeNode = defineConfigNode({ type: "something" });
@@ -420,82 +416,5 @@ describe("setupConfigProxy", () => {
       expect(proxy.settings.value).toBe("x");
       expect(typeof (proxy.settings as any).resolve).toBe("undefined");
     });
-  });
-});
-
-describe("setupContext", () => {
-  it("should get a value", async () => {
-    const store = createContextStore();
-    store.get.mockImplementation((key: string, _store: any, cb: Function) =>
-      cb(null, "hello"),
-    );
-
-    const ctx = setupContext(store);
-    const value = await ctx.get("test");
-    expect(value).toBe("hello");
-  });
-
-  it("should set a value", async () => {
-    const store = createContextStore();
-    const ctx = setupContext(store);
-    await ctx.set("key", "value");
-    expect(store.set).toHaveBeenCalledWith(
-      "key",
-      "value",
-      undefined,
-      expect.any(Function),
-    );
-  });
-
-  it("should get keys", async () => {
-    const store = createContextStore();
-    const ctx = setupContext(store);
-    await ctx.set("a", 1);
-    await ctx.set("b", 2);
-    const keys = await ctx.keys();
-    expect(keys).toEqual(["a", "b"]);
-  });
-
-  it("should reject on get error", async () => {
-    const store = createContextStore();
-    store.get.mockImplementation((_key: string, _store: any, cb: Function) =>
-      cb(new Error("get failed")),
-    );
-
-    const ctx = setupContext(store);
-    await expect(ctx.get("test")).rejects.toThrow("get failed");
-  });
-
-  it("should reject on set error", async () => {
-    const store = createContextStore();
-    store.set.mockImplementation(
-      (_key: string, _val: any, _store: any, cb: Function) =>
-        cb(new Error("set failed")),
-    );
-
-    const ctx = setupContext(store);
-    await expect(ctx.set("key", "val")).rejects.toThrow("set failed");
-  });
-
-  it("should reject on keys error", async () => {
-    const store = createContextStore();
-    store.keys.mockImplementation((_store: any, cb: Function) =>
-      cb(new Error("keys failed")),
-    );
-
-    const ctx = setupContext(store);
-    await expect(ctx.keys()).rejects.toThrow("keys failed");
-  });
-
-  it("should pass store name to context methods", async () => {
-    const store = createContextStore();
-    const ctx = setupContext(store, "file");
-    await ctx.set("key", "value");
-    expect(store.set).toHaveBeenCalledWith(
-      "key",
-      "value",
-      "file",
-      expect.any(Function),
-    );
   });
 });
