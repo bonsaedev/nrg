@@ -1,5 +1,6 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { IONodeConfigSchema } from "../../schemas";
+import type { BUILTIN_PORT_KEYS } from "../../../constants";
 import type { RED } from "../../../server/types";
 import type { IONode } from "../io-node";
 import type {
@@ -13,8 +14,14 @@ import type { InferOr, InferOutputs } from "../../schemas/types";
 
 type IONodeContextScope = NodeContextScope;
 
+/** Editor-managed built-in port toggles (error/complete/status), saved in config. */
+type BuiltinPortFlags = {
+  [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;
+};
+
 type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
-  Static<typeof IONodeConfigSchema> & {
+  Static<typeof IONodeConfigSchema> &
+  BuiltinPortFlags & {
     validateInput?: boolean;
     /** Per-port output-validation flags, keyed by base-output port index. */
     validateOutputs?: Record<number, boolean>;

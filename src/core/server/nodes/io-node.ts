@@ -3,7 +3,6 @@ import type { Schema } from "../schemas/types";
 import type { RED, NodeRedNode } from "../../server/types";
 import { Node } from "./node";
 import { NrgError } from "../../errors";
-import type { BUILTIN_PORT_KEYS } from "../../constants";
 import type {
   HexColor,
   IIONode,
@@ -28,10 +27,6 @@ function isSchemaLike(
 ): obj is TSchema {
   return obj != null && typeof obj === "object" && Kind in obj;
 }
-
-type BuiltinPortFlags = {
-  [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;
-};
 
 type OutputReturnPropertiesConfig = {
   /**
@@ -453,11 +448,10 @@ abstract class IONode<
   }
 
   public get totalOutputs(): number {
-    const config = this.config as unknown as BuiltinPortFlags;
     let count = this.baseOutputs;
-    if (config.errorPort) count++;
-    if (config.completePort) count++;
-    if (config.statusPort) count++;
+    if (this.config.errorPort) count++;
+    if (this.config.completePort) count++;
+    if (this.config.statusPort) count++;
     return count;
   }
 
@@ -516,17 +510,16 @@ abstract class IONode<
   }
 
   #getBuiltinPortIndex(name: "error" | "complete" | "status"): number | null {
-    const config = this.config as unknown as BuiltinPortFlags;
     if (name === "error") {
-      return config.errorPort ? this.baseOutputs : null;
+      return this.config.errorPort ? this.baseOutputs : null;
     }
     let idx = this.baseOutputs;
-    if (config.errorPort) idx++;
+    if (this.config.errorPort) idx++;
     if (name === "complete") {
-      return config.completePort ? idx : null;
+      return this.config.completePort ? idx : null;
     }
-    if (config.completePort) idx++;
-    return config.statusPort ? idx : null;
+    if (this.config.completePort) idx++;
+    return this.config.statusPort ? idx : null;
   }
 
   #nodeSource() {
