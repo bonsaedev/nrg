@@ -38,14 +38,15 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
     super(RED, node, config, credentials);
 
     const context = node.context();
-    const fn = (scope: "node" | "global", store?: string) => {
+    const resolve = (scope: "node" | "global", store?: string) => {
       const target = scope === "global" ? context.global : context;
       return setupContext(target, store);
     };
-    fn.node = setupContext(context);
-    fn.global = setupContext(context.global);
 
-    this.context = fn as any;
+    this.context = Object.assign(resolve, {
+      node: setupContext(context),
+      global: setupContext(context.global),
+    });
   }
 
   get userIds(): string[] {

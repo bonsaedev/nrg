@@ -164,7 +164,7 @@ abstract class IONode<
     super(RED, node, config, credentials);
 
     const context = node.context();
-    const fn = (scope: IONodeContextScope, store?: string) => {
+    const resolve = (scope: IONodeContextScope, store?: string) => {
       const target =
         scope === "global"
           ? context.global
@@ -174,11 +174,11 @@ abstract class IONode<
       return setupContext(target, store);
     };
 
-    fn.node = setupContext(context);
-    fn.flow = setupContext(context.flow);
-    fn.global = setupContext(context.global);
-
-    this.context = fn as any;
+    this.context = Object.assign(resolve, {
+      node: setupContext(context),
+      flow: setupContext(context.flow),
+      global: setupContext(context.global),
+    });
 
     // Validate any per-port return keys up front.
     const outputReturnProperties = this.config.outputReturnProperties;
