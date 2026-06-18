@@ -62,7 +62,7 @@ function setupContext(
     if (!chains) updateLocks.set(context, (chains = new Map()));
     const lockKey = JSON.stringify([store ?? null, key]);
     const task = async (): Promise<T> => {
-      const next = await fn((await get<T>(key)) as T);
+      const next = await fn(await get<T>(key));
       await set(key, next);
       return next;
     };

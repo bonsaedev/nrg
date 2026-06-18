@@ -28,32 +28,6 @@ function isSchemaLike(
   return obj != null && typeof obj === "object" && Kind in obj;
 }
 
-type OutputReturnPropertiesConfig = {
-  /**
-   * Per-port return properties, keyed by base-output port index. Present only
-   * when the node declares `outputReturnProperties`; a missing/empty entry falls
-   * back to `"output"`.
-   */
-  outputReturnProperties?: Record<number, string>;
-};
-
-type ValidateOutputsConfig = {
-  /**
-   * Flow-author per-port output-validation flags, keyed by base-output port
-   * index. Each port falls back to the node's static `validateOutput`.
-   */
-  validateOutputs?: Record<number, boolean>;
-};
-
-type ContextModesConfig = {
-  /**
-   * Per-port context modes, keyed by base-output port index. Present only when
-   * the node declares `outputContextModes`; a missing entry falls back to
-   * `"carry"`.
-   */
-  outputContextModes?: Record<number, ContextMode>;
-};
-
 const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /** Key holding the append-only lineage of prior input messages. Visible in
@@ -207,9 +181,7 @@ abstract class IONode<
     this.context = fn as any;
 
     // Validate any per-port return keys up front.
-    const outputReturnProperties = (
-      this.config as unknown as OutputReturnPropertiesConfig
-    ).outputReturnProperties;
+    const outputReturnProperties = this.config.outputReturnProperties;
     if (outputReturnProperties) {
       for (const [port, key] of Object.entries(outputReturnProperties)) {
         if (
@@ -364,8 +336,7 @@ abstract class IONode<
    */
   #validatePort(value: unknown, port: number) {
     const NodeClass = this.constructor as typeof IONode;
-    const configured = (this.config as unknown as ValidateOutputsConfig)
-      .validateOutputs?.[port];
+    const configured = this.config.validateOutputs?.[port];
     if (!(configured ?? NodeClass.validateOutput)) return;
 
     const schema = this.#outputSchemaForPort(port);
@@ -396,8 +367,7 @@ abstract class IONode<
    * never "x is the whole outgoing message".
    */
   #returnPropertyKey(port: number): string {
-    const configured = (this.config as unknown as OutputReturnPropertiesConfig)
-      .outputReturnProperties?.[port];
+    const configured = this.config.outputReturnProperties?.[port];
     if (typeof configured === "string" && configured.trim()) {
       return configured.trim();
     }
@@ -410,11 +380,7 @@ abstract class IONode<
    * when the node declares `outputContextModes`), falling back to `"carry"`.
    */
   #resolveContextMode(port: number): ContextMode {
-    return (
-      (this.config as unknown as ContextModesConfig).outputContextModes?.[
-        port
-      ] ?? "carry"
-    );
+    return this.config.outputContextModes?.[port] ?? "carry";
   }
 
   /**
