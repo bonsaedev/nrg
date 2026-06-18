@@ -6,17 +6,16 @@ import type { TNodeRef, TTypedInput } from "./types";
 import { isJSONType } from "ajv/dist/compile/rules";
 
 /** Creates a schema for a reference to a config node by ID. */
-function NodeRef<T extends new (...args: any[]) => any>(
+function NodeRef<T extends (new (...args: any[]) => any) & { type: string }>(
   nodeClass: T,
   options?: NrgSchemaOptions,
 ): TNodeRef<InstanceType<T>> {
   return {
     ...BaseType.String({
-      description:
-        options?.description || `Reference to ${(nodeClass as any).type}`,
+      description: options?.description || `Reference to ${nodeClass.type}`,
       format: "node-id",
     }),
-    "x-nrg-node-type": (nodeClass as any).type,
+    "x-nrg-node-type": nodeClass.type,
     ...options,
     [Kind]: "NodeRef",
   } as unknown as TNodeRef<InstanceType<T>>;
