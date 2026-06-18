@@ -34,7 +34,11 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
 type IONodeCredentials<TCredentials = any> = NodeCredentials<TCredentials>;
 
 type IONodeStatus =
-  | { fill?: "red" | "green"; shape?: "dot" | "string"; text?: string }
+  | {
+      fill?: "red" | "green" | "yellow" | "blue" | "grey" | "gray";
+      shape?: "ring" | "dot";
+      text?: string;
+    }
   | string;
 
 type IONodeContext = {
