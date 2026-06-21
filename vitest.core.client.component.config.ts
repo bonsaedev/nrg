@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
+import { workspaceAliases } from "./vitest.shared";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
 
@@ -10,13 +11,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@/core": path.resolve(__dirname, "packages/runtime/src"),
-      "@/vite": path.resolve(__dirname, "packages/toolkit/src/vite"),
-      "@/test": path.resolve(__dirname, "packages/toolkit/src/test"),
-      "@bonsae/nrg-runtime/internal/client": path.resolve(__dirname, "packages/runtime/src/internal-client.ts"),
-      "@bonsae/nrg-runtime/internal/components": path.resolve(__dirname, "packages/runtime/src/internal-components.ts"),
-      "@bonsae/nrg-runtime/internal": path.resolve(__dirname, "packages/runtime/src/internal.ts"),
-      "@bonsae/nrg-runtime/server": path.resolve(__dirname, "packages/runtime/src/server/index.ts"),
+      ...workspaceAliases(__dirname),
       "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
       "@bonsae/nrg/client": path.resolve(
         __dirname,
