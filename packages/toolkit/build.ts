@@ -78,6 +78,9 @@ async function buildTestUtils() {
   esbuildBundle("src/test/client/e2e/index.ts", {
     outdir: "dist/test/client/e2e",
   });
+  esbuildBundle("src/test/client/e2e/config.ts", {
+    outdir: "dist/test/client/e2e",
+  });
   console.log("✓ Built test utilities → dist/test/");
 }
 

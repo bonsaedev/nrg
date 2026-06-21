@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { workspaceAliases } from "./vitest.shared";
-import { defaultConfig } from "./packages/toolkit/src/test/client/e2e";
+import { defaultConfig } from "./packages/toolkit/src/test/client/e2e/config";
 
 export default defineConfig({
   resolve: {
@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   test: {
-    ...defaultConfig,
+    ...defaultConfig.test,
     include: ["tests/core/client/e2e/**/*.test.ts"],
     globalSetup: ["tests/core/client/e2e/global-setup.ts"],
   },
