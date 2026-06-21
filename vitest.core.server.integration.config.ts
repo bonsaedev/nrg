@@ -4,11 +4,17 @@ import path from "path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@/core": path.resolve(__dirname, "packages/runtime/src"),
+      "@/vite": path.resolve(__dirname, "packages/toolkit/src/vite"),
+      "@/test": path.resolve(__dirname, "packages/toolkit/src/test"),
+      "@bonsae/nrg-runtime/internal/client": path.resolve(__dirname, "packages/runtime/src/internal-client.ts"),
+      "@bonsae/nrg-runtime/internal/components": path.resolve(__dirname, "packages/runtime/src/internal-components.ts"),
+      "@bonsae/nrg-runtime/internal": path.resolve(__dirname, "packages/runtime/src/internal.ts"),
+      "@bonsae/nrg-runtime/server": path.resolve(__dirname, "packages/runtime/src/server/index.ts"),
       // the integration lib imports the package entry so it binds to the host's
       // nrg copy; in-repo, that's the source server barrel (same identity as the
       // test nodes, so registerType's instanceof check passes)
-      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
+      "@bonsae/nrg/server": path.resolve(__dirname, "packages/runtime/src/server/index.ts"),
     },
   },
   test: {
@@ -23,12 +29,12 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       // the integration tier owns the integration harness; core server code is
       // measured by the server unit tier
-      include: ["src/test/server/integration/**/*.ts"],
+      include: ["packages/toolkit/src/test/server/integration/**/*.ts"],
       exclude: [
-        "src/test/server/integration/config.ts",
-        "src/**/types/**",
-        "src/**/types.ts",
-        "src/**/*.d.ts",
+        "packages/toolkit/src/test/server/integration/config.ts",
+        "**/types/**",
+        "**/types.ts",
+        "**/*.d.ts",
       ],
     },
   },

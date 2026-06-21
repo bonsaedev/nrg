@@ -2,6 +2,17 @@ import fs from "fs";
 import path from "path";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
+const TOOLKIT_PKG = path.join(REPO_ROOT, "packages", "toolkit");
+const RUNTIME_PKG = path.join(REPO_ROOT, "packages", "runtime");
+
+/** Copy a built workspace package (package.json + dist) into node_modules. */
+function copyPackage(pkgDir: string, destDir: string): void {
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.cpSync(path.join(pkgDir, "package.json"), path.join(destDir, "package.json"));
+  fs.cpSync(path.join(pkgDir, "dist"), path.join(destDir, "dist"), {
+    recursive: true,
+  });
+}
 
 /**
  * Sets up the fixture's node_modules so @bonsae/nrg and @bonsae/nrg-runtime
@@ -21,20 +32,8 @@ export function setupFixtureNodeModules(fixtureDir: string): void {
     "nrg-runtime",
   );
 
-  // Copy dist/ contents as the package root — mirrors what npm publishes
-  if (!fs.existsSync(nrgDir)) {
-    fs.mkdirSync(path.dirname(nrgDir), { recursive: true });
-    fs.cpSync(path.join(REPO_ROOT, "dist"), nrgDir, { recursive: true });
-  }
-
-  // Copy dist-runtime/ as @bonsae/nrg-runtime — the runtime the built bundle
-  // depends on, present at the top level as npm would hoist it.
-  if (!fs.existsSync(runtimeDir)) {
-    fs.mkdirSync(path.dirname(runtimeDir), { recursive: true });
-    fs.cpSync(path.join(REPO_ROOT, "dist-runtime"), runtimeDir, {
-      recursive: true,
-    });
-  }
+  if (!fs.existsSync(nrgDir)) copyPackage(TOOLKIT_PKG, nrgDir);
+  if (!fs.existsSync(runtimeDir)) copyPackage(RUNTIME_PKG, runtimeDir);
 }
 
 /**

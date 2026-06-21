@@ -10,11 +10,17 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@/core": path.resolve(__dirname, "packages/runtime/src"),
+      "@/vite": path.resolve(__dirname, "packages/toolkit/src/vite"),
+      "@/test": path.resolve(__dirname, "packages/toolkit/src/test"),
+      "@bonsae/nrg-runtime/internal/client": path.resolve(__dirname, "packages/runtime/src/internal-client.ts"),
+      "@bonsae/nrg-runtime/internal/components": path.resolve(__dirname, "packages/runtime/src/internal-components.ts"),
+      "@bonsae/nrg-runtime/internal": path.resolve(__dirname, "packages/runtime/src/internal.ts"),
+      "@bonsae/nrg-runtime/server": path.resolve(__dirname, "packages/runtime/src/server/index.ts"),
       "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
       "@bonsae/nrg/client": path.resolve(
         __dirname,
-        "src/test/client/component",
+        "packages/toolkit/src/test/client/component",
       ),
     },
   },
@@ -46,14 +52,14 @@ export default defineConfig({
       // Everything the browser-mode tests exercise: the whole client plane
       // plus the shipped component-test utilities and mocks they validate.
       include: [
-        "src/core/client/**/*.{ts,vue}",
-        "src/core/constants.ts",
-        "src/test/client/mocks.ts",
-        "src/test/client/component/index.ts",
-        "src/test/client/component/jquery.ts",
-        "src/test/client/component/setup.ts",
+        "packages/runtime/src/client/**/*.{ts,vue}",
+        "packages/runtime/src/constants.ts",
+        "packages/toolkit/src/test/client/mocks.ts",
+        "packages/toolkit/src/test/client/component/index.ts",
+        "packages/toolkit/src/test/client/component/jquery.ts",
+        "packages/toolkit/src/test/client/component/setup.ts",
       ],
-      exclude: ["src/**/types.ts", "src/**/*.d.ts"],
+      exclude: ["**/types.ts", "**/*.d.ts"],
     },
   },
 });

@@ -1,2 +1,4 @@
-npm run validate
+# Fast checks on staged files only. The full typecheck/build/test run on
+# pre-push, where the runtime is built first (the toolkit typecheck resolves
+# @bonsae/nrg-runtime types from its built .d.ts, so it needs dist present).
 npx lint-staged

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
-import { build as buildServer } from "../../../src/vite/server/build";
-import { build as buildClient } from "../../../src/vite/client/build";
+import { build as buildServer } from "../../../packages/toolkit/src/vite/server/build";
+import { build as buildClient } from "../../../packages/toolkit/src/vite/client/build";
 import type {
   BuildContext,
   ServerBuildOptions,
   ClientBuildOptions,
-} from "../../../src/vite/types";
+} from "../../../packages/toolkit/src/vite/types";
 
 const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/custom-client");
 

@@ -1,8 +1,0 @@
-{
-  "extends": "../../../tsconfig.json",
-  "compilerOptions": {
-    "lib": ["ESNext"]
-  },
-  "include": ["**/*.ts", "../constants.ts", "../validator.ts"],
-  "exclude": ["node_modules"]
-}

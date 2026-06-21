@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
-import { build } from "../../../src/vite/server/build";
-import type { BuildContext, ServerBuildOptions } from "../../../src/vite/types";
+import { build } from "../../../packages/toolkit/src/vite/server/build";
+import type { BuildContext, ServerBuildOptions } from "../../../packages/toolkit/src/vite/types";
 
 const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/basic-node");
 

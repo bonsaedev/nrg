@@ -1,0 +1,181 @@
+import { execSync } from "child_process";
+import {
+  mkdirSync,
+  copyFileSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+  existsSync,
+  rmSync,
+} from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { build as viteBuild } from "vite";
+import vue from "@vitejs/plugin-vue";
+
+// Runs with cwd = packages/toolkit (pnpm --filter @bonsae/nrg build).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = __dirname;
+const WORKSPACE_ROOT = path.resolve(ROOT, "../..");
+const DIST = path.resolve(ROOT, "dist");
+const DTS_FLAGS =
+  "--no-check --project tsconfig.dts.json --export-referenced-types=false";
+
+function esbuild(
+  entry: string,
+  { outfile, outdir }: { outfile?: string; outdir?: string },
+) {
+  const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
+  execSync(
+    `esbuild ${entry} --bundle --packages=external --format=esm --platform=node ${out}`,
+    { stdio: "inherit" },
+  );
+}
+
+function clean() {
+  if (existsSync(DIST)) rmSync(DIST, { recursive: true });
+  console.log("✓ Cleaned dist/");
+}
+
+function buildRootEntry() {
+  esbuild("src/index.ts", { outfile: "dist/index.js" });
+  console.log("✓ Built root entry → dist/index.js");
+}
+
+function buildVitePlugin() {
+  esbuild("src/vite/index.ts", { outdir: "dist/vite" });
+  console.log("✓ Built vite plugin → dist/vite/");
+}
+
+async function buildTestUtils() {
+  esbuild("src/test/server/unit/index.ts", {
+    outdir: "dist/test/server/unit",
+  });
+  esbuild("src/test/server/unit/config.ts", {
+    outdir: "dist/test/server/unit",
+  });
+  esbuild("src/test/server/integration/index.ts", {
+    outdir: "dist/test/server/integration",
+  });
+  esbuild("src/test/server/integration/config.ts", {
+    outdir: "dist/test/server/integration",
+  });
+  // index.ts/setup.ts pull in Vue-touching modules — use vite with the vue
+  // plugin. All bare imports are external (consumers resolve them).
+  await viteBuild({
+    configFile: false,
+    logLevel: "warn",
+    plugins: [vue()],
+    build: {
+      outDir: path.join(DIST, "test/client/component"),
+      emptyOutDir: false,
+      lib: {
+        entry: {
+          index: path.resolve(ROOT, "src/test/client/component/index.ts"),
+          setup: path.resolve(ROOT, "src/test/client/component/setup.ts"),
+        },
+        formats: ["es"],
+      },
+      rollupOptions: {
+        external: (id) => !id.startsWith(".") && !path.isAbsolute(id),
+      },
+    },
+  });
+  esbuild("src/test/client/component/config.ts", {
+    outdir: "dist/test/client/component",
+  });
+  esbuild("src/test/client/unit/index.ts", { outdir: "dist/test/client/unit" });
+  esbuild("src/test/client/unit/config.ts", {
+    outdir: "dist/test/client/unit",
+  });
+  esbuild("src/test/client/unit/setup.ts", { outdir: "dist/test/client/unit" });
+  esbuild("src/test/client/e2e/index.ts", { outdir: "dist/test/client/e2e" });
+  console.log("✓ Built test utilities → dist/test/");
+}
+
+function writeReExports() {
+  // ./server and ./client re-export the runtime — single source of truth.
+  mkdirSync(path.join(DIST, "server"), { recursive: true });
+  writeFileSync(
+    path.join(DIST, "server/index.cjs"),
+    `'use strict';\nmodule.exports = require("@bonsae/nrg-runtime/server");\n`,
+  );
+  mkdirSync(path.join(DIST, "types"), { recursive: true });
+  writeFileSync(
+    path.join(DIST, "types/server.d.ts"),
+    `export * from "@bonsae/nrg-runtime/server";\n`,
+  );
+  writeFileSync(
+    path.join(DIST, "types/client.d.ts"),
+    `export * from "@bonsae/nrg-runtime/client";\n`,
+  );
+  console.log("✓ Wrote server/client re-exports → dist/");
+}
+
+function generateTypes() {
+  execSync(
+    `npx dts-bundle-generator -o dist/types/index.d.ts src/index.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+
+  execSync(
+    `npx dts-bundle-generator -o dist/types/vite.d.ts src/vite/types.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  appendFileSync(
+    "dist/types/vite.d.ts",
+    `
+import type { Plugin } from "vite";
+export declare function nrg(options?: NrgPluginOptions): Plugin[];
+`,
+  );
+
+  execSync(
+    `npx dts-bundle-generator -o dist/types/test-server-unit.d.ts src/test/server/unit/index.ts ${DTS_FLAGS} --external-types vitest`,
+    { stdio: "inherit" },
+  );
+  execSync(
+    `npx dts-bundle-generator -o dist/types/test-server-integration.d.ts src/test/server/integration/index.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  execSync(
+    `npx dts-bundle-generator -o dist/types/test-client-component.d.ts src/test/client/component/types.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  execSync(
+    `npx dts-bundle-generator -o dist/types/test-client-unit.d.ts src/test/client/unit/index.ts ${DTS_FLAGS} --external-types vitest`,
+    { stdio: "inherit" },
+  );
+  execSync(
+    `npx dts-bundle-generator -o dist/types/test-client-e2e.d.ts src/test/client/e2e/index.ts ${DTS_FLAGS} --external-imports playwright --external-imports playwright-core`,
+    { stdio: "inherit" },
+  );
+
+  console.log("✓ Generated type declarations → dist/types/");
+}
+
+function copyAssets() {
+  mkdirSync("dist/tsconfig", { recursive: true });
+  cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
+  cpSync("src/schemas", "dist/schemas", { recursive: true });
+
+  for (const f of ["README.md", "LICENSE"]) {
+    const src = path.join(WORKSPACE_ROOT, f);
+    if (existsSync(src)) copyFileSync(src, path.join(ROOT, f));
+  }
+  console.log("✓ Copied tsconfigs, schemas, README, and LICENSE");
+}
+
+async function main() {
+  clean();
+  buildRootEntry();
+  buildVitePlugin();
+  await buildTestUtils();
+  writeReExports();
+  generateTypes();
+  copyAssets();
+  console.log("✓ @bonsae/nrg (toolkit) built");
+}
+
+main();

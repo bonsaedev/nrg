@@ -1,11 +1,19 @@
 {
-  "extends": "../../../../tsconfig.json",
+  "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ESNext", "DOM"]
+    "lib": ["ESNext", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "@/core/*": ["../../../../packages/runtime/src/*"],
+      "@/test/*": ["../../../../packages/toolkit/src/test/*"],
+      "@bonsae/nrg/server": [
+        "../../../../packages/runtime/src/server/index.ts"
+      ]
+    }
   },
   "include": [
     "**/*.ts",
-    "../../../../src/test/client/e2e/**/*.ts"
+    "../../../../packages/toolkit/src/test/client/e2e/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

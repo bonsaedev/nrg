@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
+  "files": [
+    "src/client/shims-vue.d.ts",
+    "src/client/components.d.ts",
+    "src/client/globals.d.ts"
+  ],
+  "include": [
+    "src/client/**/*.ts",
+    "src/client/**/*.vue",
+    "src/internal-client.ts",
+    "src/internal-components.ts",
+    "src/constants.ts",
+    "src/validator.ts",
+    "src/brands.ts",
+    "src/schema-options.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

@@ -30,6 +30,9 @@ jobs:
         env:
           HUSKY: 0
 
+      - name: Build
+        run: pnpm build
+
       - name: Type Check
         run: pnpm validate:tsc
 
@@ -57,20 +60,17 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Build
-        run: pnpm build
-
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v6
         with:
           name: dist
-          path: dist/
+          path: packages/toolkit/dist
 
       - name: Upload Runtime Build Artifact
         uses: actions/upload-artifact@v6
         with:
           name: dist-runtime
-          path: dist-runtime/
+          path: packages/runtime/dist
 
   vite-e2e:
     name: Vite E2E Tests (Node ${{ matrix.node-version }})
@@ -105,13 +105,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: packages/toolkit/dist
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: dist-runtime/
+          path: packages/runtime/dist
 
       - name: Vite E2E Tests
         run: pnpm vitest run --config vitest.vite.e2e.config.ts --coverage
@@ -193,13 +193,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: packages/toolkit/dist
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: dist-runtime/
+          path: packages/runtime/dist
 
       - name: Client E2E Tests
         run: pnpm vitest run --config vitest.core.client.e2e.config.ts
@@ -248,13 +248,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: packages/toolkit/dist
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: dist-runtime/
+          path: packages/runtime/dist
 
       - name: Vite Integration Tests
         run: pnpm tsx tests/vite/integration/vite-integration.ts --timeout=300000

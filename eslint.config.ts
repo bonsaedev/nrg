@@ -6,7 +6,7 @@ import typescriptEslint from "typescript-eslint";
 
 export default typescriptEslint.config(
   {
-    ignores: ["**/*.d.ts", "**/build", "**/node_modules"],
+    ignores: ["**/*.d.ts", "**/dist", "**/build.ts", "**/node_modules"],
   },
   {
     extends: [
@@ -14,7 +14,7 @@ export default typescriptEslint.config(
       ...typescriptEslint.configs.recommended,
       ...eslintPluginVue.configs["flat/recommended"],
     ],
-    files: ["src/**/*.{ts,vue}"],
+    files: ["packages/*/src/**/*.{ts,vue}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

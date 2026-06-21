@@ -9,3 +9,7 @@ tests/fixtures/*/dist*/
 *.log
 .DS_Store
 .claude/
+
+# packed tarballs
+*.tgz
+.dts-tmp/

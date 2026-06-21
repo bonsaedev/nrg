@@ -1,9 +1,0 @@
-{
-  "extends": "../../../tsconfig.json",
-  "compilerOptions": {
-    "lib": ["ESNext", "DOM", "DOM.Iterable"]
-  },
-  "files": ["shims-vue.d.ts", "components.d.ts", "globals.d.ts"],
-  "include": ["**/*.ts", "**/*.vue", "../constants.ts", "../validator.ts"],
-  "exclude": ["node_modules"]
-}

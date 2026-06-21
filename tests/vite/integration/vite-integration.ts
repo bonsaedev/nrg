@@ -7,8 +7,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const DIST_DIR = path.join(REPO_ROOT, "dist");
-const DIST_RUNTIME_DIR = path.join(REPO_ROOT, "dist-runtime");
+const DIST_DIR = path.join(REPO_ROOT, "packages", "toolkit");
+const DIST_RUNTIME_DIR = path.join(REPO_ROOT, "packages", "runtime");
 const IS_WINDOWS = process.platform === "win32";
 
 const timeoutArg = process.argv.find((a) => a.startsWith("--timeout="));
@@ -255,35 +255,37 @@ async function main(): Promise<void> {
   log("=== NRG Vite Integration Tests ===");
   log(`Platform: ${process.platform}, Timeout: ${TIMEOUT}ms`);
 
-  if (!fs.existsSync(path.join(DIST_DIR, "package.json"))) {
-    console.error("ERROR: dist/package.json not found. Run the build first.");
+  if (!fs.existsSync(path.join(DIST_DIR, "dist"))) {
+    console.error("ERROR: packages/toolkit/dist not found. Build first.");
     process.exit(1);
   }
-  if (!fs.existsSync(path.join(DIST_RUNTIME_DIR, "package.json"))) {
-    console.error(
-      "ERROR: dist-runtime/package.json not found. Run the build first.",
-    );
+  if (!fs.existsSync(path.join(DIST_RUNTIME_DIR, "dist"))) {
+    console.error("ERROR: packages/runtime/dist not found. Build first.");
     process.exit(1);
   }
 
-  log("Packing dist/ into tarball...");
-  const packOutput = execSync("npm pack --pack-destination .", {
+  // pnpm pack (not npm pack) so the toolkit's `@bonsae/nrg-runtime: workspace:*`
+  // is rewritten to a concrete version in the packed tarball.
+  log("Packing the toolkit (@bonsae/nrg) into a tarball...");
+  const packOutput = execSync("pnpm pack --pack-destination .", {
     cwd: DIST_DIR,
     encoding: "utf-8",
   }).trim();
-  const tarballName = packOutput.split("\n").pop()!.trim();
+  const tarballName = path.basename(packOutput.split("\n").pop()!.trim());
   const tarballPath = path.join(DIST_DIR, tarballName);
   log(`Packed: ${tarballName}`);
 
   // The built node depends on @bonsae/nrg-runtime, which is not on the registry
   // in CI (unpublished, or version not yet bumped). Pack it too and install it
   // alongside the toolkit so the runtime dependency resolves from the tarball.
-  log("Packing dist-runtime/ into tarball...");
-  const runtimePackOutput = execSync("npm pack --pack-destination .", {
+  log("Packing the runtime (@bonsae/nrg-runtime) into a tarball...");
+  const runtimePackOutput = execSync("pnpm pack --pack-destination .", {
     cwd: DIST_RUNTIME_DIR,
     encoding: "utf-8",
   }).trim();
-  const runtimeTarballName = runtimePackOutput.split("\n").pop()!.trim();
+  const runtimeTarballName = path.basename(
+    runtimePackOutput.split("\n").pop()!.trim(),
+  );
   const runtimeTarballPath = path.join(DIST_RUNTIME_DIR, runtimeTarballName);
   log(`Packed: ${runtimeTarballName}`);
 

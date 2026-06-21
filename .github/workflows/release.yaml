@@ -41,6 +41,9 @@ jobs:
         env:
           HUSKY: 0
 
+      - name: Build
+        run: pnpm build
+
       - name: Type Check
         run: pnpm validate:tsc
 
@@ -61,9 +64,6 @@ jobs:
 
       - name: Vite Unit Tests
         run: pnpm vitest run --config vitest.vite.unit.config.ts
-
-      - name: Build
-        run: pnpm build
 
       - name: Client Component Tests
         run: pnpm vitest run --config vitest.core.client.component.config.ts

@@ -7,65 +7,10 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@clack/prompts':
         specifier: ^1.0.1
         version: 1.2.0
-      '@sinclair/typebox':
-        specifier: ^0.34.33
-        version: 0.34.49
-      '@vitejs/plugin-vue':
-        specifier: ^5.2.3
-        version: 5.2.4(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))
-      ajv:
-        specifier: ^8.17.1
-        version: 8.18.0
-      ajv-errors:
-        specifier: ^3.0.0
-        version: 3.0.0(ajv@8.18.0)
-      ajv-formats:
-        specifier: ^3.0.1
-        version: 3.0.1(ajv@8.18.0)
-      chokidar:
-        specifier: ^5.0.0
-        version: 5.0.0
-      detect-port:
-        specifier: ^2.1.0
-        version: 2.1.0
-      es-toolkit:
-        specifier: ^1.37.2
-        version: 1.45.1
-      esbuild:
-        specifier: ^0.25.4
-        version: 0.25.12
-      get-port:
-        specifier: ^7.1.0
-        version: 7.2.0
-      happy-dom:
-        specifier: ^20.10.2
-        version: 20.10.2
-      jsonpointer:
-        specifier: ^5.0.1
-        version: 5.0.1
-      mime-types:
-        specifier: ^3.0.1
-        version: 3.0.2
-      tree-kill:
-        specifier: ^1.2.2
-        version: 1.2.2
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
-      vite-plugin-static-copy:
-        specifier: ^3.1.0
-        version: 3.4.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
-      vue:
-        specifier: ^3.5.14
-        version: 3.5.32(typescript@5.9.3)
-    devDependencies:
       '@commitlint/cli':
         specifier: ^20.5.0
         version: 20.5.0(@types/node@22.19.17)(conventional-commits-filter@5.0.0)(conventional-commits-parser@6.4.0)(typescript@5.9.3)
@@ -84,6 +29,9 @@ importers:
       '@semantic-release/git':
         specifier: ^10.0.1
         version: 10.0.1(semantic-release@24.2.9(typescript@5.9.3))
+      '@sinclair/typebox':
+        specifier: ^0.34.33
+        version: 0.34.49
       '@types/express':
         specifier: ^5.0.1
         version: 5.0.6
@@ -102,6 +50,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.32.1
         version: 8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      '@vitejs/plugin-vue':
+        specifier: ^5.2.3
+        version: 5.2.4(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))
       '@vitest/browser-playwright':
         specifier: ^4.1.5
         version: 4.1.5(playwright@1.60.0)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vitest@4.1.5)
@@ -111,9 +62,30 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.5
         version: 4.1.5(@vitest/browser@4.1.5)(vitest@4.1.5)
+      ajv:
+        specifier: ^8.17.1
+        version: 8.18.0
+      ajv-errors:
+        specifier: ^3.0.0
+        version: 3.0.0(ajv@8.18.0)
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.18.0)
+      chokidar:
+        specifier: ^5.0.0
+        version: 5.0.0
+      detect-port:
+        specifier: ^2.1.0
+        version: 2.1.0
       dts-bundle-generator:
         specifier: ^9.5.1
         version: 9.5.1
+      es-toolkit:
+        specifier: ^1.37.2
+        version: 1.45.1
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.12
       eslint:
         specifier: ^9.27.0
         version: 9.39.4(jiti@2.6.1)
@@ -123,15 +95,27 @@ importers:
       eslint-plugin-vue:
         specifier: ^10.1.0
         version: 10.9.0(@typescript-eslint/parser@8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(vue-eslint-parser@10.4.0(eslint@9.39.4(jiti@2.6.1)))
+      get-port:
+        specifier: ^7.1.0
+        version: 7.2.0
       globals:
         specifier: ^16.1.0
         version: 16.5.0
+      happy-dom:
+        specifier: ^20.10.2
+        version: 20.10.2
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      jsonpointer:
+        specifier: ^5.0.1
+        version: 5.0.1
       lint-staged:
         specifier: ^16.4.0
         version: 16.4.0
+      mime-types:
+        specifier: ^3.0.1
+        version: 3.0.2
       node-red:
         specifier: 5.0.0
         version: 5.0.0(typescript@5.9.3)
@@ -144,21 +128,36 @@ importers:
       semantic-release:
         specifier: ^24.2.4
         version: 24.2.9(typescript@5.9.3)
+      tree-kill:
+        specifier: ^1.2.2
+        version: 1.2.2
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
       typescript-eslint:
         specifier: ^8.32.1
         version: 8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^6.3.4
         version: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
+      vite-plugin-static-copy:
+        specifier: ^3.1.0
+        version: 3.4.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.5
         version: 4.1.5(@types/node@22.19.17)(@vitest/browser-playwright@4.1.5)(@vitest/coverage-istanbul@4.1.8)(@vitest/coverage-v8@4.1.5)(happy-dom@20.10.2)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
       vitest-browser-vue:
         specifier: ^2.1.0
         version: 2.1.0(@vue/compiler-dom@3.5.32)(@vue/server-renderer@3.5.32(vue@3.5.32(typescript@5.9.3)))(vitest@4.1.5)(vue@3.5.32(typescript@5.9.3))
+      vue:
+        specifier: ^3.5.14
+        version: 3.5.32(typescript@5.9.3)
       vue-tsc:
         specifier: ^3.2.8
         version: 3.2.8(typescript@5.9.3)
@@ -166,8 +165,29 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
-  packages/nrg:
+  packages/runtime:
     dependencies:
+      '@sinclair/typebox':
+        specifier: ^0.34.33
+        version: 0.34.49
+      ajv:
+        specifier: ^8.17.1
+        version: 8.18.0
+      ajv-errors:
+        specifier: ^3.0.0
+        version: 3.0.0(ajv@8.18.0)
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.18.0)
+      vue:
+        specifier: ^3.5.14
+        version: 3.5.32(typescript@5.9.3)
+
+  packages/toolkit:
+    dependencies:
+      '@bonsae/nrg-runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@clack/prompts':
         specifier: ^1.0.1
         version: 1.2.0
@@ -176,7 +196,16 @@ importers:
         version: 0.34.49
       '@vitejs/plugin-vue':
         specifier: ^5.2.3
-        version: 5.2.4(vite@6.4.2(@types/node@22.19.17))(vue@3.5.32(typescript@5.9.3))
+        version: 5.2.4(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))
+      '@vitest/browser-playwright':
+        specifier: ^4.0.0
+        version: 4.1.5(playwright@1.60.0)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vitest@4.1.5)
+      '@vitest/coverage-istanbul':
+        specifier: ^4.0.0
+        version: 4.1.8(vitest@4.1.5)
+      '@vitest/coverage-v8':
+        specifier: ^4.0.0
+        version: 4.1.5(@vitest/browser@4.1.5)(vitest@4.1.5)
       ajv:
         specifier: ^8.17.1
         version: 8.18.0
@@ -207,31 +236,27 @@ importers:
       mime-types:
         specifier: ^3.0.1
         version: 3.0.2
+      playwright:
+        specifier: ^1.50.0
+        version: 1.60.0
       tree-kill:
         specifier: ^1.2.2
         version: 1.2.2
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
       vite-plugin-dts:
         specifier: ^4.5.4
-        version: 4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17))
-      vite-plugin-static-copy:
-        specifier: ^3.1.0
-        version: 3.4.0(vite@6.4.2(@types/node@22.19.17))
-    devDependencies:
-      '@types/express':
-        specifier: ^5.0.1
-        version: 5.0.6
-      '@types/mime-types':
-        specifier: ^2.1.4
-        version: 2.1.4
-      '@types/node':
-        specifier: ^22.15.18
-        version: 22.19.17
-      vite:
-        specifier: ^6.3.4
-        version: 6.4.2(@types/node@22.19.17)
+        version: 4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
+      vitest:
+        specifier: ^4.0.0
+        version: 4.1.5(@types/node@22.19.17)(@vitest/browser-playwright@4.1.5)(@vitest/coverage-istanbul@4.1.8)(@vitest/coverage-v8@4.1.5)(happy-dom@20.10.2)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
+      vitest-browser-vue:
+        specifier: ^2.0.0
+        version: 2.1.0(@vue/compiler-dom@3.5.32)(@vue/server-renderer@3.5.32(vue@3.5.32(typescript@5.9.3)))(vitest@4.1.5)(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: ^3.5.14
         version: 3.5.32(typescript@5.9.3)
@@ -5765,11 +5790,6 @@ snapshots:
       vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
       vue: 3.5.32(typescript@5.9.3)
 
-  '@vitejs/plugin-vue@5.2.4(vite@6.4.2(@types/node@22.19.17))(vue@3.5.32(typescript@5.9.3))':
-    dependencies:
-      vite: 6.4.2(@types/node@22.19.17)
-      vue: 3.5.32(typescript@5.9.3)
-
   '@vitest/browser-playwright@4.1.5(playwright@1.60.0)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vitest@4.1.5)':
     dependencies:
       '@vitest/browser': 4.1.5(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))(vitest@4.1.5)
@@ -5887,7 +5907,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.32':
     dependencies:
-      '@babel/parser': 7.29.2
+      '@babel/parser': 7.29.7
       '@vue/shared': 3.5.32
       entities: 7.0.1
       estree-walker: 2.0.2
@@ -5900,7 +5920,7 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.32':
     dependencies:
-      '@babel/parser': 7.29.2
+      '@babel/parser': 7.29.7
       '@vue/compiler-core': 3.5.32
       '@vue/compiler-dom': 3.5.32
       '@vue/compiler-ssr': 3.5.32
@@ -8647,25 +8667,6 @@ snapshots:
       - rollup
       - supports-color
 
-  vite-plugin-dts@4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)):
-    dependencies:
-      '@microsoft/api-extractor': 7.58.7(@types/node@22.19.17)
-      '@rollup/pluginutils': 5.3.0(rollup@4.60.2)
-      '@volar/typescript': 2.4.28
-      '@vue/language-core': 2.2.0(typescript@5.9.3)
-      compare-versions: 6.1.1
-      debug: 4.4.3
-      kolorist: 1.8.0
-      local-pkg: 1.1.2
-      magic-string: 0.30.21
-      typescript: 5.9.3
-    optionalDependencies:
-      vite: 6.4.2(@types/node@22.19.17)
-    transitivePeerDependencies:
-      - '@types/node'
-      - rollup
-      - supports-color
-
   vite-plugin-static-copy@3.4.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)):
     dependencies:
       chokidar: 3.6.0
@@ -8673,26 +8674,6 @@ snapshots:
       picocolors: 1.1.1
       tinyglobby: 0.2.16
       vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
-
-  vite-plugin-static-copy@3.4.0(vite@6.4.2(@types/node@22.19.17)):
-    dependencies:
-      chokidar: 3.6.0
-      p-map: 7.0.4
-      picocolors: 1.1.1
-      tinyglobby: 0.2.16
-      vite: 6.4.2(@types/node@22.19.17)
-
-  vite@6.4.2(@types/node@22.19.17):
-    dependencies:
-      esbuild: 0.25.12
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
-      postcss: 8.5.10
-      rollup: 4.60.2
-      tinyglobby: 0.2.16
-    optionalDependencies:
-      '@types/node': 22.19.17
-      fsevents: 2.3.3
 
   vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3):
     dependencies:
