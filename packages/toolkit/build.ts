@@ -3,62 +3,43 @@ import {
   mkdirSync,
   copyFileSync,
   cpSync,
-  readFileSync,
   writeFileSync,
   appendFileSync,
   existsSync,
-  rmSync,
 } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { DTS_FLAGS, esbuildBundle, clean } from "../../scripts/build-lib";
 
 // Runs with cwd = packages/toolkit (pnpm --filter @bonsae/nrg build).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
 const WORKSPACE_ROOT = path.resolve(ROOT, "../..");
 const DIST = path.resolve(ROOT, "dist");
-const DTS_FLAGS =
-  "--no-check --project tsconfig.dts.json --export-referenced-types=false";
-
-function esbuild(
-  entry: string,
-  { outfile, outdir }: { outfile?: string; outdir?: string },
-) {
-  const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
-  execSync(
-    `esbuild ${entry} --bundle --packages=external --format=esm --platform=node ${out}`,
-    { stdio: "inherit" },
-  );
-}
-
-function clean() {
-  if (existsSync(DIST)) rmSync(DIST, { recursive: true });
-  console.log("✓ Cleaned dist/");
-}
 
 function buildRootEntry() {
-  esbuild("src/index.ts", { outfile: "dist/index.js" });
+  esbuildBundle("src/index.ts", { outfile: "dist/index.js" });
   console.log("✓ Built root entry → dist/index.js");
 }
 
 function buildVitePlugin() {
-  esbuild("src/vite/index.ts", { outdir: "dist/vite" });
+  esbuildBundle("src/vite/index.ts", { outdir: "dist/vite" });
   console.log("✓ Built vite plugin → dist/vite/");
 }
 
 async function buildTestUtils() {
-  esbuild("src/test/server/unit/index.ts", {
+  esbuildBundle("src/test/server/unit/index.ts", {
     outdir: "dist/test/server/unit",
   });
-  esbuild("src/test/server/unit/config.ts", {
+  esbuildBundle("src/test/server/unit/config.ts", {
     outdir: "dist/test/server/unit",
   });
-  esbuild("src/test/server/integration/index.ts", {
+  esbuildBundle("src/test/server/integration/index.ts", {
     outdir: "dist/test/server/integration",
   });
-  esbuild("src/test/server/integration/config.ts", {
+  esbuildBundle("src/test/server/integration/config.ts", {
     outdir: "dist/test/server/integration",
   });
   // index.ts/setup.ts pull in Vue-touching modules — use vite with the vue
@@ -82,15 +63,21 @@ async function buildTestUtils() {
       },
     },
   });
-  esbuild("src/test/client/component/config.ts", {
+  esbuildBundle("src/test/client/component/config.ts", {
     outdir: "dist/test/client/component",
   });
-  esbuild("src/test/client/unit/index.ts", { outdir: "dist/test/client/unit" });
-  esbuild("src/test/client/unit/config.ts", {
+  esbuildBundle("src/test/client/unit/index.ts", {
     outdir: "dist/test/client/unit",
   });
-  esbuild("src/test/client/unit/setup.ts", { outdir: "dist/test/client/unit" });
-  esbuild("src/test/client/e2e/index.ts", { outdir: "dist/test/client/e2e" });
+  esbuildBundle("src/test/client/unit/config.ts", {
+    outdir: "dist/test/client/unit",
+  });
+  esbuildBundle("src/test/client/unit/setup.ts", {
+    outdir: "dist/test/client/unit",
+  });
+  esbuildBundle("src/test/client/e2e/index.ts", {
+    outdir: "dist/test/client/e2e",
+  });
   console.log("✓ Built test utilities → dist/test/");
 }
 
@@ -168,7 +155,7 @@ function copyAssets() {
 }
 
 async function main() {
-  clean();
+  clean(DIST);
   buildRootEntry();
   buildVitePlugin();
   await buildTestUtils();

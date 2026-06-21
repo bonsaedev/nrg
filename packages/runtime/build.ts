@@ -6,22 +6,24 @@ import {
   readdirSync,
   writeFileSync,
   appendFileSync,
-  unlinkSync,
   existsSync,
-  rmSync,
 } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
+import {
+  DTS_FLAGS,
+  esbuildBundle,
+  clean,
+  inlineCss,
+} from "../../scripts/build-lib";
 
 // Runs with cwd = packages/runtime (pnpm --filter @bonsae/nrg-runtime build).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
 const WORKSPACE_ROOT = path.resolve(ROOT, "../..");
 const DIST = path.resolve(ROOT, "dist");
-const DTS_FLAGS =
-  "--no-check --project tsconfig.dts.json --export-referenced-types=false";
 
 const COMPONENTS = [
   "NodeRedInput",
@@ -34,28 +36,8 @@ const COMPONENTS = [
   "NodeRedJsonSchemaForm",
 ];
 
-function esbuild(
-  entry: string,
-  {
-    format,
-    outfile,
-    outdir,
-  }: { format: string; outfile?: string; outdir?: string },
-) {
-  const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
-  execSync(
-    `esbuild ${entry} --bundle --packages=external --format=${format} --platform=node ${out}`,
-    { stdio: "inherit" },
-  );
-}
-
-function clean() {
-  if (existsSync(DIST)) rmSync(DIST, { recursive: true });
-  console.log("✓ Cleaned dist/");
-}
-
 function buildServer() {
-  esbuild("src/server/index.ts", {
+  esbuildBundle("src/server/index.ts", {
     format: "cjs",
     outfile: "dist/server/index.cjs",
   });
@@ -63,7 +45,7 @@ function buildServer() {
 }
 
 function buildInternal() {
-  esbuild("src/internal.ts", {
+  esbuildBundle("src/internal.ts", {
     format: "cjs",
     outfile: "dist/internal/index.cjs",
   });
@@ -96,16 +78,7 @@ async function buildClientAsset() {
     },
   });
   // Inline extracted CSS into nrg-client.js so styles load with the script.
-  const resDir = path.join(DIST, "server/resources");
-  const cssFile = readdirSync(resDir).find((f) => f.endsWith(".css"));
-  if (cssFile) {
-    const css = readFileSync(path.join(resDir, cssFile), "utf-8");
-    const jsPath = path.join(resDir, "nrg-client.js");
-    const js = readFileSync(jsPath, "utf-8");
-    const inject = `(function(){var s=document.createElement("style");s.textContent=${JSON.stringify(css)};document.head.appendChild(s);})();\n`;
-    writeFileSync(jsPath, inject + js);
-    unlinkSync(path.join(resDir, cssFile));
-  }
+  inlineCss(path.join(DIST, "server/resources"), "nrg-client.js");
   console.log("✓ Built client asset → dist/server/resources/nrg-client.js");
 }
 
@@ -131,19 +104,10 @@ async function buildInternalComponents() {
   });
   // Inline the components' extracted CSS into components.mjs so the test harness
   // mounts them styled (and nothing stray is shipped).
-  const internalDir = path.join(DIST, "internal");
-  const cssFile = readdirSync(internalDir).find((f) => f.endsWith(".css"));
-  if (cssFile) {
-    const css = readFileSync(path.join(internalDir, cssFile), "utf-8");
-    const jsPath = path.join(internalDir, "components.mjs");
-    const js = readFileSync(jsPath, "utf-8");
-    const inject = `(function(){if(typeof document!=="undefined"){var s=document.createElement("style");s.textContent=${JSON.stringify(css)};document.head.appendChild(s);}})();\n`;
-    writeFileSync(jsPath, inject + js);
-    unlinkSync(path.join(internalDir, cssFile));
-  }
+  inlineCss(path.join(DIST, "internal"), "components.mjs", { guard: true });
   // Client validation helpers + useFormNode (no .vue), vue external. Named .mjs
   // so Node treats it as ESM in this type:commonjs package.
-  esbuild("src/internal-client.ts", {
+  esbuildBundle("src/internal-client.ts", {
     format: "esm",
     outfile: "dist/internal/client.mjs",
   });
@@ -289,7 +253,7 @@ function copyShims() {
 }
 
 async function main() {
-  clean();
+  clean(DIST);
   buildServer();
   buildInternal();
   await buildClientAsset();
