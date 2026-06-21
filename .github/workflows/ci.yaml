@@ -66,6 +66,12 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Upload Runtime Build Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: dist-runtime
+          path: dist-runtime/
+
   vite-e2e:
     name: Vite E2E Tests (Node ${{ matrix.node-version }})
     needs: build
@@ -100,6 +106,12 @@ jobs:
         with:
           name: dist
           path: dist/
+
+      - name: Download Runtime Build Artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-runtime
+          path: dist-runtime/
 
       - name: Vite E2E Tests
         run: pnpm vitest run --config vitest.vite.e2e.config.ts --coverage
@@ -183,6 +195,12 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Download Runtime Build Artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-runtime
+          path: dist-runtime/
+
       - name: Client E2E Tests
         run: pnpm vitest run --config vitest.core.client.e2e.config.ts
 
@@ -231,6 +249,12 @@ jobs:
         with:
           name: dist
           path: dist/
+
+      - name: Download Runtime Build Artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-runtime
+          path: dist-runtime/
 
       - name: Vite Integration Tests
         run: pnpm tsx tests/vite/integration/vite-integration.ts --timeout=300000

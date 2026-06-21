@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const DIST_DIR = path.join(REPO_ROOT, "dist");
+const DIST_RUNTIME_DIR = path.join(REPO_ROOT, "dist-runtime");
 const IS_WINDOWS = process.platform === "win32";
 
 const timeoutArg = process.argv.find((a) => a.startsWith("--timeout="));
@@ -147,6 +148,26 @@ async function testBuild(tmpDir: string, viteEntry: string): Promise<void> {
     "dist/package.json missing node-red.nodes manifest",
   );
 
+  // The split: a built node must depend on the runtime, never the toolkit.
+  assert(
+    pkg.dependencies?.["@bonsae/nrg-runtime"] !== undefined,
+    "dist/package.json must declare @bonsae/nrg-runtime",
+  );
+  assert(
+    pkg.dependencies?.["@bonsae/nrg"] === undefined,
+    "dist/package.json must not declare the @bonsae/nrg toolkit",
+  );
+
+  // For an ESM build, index.js is the CJS bridge and index.mjs is the real
+  // bundle that imports the runtime; for a CJS build, index.js is the bundle.
+  const esmBundle = path.join(buildOutDir, "index.mjs");
+  const realServerBundle = fs.existsSync(esmBundle) ? esmBundle : serverBundle;
+  const serverBundleSrc = fs.readFileSync(realServerBundle, "utf-8");
+  assert(
+    serverBundleSrc.includes("@bonsae/nrg-runtime/server"),
+    "server bundle must import @bonsae/nrg-runtime/server",
+  );
+
   const indexHtml = path.join(buildOutDir, "index.html");
   assert(fs.existsSync(indexHtml), "dist/index.html (client entry) not found");
 
@@ -238,6 +259,12 @@ async function main(): Promise<void> {
     console.error("ERROR: dist/package.json not found. Run the build first.");
     process.exit(1);
   }
+  if (!fs.existsSync(path.join(DIST_RUNTIME_DIR, "package.json"))) {
+    console.error(
+      "ERROR: dist-runtime/package.json not found. Run the build first.",
+    );
+    process.exit(1);
+  }
 
   log("Packing dist/ into tarball...");
   const packOutput = execSync("npm pack --pack-destination .", {
@@ -247,6 +274,18 @@ async function main(): Promise<void> {
   const tarballName = packOutput.split("\n").pop()!.trim();
   const tarballPath = path.join(DIST_DIR, tarballName);
   log(`Packed: ${tarballName}`);
+
+  // The built node depends on @bonsae/nrg-runtime, which is not on the registry
+  // in CI (unpublished, or version not yet bumped). Pack it too and install it
+  // alongside the toolkit so the runtime dependency resolves from the tarball.
+  log("Packing dist-runtime/ into tarball...");
+  const runtimePackOutput = execSync("npm pack --pack-destination .", {
+    cwd: DIST_RUNTIME_DIR,
+    encoding: "utf-8",
+  }).trim();
+  const runtimeTarballName = runtimePackOutput.split("\n").pop()!.trim();
+  const runtimeTarballPath = path.join(DIST_RUNTIME_DIR, runtimeTarballName);
+  log(`Packed: ${runtimeTarballName}`);
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nrg-integration-"));
   log(`Project dir: ${tmpDir}`);
@@ -259,8 +298,11 @@ async function main(): Promise<void> {
 
     log("Installing dependencies...");
     const tarballForInstall = tarballPath.split(path.sep).join("/");
+    const runtimeTarballForInstall = runtimeTarballPath
+      .split(path.sep)
+      .join("/");
     execSync(
-      `npm install --no-audit --no-fund "${tarballForInstall}" vite@^6.0.0 node-red@latest`,
+      `npm install --no-audit --no-fund "${tarballForInstall}" "${runtimeTarballForInstall}" vite@^6.0.0 node-red@latest`,
       { cwd: tmpDir, stdio: "inherit", timeout: 360_000 },
     );
     log("Dependencies installed.");
@@ -304,6 +346,11 @@ async function main(): Promise<void> {
     }
     try {
       fs.unlinkSync(tarballPath);
+    } catch {
+      /* tarball may already be cleaned */
+    }
+    try {
+      fs.unlinkSync(runtimeTarballPath);
     } catch {
       /* tarball may already be cleaned */
     }
