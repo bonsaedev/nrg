@@ -4,12 +4,15 @@ import path from "path";
 import { pathToFileURL } from "url";
 import { createRequire } from "module";
 import { getHelpTranslations, type HelpTranslations } from "./help-i18n";
+import { extractUnsafeTypes, type UnsafeTypeMap } from "./unsafe-types";
 
 interface HelpGeneratorOptions {
   outDir: string;
   localesOutDir: string;
   docsDir: string;
   labelsDir: string;
+  /** Server source dir scanned to recover `Unsafe<T>()` type arguments. */
+  srcDir?: string;
 }
 
 interface PropertyRow {
@@ -26,6 +29,7 @@ function buildPropertyRow(
   schema: any,
   required: boolean,
   label?: string,
+  parsedType?: string,
 ): PropertyRow {
   let type = "";
   if (schema["x-nrg-node-type"]) {
@@ -34,6 +38,10 @@ function buildPropertyRow(
     type = "TypedInput";
   } else if (schema.type) {
     type = String(schema.type);
+  } else if (parsedType) {
+    // Recovered from the source `Unsafe<T>()` type argument at build time, since
+    // T is erased at runtime (see unsafe-types.ts).
+    type = parsedType;
   }
 
   if (schema.enum) type += ` (${schema.enum.join(", ")})`;
@@ -76,6 +84,8 @@ interface SchemaSectionOptions {
   labels?: Record<string, string>;
   heading?: string;
   includeDefault?: boolean;
+  /** $id → { prop: typeText }, recovered from source Unsafe<T>() args. */
+  unsafeTypes?: UnsafeTypeMap;
 }
 
 function generateSchemaSection(options: SchemaSectionOptions): string {
@@ -86,10 +96,12 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
     labels,
     heading = "###",
     includeDefault = true,
+    unsafeTypes,
   } = options;
 
   if (!schema?.properties) return "";
 
+  const parsed = unsafeTypes?.get(schema.$id);
   const required = new Set<string>(schema.required ?? []);
   const rows = Object.entries(schema.properties)
     .filter(([key]) => !SKIP_FIELDS.has(key))
@@ -99,6 +111,7 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
         propSchema as any,
         required.has(key),
         labels?.[key],
+        parsed?.[key],
       ),
     );
 
@@ -173,6 +186,7 @@ function generateHelpDoc(
   nodeClass: any,
   labels: NodeLabels,
   t: HelpTranslations,
+  unsafeTypes?: UnsafeTypeMap,
 ): string {
   const lines: string[] = [];
 
@@ -185,6 +199,7 @@ function generateHelpDoc(
     schema: nodeClass.configSchema,
     t,
     labels: labels.configs,
+    unsafeTypes,
   });
   if (configSection) lines.push(configSection);
 
@@ -193,6 +208,7 @@ function generateHelpDoc(
     schema: nodeClass.credentialsSchema,
     t,
     labels: labels.credentials,
+    unsafeTypes,
   });
   if (credsSection) lines.push(credsSection);
 
@@ -204,6 +220,7 @@ function generateHelpDoc(
       t,
       labels: labels.input,
       includeDefault: false,
+      unsafeTypes,
     });
     if (inputSection) lines.push(inputSection);
   }
@@ -223,6 +240,7 @@ function generateHelpDoc(
           labels: portPropLabels,
           heading: "####",
           includeDefault: false,
+          unsafeTypes,
         });
         if (section) portSections.push(section);
       });
@@ -243,6 +261,7 @@ function generateHelpDoc(
           labels: portPropLabels,
           heading: "####",
           includeDefault: false,
+          unsafeTypes,
         });
         if (section) portSections.push(section);
       }
@@ -259,6 +278,7 @@ function generateHelpDoc(
         t,
         labels: outputPropLabels,
         includeDefault: false,
+        unsafeTypes,
       });
       if (section) lines.push(section);
     }
@@ -277,7 +297,7 @@ function discoverLanguages(labelsDir: string, nodeType: string): string[] {
 }
 
 function helpGenerator(options: HelpGeneratorOptions): Plugin {
-  const { outDir, localesOutDir, docsDir, labelsDir } = options;
+  const { outDir, localesOutDir, docsDir, labelsDir, srcDir } = options;
 
   return {
     name: "vite-plugin-node-red:client:help-generator",
@@ -305,6 +325,7 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
       }
 
       const nodeClasses: any[] = packageFn?.nodes ?? [];
+      const unsafeTypes = srcDir ? extractUnsafeTypes(srcDir) : undefined;
       const helpByLang = new Map<string, string[]>();
 
       for (const NodeClass of nodeClasses) {
@@ -322,7 +343,7 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
           const labelPath = path.join(labelsDir, type, `${lang}.json`);
           const labels = loadNodeLabels(labelPath);
           const t = getHelpTranslations(lang);
-          const content = generateHelpDoc(NodeClass, labels, t);
+          const content = generateHelpDoc(NodeClass, labels, t, unsafeTypes);
           if (!content) continue;
 
           if (!helpByLang.has(lang)) helpByLang.set(lang, []);

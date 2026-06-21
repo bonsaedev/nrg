@@ -96,6 +96,7 @@ async function build(
         localesOutDir,
         docsDir: path.resolve(docsDir),
         labelsDir: path.resolve(labelsDir),
+        srcDir: buildContext.serverSrcDir,
       }),
     );
   }

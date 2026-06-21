@@ -51,6 +51,7 @@ function nrg(options: NrgPluginOptions = {}): Plugin[] {
     outDir: resolvedOutDir,
     packageName: getPackageName(),
     isDev: process.env.NODE_ENV === "development",
+    serverSrcDir: path.resolve(serverBuildOptions.srcDir ?? "./server"),
   };
   const nodeRedLauncher = new NodeRedLauncher(
     resolvedOutDir,

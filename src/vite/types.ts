@@ -2,6 +2,8 @@ interface BuildContext {
   outDir: string;
   packageName: string;
   isDev: boolean;
+  /** Resolved server source dir, scanned to recover `Unsafe<T>()` types for docs. */
+  serverSrcDir?: string;
 }
 
 interface BuildPluginOptions {

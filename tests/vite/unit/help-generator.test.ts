@@ -61,6 +61,31 @@ describe("help-generator", () => {
       expect(row.type).toBe("TypedInput");
     });
 
+    it("leaves the type blank for an Unsafe<T>() with no parser-recovered type", () => {
+      // Unsafe<T>() compiles to an empty schema; T is erased at runtime, so with
+      // no parser-recovered type there is nothing to show.
+      const row = buildPropertyRow(
+        "connection",
+        { description: "open pool" },
+        true,
+      );
+      expect(row.type).toBe("");
+      expect(row.description).toBe("open pool");
+    });
+
+    it("uses the parser-recovered type for an Unsafe<T>() field", () => {
+      // The 5th arg is the T text recovered from source by the unsafe-types
+      // parser (e.g. SchemaType.Unsafe<Connection>() → "Connection").
+      const row = buildPropertyRow(
+        "connection",
+        { description: "open pool" },
+        true,
+        undefined,
+        "Connection",
+      );
+      expect(row.type).toBe("Connection");
+    });
+
     it("handles enum values", () => {
       const row = buildPropertyRow(
         "method",
@@ -370,9 +395,7 @@ describe("help-generator", () => {
       const inputSection = doc.substring(doc.indexOf("<h3>Input</h3>"));
       const outputStart = inputSection.indexOf("<h3>Output</h3>");
       const inputOnly =
-        outputStart > 0
-          ? inputSection.substring(0, outputStart)
-          : inputSection;
+        outputStart > 0 ? inputSection.substring(0, outputStart) : inputSection;
 
       expect(inputOnly).toContain("<h3>Input</h3>");
       expect(inputOnly).not.toContain("<th>Default</th>");
@@ -422,10 +445,7 @@ describe("help-generator", () => {
       const doc = generateHelpDoc(
         multiOutputNode,
         {
-          outputs: [
-            { payload: "Success" },
-            { error: "Error message" },
-          ],
+          outputs: [{ payload: "Success" }, { error: "Error message" }],
         },
         enUS,
       );
@@ -541,6 +561,50 @@ describe("help-generator", () => {
       expect(doc).not.toContain("<h3>Credentials</h3>");
       expect(doc).not.toContain("<h3>Input</h3>");
       expect(doc).not.toContain("<h3>Output</h3>");
+    });
+
+    it("surfaces parser-recovered Unsafe<T>() types for inputs and outputs", () => {
+      // Schemas carry $ids; the parser map (built from source Unsafe<T>() args)
+      // is keyed by $id. generateHelpDoc looks each property up and renders T in
+      // the Type column for the input AND the output port.
+      const node = {
+        inputSchema: {
+          $id: "demo:in",
+          properties: { onTick: { description: "called per message" } },
+          required: ["onTick"],
+        },
+        outputsSchema: {
+          $id: "demo:out",
+          properties: { connection: { description: "open pool" } },
+          required: ["connection"],
+        },
+      };
+      const unsafeTypes = new Map<string, Record<string, string>>([
+        ["demo:in", { onTick: "MessageHandler" }],
+        ["demo:out", { connection: "Connection" }],
+      ]);
+
+      const doc = generateHelpDoc(node, {}, enUS, unsafeTypes);
+
+      expect(doc).toContain("<h3>Input</h3>");
+      expect(doc).toContain("<td>MessageHandler</td>");
+      expect(doc).toContain("<h3>Output</h3>");
+      expect(doc).toContain("<td>Connection</td>");
+    });
+
+    it("leaves the Type cell blank when no parser map is provided", () => {
+      // Discriminating: the type only appears via the parser map, never by
+      // accident — a bare Unsafe<T>() output with no map renders an empty cell.
+      const node = {
+        outputsSchema: {
+          $id: "demo:out2",
+          properties: { connection: { description: "open pool" } },
+          required: ["connection"],
+        },
+      };
+      const doc = generateHelpDoc(node, {}, enUS);
+      expect(doc).toContain("<h3>Output</h3>");
+      expect(doc).toContain("<td>connection</td><td></td>");
     });
   });
 
