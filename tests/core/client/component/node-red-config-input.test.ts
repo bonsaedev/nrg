@@ -2,7 +2,7 @@ import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedConfigInput from "@/core/client/form/components/node-red-config-input.vue";
 import { createNode } from "@/test/client/component";
-import { getJQueryState } from "@/test/client/component/jquery";
+import { getJQueryState } from "@/test/client/mocks";
 
 describe("NodeRedConfigInput", () => {
   const { node: defaultNode, RED } = createNode();

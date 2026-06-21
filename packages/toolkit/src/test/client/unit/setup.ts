@@ -1,6 +1,6 @@
 import "../globals";
 import { beforeEach } from "vitest";
-import { createRED, createJQuery, resetRED } from "../mocks";
+import { createRED, resetRED, createJQuery } from "../mocks";
 
 window.$ = createJQuery();
 window.RED = createRED();

@@ -1,10 +1,9 @@
-import type { MockRED } from "./mocks";
-import type { createJQuery } from "./mocks";
+import type { MockRED, MockJQuery } from "./mocks";
 
 declare global {
   interface Window {
     RED: MockRED;
-    $: ReturnType<typeof createJQuery>;
+    $: MockJQuery;
   }
 }
 

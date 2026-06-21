@@ -1,7 +1,7 @@
 import "../globals";
 import { beforeEach } from "vitest";
 import { config } from "vitest-browser-vue";
-import { createRED, createJQuery, resetRED } from "../mocks";
+import { createRED, resetRED, createJQuery } from "../mocks";
 import { NodeRedInput } from "@bonsae/nrg-runtime/internal/client/components";
 import { NodeRedTypedInput } from "@bonsae/nrg-runtime/internal/client/components";
 import { NodeRedConfigInput } from "@bonsae/nrg-runtime/internal/client/components";
