@@ -61,25 +61,21 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
 | `inputLabels` | No | Label for the input port (string). |
-| `outputLabels` | No | Labels for output ports. Array of strings (one per port) for indexed ports, or an object mapping port names to labels when using named `outputsSchema` ports. |
+| `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports are labeled automatically from the `outputsSchema` port names; built-in ports (error/complete/status) are labeled automatically. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
-| `outputs` | No | Array of label maps, one per output port. Matches `outputsSchema` order. |
+| `outputs` | No | Per-port labels for the auto-generated help docs. An array of label maps (matching `outputsSchema` order) for positional ports, or an object keyed by port name for named ports. |
 | `errors` | No | Custom error messages. Use `__field__` for placeholder substitution. |
 
 ### Named Output Ports
 
-When your `outputsSchema` uses a record (named ports) instead of an array, use an object for `outputLabels` mapping port names to display labels:
+When your `outputsSchema` uses a record (named ports) instead of an array, the editor port labels come from the port **names** in the schema automatically — you don't set `outputLabels` for them. For the auto-generated help docs, provide `outputs` as an object keyed by port name:
 
 ```json
 {
   "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
   "label": "Router",
-  "outputLabels": {
-    "success": "Success",
-    "failure": "Failure"
-  },
   "outputs": {
     "success": { "payload": "Result" },
     "failure": { "error": "Error Message" }
@@ -99,8 +95,9 @@ export const OutputSchema = {
 ### Rules
 
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
-- **`outputs` is an array** — even for single-output nodes, use `[{ ... }]`
-- **`outputs` can be an object** — when using named output ports, use `{ portName: { ... } }`
+- **`outputLabels` is an array** — one entry per indexed output port. Named and built-in ports are labeled automatically (from the schema port names and error/complete/status).
+- **`outputs` is an array** for positional outputs — even for single-output nodes, use `[{ ... }]`
+- **`outputs` is an object** for named output ports — use `{ portName: { ... } }`
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label
 - **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to camelCase formatting
 
@@ -156,11 +153,9 @@ For local development or when using a linked package, use the local path instead
       "description": "Label for the input port"
     },
     "outputLabels": {
-      "oneOf": [
-        { "type": "array", "items": { "type": "string" } },
-        { "type": "object", "additionalProperties": { "type": "string" } }
-      ],
-      "description": "Labels for output ports — array for indexed ports, object for named ports"
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Labels for indexed output ports, one per port"
     },
     "configs": {
       "$ref": "#/$defs/labelMap"
@@ -174,9 +169,9 @@ For local development or when using a linked package, use the local path instead
     "outputs": {
       "oneOf": [
         { "type": "array", "items": { "$ref": "#/$defs/labelMap" } },
-        { "$ref": "#/$defs/labelMap" }
+        { "$ref": "#/$defs/portLabelMap" }
       ],
-      "description": "Per-port output labels — array for indexed ports (matches outputsSchema order), or object for named ports (keys match port names)"
+      "description": "Per-port output labels — array for indexed ports (matches outputsSchema order), or object keyed by port name for named ports"
     },
     "errors": {
       "$ref": "#/$defs/labelMap"
@@ -188,6 +183,11 @@ For local development or when using a linked package, use the local path instead
       "type": "object",
       "additionalProperties": { "type": "string" },
       "description": "Maps property keys to human-readable labels"
+    },
+    "portLabelMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/labelMap" },
+      "description": "Maps output port names to their per-property labels (named output ports)"
     }
   }
 }

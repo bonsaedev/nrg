@@ -19,11 +19,10 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 ## Quick Start
 
 ```bash
-pnpm add @bonsae/nrg
-pnpm add -D vite vue node-red
+pnpm add -D @bonsae/nrg node-red vue vite vitest
 ```
 
-> `vite` and `vue` are dev dependencies because they are only needed at build time. Vue is included as a dependency of nrg and served automatically at runtime.
+> All of these are dev dependencies — they are only needed at build time. `@bonsae/nrg` is the authoring toolkit; a built node depends only on `@bonsae/nrg-runtime` (declared automatically in the generated `dist/package.json`), never the toolkit. Vue is included as a dependency of the runtime and served automatically to the editor.
 
 ### Node-RED Resolution
 

@@ -8,11 +8,12 @@ If you created your project with `@bonsae/create-nrg`, the vitest configs, setup
 
 ## Dependencies
 
-NRG bundles most test infrastructure as direct dependencies, so installing `@bonsae/nrg` gives you everything you need out of the box — including happy-dom, browser test utilities, and Vue plugin integration. You only need to install `vitest` plus any optional peer dependencies for the test types you use:
+NRG ships the test libraries themselves and bundles the Vue plugin integration (`@vitejs/plugin-vue`) it needs for component tests. The test runner and the DOM/browser tooling are peer dependencies you install for the test types you use:
 
 | Package | Required for | Why it's a peer dep |
 |---------|-------------|---------------------|
 | `vitest` | All tests | Test runner — your project controls the version and runs it via CLI |
+| `happy-dom` | Client unit tests | DOM environment for client unit tests (`environment: "happy-dom"`) — your project provides it |
 | `@vitest/browser-playwright` | Component tests | Playwright browser provider for Vitest — imported in vitest config files |
 | `playwright` | Component tests, E2E tests | Test files import it directly (e.g., `import { chromium } from "playwright"`) |
 | `vitest-browser-vue` | Component tests | Provides the `render` helper for mounting Vue components in browser tests |
@@ -22,6 +23,9 @@ NRG bundles most test infrastructure as direct dependencies, so installing `@bon
 ```bash
 # required
 pnpm add -D vitest
+
+# for client unit tests (DOM environment)
+pnpm add -D happy-dom
 
 # for server integration tests (a real in-process Node-RED runtime)
 pnpm add -D node-red
@@ -88,9 +92,11 @@ Client **E2E** tests start a real Node-RED instance with your nodes installed an
 | Toggling a built-in port changes the node's ports on the canvas | Client E2E |
 | Translations display correctly in the editor | Client E2E |
 
-`NodeDefinition` lifecycle hooks (`label()`, `paletteLabel()`, `outputLabels()`, `button.onclick`, `onEditResize`) need no special tooling — they are plain functions. Call them in a client unit test with a fake `this`:
+`NodeDefinition` lifecycle hooks (`label()`, `paletteLabel()`, `outputLabels()`, `button.onClick`, `onEditResize`) need no special tooling — they are plain functions. Call them in a client unit test with a fake `this`:
 
 ```typescript
+import { defineNode } from "@bonsae/nrg/client";
+
 const def = defineNode({ /* ... */ });
 expect(def.label!.call({ name: "My Node" } as any)).toBe("My Node");
 ```
@@ -763,10 +769,10 @@ Client unit tests cover pure TypeScript logic — validation functions, formatte
 #### 1. Install dependencies
 
 ```bash
-pnpm add -D vitest
+pnpm add -D vitest happy-dom
 ```
 
-No additional dependencies needed — NRG ships `happy-dom` as a direct dependency for the test environment.
+`happy-dom` provides the DOM environment the client unit config runs in (`environment: "happy-dom"`).
 
 #### 2. Create a tsconfig
 
@@ -1162,11 +1168,12 @@ pnpm add -D vitest
 ```typescript
 // vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/e2e";
+import { defaultConfig } from "@bonsae/nrg/test/client/e2e/config";
 
 export default defineConfig({
+  ...defaultConfig,
   test: {
-    ...defaultConfig,
+    ...defaultConfig.test,
     globalSetup: "tests/client/e2e/global-setup.ts",
     include: ["tests/client/e2e/**/*.test.ts"],
   },

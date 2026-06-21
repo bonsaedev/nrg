@@ -190,10 +190,10 @@ export default defineConfig({
 | `srcDir` | `"./src/server"` | Source directory for server code |
 | `entry` | `"index.ts"` | Entry filename relative to `srcDir` |
 | `format` | `"esm"` | Output format (`"esm"` builds to `.mjs` with a CJS bridge, `"cjs"` builds to `.js`) |
+| `external` | `[]` | Packages to keep as external (not bundled) |
 | `bundled` | `[]` | Dependencies to bundle into the output instead of keeping as external |
 | `types` | `true` | Generate rolled-up `.d.ts` type declarations (production only) |
 | `nodeTarget` | `"node22"` | esbuild target for the server bundle |
-| `plugins` | `[]` | Additional Vite plugins for the server build |
 
 ### `ClientBuildOptions`
 
@@ -213,7 +213,6 @@ export default defineConfig({
 | `external` | `["jquery", "node-red", "vue", "@bonsae/nrg/client"]` | Modules to treat as external (not bundled) |
 | `globals` | — | Global variable mappings for external modules |
 | `manualChunks` | — | Custom chunk splitting function for Rollup |
-| `plugins` | `[]` | Additional Vite plugins for the client build |
 
 ### `LocalesOptions`
 

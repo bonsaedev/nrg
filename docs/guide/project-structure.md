@@ -99,15 +99,15 @@ dist/
 ├── index.js              # CJS bridge — loads the ESM server bundle
 ├── index.mjs             # ESM server bundle (your node classes)
 ├── index.d.ts            # Auto-generated server type declarations
-├── {type}.html           # HTML file per node type (client resource links)
+├── index.html            # Client HTML with resource links
 ├── resources/
-│   └── {package}.js      # Client bundle (Vue components, registration)
+│   └── index.[hash].js   # Client bundle (Vue components, registration)
 ├── icons/
 │   └── {type}.png        # Palette icons
 ├── locales/
 │   └── {lang}/
-│       ├── {type}.json   # Merged label strings
-│       └── {type}.html   # Auto-generated help docs
+│       ├── index.json    # Merged label strings
+│       └── index.html    # Auto-generated help docs
 ├── examples/
 │   └── {name}.json       # Example flows
 └── package.json          # Generated package.json for publishing

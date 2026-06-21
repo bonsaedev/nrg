@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) **>= 22**
+- [Node.js](https://nodejs.org/) **>= 20.19**
 - [pnpm](https://pnpm.io/) **>= 10.11.0**
 
 ## Scaffold from Template
@@ -28,10 +28,21 @@ If you prefer to add NRG to an existing project:
 
 ### 1. Install dependencies
 
-```bash
-pnpm add @bonsae/nrg
-pnpm add -D vite vue
+::: code-group
+
+```bash [pnpm]
+pnpm add -D @bonsae/nrg node-red vue vite vitest
 ```
+
+```bash [npm]
+npm install -D @bonsae/nrg node-red vue vite vitest
+```
+
+```bash [yarn]
+yarn add -D @bonsae/nrg node-red vue vite vitest
+```
+
+:::
 
 ::: info Why is `vue` a dev dependency?
 `@bonsae/nrg` already ships Vue as a runtime dependency and serves the Vue browser build to the Node-RED editor automatically — your project does not bundle or deploy Vue itself. However, `vue` must also be installed in your project as a dev dependency for two reasons:

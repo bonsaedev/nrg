@@ -993,7 +993,7 @@ export default defineNode({
   type: "my-node",
   button: {
     toggle: "enabled",
-    onclick() {
+    onClick() {
       // toggle node state
     },
     enabled() {
