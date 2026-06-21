@@ -2,14 +2,14 @@ import "../globals";
 import { beforeEach } from "vitest";
 import { config } from "vitest-browser-vue";
 import { createRED, createJQuery, resetRED } from "../mocks";
-import { NodeRedInput } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedTypedInput } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedConfigInput } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedSelectInput } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedEditorInput } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedInputLabel } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedToggle } from "@bonsae/nrg-runtime/internal/components";
-import { NodeRedJsonSchemaForm } from "@bonsae/nrg-runtime/internal/components";
+import { NodeRedInput } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedTypedInput } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedConfigInput } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedSelectInput } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedEditorInput } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedInputLabel } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedToggle } from "@bonsae/nrg-runtime/internal/client/components";
+import { NodeRedJsonSchemaForm } from "@bonsae/nrg-runtime/internal/client/components";
 
 config.global.mocks.$i18n = (key: string) => key;
 

@@ -44,20 +44,20 @@
     "./client": {
       "types": "./dist/types/client.d.ts"
     },
-    "./internal": {
-      "types": "./dist/types/internal.d.ts",
-      "require": "./dist/internal/index.cjs",
-      "default": "./dist/internal/index.cjs"
+    "./internal/server": {
+      "types": "./dist/types/internal/server/index.d.ts",
+      "require": "./dist/internal/server/index.cjs",
+      "default": "./dist/internal/server/index.cjs"
     },
     "./internal/client": {
-      "types": "./dist/types/internal-client.d.ts",
-      "import": "./dist/internal/client.mjs",
-      "default": "./dist/internal/client.mjs"
+      "types": "./dist/types/internal/client/index.d.ts",
+      "import": "./dist/internal/client/index.mjs",
+      "default": "./dist/internal/client/index.mjs"
     },
-    "./internal/components": {
-      "types": "./dist/types/internal-components.d.ts",
-      "import": "./dist/internal/components.mjs",
-      "default": "./dist/internal/components.mjs"
+    "./internal/client/components": {
+      "types": "./dist/types/internal/client/components.d.ts",
+      "import": "./dist/internal/client/components.mjs",
+      "default": "./dist/internal/client/components.mjs"
     }
   },
   "scripts": {

@@ -1,11 +1,11 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
-import { initValidator } from "@bonsae/nrg-runtime/internal";
-import type { NodeRedNode } from "@bonsae/nrg-runtime/internal";
-import type { NodeConstructor as NodeClass } from "@bonsae/nrg-runtime/internal";
+import { initValidator } from "@bonsae/nrg-runtime/internal/server";
+import type { NodeRedNode } from "@bonsae/nrg-runtime/internal/server";
+import type { NodeConstructor as NodeClass } from "@bonsae/nrg-runtime/internal/server";
 import type { MockRED } from "./mocks";
-import { WIRE_HANDLERS } from "@bonsae/nrg-runtime/internal";
-import type { NodeContextStore } from "@bonsae/nrg-runtime/internal";
+import { WIRE_HANDLERS } from "@bonsae/nrg-runtime/internal/server";
+import type { NodeContextStore } from "@bonsae/nrg-runtime/internal/server";
 import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {

@@ -11,8 +11,7 @@
   "include": [
     "src/client/**/*.ts",
     "src/client/**/*.vue",
-    "src/internal-client.ts",
-    "src/internal-components.ts",
+    "src/internal/client/**/*.ts",
     "src/constants.ts",
     "src/validator.ts",
     "src/brands.ts",

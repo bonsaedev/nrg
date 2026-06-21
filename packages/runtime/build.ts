@@ -44,12 +44,12 @@ function buildServer() {
   console.log("✓ Built server → dist/server/index.cjs");
 }
 
-function buildInternal() {
-  esbuildBundle("src/internal.ts", {
+function buildInternalServer() {
+  esbuildBundle("src/internal/server/index.ts", {
     format: "cjs",
-    outfile: "dist/internal/index.cjs",
+    outfile: "dist/internal/server/index.cjs",
   });
-  console.log("✓ Built internal (Node) → dist/internal/index.cjs");
+  console.log("✓ Built internal server → dist/internal/server/index.cjs");
 }
 
 async function buildClientAsset() {
@@ -82,7 +82,7 @@ async function buildClientAsset() {
   console.log("✓ Built client asset → dist/server/resources/nrg-client.js");
 }
 
-async function buildInternalComponents() {
+async function buildInternalClient() {
   // The real form components, for the component test harness. vue stays external
   // as a bare specifier so the consumer's test env supplies it; everything else
   // (es-toolkit, etc.) is bundled in so the runtime declares no extra deps.
@@ -91,10 +91,10 @@ async function buildInternalComponents() {
     logLevel: "warn",
     plugins: [vue()],
     build: {
-      outDir: path.join(DIST, "internal"),
+      outDir: path.join(DIST, "internal/client"),
       emptyOutDir: false,
       lib: {
-        entry: path.resolve(ROOT, "src/internal-components.ts"),
+        entry: path.resolve(ROOT, "src/internal/client/components.ts"),
         name: "NrgComponents",
         fileName: () => "components.mjs",
         formats: ["es"],
@@ -104,15 +104,17 @@ async function buildInternalComponents() {
   });
   // Inline the components' extracted CSS into components.mjs so the test harness
   // mounts them styled (and nothing stray is shipped).
-  inlineCss(path.join(DIST, "internal"), "components.mjs", { guard: true });
+  inlineCss(path.join(DIST, "internal/client"), "components.mjs", {
+    guard: true,
+  });
   // Client validation helpers + useFormNode (no .vue), vue external. Named .mjs
   // so Node treats it as ESM in this type:commonjs package.
-  esbuildBundle("src/internal-client.ts", {
+  esbuildBundle("src/internal/client/index.ts", {
     format: "esm",
-    outfile: "dist/internal/client.mjs",
+    outfile: "dist/internal/client/index.mjs",
   });
   console.log(
-    "✓ Built internal client → dist/internal/{client,components}.mjs",
+    "✓ Built internal client → dist/internal/client/{index,components}.mjs",
   );
 }
 
@@ -146,8 +148,10 @@ export declare function useFormNode<TConfig extends TSchema = TSchema, TCredenti
   );
 
   // Node-side test-support internals (no .vue) — declaration-emittable.
+  mkdirSync("dist/types/internal/server", { recursive: true });
+  mkdirSync("dist/types/internal/client", { recursive: true });
   execSync(
-    `npx dts-bundle-generator -o dist/types/internal.d.ts src/internal.ts ${DTS_FLAGS}`,
+    `npx dts-bundle-generator -o dist/types/internal/server/index.d.ts src/internal/server/index.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },
   );
 
@@ -155,7 +159,7 @@ export declare function useFormNode<TConfig extends TSchema = TSchema, TCredenti
   // dts-bundle-generator can't process, so hand-author a loose-but-usable
   // declaration (these are framework-internal test helpers, not public API).
   writeFileSync(
-    "dist/types/internal-client.d.ts",
+    "dist/types/internal/client/index.d.ts",
     `import type { TSchema } from "@sinclair/typebox";
 export declare function useFormNode<TConfig extends TSchema = TSchema, TCredentials extends TSchema = TSchema>(): {
   node: Record<string, any>;
@@ -168,7 +172,7 @@ export type JsonSchemaObject = Record<string, any>;
 `,
   );
   writeFileSync(
-    "dist/types/internal-components.d.ts",
+    "dist/types/internal/client/components.d.ts",
     `import type { DefineComponent } from "vue";
 ${COMPONENTS.map((c) => `export declare const ${c}: DefineComponent<{}, {}, any>;`).join("\n")}
 `,
@@ -245,6 +249,9 @@ function copyShims() {
   copyFileSync("src/server/typebox.d.ts", "dist/types/shims/typebox.d.ts");
   copyFileSync("src/schema-options.ts", "dist/types/shims/schema-options.d.ts");
 
+  // Ship the internal/ explainer alongside the built internal entries.
+  copyFileSync("src/internal/README.md", "dist/internal/README.md");
+
   // README.md is committed per-package (runtime-specific); only LICENSE is
   // shared from the workspace root.
   for (const f of ["LICENSE"]) {
@@ -257,9 +264,9 @@ function copyShims() {
 async function main() {
   clean(DIST);
   buildServer();
-  buildInternal();
+  buildInternalServer();
   await buildClientAsset();
-  await buildInternalComponents();
+  await buildInternalClient();
   generateTypes();
   copyShims();
   generateComponentTypes();

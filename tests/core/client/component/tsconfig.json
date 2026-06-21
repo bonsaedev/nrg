@@ -18,10 +18,10 @@
         "../../../../packages/runtime/src/server/index.ts"
       ],
       "@bonsae/nrg-runtime/internal/client": [
-        "../../../../packages/runtime/src/internal-client.ts"
+        "../../../../packages/runtime/src/internal/client/index.ts"
       ],
-      "@bonsae/nrg-runtime/internal/components": [
-        "../../../../packages/runtime/src/internal-components.ts"
+      "@bonsae/nrg-runtime/internal/client/components": [
+        "../../../../packages/runtime/src/internal/client/components.ts"
       ]
     }
   },

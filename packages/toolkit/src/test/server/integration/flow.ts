@@ -1,8 +1,8 @@
-import { setupContext } from "@bonsae/nrg-runtime/internal";
+import { setupContext } from "@bonsae/nrg-runtime/internal/server";
 import type {
   NodeConstructor,
   NodeContextStore,
-} from "@bonsae/nrg-runtime/internal";
+} from "@bonsae/nrg-runtime/internal/server";
 import type { Recorder } from "./recorder";
 import type { NodeRedApi, RuntimeNode } from "./runtime";
 

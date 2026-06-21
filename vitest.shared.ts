@@ -9,7 +9,7 @@ import path from "path";
  * `instanceof` checks only hold when both sides load the same source files.
  *
  * Order matters: vite resolves aliases in insertion order, so the longer
- * `/internal/{client,components}` keys must precede the shorter `/internal`.
+ * `/internal/client/components` key must precede `/internal/client`.
  *
  * Takes the caller's `__dirname` so paths resolve against the repo root
  * regardless of how vitest loads this module.
@@ -20,13 +20,15 @@ export function workspaceAliases(dirname: string): Record<string, string> {
     "@/core": r("packages/runtime/src"),
     "@/vite": r("packages/toolkit/src/vite"),
     "@/test": r("packages/toolkit/src/test"),
+    "@bonsae/nrg-runtime/internal/client/components": r(
+      "packages/runtime/src/internal/client/components.ts",
+    ),
     "@bonsae/nrg-runtime/internal/client": r(
-      "packages/runtime/src/internal-client.ts",
+      "packages/runtime/src/internal/client/index.ts",
     ),
-    "@bonsae/nrg-runtime/internal/components": r(
-      "packages/runtime/src/internal-components.ts",
+    "@bonsae/nrg-runtime/internal/server": r(
+      "packages/runtime/src/internal/server/index.ts",
     ),
-    "@bonsae/nrg-runtime/internal": r("packages/runtime/src/internal.ts"),
     "@bonsae/nrg-runtime/server": r("packages/runtime/src/server/index.ts"),
   };
 }

@@ -8,8 +8,8 @@ import { createRequire } from "module";
 // package's public server entry (resolved to the host project's installed nrg);
 // a relative import would make esbuild bundle a second, non-identical copy.
 import { registerTypes } from "@bonsae/nrg-runtime/server";
-import type { NodeConstructor } from "@bonsae/nrg-runtime/internal";
-import type { NodeRedContextStore } from "@bonsae/nrg-runtime/internal";
+import type { NodeConstructor } from "@bonsae/nrg-runtime/internal/server";
+import type { NodeRedContextStore } from "@bonsae/nrg-runtime/internal/server";
 import { Recorder } from "./recorder";
 import { Flow } from "./flow";
 

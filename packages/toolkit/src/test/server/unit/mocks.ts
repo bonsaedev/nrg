@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import type { RED, NodeRedNode } from "@bonsae/nrg-runtime/internal";
-import type { INode } from "@bonsae/nrg-runtime/internal";
+import type { RED, NodeRedNode } from "@bonsae/nrg-runtime/internal/server";
+import type { INode } from "@bonsae/nrg-runtime/internal/server";
 
 interface MockRED extends RED {
   registerNode(id: string, nodeRedNode: Partial<NodeRedNode>): void;
