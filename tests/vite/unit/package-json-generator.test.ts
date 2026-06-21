@@ -215,6 +215,20 @@ describe("packageJsonGenerator plugin", () => {
     });
   });
 
+  it("does NOT rewrite @bonsae/nrg/server to the runtime in dev mode", () => {
+    // Dev loads the bundle from the output dir with no install step, so it must
+    // keep the toolkit specifier (resolvable); the runtime would not resolve
+    // under pnpm. The rewrite is production-only.
+    const plugin = packageJsonGenerator({
+      outDir: tmpDir,
+      bundled: [],
+      isDev: true,
+    });
+    const resolveId = (plugin.resolveId as any).handler;
+    const result = resolveId("@bonsae/nrg/server", "/some/importer.ts");
+    expect(result).toEqual({ id: "@bonsae/nrg/server", external: true });
+  });
+
   it("buildStart clears tracked dependencies", () => {
     const plugin = packageJsonGenerator({ outDir: tmpDir });
     const resolveId = (plugin.resolveId as any).handler;
@@ -352,6 +366,45 @@ describe("packageJsonGenerator closeBundle", () => {
       fs.readFileSync(path.join(outDir, "package.json"), "utf-8"),
     );
     expect(result.dependencies).toEqual({ "some-lib": "^2.3.4" });
+  });
+
+  it("pins @bonsae/nrg-runtime to the @bonsae/nrg version (lockstep, dependencies)", () => {
+    writePackageJson({
+      name: "test",
+      version: "1.0.0",
+      dependencies: { "@bonsae/nrg": "^0.21.2" },
+    });
+    const outDir = path.join(tmpDir, "dist");
+    const plugin = packageJsonGenerator({ outDir });
+    const resolveId = (plugin.resolveId as any).handler;
+    // Tracks @bonsae/nrg-runtime via the production rewrite.
+    resolveId("@bonsae/nrg/server", "/importer.ts");
+    (plugin as any).closeBundle();
+
+    const result = JSON.parse(
+      fs.readFileSync(path.join(outDir, "package.json"), "utf-8"),
+    );
+    expect(result.dependencies).toEqual({ "@bonsae/nrg-runtime": "^0.21.2" });
+  });
+
+  it("pins @bonsae/nrg-runtime when @bonsae/nrg is a devDependency", () => {
+    // The documented, recommended setup: @bonsae/nrg as a devDependency. The
+    // runtime dep must still be emitted (it was silently omitted before).
+    writePackageJson({
+      name: "test",
+      version: "1.0.0",
+      devDependencies: { "@bonsae/nrg": "^0.21.2" },
+    });
+    const outDir = path.join(tmpDir, "dist");
+    const plugin = packageJsonGenerator({ outDir });
+    const resolveId = (plugin.resolveId as any).handler;
+    resolveId("@bonsae/nrg/server", "/importer.ts");
+    (plugin as any).closeBundle();
+
+    const result = JSON.parse(
+      fs.readFileSync(path.join(outDir, "package.json"), "utf-8"),
+    );
+    expect(result.dependencies).toEqual({ "@bonsae/nrg-runtime": "^0.21.2" });
   });
 
   it("sets dependencies to undefined when none tracked", () => {

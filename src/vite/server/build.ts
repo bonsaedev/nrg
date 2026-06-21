@@ -51,8 +51,9 @@ async function build(
       types: types && !buildContext.isDev,
       entryNames: Object.keys(entryPoints),
       format,
+      isDev: buildContext.isDev,
     }),
-    isEsm ? esmWrapper() : cjsWrapper(),
+    isEsm ? esmWrapper(buildContext.isDev) : cjsWrapper(buildContext.isDev),
   ];
 
   if (types && !buildContext.isDev) {

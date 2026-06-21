@@ -62,6 +62,20 @@ describe("cjsWrapper", () => {
     expect(result.code).toContain("registerTypes");
     expect(result.code).toContain("@bonsae/nrg-runtime/server");
   });
+
+  it("footer requires the toolkit (not the runtime) in dev mode", () => {
+    const devPlugin = cjsWrapper(true);
+    const chunk = { isEntry: true };
+    const outputOptions = { format: "cjs" };
+    const result = (devPlugin.renderChunk as Function).call(
+      {},
+      "module.exports = { nodes: [] };",
+      chunk,
+      outputOptions,
+    );
+    expect(result.code).toContain('require("@bonsae/nrg/server")');
+    expect(result.code).not.toContain("@bonsae/nrg-runtime/server");
+  });
 });
 
 describe("esmWrapper", () => {
@@ -166,5 +180,37 @@ describe("esmWrapper", () => {
       "var __filename = __nrgFileURLToPath(import.meta.url);",
     );
     expect(result.code).toContain("var __dirname = __nrgDirname(__filename);");
+  });
+
+  it("imports registerTypes from the runtime by default", () => {
+    const chunk = { isEntry: true };
+    const outputOptions = { format: "es" };
+    const code = "const m = { nodes: [] };\nexport default m;";
+    const result = (plugin.renderChunk as Function).call(
+      {},
+      code,
+      chunk,
+      outputOptions,
+    );
+    expect(result.code).toContain(
+      'import { registerTypes as __nrgRegisterTypes } from "@bonsae/nrg-runtime/server";',
+    );
+  });
+
+  it("imports registerTypes from the toolkit in dev mode", () => {
+    const devPlugin = esmWrapper(true);
+    const chunk = { isEntry: true };
+    const outputOptions = { format: "es" };
+    const code = "const m = { nodes: [] };\nexport default m;";
+    const result = (devPlugin.renderChunk as Function).call(
+      {},
+      code,
+      chunk,
+      outputOptions,
+    );
+    expect(result.code).toContain(
+      'import { registerTypes as __nrgRegisterTypes } from "@bonsae/nrg/server";',
+    );
+    expect(result.code).not.toContain("@bonsae/nrg-runtime/server");
   });
 });

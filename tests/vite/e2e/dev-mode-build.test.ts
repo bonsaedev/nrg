@@ -53,10 +53,16 @@ describe("dev mode build", () => {
         nodeTarget: "node22",
       };
       await buildServer(serverOpts, buildContext);
-      serverContent = fs.readFileSync(
-        path.join(outDir, "index.mjs"),
-        "utf-8",
-      );
+      serverContent = fs.readFileSync(path.join(outDir, "index.mjs"), "utf-8");
+    });
+
+    it("imports @bonsae/nrg/server in dev, not the runtime", () => {
+      // Dev loads the bundle straight from the output dir with no install step,
+      // so it must import the toolkit (a resolvable direct dependency); the
+      // runtime is nested under the toolkit in pnpm and would fail to resolve.
+      // The runtime rewrite is a production-only concern.
+      expect(serverContent).toContain("@bonsae/nrg/server");
+      expect(serverContent).not.toContain("@bonsae/nrg-runtime/server");
     });
 
     it("should produce inline sourcemaps in dev mode", () => {

@@ -1,5 +1,15 @@
 import type { Plugin } from "vite";
 
+// In production the bundle imports the standalone runtime, which the built
+// node declares as its dependency. In dev there is no install step — Node-RED
+// loads the bundle straight from the output dir — so it must import
+// `@bonsae/nrg/server` (the toolkit, a direct dependency that resolves; its
+// shim forwards to the runtime). Importing the runtime in dev would fail under
+// pnpm, where the runtime is nested under the toolkit, not hoisted.
+function nrgServerSpecifier(isDev: boolean): string {
+  return isDev ? "@bonsae/nrg/server" : "@bonsae/nrg-runtime/server";
+}
+
 /**
  * Appends a CJS footer so Node-RED can load the package.
  *
@@ -13,7 +23,8 @@ import type { Plugin } from "vite";
  *
  * Must be added to the server build in both dev and production modes.
  */
-function cjsWrapper(): Plugin {
+function cjsWrapper(isDev: boolean = false): Plugin {
+  const serverSpecifier = nrgServerSpecifier(isDev);
   return {
     name: "vite-plugin-node-red:server:cjs-wrapper",
     renderChunk(code, chunk, outputOptions) {
@@ -22,7 +33,7 @@ function cjsWrapper(): Plugin {
         `(function(){` +
         `var _exp=module.exports&&module.exports.__esModule?module.exports.default:module.exports;` +
         `if(_exp&&typeof _exp==="object"&&Array.isArray(_exp.nodes)){` +
-        `var _nrg=require("@bonsae/nrg-runtime/server");` +
+        `var _nrg=require(${JSON.stringify(serverSpecifier)});` +
         `module.exports=_nrg.registerTypes(_exp.nodes);` +
         `}` +
         `else if(typeof _exp==="function"&&Array.isArray(_exp.nodes)){` +
@@ -54,7 +65,8 @@ function cjsWrapper(): Plugin {
  *
  * Must be added to the server build in both dev and production modes.
  */
-function esmWrapper(): Plugin {
+function esmWrapper(isDev: boolean = false): Plugin {
+  const serverSpecifier = nrgServerSpecifier(isDev);
   return {
     name: "vite-plugin-node-red:server:esm-wrapper",
     renderChunk(code, chunk, outputOptions) {
@@ -89,7 +101,9 @@ function esmWrapper(): Plugin {
         `import { dirname as __nrgDirname } from "path";`,
         `var __filename = __nrgFileURLToPath(import.meta.url);`,
         `var __dirname = __nrgDirname(__filename);`,
-        `import { registerTypes as __nrgRegisterTypes } from "@bonsae/nrg-runtime/server";`,
+        `import { registerTypes as __nrgRegisterTypes } from ${JSON.stringify(
+          serverSpecifier,
+        )};`,
         ``,
       ].join("\n");
       const replacement = [

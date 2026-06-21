@@ -92,6 +92,7 @@ function packageJsonGenerator(options: {
   types?: boolean;
   entryNames?: string[];
   format?: "cjs" | "esm";
+  isDev?: boolean;
 }): Plugin {
   const {
     outDir,
@@ -99,6 +100,7 @@ function packageJsonGenerator(options: {
     types = false,
     entryNames = [],
     format = "cjs",
+    isDev = false,
   } = options;
 
   const trackedDependencies = new Set<string>();
@@ -121,7 +123,12 @@ function packageJsonGenerator(options: {
           return { id: source, external: true };
         }
 
-        const resolved = RUNTIME_REWRITES[source] ?? source;
+        // Only rewrite to the runtime for production builds. In dev the bundle
+        // is loaded from the output dir by Node-RED with no install step, so it
+        // must keep importing @bonsae/nrg/server (a resolvable direct dep);
+        // the runtime would not resolve under pnpm. See nrgServerSpecifier in
+        // output-wrapper for the matching injected import.
+        const resolved = isDev ? source : (RUNTIME_REWRITES[source] ?? source);
         const packageName = resolved.startsWith("@")
           ? resolved.split("/").slice(0, 2).join("/")
           : resolved.split("/")[0];
@@ -148,6 +155,8 @@ function packageJsonGenerator(options: {
 
       const sourceDeps: Record<string, string> =
         rootPackageJson.dependencies ?? {};
+      const devDeps: Record<string, string> =
+        rootPackageJson.devDependencies ?? {};
       const peerDeps: Record<string, string> =
         rootPackageJson.peerDependencies ?? {};
       let distDependencies: Record<string, string> | undefined = {};
@@ -156,11 +165,17 @@ function packageJsonGenerator(options: {
           continue;
         }
         const versionSource = RUNTIME_VERSION_SOURCE[dep];
+        // The lockstep source (@bonsae/nrg) is recommended as a devDependency,
+        // so resolve its version from dependencies OR devDependencies — else a
+        // doc-following consumer would emit no runtime dependency at all.
+        const sourceVersion = versionSource
+          ? (sourceDeps[versionSource] ?? devDeps[versionSource])
+          : undefined;
         if (sourceDeps[dep]) {
           distDependencies[dep] = sourceDeps[dep];
-        } else if (versionSource && sourceDeps[versionSource]) {
+        } else if (sourceVersion) {
           // @bonsae/nrg-runtime tracks the @bonsae/nrg version (lockstep)
-          distDependencies[dep] = sourceDeps[versionSource];
+          distDependencies[dep] = sourceVersion;
         } else {
           const dependencyPackageJsonPath = path.resolve(
             `./node_modules/${dep}/package.json`,
