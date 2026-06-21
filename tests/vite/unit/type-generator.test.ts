@@ -10,6 +10,7 @@ import {
   getFactoryInfo,
   buildTypeArg,
   buildNodeReexports,
+  rewriteRuntimeTypeImports,
 } from "@/vite/server/plugins/type-generator";
 
 const tmpDirs: string[] = [];
@@ -496,7 +497,9 @@ export default class MyNode extends IONode<Config> {
     fs.writeFileSync(entryFile, "");
 
     const result = buildNodeReexports(dir, entryFile);
-    expect(result).toContain('export { default as MyNode } from "./nodes/my-node"');
+    expect(result).toContain(
+      'export { default as MyNode } from "./nodes/my-node"',
+    );
     expect(result).toContain("Config as MyNodeConfig");
   });
 
@@ -545,5 +548,44 @@ export default defineIONode({
 
     const result = buildNodeReexports(dir, entryFile);
     expect(result).toBe("");
+  });
+});
+
+describe("rewriteRuntimeTypeImports", () => {
+  it("rewrites toolkit specifiers to the runtime in emitted .d.ts", () => {
+    const dir = makeTmpDir();
+    const dts = [
+      `import { IONode } from '@bonsae/nrg/server';`,
+      `import { defineNode } from "@bonsae/nrg/client";`,
+      `import { Connection } from 'jsforce';`,
+      `export declare class Foo extends IONode<any, any, any, any> {}`,
+    ].join("\n");
+    fs.writeFileSync(path.join(dir, "index.d.ts"), dts);
+
+    rewriteRuntimeTypeImports(dir, ["index"]);
+
+    const out = fs.readFileSync(path.join(dir, "index.d.ts"), "utf-8");
+    expect(out).toContain(`from '@bonsae/nrg-runtime/server'`);
+    expect(out).toContain(`from "@bonsae/nrg-runtime/client"`);
+    expect(out).not.toContain(`'@bonsae/nrg/server'`);
+    expect(out).not.toContain(`"@bonsae/nrg/client"`);
+    // Unrelated imports are untouched.
+    expect(out).toContain(`from 'jsforce'`);
+  });
+
+  it("leaves longer specifiers that merely share a prefix untouched", () => {
+    const dir = makeTmpDir();
+    const dts = `import { x } from "@bonsae/nrg/server-extras";\n`;
+    fs.writeFileSync(path.join(dir, "index.d.ts"), dts);
+
+    rewriteRuntimeTypeImports(dir, ["index"]);
+
+    const out = fs.readFileSync(path.join(dir, "index.d.ts"), "utf-8");
+    expect(out).toContain(`"@bonsae/nrg/server-extras"`);
+  });
+
+  it("is a no-op when the entry .d.ts does not exist", () => {
+    const dir = makeTmpDir();
+    expect(() => rewriteRuntimeTypeImports(dir, ["missing"])).not.toThrow();
   });
 });

@@ -24,6 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const ROOT = path.resolve(__dirname, "..");
 const DIST = path.resolve(ROOT, "dist");
+const DIST_RUNTIME = path.resolve(ROOT, "dist-runtime");
 const DTS_FLAGS =
   "--no-check --project build/tsconfig.dts.json --export-referenced-types=false";
 
@@ -62,7 +63,8 @@ function esbuild(entry: string, { format, platform = "node", outfile, outdir, ex
 
 function clean() {
   if (existsSync(DIST)) rmSync(DIST, { recursive: true });
-  console.log("✓ Cleaned dist/");
+  if (existsSync(DIST_RUNTIME)) rmSync(DIST_RUNTIME, { recursive: true });
+  console.log("✓ Cleaned dist/ and dist-runtime/");
 }
 
 function buildServer() {
@@ -363,10 +365,157 @@ function generatePackageJson() {
     },
     peerDependencies: rootPkg.peerDependencies,
     peerDependenciesMeta: rootPkg.peerDependenciesMeta,
-    dependencies: rootPkg.dependencies,
+    dependencies: {
+      ...collectBundleDeps(listBundles(DIST), rootPkg),
+      "@bonsae/nrg-runtime": `^${rootPkg.version}`,
+    },
   };
   writeFileSync("dist/package.json", JSON.stringify(distPkg, null, 2) + "\n");
   console.log("✓ Generated dist/package.json");
+}
+
+// ---------------------------------------------------------------------------
+// Two-package split: @bonsae/nrg (toolkit) + @bonsae/nrg-runtime (runtime)
+// ---------------------------------------------------------------------------
+
+/** Built JS/CJS bundles under a dir (skips type decls and served assets). */
+function listBundles(dir: string): string[] {
+  const out: string[] = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) {
+      if (e.name === "types" || e.name === "resources") continue;
+      out.push(...listBundles(path.join(dir, e.name)));
+    } else if (e.name.endsWith(".js") || e.name.endsWith(".cjs")) {
+      out.push(path.join(dir, e.name));
+    }
+  }
+  return out;
+}
+
+/** Bare-import package names used by the given bundles that are declared deps. */
+function collectBundleDeps(
+  files: string[],
+  rootPkg: { dependencies?: Record<string, string> },
+): Record<string, string> {
+  const sourceDeps = rootPkg.dependencies ?? {};
+  const out: Record<string, string> = {};
+  const re = /(?:require\(|import\(|from|import)\s*["']([^"']+)["']/g;
+  for (const file of files) {
+    const code = readFileSync(file, "utf-8");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(code)) !== null) {
+      const spec = m[1]!;
+      if (spec.startsWith(".") || spec.startsWith("/")) continue;
+      const pkg = spec.startsWith("@")
+        ? spec.split("/").slice(0, 2).join("/")
+        : spec.split("/")[0]!;
+      if (sourceDeps[pkg]) out[pkg] = sourceDeps[pkg];
+    }
+  }
+  return out;
+}
+
+/**
+ * Emit @bonsae/nrg-runtime by reusing the already-built server bundle, client
+ * asset, and types. This is the only nrg package a built node depends on at
+ * runtime; its deps are scanned from the server bundle (+ vue, which api/assets
+ * serves rather than imports), so no build/dev/test tooling reaches the
+ * container.
+ */
+function buildRuntimePackage() {
+  mkdirSync(DIST_RUNTIME, { recursive: true });
+  copyFileSync(
+    path.join(DIST, "server/index.cjs"),
+    path.join(DIST_RUNTIME, "index.cjs"),
+  );
+  cpSync(
+    path.join(DIST, "server/resources"),
+    path.join(DIST_RUNTIME, "resources"),
+    { recursive: true },
+  );
+  // Only the runtime types — server/client + the shims they reference. (A full
+  // copy would drag in the toolkit's index/vite/test type bundles.)
+  mkdirSync(path.join(DIST_RUNTIME, "types"), { recursive: true });
+  copyFileSync(
+    path.join(DIST, "types/server.d.ts"),
+    path.join(DIST_RUNTIME, "types/server.d.ts"),
+  );
+  copyFileSync(
+    path.join(DIST, "types/client.d.ts"),
+    path.join(DIST_RUNTIME, "types/client.d.ts"),
+  );
+  cpSync(path.join(DIST, "types/shims"), path.join(DIST_RUNTIME, "types/shims"), {
+    recursive: true,
+  });
+
+  const rootPkg = JSON.parse(
+    readFileSync(path.resolve(ROOT, "package.json"), "utf-8"),
+  );
+  const deps = collectBundleDeps(
+    [path.join(DIST_RUNTIME, "index.cjs")],
+    rootPkg,
+  );
+  if (rootPkg.dependencies?.vue) deps.vue = rootPkg.dependencies.vue;
+
+  const runtimePkg = {
+    name: "@bonsae/nrg-runtime",
+    version: rootPkg.version,
+    description:
+      "Runtime for Node-RED nodes built with @bonsae/nrg — no build tooling.",
+    author: rootPkg.author,
+    license: rootPkg.license,
+    type: "commonjs",
+    homepage: rootPkg.homepage,
+    bugs: rootPkg.bugs,
+    repository: rootPkg.repository,
+    publishConfig: rootPkg.publishConfig,
+    engines: rootPkg.engines,
+    keywords: rootPkg.keywords,
+    files: ["index.cjs", "resources", "types"],
+    exports: {
+      "./server": {
+        types: "./types/server.d.ts",
+        require: "./index.cjs",
+        default: "./index.cjs",
+      },
+      "./client": { types: "./types/client.d.ts" },
+    },
+    dependencies: deps,
+  };
+  writeFileSync(
+    path.join(DIST_RUNTIME, "package.json"),
+    JSON.stringify(runtimePkg, null, 2) + "\n",
+  );
+  if (existsSync("README.md"))
+    copyFileSync("README.md", path.join(DIST_RUNTIME, "README.md"));
+  if (existsSync("LICENSE"))
+    copyFileSync("LICENSE", path.join(DIST_RUNTIME, "LICENSE"));
+  console.log("✓ Generated @bonsae/nrg-runtime in dist-runtime/");
+}
+
+/**
+ * Convert dist/ (the @bonsae/nrg toolkit) so its server/client entries
+ * re-export @bonsae/nrg-runtime — single source of truth, and the toolkit
+ * sheds the runtime deps. Runs after buildRuntimePackage has captured the real
+ * server bundle, client asset, and types.
+ */
+function finalizeToolkit() {
+  rmSync(path.join(DIST, "server/resources"), { recursive: true, force: true });
+  writeFileSync(
+    path.join(DIST, "server/index.cjs"),
+    `'use strict';\nmodule.exports = require("@bonsae/nrg-runtime/server");\n`,
+  );
+  writeFileSync(
+    path.join(DIST, "types/server.d.ts"),
+    `export * from "@bonsae/nrg-runtime/server";\n`,
+  );
+  writeFileSync(
+    path.join(DIST, "types/client.d.ts"),
+    `export * from "@bonsae/nrg-runtime/client";\n`,
+  );
+  console.log(
+    "✓ Finalized @bonsae/nrg toolkit (server/client re-export the runtime)",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -382,4 +531,6 @@ await buildTestUtils();
 generateTypes();
 copyAssets();
 generateComponentTypes();
+buildRuntimePackage();
+finalizeToolkit();
 generatePackageJson();

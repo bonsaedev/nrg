@@ -82,6 +82,14 @@ describe("server build", () => {
       expect(pkg.type).toBe("commonjs");
     });
 
+    it("declares @bonsae/nrg-runtime (not @bonsae/nrg) as the dependency", () => {
+      const pkg = JSON.parse(
+        fs.readFileSync(path.join(esmOutDir, "package.json"), "utf-8"),
+      );
+      expect(pkg.dependencies?.["@bonsae/nrg-runtime"]).toBeDefined();
+      expect(pkg.dependencies?.["@bonsae/nrg"]).toBeUndefined();
+    });
+
     it("should contain the node type identifier", () => {
       expect(bundleContent).toContain("test-node");
     });
@@ -95,8 +103,9 @@ describe("server build", () => {
       expect(bundleContent).toContain("dirname");
     });
 
-    it("should externalize @bonsae/nrg/server", () => {
-      expect(bundleContent).toContain("@bonsae/nrg/server");
+    it("rewrites @bonsae/nrg/server to the runtime package", () => {
+      expect(bundleContent).toContain("@bonsae/nrg-runtime/server");
+      expect(bundleContent).not.toContain("@bonsae/nrg/server");
     });
 
     it("should contain the node class definition", () => {

@@ -51,6 +51,15 @@ describe("type generation — class-based nodes", () => {
     expect(fs.existsSync(path.join(outDir, "index.d.ts"))).toBe(true);
   });
 
+  it("should import types from @bonsae/nrg-runtime, not the toolkit", () => {
+    // The published node depends on @bonsae/nrg-runtime, so its declarations
+    // must resolve against the runtime — never the toolkit (a devDependency).
+    // Quote-agnostic: the dts emitter may use single or double quotes.
+    expect(dtsContent).toContain("@bonsae/nrg-runtime/server");
+    expect(dtsContent).not.toContain("@bonsae/nrg/server");
+    expect(dtsContent).not.toContain("@bonsae/nrg/client");
+  });
+
   // --- Class-based nodes ---
 
   it("should export class-based node as a named class", () => {
@@ -129,11 +138,7 @@ describe("type generation — class-based nodes", () => {
   it("should not export schemas that are not referenced by any node", () => {
     const schemaExports = dtsContent
       .split("\n")
-      .filter(
-        (l) =>
-          l.includes("declare const") &&
-          l.includes("Schema"),
-      );
+      .filter((l) => l.includes("declare const") && l.includes("Schema"));
     for (const line of schemaExports) {
       expect(
         line.includes("TestNode") ||

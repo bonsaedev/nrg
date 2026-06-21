@@ -8,6 +8,7 @@ import type { ServerBuildOptions, BuildContext } from "../types";
 import {
   packageJsonGenerator,
   typeGenerator,
+  rewriteRuntimeTypeImports,
   cjsWrapper,
   esmWrapper,
 } from "./plugins";
@@ -96,6 +97,13 @@ async function build(
 
   try {
     await viteBuild(config);
+
+    // The emitted .d.ts imports from `@bonsae/nrg/server` (required so types
+    // resolve during generation). The published node depends on the runtime,
+    // so rewrite the declaration imports to match.
+    if (types && !buildContext.isDev) {
+      rewriteRuntimeTypeImports(buildContext.outDir, Object.keys(entryPoints));
+    }
 
     // Generate CJS bridge so Node-RED can require() the ESM bundle
     if (isEsm) {

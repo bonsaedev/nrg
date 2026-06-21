@@ -5,6 +5,46 @@ import path from "path";
 import ts from "typescript";
 
 /**
+ * Toolkit → runtime specifier rewrites applied to emitted declaration files.
+ * Mirrors the JS bundle rewrite in output-wrapper and the dependency rewrite in
+ * package-json-generator.
+ */
+const RUNTIME_TYPE_REWRITES: Record<string, string> = {
+  "@bonsae/nrg/server": "@bonsae/nrg-runtime/server",
+  "@bonsae/nrg/client": "@bonsae/nrg-runtime/client",
+};
+
+/**
+ * Rewrites toolkit type-import specifiers (`@bonsae/nrg/*`) to the runtime
+ * package (`@bonsae/nrg-runtime/*`) in already-emitted declaration files.
+ *
+ * Type generation runs with `@bonsae/nrg/server` as the *input* so TypeScript
+ * can resolve the declarations in the author's environment, where only the
+ * toolkit is installed (the runtime is nested under it). But the *published*
+ * node depends on `@bonsae/nrg-runtime`, not the toolkit — so the emitted .d.ts
+ * must import from the runtime (which ships the identical declarations) to
+ * resolve for downstream TypeScript consumers. Run after declaration emit.
+ */
+function rewriteRuntimeTypeImports(outDir: string, entryNames: string[]): void {
+  for (const name of entryNames) {
+    const dtsPath = path.join(outDir, `${name}.d.ts`);
+    if (!fs.existsSync(dtsPath)) continue;
+    const original = fs.readFileSync(dtsPath, "utf-8");
+    let rewritten = original;
+    for (const [from, to] of Object.entries(RUNTIME_TYPE_REWRITES)) {
+      // Only match the whole specifier inside quotes, so a longer specifier
+      // that merely starts with `from` is never partially rewritten.
+      const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`(['"])${escaped}\\1`, "g");
+      rewritten = rewritten.replace(re, `$1${to}$1`);
+    }
+    if (rewritten !== original) {
+      fs.writeFileSync(dtsPath, rewritten);
+    }
+  }
+}
+
+/**
  * Recursively collect all .ts files under a directory, excluding .d.ts files.
  */
 function collectTsFiles(dir: string): string[] {
@@ -629,6 +669,7 @@ function typeGenerator(options: {
 
 export {
   typeGenerator,
+  rewriteRuntimeTypeImports,
   collectTsFiles,
   toPascalCase,
   getNodeTypeExports,

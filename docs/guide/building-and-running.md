@@ -68,6 +68,25 @@ dist/
     └── ...                         # Other configured languages
 ```
 
+### Why your built node depends on `@bonsae/nrg-runtime`
+
+The generated `dist/package.json` declares a dependency on **`@bonsae/nrg-runtime`**,
+not `@bonsae/nrg`. That's deliberate:
+
+- **`@bonsae/nrg`** is the authoring toolkit — the Vite plugin, test utilities, and
+  build/dev tooling (`vite`, `esbuild`, `typescript`, …). You install it as a
+  **devDependency**; it must never end up in the Node-RED container.
+- **`@bonsae/nrg-runtime`** is the minimal runtime a node needs to _run_ (node base
+  classes, schemas, the AJV validator, the editor client runtime) — `ajv`/`typebox`/
+  `vue`, no build tooling.
+
+At build time, nrg rewrites your `import … from "@bonsae/nrg/server"` to the runtime
+package in the emitted bundle and declares only it, so installing your node in
+Node-RED pulls the small runtime and none of the tooling. You never reference
+`@bonsae/nrg-runtime` yourself — `@bonsae/nrg` depends on it, so it's installed
+transitively when you add `@bonsae/nrg`, and the two are published together at the
+same version (so the pin always resolves).
+
 ## Installing in Node-RED
 
 ### Local install

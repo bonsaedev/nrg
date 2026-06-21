@@ -36,7 +36,7 @@ describe("cjsWrapper", () => {
   it("appends footer to CJS entry chunk", () => {
     const chunk = { isEntry: true };
     const outputOptions = { format: "cjs" };
-    const code = 'module.exports = { nodes: [] };';
+    const code = "module.exports = { nodes: [] };";
     const result = (plugin.renderChunk as Function).call(
       {},
       code,
@@ -52,7 +52,7 @@ describe("cjsWrapper", () => {
   it("footer contains the registerTypes call", () => {
     const chunk = { isEntry: true };
     const outputOptions = { format: "cjs" };
-    const code = 'module.exports = { nodes: [] };';
+    const code = "module.exports = { nodes: [] };";
     const result = (plugin.renderChunk as Function).call(
       {},
       code,
@@ -60,7 +60,7 @@ describe("cjsWrapper", () => {
       outputOptions,
     );
     expect(result.code).toContain("registerTypes");
-    expect(result.code).toContain("@bonsae/nrg/server");
+    expect(result.code).toContain("@bonsae/nrg-runtime/server");
   });
 });
 
@@ -99,7 +99,7 @@ describe("esmWrapper", () => {
   it("returns null when no export pattern matches", () => {
     const chunk = { isEntry: true };
     const outputOptions = { format: "es" };
-    const code = 'const x = 1;\nexport { x };';
+    const code = "const x = 1;\nexport { x };";
     const result = (plugin.renderChunk as Function).call(
       {},
       code,
@@ -112,7 +112,7 @@ describe("esmWrapper", () => {
   it("transforms 'export { X as default }' pattern", () => {
     const chunk = { isEntry: true };
     const outputOptions = { format: "es" };
-    const code = 'const foo = { nodes: [] };\nexport { foo as default };';
+    const code = "const foo = { nodes: [] };\nexport { foo as default };";
     const result = (plugin.renderChunk as Function).call(
       {},
       code,
@@ -130,7 +130,7 @@ describe("esmWrapper", () => {
   it("transforms 'export default X' pattern", () => {
     const chunk = { isEntry: true };
     const outputOptions = { format: "es" };
-    const code = 'const bar = { nodes: [] };\nexport default bar;';
+    const code = "const bar = { nodes: [] };\nexport default bar;";
     const result = (plugin.renderChunk as Function).call(
       {},
       code,
@@ -148,7 +148,7 @@ describe("esmWrapper", () => {
   it("injects __dirname/__filename shims", () => {
     const chunk = { isEntry: true };
     const outputOptions = { format: "es" };
-    const code = 'const myModule = {};\nexport default myModule;';
+    const code = "const myModule = {};\nexport default myModule;";
     const result = (plugin.renderChunk as Function).call(
       {},
       code,

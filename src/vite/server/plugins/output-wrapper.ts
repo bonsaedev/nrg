@@ -22,7 +22,7 @@ function cjsWrapper(): Plugin {
         `(function(){` +
         `var _exp=module.exports&&module.exports.__esModule?module.exports.default:module.exports;` +
         `if(_exp&&typeof _exp==="object"&&Array.isArray(_exp.nodes)){` +
-        `var _nrg=require("@bonsae/nrg/server");` +
+        `var _nrg=require("@bonsae/nrg-runtime/server");` +
         `module.exports=_nrg.registerTypes(_exp.nodes);` +
         `}` +
         `else if(typeof _exp==="function"&&Array.isArray(_exp.nodes)){` +
@@ -89,7 +89,7 @@ function esmWrapper(): Plugin {
         `import { dirname as __nrgDirname } from "path";`,
         `var __filename = __nrgFileURLToPath(import.meta.url);`,
         `var __dirname = __nrgDirname(__filename);`,
-        `import { registerTypes as __nrgRegisterTypes } from "@bonsae/nrg/server";`,
+        `import { registerTypes as __nrgRegisterTypes } from "@bonsae/nrg-runtime/server";`,
         ``,
       ].join("\n");
       const replacement = [

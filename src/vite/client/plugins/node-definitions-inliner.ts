@@ -64,6 +64,104 @@ function resolveIcon(iconsDir: string, type: string): string | undefined {
   });
 }
 
+// The built server bundle imports the runtime as `@bonsae/nrg-runtime/server`
+// (single- or double-quoted). Matched so it can be rewritten to an absolute
+// path before the bundle is loaded at build time.
+const RUNTIME_SPECIFIER = "@bonsae/nrg-runtime/server";
+const RUNTIME_SPECIFIER_RE = /(['"])@bonsae\/nrg-runtime\/server\1/g;
+
+/**
+ * Resolves the absolute path to `@bonsae/nrg-runtime`'s server entry.
+ *
+ * The built server bundle imports the runtime via the bare specifier
+ * `@bonsae/nrg-runtime/server`. That resolves at the node's *runtime* (its
+ * generated `dist/package.json` declares `@bonsae/nrg-runtime` directly), but
+ * not necessarily at *build* time: the author installs only `@bonsae/nrg` (the
+ * toolkit), which depends on the runtime. Under npm's flat layout the runtime is
+ * hoisted to the consumer's top-level `node_modules` and resolves from the
+ * output dir; under pnpm's strict layout it is nested under `@bonsae/nrg` and
+ * only resolves from the toolkit's own scope. Try the output dir first, then the
+ * toolkit (this plugin's own location).
+ */
+function resolveRuntimeServer(serverOutDir: string): string | undefined {
+  const roots = [path.join(serverOutDir, "index.js"), import.meta.url];
+  for (const root of roots) {
+    try {
+      return createRequire(root).resolve(RUNTIME_SPECIFIER);
+    } catch {
+      // Try the next resolution root.
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Loads the built server bundle and returns its default export (the package
+ * function with a `.nodes` array) so node-class statics can be read at build
+ * time.
+ *
+ * The runtime import is rewritten to an absolute path in a throwaway sibling
+ * copy before loading. Without this, Node resolves `@bonsae/nrg-runtime/server`
+ * relative to the consumer's output dir, which fails under pnpm where the
+ * runtime is nested under the toolkit rather than hoisted (see
+ * {@link resolveRuntimeServer}). All other bare imports (e.g. third-party deps)
+ * still resolve from the output dir because the copy is a sibling of the
+ * original bundle.
+ */
+async function loadServerPackageExport(serverOutDir: string): Promise<any> {
+  const esmEntryPath = path.resolve(serverOutDir, "index.mjs");
+  const cjsEntryPath = path.resolve(serverOutDir, "index.js");
+  const isEsm = fs.existsSync(esmEntryPath);
+  const entryPath = isEsm
+    ? esmEntryPath
+    : fs.existsSync(cjsEntryPath)
+      ? cjsEntryPath
+      : undefined;
+  if (!entryPath) return undefined;
+
+  const code = fs.readFileSync(entryPath, "utf-8");
+  const runtimeServer = code.includes(RUNTIME_SPECIFIER)
+    ? resolveRuntimeServer(serverOutDir)
+    : undefined;
+
+  let tempPath: string | undefined;
+  let loadPath = entryPath;
+  if (runtimeServer) {
+    // ESM import specifiers must be file URLs; CJS require takes the path.
+    const replacement = isEsm
+      ? JSON.stringify(pathToFileURL(runtimeServer).href)
+      : JSON.stringify(runtimeServer);
+    const rewritten = code.replace(RUNTIME_SPECIFIER_RE, replacement);
+    tempPath = path.resolve(
+      serverOutDir,
+      `.nrg-server-${Date.now()}${isEsm ? ".mjs" : ".cjs"}`,
+    );
+    fs.writeFileSync(tempPath, rewritten);
+    loadPath = tempPath;
+  }
+
+  const require = createRequire(import.meta.url);
+  try {
+    if (isEsm) {
+      const fileUrl = pathToFileURL(loadPath).href + `?t=${Date.now()}`;
+      const mod = await import(fileUrl);
+      return mod?.default ?? mod;
+    }
+    delete require.cache[loadPath];
+    const rawMod = require(loadPath);
+    return rawMod?.default ?? rawMod;
+  } finally {
+    if (tempPath) {
+      try {
+        delete require.cache[tempPath];
+        fs.rmSync(tempPath);
+      } catch {
+        // Best-effort cleanup of the throwaway copy.
+      }
+    }
+  }
+}
+
 function nodeDefinitionsInliner(
   serverOutDir: string,
   entryPath: string,
@@ -71,11 +169,14 @@ function nodeDefinitionsInliner(
   componentsDir?: string,
   nodesDir?: string,
   hasUserEntry: boolean = true,
+  // Cache directory for generated files (inside node_modules, gitignored).
+  // Provided by the caller so it stays consistent with the generated entry path
+  // and is isolated per output dir. Defaults to the shared location for any
+  // standalone use.
+  cacheDir: string = path.resolve("node_modules", ".nrg", "client"),
 ): Plugin {
   let _nodeTypes: string[] = [];
   let _definitions: Record<string, any> = {};
-  // Cache directory for generated files (inside node_modules, gitignored)
-  const cacheDir = path.resolve("node_modules", ".nrg", "client");
 
   return {
     name: "vite-plugin-node-red:client:node-definitions-inliner",
@@ -87,20 +188,7 @@ function nodeDefinitionsInliner(
       _nodeTypes = [];
       _definitions = {};
 
-      const esmEntryPath = path.resolve(serverOutDir, "index.mjs");
-      const cjsEntryPath = path.resolve(serverOutDir, "index.js");
-
-      let packageFn: any;
-      if (fs.existsSync(esmEntryPath)) {
-        const fileUrl = pathToFileURL(esmEntryPath).href + `?t=${Date.now()}`;
-        const mod = await import(fileUrl);
-        packageFn = mod?.default ?? mod;
-      } else if (fs.existsSync(cjsEntryPath)) {
-        const require = createRequire(import.meta.url);
-        delete require.cache[cjsEntryPath];
-        const rawMod = require(cjsEntryPath);
-        packageFn = rawMod?.default ?? rawMod;
-      }
+      const packageFn = await loadServerPackageExport(serverOutDir);
 
       const nodeClasses: any[] = packageFn?.nodes ?? [];
 

@@ -3,6 +3,7 @@ import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { BuildError } from "../errors";
 import { logger } from "../logger";
 import type { ClientBuildOptions, BuildContext, CopyTarget } from "../types";
@@ -14,6 +15,17 @@ import {
   nodeDefinitionsInliner,
   staticCopy,
 } from "./plugins";
+
+/**
+ * Derives a stable, filesystem-safe cache subdirectory name from an output dir.
+ * Keeps the basename for readability and appends a short hash of the absolute
+ * path so distinct outDirs never share a cache directory.
+ */
+function cacheKeyFor(outDir: string): string {
+  const abs = path.resolve(outDir);
+  const hash = crypto.createHash("sha1").update(abs).digest("hex").slice(0, 8);
+  return `${path.basename(abs) || "client"}-${hash}`;
+}
 
 async function build(
   clientBuildOptions: ClientBuildOptions,
@@ -32,6 +44,16 @@ async function build(
     manualChunks,
   } = clientBuildOptions;
 
+  // Cache dir for generated entry/node-definition files. Keyed by output dir so
+  // concurrent builds of the same project (e.g. `build` and `build:dev` writing
+  // to different outDirs) don't clobber each other's generated files.
+  const cacheDir = path.resolve(
+    "node_modules",
+    ".nrg",
+    "client",
+    cacheKeyFor(buildContext.outDir),
+  );
+
   const physicalEntryPath = path.resolve(srcDir, entry);
   let entryPath: string;
   let generatedEntry = false;
@@ -41,7 +63,6 @@ async function build(
   } else {
     // No physical entry — create a minimal empty file in the cache directory
     // so the file watcher on srcDir is not triggered by the create/delete cycle.
-    const cacheDir = path.resolve("node_modules", ".nrg", "client");
     const cachedEntryPath = path.resolve(cacheDir, entry);
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
@@ -64,6 +85,7 @@ async function build(
       path.resolve(srcDir, "components"),
       path.resolve(srcDir, "nodes"),
       !generatedEntry,
+      cacheDir,
     ),
   ];
 

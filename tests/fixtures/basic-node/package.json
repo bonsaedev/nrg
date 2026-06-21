@@ -2,5 +2,8 @@
   "name": "@test/node-red-basic",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@bonsae/nrg": "^0.21.2"
+  }
 }

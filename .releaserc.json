@@ -39,7 +39,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "jq '.version=\"${nextRelease.version}\"' package.json > tmp.json && mv tmp.json package.json && jq '.version=\"${nextRelease.version}\"' dist/package.json > tmp.json && mv tmp.json dist/package.json"
+        "prepareCmd": "jq '.version=\"${nextRelease.version}\"' package.json > tmp.json && mv tmp.json package.json && jq '.version=\"${nextRelease.version}\" | .dependencies.\"@bonsae/nrg-runtime\"=\"^${nextRelease.version}\"' dist/package.json > tmp.json && mv tmp.json dist/package.json && jq '.version=\"${nextRelease.version}\"' dist-runtime/package.json > tmp.json && mv tmp.json dist-runtime/package.json",
+        "publishCmd": "npm config set //registry.npmjs.org/:_authToken \"$NPM_TOKEN\" && npm publish dist-runtime --provenance --access public"
       }
     ],
     [

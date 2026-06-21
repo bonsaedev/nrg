@@ -11,6 +11,19 @@ const nodeBuiltins = new Set([
   ...builtinModules.map((m) => `node:${m}`),
 ]);
 
+// Built nodes import nrg's runtime entries from the dev package (@bonsae/nrg),
+// but in production they must depend on the standalone runtime package instead —
+// @bonsae/nrg carries build tooling that must never reach the Node-RED container.
+const RUNTIME_REWRITES: Record<string, string> = {
+  "@bonsae/nrg/server": "@bonsae/nrg-runtime/server",
+};
+
+// Runtime package → the dev package whose version it tracks (lockstep), so a
+// consumer that only declares @bonsae/nrg still pins @bonsae/nrg-runtime right.
+const RUNTIME_VERSION_SOURCE: Record<string, string> = {
+  "@bonsae/nrg-runtime": "@bonsae/nrg",
+};
+
 function buildTypesPath(entryName: string): string {
   return `./${entryName}.d.ts`;
 }
@@ -108,16 +121,17 @@ function packageJsonGenerator(options: {
           return { id: source, external: true };
         }
 
-        const packageName = source.startsWith("@")
-          ? source.split("/").slice(0, 2).join("/")
-          : source.split("/")[0];
+        const resolved = RUNTIME_REWRITES[source] ?? source;
+        const packageName = resolved.startsWith("@")
+          ? resolved.split("/").slice(0, 2).join("/")
+          : resolved.split("/")[0];
 
         if (bundled.includes(packageName)) {
           return null;
         }
 
         trackedDependencies.add(packageName);
-        return { id: source, external: true };
+        return { id: resolved, external: true };
       },
     },
 
@@ -141,8 +155,12 @@ function packageJsonGenerator(options: {
         if (peerDeps[dep]) {
           continue;
         }
+        const versionSource = RUNTIME_VERSION_SOURCE[dep];
         if (sourceDeps[dep]) {
           distDependencies[dep] = sourceDeps[dep];
+        } else if (versionSource && sourceDeps[versionSource]) {
+          // @bonsae/nrg-runtime tracks the @bonsae/nrg version (lockstep)
+          distDependencies[dep] = sourceDeps[versionSource];
         } else {
           const dependencyPackageJsonPath = path.resolve(
             `./node_modules/${dep}/package.json`,

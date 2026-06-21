@@ -201,11 +201,18 @@ describe("packageJsonGenerator plugin", () => {
   it("resolveId handles scoped packages correctly", () => {
     const plugin = packageJsonGenerator({ outDir: tmpDir, bundled: [] });
     const resolveId = (plugin.resolveId as any).handler;
-    const result = resolveId(
-      "@bonsae/nrg/server",
-      "/some/importer.ts",
-    );
-    expect(result).toEqual({ id: "@bonsae/nrg/server", external: true });
+    const result = resolveId("@scope/pkg/sub", "/some/importer.ts");
+    expect(result).toEqual({ id: "@scope/pkg/sub", external: true });
+  });
+
+  it("rewrites @bonsae/nrg/server to the runtime package", () => {
+    const plugin = packageJsonGenerator({ outDir: tmpDir, bundled: [] });
+    const resolveId = (plugin.resolveId as any).handler;
+    const result = resolveId("@bonsae/nrg/server", "/some/importer.ts");
+    expect(result).toEqual({
+      id: "@bonsae/nrg-runtime/server",
+      external: true,
+    });
   });
 
   it("buildStart clears tracked dependencies", () => {
