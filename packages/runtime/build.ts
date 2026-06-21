@@ -245,11 +245,13 @@ function copyShims() {
   copyFileSync("src/server/typebox.d.ts", "dist/types/shims/typebox.d.ts");
   copyFileSync("src/schema-options.ts", "dist/types/shims/schema-options.d.ts");
 
-  for (const f of ["README.md", "LICENSE"]) {
+  // README.md is committed per-package (runtime-specific); only LICENSE is
+  // shared from the workspace root.
+  for (const f of ["LICENSE"]) {
     const src = path.join(WORKSPACE_ROOT, f);
     if (existsSync(src)) copyFileSync(src, path.join(ROOT, f));
   }
-  console.log("✓ Copied shims, README, and LICENSE");
+  console.log("✓ Copied shims and LICENSE");
 }
 
 async function main() {
