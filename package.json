@@ -6,8 +6,11 @@
   "license": "MIT",
   "type": "module",
   "homepage": "https://bonsaedev.github.io/nrg/",
+  "bugs": {
+    "url": "https://github.com/bonsaedev/nrg/issues"
+  },
   "repository": {
-    "url": "https://github.com/bonsaedev/nrg",
+    "url": "git+https://github.com/bonsaedev/nrg.git",
     "type": "git"
   },
   "keywords": [

@@ -285,7 +285,13 @@ function copyAssets() {
     copyFileSync("README.md", "dist/README.md");
   }
 
-  console.log("✓ Copied tsconfigs, shims, schemas, and README to dist/");
+  if (existsSync("LICENSE")) {
+    copyFileSync("LICENSE", "dist/LICENSE");
+  }
+
+  console.log(
+    "✓ Copied tsconfigs, shims, schemas, README, and LICENSE to dist/",
+  );
 }
 
 function generatePackageJson() {
@@ -298,6 +304,7 @@ function generatePackageJson() {
     license: rootPkg.license,
     type: rootPkg.type,
     homepage: rootPkg.homepage,
+    bugs: rootPkg.bugs,
     repository: rootPkg.repository,
     publishConfig: rootPkg.publishConfig,
     engines: rootPkg.engines,
