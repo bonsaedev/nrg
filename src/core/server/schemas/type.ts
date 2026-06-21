@@ -102,6 +102,12 @@ function OutputContextModes(
  * Extended TypeBox type builder with NRG-specific schema types.
  * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput},
  * {@link OutputReturnProperties} and {@link OutputContextModes}.
+ *
+ * For ports or config fields that carry non-data values (functions, class
+ * instances, Buffers, streams, connections), use `Unsafe<T>()` to get the
+ * TypeScript type without runtime validation — `Any()`/`Unknown()` skip
+ * validation too but lose the type. For config-node references and typed inputs
+ * use {@link NodeRef} / {@link TypedInput} instead. See the Schemas guide.
  */
 const SchemaType = Object.assign({}, BaseType, {
   NodeRef,

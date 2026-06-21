@@ -646,6 +646,8 @@ static override readonly inputSchema: Schema = SchemaType.Object({});
 static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
 ```
 
+For ports that carry **non-data** values — a function, class instance, `Buffer`, stream, or connection — use `SchemaType.Unsafe<T>()` to type the port without validating it. See [Non-data inputs & outputs](/guide/schemas#non-data-ports).
+
 #### Named Output Ports
 
 When `outputsSchema` is a **record** (an object with string keys mapping to schemas), each key becomes a named output port. Port names appear as labels in the editor, and `sendToPort()` gets full autocomplete and per-port type safety.

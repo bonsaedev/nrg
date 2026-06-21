@@ -310,6 +310,43 @@ describe("IONode", () => {
 
       expect(() => instance.send({ result: "" })).toThrow();
     });
+
+    it("lets Unsafe<T>() ports carry non-data values past output validation", () => {
+      // Non-data ports (a function, class instance, Buffer, stream, connection)
+      // can't be JSON-validated. Unsafe<T>() is an empty schema, so AJV passes
+      // any runtime value through — while sibling data fields are still checked.
+      const outputSchema = defineSchema(
+        {
+          handler: SchemaType.Unsafe<() => void>(),
+          name: SchemaType.String({ minLength: 1 }),
+        },
+        { $id: "io-output-unsafe-nondata-test" },
+      );
+
+      class NonDataOutputNode extends IONode {
+        static override readonly type = "nondata-output";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        static override readonly validateOutput = true;
+        static override readonly outputsSchema = outputSchema;
+        public override async input() {}
+      }
+
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new NonDataOutputNode(RED, node, {}, {});
+
+      // The function in the Unsafe field passes validation.
+      expect(() =>
+        instance.send({ handler: () => {}, name: "ok" }),
+      ).not.toThrow();
+
+      // Discriminating: the Unsafe field is exempt, but the sibling data field
+      // is still validated — an empty name throws. Guards against a
+      // "passes everything" false positive.
+      expect(() => instance.send({ handler: () => {}, name: "" })).toThrow();
+    });
   });
 
   describe("status", () => {

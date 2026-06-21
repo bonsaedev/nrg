@@ -272,6 +272,88 @@ export default class MyNode extends IONode<Config> {
 }
 ```
 
+## Non-data inputs & outputs {#non-data-ports}
+
+Not every port carries plain data. A node might emit a function, a class
+instance, a `Buffer` or stream, or a database client — or accept a message with
+non-serializable parts. JSON Schema can't describe those values, so a normal
+schema would reject or coerce them.
+
+Declare such a value as a **named property** of an object schema and type it with
+**`SchemaType.Unsafe<T>()`**. It produces an empty schema (`{}`), so AJV passes
+any runtime value through while `Infer` still resolves the field to `T`. `T` is
+erased at runtime, but the build reads the `<T>` you wrote straight from the
+source, so the generated node help still shows it in the **Type** column — you
+write the type just once:
+
+```typescript
+import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+
+type Connection = { query(sql: string): Promise<unknown[]> };
+
+const OutputSchema = defineSchema(
+  {
+    // non-data: typed as Connection, never validated — but still documented
+    connection: SchemaType.Unsafe<Connection>({
+      description: "Open pool connection, passed downstream",
+    }),
+    // data alongside it is still validated normally
+    rowCount: SchemaType.Number({ minimum: 0, description: "Rows affected" }),
+  },
+  { $id: "db-open:output" }
+);
+
+export default class OpenConnection extends IONode<Config, any, Input, Output> {
+  static readonly outputsSchema: Schema = OutputSchema;
+  static readonly validateOutput = true;
+
+  async input() {
+    this.send({ connection: pool, rowCount: 0 }); // pool passes through intact
+  }
+}
+```
+
+The generated node help then renders the **Output** table with `connection`
+typed as `Connection` and `rowCount` as `number [min: 0]`, so the port's
+TypeScript type is visible to anyone reading the node's docs — recovered from the
+source at build time, with nothing to keep in sync by hand.
+
+For that recovery to work, keep `Unsafe<T>()` as a **named property** of a schema
+built with `defineSchema` — its `$id` is how the build links the type it read
+from `<T>` back to the property. The same applies to `inputSchema` for non-data
+inputs.
+
+::: warning Config-node references and typed inputs are NOT `Unsafe` cases
+Don't reach for `Unsafe` here — these have first-class builders the editor and
+the client type-resolver understand, and skipping them loses both:
+
+- **Config-node reference** → `SchemaType.NodeRef(TheConfigClass)` — stored as the
+  node id; resolves to `string` on the client.
+- **Typed input** → `SchemaType.TypedInput()` — resolves to `{ value, type }`.
+:::
+
+### Choosing the right builder
+
+| Builder | Validates | Static type | Use when |
+| --- | --- | --- | --- |
+| `SchemaType.Object({ … })` | yes | inferred | plain data |
+| `SchemaType.NodeRef(Cfg)` | yes | `string` (node id) | a config-node reference |
+| `SchemaType.TypedInput()` | yes | `{ value, type }` | a Node-RED TypedInput |
+| `SchemaType.Unsafe<T>()` | no | **`T`** | a non-data value you want typed (function, instance, `Buffer`, stream, connection) |
+| `SchemaType.Any()` | no | `any` | a truly untyped passthrough |
+| `SchemaType.Unknown()` | no | `unknown` | force the consumer to narrow before use |
+| `SchemaType.Unsafe<T>({ …json… })` | yes | `T` | a custom/branded static type **with** real validation |
+
+Prefer `Unsafe<T>()` over `Any()` for non-data ports — both skip validation, but
+`Unsafe<T>()` keeps full type safety on `msg.output` and the input message. Reach
+for it rather than `SchemaType.Function`/`Constructor` too: those emit a non-JSON
+`type` keyword that only validates cleanly when the schema is built with
+`defineSchema` (which strips it via `markNonValidatable`), whereas `Unsafe<T>()`
+is already an empty schema with nothing for AJV to choke on.
+
+Because the framework never deep-clones `output`, these non-data values reach the
+next node intact — see [Output and the message envelope](#output-and-the-message-envelope).
+
 ## Settings Schema
 
 Define Node-RED runtime settings that your node reads from `settings.js`:
