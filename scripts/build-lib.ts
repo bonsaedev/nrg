@@ -1,12 +1,5 @@
 import { execSync } from "child_process";
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  unlinkSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "fs";
 import path from "path";
 
 /**
@@ -45,30 +38,6 @@ export function clean(dist: string): void {
 }
 
 /**
- * Inline the single extracted `.css` in `dir` into `jsFile` so styles load with
- * the script, then delete the stray `.css`. `guard` wraps the injection in a
- * `typeof document !== "undefined"` check for bundles that may load outside a
- * DOM (e.g. the component test entry under Node).
- */
-export function inlineCss(
-  dir: string,
-  jsFile: string,
-  { guard = false }: { guard?: boolean } = {},
-): void {
-  const cssFile = readdirSync(dir).find((f) => f.endsWith(".css"));
-  if (!cssFile) return;
-  const css = readFileSync(path.join(dir, cssFile), "utf-8");
-  const jsPath = path.join(dir, jsFile);
-  const js = readFileSync(jsPath, "utf-8");
-  const make = `var s=document.createElement("style");s.textContent=${JSON.stringify(css)};document.head.appendChild(s);`;
-  const inject = guard
-    ? `(function(){if(typeof document!=="undefined"){${make}}})();\n`
-    : `(function(){${make}})();\n`;
-  writeFileSync(jsPath, inject + js);
-  unlinkSync(path.join(dir, cssFile));
-}
-
-/**
  * Write a publish-ready package.json into `distDir`. Combined with
  * `publishConfig.directory: "dist"`, this publishes the package's `dist/`
  * contents at the package root — so installed paths have no `dist/` segment
@@ -79,7 +48,10 @@ export function inlineCss(
  * (lockstep) version, and removes `publishConfig.directory` (the manifest
  * already sits at the publish root).
  */
-export function writePublishManifest(packageRoot: string, distDir: string): void {
+export function writePublishManifest(
+  packageRoot: string,
+  distDir: string,
+): void {
   const pkg = JSON.parse(
     readFileSync(path.join(packageRoot, "package.json"), "utf-8"),
   );

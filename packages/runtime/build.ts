@@ -16,7 +16,6 @@ import {
   DTS_FLAGS,
   esbuildBundle,
   clean,
-  inlineCss,
   writePublishManifest,
 } from "../../scripts/build-lib";
 
@@ -54,12 +53,15 @@ function buildInternalServer() {
 }
 
 async function buildClientAsset() {
+  // ESM-only plugin — dynamic import resolves it under tsx in this CJS package.
+  const { default: cssInjectedByJsPlugin } =
+    await import("vite-plugin-css-injected-by-js");
   // The editor client runtime, served as a static asset; vue is externalized to
   // the URL the editor loads it from.
   await viteBuild({
     configFile: false,
     logLevel: "warn",
-    plugins: [vue()],
+    plugins: [vue(), cssInjectedByJsPlugin()],
     build: {
       outDir: path.join(DIST, "server/resources"),
       emptyOutDir: false,
@@ -78,19 +80,19 @@ async function buildClientAsset() {
       },
     },
   });
-  // Inline extracted CSS into nrg-client.js so styles load with the script.
-  inlineCss(path.join(DIST, "server/resources"), "nrg-client.js");
   console.log("✓ Built client asset → dist/server/resources/nrg-client.js");
 }
 
 async function buildInternalClient() {
+  const { default: cssInjectedByJsPlugin } =
+    await import("vite-plugin-css-injected-by-js");
   // The real form components, for the component test harness. vue stays external
   // as a bare specifier so the consumer's test env supplies it; everything else
   // (es-toolkit, etc.) is bundled in so the runtime declares no extra deps.
   await viteBuild({
     configFile: false,
     logLevel: "warn",
-    plugins: [vue()],
+    plugins: [vue(), cssInjectedByJsPlugin()],
     build: {
       outDir: path.join(DIST, "internal/client"),
       emptyOutDir: false,
@@ -102,11 +104,6 @@ async function buildInternalClient() {
       },
       rollupOptions: { external: ["vue"] },
     },
-  });
-  // Inline the components' extracted CSS into components.mjs so the test harness
-  // mounts them styled (and nothing stray is shipped).
-  inlineCss(path.join(DIST, "internal/client"), "components.mjs", {
-    guard: true,
   });
   // Client validation helpers + useFormNode (no .vue), vue external. Named .mjs
   // so Node treats it as ESM in this type:commonjs package.

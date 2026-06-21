@@ -143,6 +143,9 @@ importers:
       vite:
         specifier: ^6.3.4
         version: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
+      vite-plugin-css-injected-by-js:
+        specifier: ^5.0.1
+        version: 5.0.1(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
       vite-plugin-dts:
         specifier: ^4.5.4
         version: 4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
@@ -182,12 +185,13 @@ importers:
       vue:
         specifier: ^3.5.14
         version: 3.5.32(typescript@5.9.3)
+    publishDirectory: dist
 
   packages/toolkit:
     dependencies:
       '@bonsae/nrg-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../runtime/dist
       '@clack/prompts':
         specifier: ^1.0.1
         version: 1.2.0
@@ -230,6 +234,9 @@ importers:
       get-port:
         specifier: ^7.1.0
         version: 7.2.0
+      happy-dom:
+        specifier: ^20.0.0
+        version: 20.10.2
       jsonpointer:
         specifier: ^5.0.1
         version: 5.0.1
@@ -260,6 +267,7 @@ importers:
       vue:
         specifier: ^3.5.14
         version: 3.5.32(typescript@5.9.3)
+    publishDirectory: dist
 
 packages:
 
@@ -4272,6 +4280,11 @@ packages:
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
+
+  vite-plugin-css-injected-by-js@5.0.1:
+    resolution: {integrity: sha512-JSB0jjN4VCKqG7XTUdrwiIl5gA+z2yi/tAl9WHo0X4sdyJ1yrmbLOEjf95TDoDIIuKr4GJIc7lMJG0CT88eEUQ==}
+    peerDependencies:
+      vite: '>8.0.0-0'
 
   vite-plugin-dts@4.5.4:
     resolution: {integrity: sha512-d4sOM8M/8z7vRXHHq/ebbblfaxENjogAAekcfcDCCwAyvGqnPrc7f4NZbvItS+g4WTgerW0xDwSz5qz11JT3vg==}
@@ -8647,6 +8660,10 @@ snapshots:
   validate-npm-package-name@7.0.2: {}
 
   vary@1.1.2: {}
+
+  vite-plugin-css-injected-by-js@5.0.1(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)):
+    dependencies:
+      vite: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
 
   vite-plugin-dts@4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)):
     dependencies:
