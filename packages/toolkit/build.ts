@@ -11,7 +11,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
-import { DTS_FLAGS, esbuildBundle, clean } from "../../scripts/build-lib";
+import {
+  DTS_FLAGS,
+  esbuildBundle,
+  clean,
+  writePublishManifest,
+} from "../../scripts/build-lib";
 
 // Runs with cwd = packages/toolkit (pnpm --filter @bonsae/nrg build).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -150,11 +155,13 @@ function copyAssets() {
   cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
   cpSync("src/schemas", "dist/schemas", { recursive: true });
 
+  // The package publishes from dist/ (publishConfig.directory), so README and
+  // LICENSE (the project-level files) go into dist/.
   for (const f of ["README.md", "LICENSE"]) {
     const src = path.join(WORKSPACE_ROOT, f);
-    if (existsSync(src)) copyFileSync(src, path.join(ROOT, f));
+    if (existsSync(src)) copyFileSync(src, path.join(DIST, f));
   }
-  console.log("✓ Copied tsconfigs, schemas, README, and LICENSE");
+  console.log("✓ Copied tsconfigs, schemas, README, and LICENSE → dist/");
 }
 
 async function main() {
@@ -165,6 +172,7 @@ async function main() {
   writeReExports();
   generateTypes();
   copyAssets();
+  writePublishManifest(ROOT, DIST);
   console.log("✓ @bonsae/nrg (toolkit) built");
 }
 

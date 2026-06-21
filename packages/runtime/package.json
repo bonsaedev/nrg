@@ -15,7 +15,8 @@
     "directory": "packages/runtime"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "directory": "dist"
   },
   "engines": {
     "node": ">=20.19",

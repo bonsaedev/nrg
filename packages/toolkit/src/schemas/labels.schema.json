@@ -44,11 +44,14 @@
       "description": "Labels for input schema properties"
     },
     "outputs": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/labelMap"
-      },
-      "description": "Per-port output labels, matching outputsSchema order. Single output uses an array with one element."
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/labelMap" }
+        },
+        { "$ref": "#/$defs/portLabelMap" }
+      ],
+      "description": "Per-port output labels. Use an array (matching outputsSchema order; a single output uses a one-element array) for positional outputs, or an object keyed by port name for named outputs."
     },
     "errors": {
       "$ref": "#/$defs/labelMap",
@@ -63,6 +66,13 @@
         "type": "string"
       },
       "description": "Maps property keys to human-readable labels"
+    },
+    "portLabelMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/labelMap"
+      },
+      "description": "Maps output port names to their per-property labels (named output ports)"
     }
   }
 }

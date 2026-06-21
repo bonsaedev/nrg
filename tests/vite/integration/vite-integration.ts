@@ -271,8 +271,10 @@ async function main(): Promise<void> {
     cwd: DIST_DIR,
     encoding: "utf-8",
   }).trim();
-  const tarballName = path.basename(packOutput.split("\n").pop()!.trim());
-  const tarballPath = path.join(DIST_DIR, tarballName);
+  // With publishConfig.directory="dist" the tarball lands in dist/, so trust the
+  // absolute path pnpm prints on the last line rather than reconstructing it.
+  const tarballPath = packOutput.split("\n").pop()!.trim();
+  const tarballName = path.basename(tarballPath);
   log(`Packed: ${tarballName}`);
 
   // The built node depends on @bonsae/nrg-runtime, which is not on the registry
@@ -283,10 +285,8 @@ async function main(): Promise<void> {
     cwd: DIST_RUNTIME_DIR,
     encoding: "utf-8",
   }).trim();
-  const runtimeTarballName = path.basename(
-    runtimePackOutput.split("\n").pop()!.trim(),
-  );
-  const runtimeTarballPath = path.join(DIST_RUNTIME_DIR, runtimeTarballName);
+  const runtimeTarballPath = runtimePackOutput.split("\n").pop()!.trim();
+  const runtimeTarballName = path.basename(runtimeTarballPath);
   log(`Packed: ${runtimeTarballName}`);
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nrg-integration-"));

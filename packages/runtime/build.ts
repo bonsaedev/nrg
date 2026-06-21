@@ -17,6 +17,7 @@ import {
   esbuildBundle,
   clean,
   inlineCss,
+  writePublishManifest,
 } from "../../scripts/build-lib";
 
 // Runs with cwd = packages/runtime (pnpm --filter @bonsae/nrg-runtime build).
@@ -252,13 +253,13 @@ function copyShims() {
   // Ship the internal/ explainer alongside the built internal entries.
   copyFileSync("src/internal/README.md", "dist/internal/README.md");
 
-  // README.md is committed per-package (runtime-specific); only LICENSE is
-  // shared from the workspace root.
-  for (const f of ["LICENSE"]) {
-    const src = path.join(WORKSPACE_ROOT, f);
-    if (existsSync(src)) copyFileSync(src, path.join(ROOT, f));
-  }
-  console.log("✓ Copied shims and LICENSE");
+  // The package publishes from dist/ (publishConfig.directory), so README and
+  // LICENSE go into dist/: README is the committed runtime-specific one, LICENSE
+  // is shared from the workspace root.
+  copyFileSync("README.md", path.join(DIST, "README.md"));
+  const license = path.join(WORKSPACE_ROOT, "LICENSE");
+  if (existsSync(license)) copyFileSync(license, path.join(DIST, "LICENSE"));
+  console.log("✓ Copied shims, README, and LICENSE → dist/");
 }
 
 async function main() {
@@ -270,6 +271,7 @@ async function main() {
   generateTypes();
   copyShims();
   generateComponentTypes();
+  writePublishManifest(ROOT, DIST);
   console.log("✓ @bonsae/nrg-runtime built");
 }
 

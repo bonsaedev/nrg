@@ -33,7 +33,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "jq '.version=\"${nextRelease.version}\"' package.json > tmp.json && mv tmp.json package.json && jq '.version=\"${nextRelease.version}\"' packages/runtime/package.json > tmp.json && mv tmp.json packages/runtime/package.json && jq '.version=\"${nextRelease.version}\"' packages/toolkit/package.json > tmp.json && mv tmp.json packages/toolkit/package.json",
+        "prepareCmd": "jq '.version=\"${nextRelease.version}\"' package.json > tmp.json && mv tmp.json package.json && jq '.version=\"${nextRelease.version}\"' packages/runtime/package.json > tmp.json && mv tmp.json packages/runtime/package.json && jq '.version=\"${nextRelease.version}\"' packages/toolkit/package.json > tmp.json && mv tmp.json packages/toolkit/package.json && pnpm build",
         "publishCmd": "npm config set //registry.npmjs.org/:_authToken \"$NPM_TOKEN\" && pnpm --filter @bonsae/nrg-runtime publish --no-git-checks --provenance --access public && pnpm --filter @bonsae/nrg publish --no-git-checks --provenance --access public"
       }
     ],
