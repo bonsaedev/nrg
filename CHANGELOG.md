@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.22.1](https://github.com/bonsaedev/nrg/compare/v0.22.0...v0.22.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **toolkit:** ship client type shims in the published package ([c9802e7](https://github.com/bonsaedev/nrg/commit/c9802e779009dff1a2e39aa4f5cec3a15ce1cf71))
+
+
+### Performance Improvements
+
+* **build:** minify the built client asset ([16bd82f](https://github.com/bonsaedev/nrg/commit/16bd82f1dd542f71b0f2fb2268a612964b8915cd))
+
 # [0.22.0](https://github.com/bonsaedev/nrg/compare/v0.21.2...v0.22.0) (2026-06-22)
 
 
