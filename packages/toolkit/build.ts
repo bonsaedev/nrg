@@ -150,6 +150,25 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
   console.log("✓ Generated type declarations → dist/types/");
 }
 
+function copyShims() {
+  // tsconfig/core/client.json and tsconfig/test/client/component.json
+  // force-include the client type shims via relative `files` paths
+  // (../../types/shims/*). Post-split those shims are generated in the runtime
+  // package, so copy the whole tree into the toolkit's published dist to keep
+  // those paths resolvable for consumers (they are not module-resolved).
+  const shimsSrc = path.resolve(
+    WORKSPACE_ROOT,
+    "packages/runtime/dist/types/shims",
+  );
+  if (!existsSync(shimsSrc)) {
+    throw new Error(
+      `Runtime shims not found at ${shimsSrc} — build @bonsae/nrg-runtime first.`,
+    );
+  }
+  cpSync(shimsSrc, path.join(DIST, "types/shims"), { recursive: true });
+  console.log("✓ Copied client type shims → dist/types/shims/");
+}
+
 function copyAssets() {
   mkdirSync("dist/tsconfig", { recursive: true });
   cpSync("src/tsconfig", "dist/tsconfig", { recursive: true });
@@ -172,6 +191,7 @@ async function main() {
   writeReExports();
   generateTypes();
   copyAssets();
+  copyShims();
   writePublishManifest(ROOT, DIST);
   console.log("✓ @bonsae/nrg (toolkit) built");
 }
