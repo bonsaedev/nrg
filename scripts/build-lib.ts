@@ -31,6 +31,19 @@ export function esbuildBundle(
   );
 }
 
+/**
+ * Collapse an already-built bundle with a final esbuild minify pass, in place.
+ * Vite/Rollup minify identifiers and syntax but leave a newline between every
+ * concatenated module; this strips the remaining whitespace. No `--bundle`, so
+ * external imports (e.g. a URL-pathed `vue`) are left untouched.
+ */
+export function minifyFile(file: string, format = "esm"): void {
+  execSync(
+    `esbuild ${file} --minify --format=${format} --allow-overwrite --outfile=${file}`,
+    { stdio: "inherit" },
+  );
+}
+
 /** Remove a dist directory if present. */
 export function clean(dist: string): void {
   if (existsSync(dist)) rmSync(dist, { recursive: true });

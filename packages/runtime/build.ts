@@ -15,6 +15,7 @@ import vue from "@vitejs/plugin-vue";
 import {
   DTS_FLAGS,
   esbuildBundle,
+  minifyFile,
   clean,
   writePublishManifest,
 } from "../../scripts/build-lib";
@@ -80,6 +81,10 @@ async function buildClientAsset() {
       },
     },
   });
+  // Vite leaves a newline between every concatenated module (~270KB over
+  // thousands of lines); a final esbuild pass collapses the whitespace to
+  // ~190KB without disturbing the externalized `vue` import.
+  minifyFile(path.join(DIST, "server/resources/nrg-client.js"));
   console.log("✓ Built client asset → dist/server/resources/nrg-client.js");
 }
 
