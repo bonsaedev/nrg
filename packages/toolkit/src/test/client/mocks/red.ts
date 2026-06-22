@@ -120,10 +120,16 @@ function topicMatches(pattern: string, topic: string): boolean {
 }
 
 /**
- * Resets a mock RED's internal state (registries, listeners, subscriptions,
- * settings) without replacing the object — module-scope `const RED =
- * window.RED` captures in test files stay valid. Called from the built-in
- * setup's beforeEach.
+ * Reset a mock RED's internal state (registries, listeners, subscriptions,
+ * settings) in place, WITHOUT replacing the object. The setup's beforeEach
+ * calls this instead of reassigning `window.RED = createRED()` on purpose: test
+ * files capture the RED reference — and the spies installed on it — once at
+ * collection time, both as `const RED = window.RED` and, more commonly, via the
+ * `const { RED } = createNode()` the component harness returns at describe-body
+ * scope. Swapping the object would orphan those captures: the component under
+ * test would call the fresh `window.RED` while the test asserts on the stale
+ * one. Keeping the same object and only clearing its state keeps both sides on
+ * one RED.
  */
 export function resetRED(red: MockRED): void {
   (red as any).__reset?.();

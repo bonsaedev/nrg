@@ -49,9 +49,9 @@ export default defineConfig({
       include: [
         "packages/runtime/src/client/**/*.{ts,vue}",
         "packages/runtime/src/constants.ts",
-        "packages/toolkit/src/test/client/mocks.ts",
+        "packages/toolkit/src/test/client/mocks/**/*.ts",
+        "packages/toolkit/src/test/client/install-mocks.ts",
         "packages/toolkit/src/test/client/component/index.ts",
-        "packages/toolkit/src/test/client/component/jquery.ts",
         "packages/toolkit/src/test/client/component/setup.ts",
       ],
       exclude: ["**/types.ts", "**/*.d.ts"],

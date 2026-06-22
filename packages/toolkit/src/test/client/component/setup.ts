@@ -1,15 +1,15 @@
-import "../globals";
-import { beforeEach } from "vitest";
 import { config } from "vitest-browser-vue";
-import { createRED, resetRED, createJQuery } from "../mocks";
-import { NodeRedInput } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedTypedInput } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedConfigInput } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedSelectInput } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedEditorInput } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedInputLabel } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedToggle } from "@bonsae/nrg-runtime/internal/client/components";
-import { NodeRedJsonSchemaForm } from "@bonsae/nrg-runtime/internal/client/components";
+import {
+  NodeRedInput,
+  NodeRedTypedInput,
+  NodeRedConfigInput,
+  NodeRedSelectInput,
+  NodeRedEditorInput,
+  NodeRedInputLabel,
+  NodeRedToggle,
+  NodeRedJsonSchemaForm,
+} from "@bonsae/nrg-runtime/internal/client/components";
+import { installEditorMocks } from "../install-mocks";
 
 config.global.mocks.$i18n = (key: string) => key;
 
@@ -27,12 +27,4 @@ config.global.components = {
   NodeRedJsonSchemaForm,
 };
 
-window.$ = createJQuery();
-window.RED = createRED();
-
-// Reset RED state per test (registries, listeners, subscriptions, settings)
-// while keeping the same object — module-scope `const RED = window.RED`
-// captures in test files stay valid.
-beforeEach(() => {
-  resetRED(window.RED);
-});
+installEditorMocks();
