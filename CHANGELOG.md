@@ -1,5 +1,23 @@
 # Changelog
 
+# [0.22.0](https://github.com/bonsaedev/nrg/compare/v0.21.2...v0.22.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **deps:** make browser test tools optional peers, not dependencies ([b33f3a2](https://github.com/bonsaedev/nrg/commit/b33f3a2cfd33defdeb5a9e5abfd21363341c2763))
+* publish package contents at the root, plus schema and peer-dep fixes ([4675587](https://github.com/bonsaedev/nrg/commit/4675587ace48c0a1a9eb9fea5b8d49ae832dba58))
+* ship LICENSE in the published package, add bugs + canonical repo url ([ab67f86](https://github.com/bonsaedev/nrg/commit/ab67f86e592ebd815861f71a7318a1424445368a))
+* support pnpm dev and devDependency installs after the split ([78a9570](https://github.com/bonsaedev/nrg/commit/78a9570545efc4bb024b97e3a321dc60a4630dc3))
+* widen IONodeStatus to valid Node-RED status fills and shapes ([28671c3](https://github.com/bonsaedev/nrg/commit/28671c3af0888c5dfc10e9aa75e5dc438ba571e7))
+
+
+### Features
+
+* atomic increment/update on node context ([bb064fa](https://github.com/bonsaedev/nrg/commit/bb064fa310b590b0b3d532475b2f25eb0966c44c))
+* recover Unsafe<T>() types into generated node docs at build time ([8f379e1](https://github.com/bonsaedev/nrg/commit/8f379e115edc76e6219ab52abe94778d447c7ab7))
+* split @bonsae/nrg into toolkit and runtime packages ([3ee058c](https://github.com/bonsaedev/nrg/commit/3ee058c9849566817efea97613a9fad948d8aa18))
+
 ## [0.21.2](https://github.com/bonsaedev/nrg/compare/v0.21.1...v0.21.2) (2026-06-13)
 
 
