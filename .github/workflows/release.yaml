@@ -53,6 +53,11 @@ jobs:
       - name: Format Check
         run: pnpm validate:format
 
+      # Prove the freshly built tarballs build, typecheck, and boot Node-RED for
+      # a real consumer before publishing — guards against a broken artifact.
+      - name: Consumer Smoke Test
+        run: pnpm test:smoke
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium firefox webkit
 

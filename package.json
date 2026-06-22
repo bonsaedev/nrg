@@ -39,6 +39,7 @@
     "test:vite:unit": "vitest run --config vitest.vite.unit.config.ts",
     "test:vite:unit:watch": "vitest --config vitest.vite.unit.config.ts",
     "test:vite:e2e": "vitest run --config vitest.vite.e2e.config.ts",
+    "test:smoke": "tsx tests/smoke/consumer-smoke.ts",
     "validate": "pnpm validate:tsc && pnpm validate:lint && pnpm validate:format",
     "validate:tsc": "tsc -p packages/runtime/tsconfig.json --noEmit && tsc -p packages/runtime/tsconfig.client.json --noEmit && tsc -p packages/toolkit/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
     "validate:lint": "eslint packages/",

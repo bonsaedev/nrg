@@ -1,0 +1,7 @@
+{
+  "name": "nrg-smoke-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "comment": "A realistic downstream nrg project. @bonsae/nrg (+ runtime) and the toolchain (vite, node-red, typescript, vue, @types/node) are installed by tests/smoke/consumer-smoke.ts from the freshly packed local tarballs / registry, so they are intentionally absent here."
+}
