@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.2](https://github.com/bonsaedev/nrg/compare/v0.22.1...v0.22.2) (2026-06-23)
+
+
+### Bug Fixes
+
+* **toolkit:** own and publish nrg types in the toolkit's ESM context ([b342cf4](https://github.com/bonsaedev/nrg/commit/b342cf4b6ae9a2513c81b7bf4ce6c2535b3d0ed7))
+
 ## [0.22.1](https://github.com/bonsaedev/nrg/compare/v0.22.0...v0.22.1) (2026-06-22)
 
 
