@@ -10,15 +10,15 @@ If you created your project with `@bonsae/create-nrg`, the vitest configs, setup
 
 NRG ships the test libraries themselves and bundles the Vue plugin integration (`@vitejs/plugin-vue`) it needs for component tests. The test runner and the DOM/browser tooling are peer dependencies you install for the test types you use:
 
-| Package | Required for | Why it's a peer dep |
-|---------|-------------|---------------------|
-| `vitest` | All tests | Test runner — your project controls the version and runs it via CLI |
-| `happy-dom` | Client unit tests | DOM environment for client unit tests (`environment: "happy-dom"`) — your project provides it |
-| `@vitest/browser-playwright` | Component tests | Playwright browser provider for Vitest — imported in vitest config files |
-| `playwright` | Component tests, E2E tests | Test files import it directly (e.g., `import { chromium } from "playwright"`) |
-| `vitest-browser-vue` | Component tests | Provides the `render` helper for mounting Vue components in browser tests |
-| `@vitest/coverage-v8` | Coverage (Node.js tests) | Optional — only needed when running with `--coverage` |
-| `@vitest/coverage-istanbul` | Coverage (browser tests) | Optional — only needed when running with `--coverage` |
+| Package                      | Required for               | Why it's a peer dep                                                                           |
+| ---------------------------- | -------------------------- | --------------------------------------------------------------------------------------------- |
+| `vitest`                     | All tests                  | Test runner — your project controls the version and runs it via CLI                           |
+| `happy-dom`                  | Client unit tests          | DOM environment for client unit tests (`environment: "happy-dom"`) — your project provides it |
+| `@vitest/browser-playwright` | Component tests            | Playwright browser provider for Vitest — imported in vitest config files                      |
+| `playwright`                 | Component tests, E2E tests | Test files import it directly (e.g., `import { chromium } from "playwright"`)                 |
+| `vitest-browser-vue`         | Component tests            | Provides the `render` helper for mounting Vue components in browser tests                     |
+| `@vitest/coverage-v8`        | Coverage (Node.js tests)   | Optional — only needed when running with `--coverage`                                         |
+| `@vitest/coverage-istanbul`  | Coverage (browser tests)   | Optional — only needed when running with `--coverage`                                         |
 
 ```bash
 # required
@@ -42,9 +42,9 @@ pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, server 
 
 ### Server
 
-| Type | What it tests | Speed | Library |
-|------|--------------|-------|---------|
-| **Unit** | Node lifecycle, input/output routing, config, credentials, context stores, error handling | Fast (Node.js, no browser) | `@bonsae/nrg/test/server/unit` |
+| Type            | What it tests                                                                                                                 | Speed                              | Library                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------------------------- |
+| **Unit**        | Node lifecycle, input/output routing, config, credentials, context stores, error handling                                     | Fast (Node.js, no browser)         | `@bonsae/nrg/test/server/unit`        |
 | **Integration** | Deployed nodes in a real Node-RED runtime — flow wiring, NodeRef resolution, credentials, context, multi-node message passing | Medium (boots Node-RED in-process) | `@bonsae/nrg/test/server/integration` |
 
 Server **unit** tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
@@ -53,11 +53,11 @@ Server **integration** tests boot a real, headless Node-RED runtime, register yo
 
 ### Client
 
-| Type | What it tests | Speed | Library |
-|------|--------------|-------|---------|
-| **Unit** | Pure TypeScript logic used by client code (validation, utilities, helpers) | Fast (happy-dom) | `@bonsae/nrg/test/client/unit` |
-| **Component** | Vue editor components — rendering, reactivity, user interactions, validation, RED API calls | Medium (headless browsers) | `@bonsae/nrg/test/client/component` |
-| **E2E** | Full editor round-trip — form rendering, validation, TypedInput, config selectors, i18n | Slow (real Node-RED instance) | `@bonsae/nrg/test/client/e2e` |
+| Type          | What it tests                                                                               | Speed                         | Library                             |
+| ------------- | ------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------- |
+| **Unit**      | Pure TypeScript logic used by client code (validation, utilities, helpers)                  | Fast (happy-dom)              | `@bonsae/nrg/test/client/unit`      |
+| **Component** | Vue editor components — rendering, reactivity, user interactions, validation, RED API calls | Medium (headless browsers)    | `@bonsae/nrg/test/client/component` |
+| **E2E**       | Full editor round-trip — form rendering, validation, TypedInput, config selectors, i18n     | Slow (real Node-RED instance) | `@bonsae/nrg/test/client/e2e`       |
 
 Client **unit** tests cover standalone TypeScript modules (validation logic, format helpers, etc.) without rendering Vue components. They run in a happy-dom environment with mocked `RED` and `$` globals.
 
@@ -67,37 +67,39 @@ Client **E2E** tests start a real Node-RED instance with your nodes installed an
 
 ### When to Use What
 
-| I want to verify... | Use |
-|---------------------|-----|
-| Input handler transforms a message correctly | Server unit |
-| Node sets status after processing | Server unit |
-| Config node credentials are resolved | Server unit |
-| TypedInput resolves msg/flow/global values | Server unit |
-| Wired nodes pass a message end to end through a flow | Server integration |
-| A real config node resolves and is used by a deployed node | Server integration |
-| Credentials reach a node deployed in a real runtime | Server integration |
-| A node reads or writes real flow/global context | Server integration |
-| A validation utility rejects invalid input | Client unit |
-| A helper function formats data correctly | Client unit |
-| My Vue form renders the right fields | Client component |
-| A component emits `update:modelValue` on input | Client component |
-| Changing one field reveals or hides another | Client component |
-| Fixing an invalid value clears its validation error | Client component |
-| A NodeRef field rejects ids of unregistered config nodes | Client component |
-| `RED.editor.createEditor` is called on mount | Client component |
-| The editor form shows a validation error for empty required fields | Client E2E |
-| A TypedInput dropdown offers the correct types | Client E2E |
-| Config node selector shows registered config nodes | Client E2E |
-| Creating a config node from the node editor works end to end | Client E2E |
-| Toggling a built-in port changes the node's ports on the canvas | Client E2E |
-| Translations display correctly in the editor | Client E2E |
+| I want to verify...                                                | Use                |
+| ------------------------------------------------------------------ | ------------------ |
+| Input handler transforms a message correctly                       | Server unit        |
+| Node sets status after processing                                  | Server unit        |
+| Config node credentials are resolved                               | Server unit        |
+| TypedInput resolves msg/flow/global values                         | Server unit        |
+| Wired nodes pass a message end to end through a flow               | Server integration |
+| A real config node resolves and is used by a deployed node         | Server integration |
+| Credentials reach a node deployed in a real runtime                | Server integration |
+| A node reads or writes real flow/global context                    | Server integration |
+| A validation utility rejects invalid input                         | Client unit        |
+| A helper function formats data correctly                           | Client unit        |
+| My Vue form renders the right fields                               | Client component   |
+| A component emits `update:modelValue` on input                     | Client component   |
+| Changing one field reveals or hides another                        | Client component   |
+| Fixing an invalid value clears its validation error                | Client component   |
+| A NodeRef field rejects ids of unregistered config nodes           | Client component   |
+| `RED.editor.createEditor` is called on mount                       | Client component   |
+| The editor form shows a validation error for empty required fields | Client E2E         |
+| A TypedInput dropdown offers the correct types                     | Client E2E         |
+| Config node selector shows registered config nodes                 | Client E2E         |
+| Creating a config node from the node editor works end to end       | Client E2E         |
+| Toggling a built-in port changes the node's ports on the canvas    | Client E2E         |
+| Translations display correctly in the editor                       | Client E2E         |
 
 `NodeDefinition` lifecycle hooks (`label()`, `paletteLabel()`, `outputLabels()`, `button.onClick`, `onEditResize`) need no special tooling — they are plain functions. Call them in a client unit test with a fake `this`:
 
 ```typescript
 import { defineNode } from "@bonsae/nrg/client";
 
-const def = defineNode({ /* ... */ });
+const def = defineNode({
+  /* ... */
+});
 expect(def.label!.call({ name: "My Node" } as any)).toBe("My Node");
 ```
 
@@ -164,12 +166,12 @@ Creates a fully initialized node instance with mocked RED and Node-RED internals
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `config` | Node config object (merged with schema defaults). Config node instances can be passed directly as values and will be auto-registered. |
-| `credentials` | Credentials object |
-| `settings` | `RED.settings` overrides |
-| `overrides` | Low-level Node-RED node overrides (`id`, `wires`, etc.) |
+| Option        | Description                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `config`      | Node config object (merged with schema defaults). Config node instances can be passed directly as values and will be auto-registered. |
+| `credentials` | Credentials object                                                                                                                    |
+| `settings`    | `RED.settings` overrides                                                                                                              |
+| `overrides`   | Low-level Node-RED node overrides (`id`, `wires`, etc.)                                                                               |
 
 **Returns:** `Promise<{ node, RED }>`
 
@@ -179,8 +181,8 @@ Creates a standalone mock RED runtime. Useful when you need to test utilities or
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
+| Option     | Description              |
+| ---------- | ------------------------ |
 | `settings` | `RED.settings` overrides |
 
 **Returns:** `MockRED`
@@ -189,19 +191,19 @@ Creates a standalone mock RED runtime. Useful when you need to test utilities or
 
 Every node returned by `createNode` has these helpers:
 
-| Method | Description |
-|--------|-------------|
-| `node.receive(msg)` | Send a message through the node's `input()` handler |
-| `node.close(removed?)` | Trigger the `closed()` lifecycle hook |
-| `node.reset()` | Clear all captured sent messages, statuses, and logs |
-| `node.sent()` | All raw messages passed to `send()` |
-| `node.sent(port)` | Messages sent to a specific output port (numeric index) |
-| `node.sent(name)` | Messages sent to a named output port (resolved from `outputsSchema` keys) |
-| `node.statuses()` | All `status()` calls |
-| `node.logged(level?)` | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`) |
-| `node.warned()` | Warning messages |
-| `node.errored()` | Error messages |
-| `node.context` | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after |
+| Method                 | Description                                                                                                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node.receive(msg)`    | Send a message through the node's `input()` handler                                                                                                                                             |
+| `node.close(removed?)` | Trigger the `closed()` lifecycle hook                                                                                                                                                           |
+| `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
+| `node.sent()`          | All raw emissions — each is a positional array, one slot per output port (so `node.sent()[i][0]` is the first port of emission `i`). Use `sent(port)` / `sent(name)` to read one port directly. |
+| `node.sent(port)`      | The per-port message for a specific output port (numeric index) — one level out of the positional array, still wrapped under the return key (`output`)                                          |
+| `node.sent(name)`      | The per-port message for a named output port (resolved from `outputsSchema` keys), still wrapped under the return key (`output`)                                                                |
+| `node.statuses()`      | All `status()` calls                                                                                                                                                                            |
+| `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`)                                                                                                           |
+| `node.warned()`        | Warning messages                                                                                                                                                                                |
+| `node.errored()`       | Error messages                                                                                                                                                                                  |
+| `node.context`         | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after         |
 
 ### Examples
 
@@ -570,27 +572,27 @@ The integration library ships with `@bonsae/nrg`. If your CI installs the publis
 
 Boots a headless Node-RED runtime with the given node types registered. Returns a `Runtime`.
 
-| Option | Description |
-|--------|-------------|
-| `nodes` | Node classes (IONode / ConfigNode subclasses) to register — config nodes included |
+| Option     | Description                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `nodes`    | Node classes (IONode / ConfigNode subclasses) to register — config nodes included                              |
 | `settings` | Extra Node-RED settings merged over the headless defaults (e.g. raise `logging.console.level` to debug a test) |
 
 **Returns:** `Promise<Runtime>`
 
 #### `Runtime`
 
-| Method | Description |
-|--------|-------------|
-| `runtime.flow()` | Start a fresh `Flow` to build, deploy, drive, and inspect |
+| Method           | Description                                                   |
+| ---------------- | ------------------------------------------------------------- |
+| `runtime.flow()` | Start a fresh `Flow` to build, deploy, drive, and inspect     |
 | `runtime.stop()` | Stop Node-RED, close the server, and remove the temp user dir |
 
 #### `Flow`
 
-| Method | Description |
-|--------|-------------|
+| Method                              | Description                                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
 | `flow.addNode(Cls, config?, opts?)` | Add any node — regular or config. Returns a `NodeRef`. `opts`: `{ id?, name?, credentials? }` |
-| `flow.deploy()` | Build the flow JSON and deploy it; resolves once the flow has started |
-| `flow.clear()` | Drop the built nodes and clear captured messages (reset between tests) |
+| `flow.deploy()`                     | Build the flow JSON and deploy it; resolves once the flow has started                         |
+| `flow.clear()`                      | Drop the built nodes and clear captured messages (reset between tests)                        |
 
 Pass a config node's `NodeRef` directly as a config value on another node — it serializes to the referenced id and resolves to the live instance, exactly like a real `NodeRef` field.
 
@@ -598,15 +600,15 @@ Pass a config node's `NodeRef` directly as a config value on another node — it
 
 A handle to one node in the flow. Harness methods never collide with your node's own methods — the live instance lives inside the runtime.
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `ref.wire(target, port?)` | Wire this node's output `port` (default `0`) to `target`'s input |
-| `ref.receive(msg)` | Deliver a message to this node's input |
-| `ref.read(port?, opts?)` | Consume the next un-read emission (FIFO cursor), awaiting it if not yet sent. `opts.timeout` defaults to `5000`ms |
-| `ref.sent(port?)` | Snapshot of everything this node has emitted (optionally one port) |
-| `ref.received(port?)` | Snapshot of everything delivered to this node's input |
-| `ref.context` | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after |
-| `ref.id` / `ref.type` | The generated node id and its type |
+| Method / Property         | Description                                                                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ref.wire(target, port?)` | Wire this node's output `port` (default `0`) to `target`'s input                                                                                                                        |
+| `ref.receive(msg)`        | Deliver a message to this node's input                                                                                                                                                  |
+| `ref.read(port?, opts?)`  | Consume the next un-read emission (FIFO cursor), awaiting it if not yet sent. `opts.timeout` defaults to `5000`ms                                                                       |
+| `ref.sent(port?)`         | Snapshot of everything this node has emitted (optionally one port)                                                                                                                      |
+| `ref.received(port?)`     | Snapshot of everything delivered to this node's input                                                                                                                                   |
+| `ref.context`             | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after |
+| `ref.id` / `ref.type`     | The generated node id and its type                                                                                                                                                      |
 
 `read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.
 
@@ -780,10 +782,7 @@ pnpm add -D vitest happy-dom
 // tests/client/unit/tsconfig.json
 {
   "extends": "@bonsae/nrg/tsconfig/test/client/unit.json",
-  "include": [
-    "**/*.ts",
-    "../../../src/client/**/*.ts"
-  ]
+  "include": ["**/*.ts", "../../../src/client/**/*.ts"]
 }
 ```
 
@@ -794,11 +793,14 @@ pnpm add -D vitest happy-dom
 import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/client/unit/config";
 
-export default mergeConfig(defaultConfig, defineConfig({
-  test: {
-    include: ["tests/client/unit/**/*.test.ts"],
-  },
-}));
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/client/unit/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 The `defaultConfig` provides:
@@ -892,11 +894,14 @@ NRG ships `@vitejs/plugin-vue` as a direct dependency; `@vitest/browser-playwrig
 import { defineConfig, mergeConfig } from "vitest/config";
 import { defaultConfig } from "@bonsae/nrg/test/client/component/config";
 
-export default mergeConfig(defaultConfig, defineConfig({
-  test: {
-    include: ["tests/client/component/**/*.test.ts"],
-  },
-}));
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/client/component/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 The `defaultConfig` provides:
@@ -912,14 +917,17 @@ The `defaultConfig` provides:
 To test on a single browser only, override the `browser.instances` array:
 
 ```typescript
-export default mergeConfig(defaultConfig, defineConfig({
-  test: {
-    include: ["tests/client/component/**/*.test.ts"],
-    browser: {
-      instances: [{ browser: "chromium" }],
+export default mergeConfig(
+  defaultConfig,
+  defineConfig({
+    test: {
+      include: ["tests/client/component/**/*.test.ts"],
+      browser: {
+        instances: [{ browser: "chromium" }],
+      },
     },
-  },
-}));
+  }),
+);
 ```
 
 #### 4. Add a test script
@@ -938,13 +946,13 @@ export default mergeConfig(defaultConfig, defineConfig({
 
 Creates a **reactive** mock Node-RED node and the `provide` object needed by `useFormNode()` components. Returns `{ node, errors, RED, provide }` — the node and errors are wrapped in Vue `reactive()`, so mutating them in a test re-renders mounted components and re-runs validation, exactly like the real editor.
 
-| Option | Description |
-|--------|-------------|
-| `configs` | Initial config values, spread onto the node |
-| `credentials` | Initial credential values, nested under `node.credentials` |
-| `configSchema` | Schema for the configs — enables automatic validation |
-| `credentialsSchema` | Schema for the credentials — errors are keyed `node.credentials.<prop>` |
-| `nodes` | Fake config nodes resolvable via `RED.nodes.node(id)` — required for NodeRef field validation |
+| Option              | Description                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `configs`           | Initial config values, spread onto the node                                                   |
+| `credentials`       | Initial credential values, nested under `node.credentials`                                    |
+| `configSchema`      | Schema for the configs — enables automatic validation                                         |
+| `credentialsSchema` | Schema for the credentials — errors are keyed `node.credentials.<prop>`                       |
+| `nodes`             | Fake config nodes resolvable via `RED.nodes.node(id)` — required for NodeRef field validation |
 
 A plain object without any of these keys is shorthand for `configs`:
 
@@ -956,7 +964,10 @@ render(MyForm, { global: { provide } });
 When a schema is provided, `errors` is populated immediately and kept in sync as the node changes. Schemas can be your real TypeBox schemas imported straight from your server schema modules — no conversion needed:
 
 ```typescript
-import { ConfigsSchema, CredentialsSchema } from "../../../src/server/schemas/my-node";
+import {
+  ConfigsSchema,
+  CredentialsSchema,
+} from "../../../src/server/schemas/my-node";
 
 const { node, errors, provide } = createNode({
   configs: { name: "" },
@@ -1002,17 +1013,17 @@ RED.nodes.dirty.mockReturnValue(true);
 
 The mock implements the editor's `RED` contract with working state, reset between tests by the built-in setup:
 
-| Namespace | Behavior |
-|-----------|----------|
-| `RED._` | `_(key)` — returns the key as-is |
-| `RED.editor` | `createEditor(options)` returns a working mock editor — `getValue`/`setValue`, and `setValue` fires `getSession().on("change")` listeners like real ACE/Monaco. `prepareConfigNodeSelect(...)`, `validateNode(...)` |
-| `RED.tray` | `show(...)`, `close()` |
-| `RED.popover` | `create(options)` and `tooltip(...)` — both return chainable instances |
-| `RED.nodes` | A working registry: `add`/`node`/`remove`/`clear`, `registerType`/`getType`, `eachNode`/`eachConfig`/`filterNodes`, `filterLinks`/`addLink`, `dirty()` getter/setter, `id()`. `createNode({ nodes })` fakes are visible to all of these |
-| `RED.events` | A functioning event bus — `emit` dispatches to `on` listeners, so tests can drive components subscribed to editor events |
-| `RED.comms` | `subscribe`/`unsubscribe` plus a test-only `publish(topic, msg)` to simulate runtime messages — `+` and `#` topic wildcards supported |
-| `RED.settings` | `get`/`set`/`remove` plus direct property access (exportable settings appear as direct properties) |
-| `RED.notify` | Returns a notification handle with `update()` and `close()` |
+| Namespace      | Behavior                                                                                                                                                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RED._`        | `_(key)` — returns the key as-is                                                                                                                                                                                                        |
+| `RED.editor`   | `createEditor(options)` returns a working mock editor — `getValue`/`setValue`, and `setValue` fires `getSession().on("change")` listeners like real ACE/Monaco. `prepareConfigNodeSelect(...)`, `validateNode(...)`                     |
+| `RED.tray`     | `show(...)`, `close()`                                                                                                                                                                                                                  |
+| `RED.popover`  | `create(options)` and `tooltip(...)` — both return chainable instances                                                                                                                                                                  |
+| `RED.nodes`    | A working registry: `add`/`node`/`remove`/`clear`, `registerType`/`getType`, `eachNode`/`eachConfig`/`filterNodes`, `filterLinks`/`addLink`, `dirty()` getter/setter, `id()`. `createNode({ nodes })` fakes are visible to all of these |
+| `RED.events`   | A functioning event bus — `emit` dispatches to `on` listeners, so tests can drive components subscribed to editor events                                                                                                                |
+| `RED.comms`    | `subscribe`/`unsubscribe` plus a test-only `publish(topic, msg)` to simulate runtime messages — `+` and `#` topic wildcards supported                                                                                                   |
+| `RED.settings` | `get`/`set`/`remove` plus direct property access (exportable settings appear as direct properties)                                                                                                                                      |
+| `RED.notify`   | Returns a notification handle with `update()` and `close()`                                                                                                                                                                             |
 
 Drive a component that listens to runtime state:
 
@@ -1063,11 +1074,16 @@ import MyForm from "../../../src/client/components/my-form.vue";
 
 describe("my-form component", () => {
   test("renders fields from injected node", async () => {
-    const { provide } = createNode({ name: "test", url: "https://example.com" });
+    const { provide } = createNode({
+      name: "test",
+      url: "https://example.com",
+    });
     const component = render(MyForm, {
       global: { provide },
     });
-    await expect.element(component.getByDisplayValue("test")).toBeInTheDocument();
+    await expect
+      .element(component.getByDisplayValue("test"))
+      .toBeInTheDocument();
   });
 
   test("accesses node id for API calls", async () => {
@@ -1100,7 +1116,9 @@ describe("my-form component", () => {
     const component = render(MyInput, {
       props: { value: "", "onUpdate:modelValue": onUpdate },
     });
-    const input = component.container.querySelector("input") as HTMLInputElement;
+    const input = component.container.querySelector(
+      "input",
+    ) as HTMLInputElement;
     input.value = "new value";
     input.dispatchEvent(new Event("input"));
     expect(onUpdate).toHaveBeenCalledWith("new value");
@@ -1222,7 +1240,9 @@ If your project uses a `node-red.settings.ts` file that is not at the project ro
 ```typescript
 await baseSetup({
   settingsFile: "config/node-red.settings.ts",
-  flow: [/* ... */],
+  flow: [
+    /* ... */
+  ],
 });
 ```
 
@@ -1285,27 +1305,27 @@ const editor = new NodeRedEditor(page, port, {
 });
 ```
 
-| Method | Description |
-|--------|-------------|
-| `editor.open()` | Navigate to Node-RED and wait for the editor to load |
-| `editor.editNode(nodeId)` | Open the edit dialog for a node |
-| `editor.clickDone()` | Click the Done button and wait for the tray to close |
-| `editor.clickCancel()` | Click the Cancel button and wait for the tray to close |
-| `editor.clickConfigDone()` | Close the config-node tray stacked above the node tray |
-| `editor.clickConfigCancel()` | Cancel the config-node tray |
-| `editor.field(label)` | Get a `NodeRedField` for the form row with the given label (scoped to the topmost tray) |
-| `editor.getNode(nodeId)` | JSON-safe snapshot of a node in the editor model — assert persistence after `clickDone()` |
-| `editor.clickDeploy()` | Click Deploy (confirming the dialog if needed) and wait for a clean workspace |
-| `editor.getDeployedFlow()` | Fetch the deployed flow from the runtime (`GET /flows`) |
-| `editor.getNodePortCount(nodeId)` | Count the output ports rendered for a node on the canvas |
-| `editor.getNodeLabel(nodeId)` | The node's label text on the canvas |
-| `editor.getNodeStatus(nodeId)` | The status text under the node (`""` when none) |
-| `editor.deployFlow(flow)` | Deploy a flow via the REST API and reload the page |
-| `editor.screenshot(name)` | Take a full-page screenshot, returns the file path |
-| `editor.closeAllTrays()` | Best-effort close of every open tray — keeps a failed test from leaking state |
-| `editor.expectNoPageErrors()` | Assert no uncaught JavaScript errors occurred, then clear the list — call it from `afterEach` |
-| `editor.tray` | Locator for the tray body wrapper |
-| `editor.errors` | Array of captured page error messages |
+| Method                            | Description                                                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `editor.open()`                   | Navigate to Node-RED and wait for the editor to load                                          |
+| `editor.editNode(nodeId)`         | Open the edit dialog for a node                                                               |
+| `editor.clickDone()`              | Click the Done button and wait for the tray to close                                          |
+| `editor.clickCancel()`            | Click the Cancel button and wait for the tray to close                                        |
+| `editor.clickConfigDone()`        | Close the config-node tray stacked above the node tray                                        |
+| `editor.clickConfigCancel()`      | Cancel the config-node tray                                                                   |
+| `editor.field(label)`             | Get a `NodeRedField` for the form row with the given label (scoped to the topmost tray)       |
+| `editor.getNode(nodeId)`          | JSON-safe snapshot of a node in the editor model — assert persistence after `clickDone()`     |
+| `editor.clickDeploy()`            | Click Deploy (confirming the dialog if needed) and wait for a clean workspace                 |
+| `editor.getDeployedFlow()`        | Fetch the deployed flow from the runtime (`GET /flows`)                                       |
+| `editor.getNodePortCount(nodeId)` | Count the output ports rendered for a node on the canvas                                      |
+| `editor.getNodeLabel(nodeId)`     | The node's label text on the canvas                                                           |
+| `editor.getNodeStatus(nodeId)`    | The status text under the node (`""` when none)                                               |
+| `editor.deployFlow(flow)`         | Deploy a flow via the REST API and reload the page                                            |
+| `editor.screenshot(name)`         | Take a full-page screenshot, returns the file path                                            |
+| `editor.closeAllTrays()`          | Best-effort close of every open tray — keeps a failed test from leaking state                 |
+| `editor.expectNoPageErrors()`     | Assert no uncaught JavaScript errors occurred, then clear the list — call it from `afterEach` |
+| `editor.tray`                     | Locator for the tray body wrapper                                                             |
+| `editor.errors`                   | Array of captured page error messages                                                         |
 
 Isolate tests from each other and fail any test that triggers an uncaught editor error:
 
@@ -1326,45 +1346,45 @@ const name = editor.field("Name");
 
 **Input fields** (text, number, password):
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.input` | Locator for the `<input>` element |
-| `field.fill(value)` | Set the input value |
-| `field.clear()` | Clear the input value |
-| `field.getValue()` | Get the current input value |
+| Method / Property      | Description                                                         |
+| ---------------------- | ------------------------------------------------------------------- |
+| `field.input`          | Locator for the `<input>` element                                   |
+| `field.fill(value)`    | Set the input value                                                 |
+| `field.clear()`        | Clear the input value                                               |
+| `field.getValue()`     | Get the current input value                                         |
 | `field.getInputType()` | Get the input `type` attribute (`"text"`, `"number"`, `"password"`) |
 
 **Boolean fields** (toggle, checkbox):
 
-| Method / Property | Description |
-|-------------------|-------------|
+| Method / Property    | Description                       |
+| -------------------- | --------------------------------- |
 | `field.toggleSlider` | Locator for the NRG toggle slider |
-| `field.toggle()` | Click the toggle slider |
-| `field.checkbox` | Locator for the checkbox input |
+| `field.toggle()`     | Click the toggle slider           |
+| `field.checkbox`     | Locator for the checkbox input    |
 
 **Typed input fields** (TypedInput, enum select, multi-select):
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.typedInputContainer` | Locator for the typed input container |
-| `field.getSelectedType()` | Get the currently selected type (e.g. `"msg"`, `"str"`) |
-| `field.getSelectedValue()` | Get the current typed input value |
-| `field.getTypeMenuValues()` | Open the type dropdown, return all type values, close it |
-| `field.selectType(type)` | Open the type dropdown and select a type |
-| `field.getOptionMenuLabels()` | Open the option dropdown, return all labels, close it |
+| Method / Property             | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| `field.typedInputContainer`   | Locator for the typed input container                    |
+| `field.getSelectedType()`     | Get the currently selected type (e.g. `"msg"`, `"str"`)  |
+| `field.getSelectedValue()`    | Get the current typed input value                        |
+| `field.getTypeMenuValues()`   | Open the type dropdown, return all type values, close it |
+| `field.selectType(type)`      | Open the type dropdown and select a type                 |
+| `field.getOptionMenuLabels()` | Open the option dropdown, return all labels, close it    |
 
 **Config input fields** (NodeRef):
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.select` | Locator for the `<select>` element |
-| `field.editButton` | Locator for the edit (pencil) button |
-| `field.addButton` | Locator for the add (plus) button |
-| `field.openAddConfig()` | Click + and wait for the config tray to open |
-| `field.openEditConfig()` | Click the pencil and wait for the config tray to open |
-| `field.getSelectedOption()` | Get the selected option value |
-| `field.getSelectedOptionLabel()` | Get the selected option display text |
-| `field.getOptions()` | Get all option labels (excludes "Add new ...") |
+| Method / Property                | Description                                           |
+| -------------------------------- | ----------------------------------------------------- |
+| `field.select`                   | Locator for the `<select>` element                    |
+| `field.editButton`               | Locator for the edit (pencil) button                  |
+| `field.addButton`                | Locator for the add (plus) button                     |
+| `field.openAddConfig()`          | Click + and wait for the config tray to open          |
+| `field.openEditConfig()`         | Click the pencil and wait for the config tray to open |
+| `field.getSelectedOption()`      | Get the selected option value                         |
+| `field.getSelectedOptionLabel()` | Get the selected option display text                  |
+| `field.getOptions()`             | Get all option labels (excludes "Add new ...")        |
 
 Once the config tray is open, `editor.field(label)` resolves fields inside it (fields are scoped to the topmost tray). Close it with `editor.clickConfigDone()` — the node tray underneath stays open:
 
@@ -1380,42 +1400,42 @@ await editor.clickDone();
 
 **Code editor fields**:
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.editorWrapper` | Locator for the code editor wrapper |
-| `field.getEditorValue()` | Read the code editor's content (Monaco, ACE fallback) |
-| `field.setEditorValue(value)` | Replace the code editor's content |
-| `field.expandButton` | Locator for the expand button |
+| Method / Property             | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| `field.editorWrapper`         | Locator for the code editor wrapper                   |
+| `field.getEditorValue()`      | Read the code editor's content (Monaco, ACE fallback) |
+| `field.setEditorValue(value)` | Replace the code editor's content                     |
+| `field.expandButton`          | Locator for the expand button                         |
 
 **Autocomplete** (TypedInput types with an `autoComplete` source):
 
-| Method / Property | Description |
-|-------------------|-------------|
+| Method / Property                          | Description                                                |
+| ------------------------------------------ | ---------------------------------------------------------- |
 | `field.getAutoCompleteSuggestions(prefix)` | Type `prefix` and return the suggestion labels that appear |
 
 **Array text fields**:
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.textarea` | Locator for the `<textarea>` element |
+| Method / Property | Description                          |
+| ----------------- | ------------------------------------ |
+| `field.textarea`  | Locator for the `<textarea>` element |
 
 **Validation**:
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.requiredIndicator` | Locator for the required asterisk (`*`) |
-| `field.errorMessage` | Locator for the validation error message |
+| Method / Property                | Description                                                      |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `field.requiredIndicator`        | Locator for the required asterisk (`*`)                          |
+| `field.errorMessage`             | Locator for the validation error message                         |
 | `field.expectError(containing?)` | Assert a validation error is visible, optionally containing text |
-| `field.expectNoError()` | Assert no validation error is visible |
+| `field.expectNoError()`          | Assert no validation error is visible                            |
 
 **Visibility**:
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `field.row` | Locator for the entire `.form-row` element |
-| `field.scrollIntoView()` | Scroll the field into the viewport |
-| `field.expectVisible()` | Assert the field row is visible |
-| `field.expectHidden()` | Assert the field row is hidden |
+| Method / Property        | Description                                |
+| ------------------------ | ------------------------------------------ |
+| `field.row`              | Locator for the entire `.form-row` element |
+| `field.scrollIntoView()` | Scroll the field into the viewport         |
+| `field.expectVisible()`  | Assert the field row is visible            |
+| `field.expectHidden()`   | Assert the field row is hidden             |
 
 ### Examples
 

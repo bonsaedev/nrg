@@ -409,15 +409,20 @@ describe("emit ports", () => {
   });
 
   describe("send() truncation", () => {
-    it("truncates array to baseOutputs so built-in port slots are unreachable", async () => {
+    it("truncates a send() array to baseOutputs so built-in port slots are unreachable", async () => {
+      // Two base output ports, but built-in error/status ports are enabled
+      // (totalOutputs is 4). Sending more values than base ports must truncate
+      // to baseOutputs so a stray value can never land in an error/status slot.
+      // (completePort is left off so its automatic emission doesn't add noise.)
       const TruncateNode = defineIONode({
         type: "truncate-test",
         inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
+        outputsSchema: [SchemaType.Object({}), SchemaType.Object({})],
         configSchema: ConfigSchema,
         async input() {
           (this as any).send([
-            { payload: "data" },
+            { payload: "port-0" },
+            { payload: "port-1" },
             { payload: "should-be-dropped" },
             { payload: "also-dropped" },
           ]);
@@ -427,7 +432,7 @@ describe("emit ports", () => {
       const { node } = await createNode(TruncateNode, {
         config: {
           errorPort: true,
-          completePort: true,
+          completePort: false,
           statusPort: true,
         },
       });
@@ -435,23 +440,22 @@ describe("emit ports", () => {
       await node.receive({ payload: "go" });
 
       const sent = node.sent();
-      const dataSends = sent.filter(
-        (s) =>
-          !Array.isArray(s) ||
-          !s.some(
-            (m) =>
-              (m as Record<string, unknown>)?.error ||
-              (m as Record<string, unknown>)?.complete ||
-              (m as Record<string, unknown>)?.status,
-          ),
+      expect(sent).toHaveLength(1);
+
+      const ports = sent[0];
+      // exactly baseOutputs slots — the two extra values are dropped, so they
+      // cannot reach the built-in error/complete/status port slots
+      expect(ports).toHaveLength(2);
+      expect(ports[0]).toEqual(
+        expect.objectContaining({ output: { payload: "port-0" } }),
       );
-      expect(dataSends.length).toBeGreaterThan(0);
-      for (const s of dataSends) {
-        if (Array.isArray(s)) {
-          expect(s).toHaveLength(1);
-          expect(s[0]).toEqual(expect.objectContaining({ payload: "data" }));
-        }
-      }
+      expect(ports[1]).toEqual(
+        expect.objectContaining({ output: { payload: "port-1" } }),
+      );
+      const leaked = ports.some((m: any) =>
+        ["should-be-dropped", "also-dropped"].includes(m?.output?.payload),
+      );
+      expect(leaked).toBe(false);
     });
   });
 
@@ -472,7 +476,7 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect(sent[0]).toEqual(expect.objectContaining({ payload: "hello" }));
+      expect(sent[0][0]).toEqual(expect.objectContaining({ payload: "hello" }));
     });
   });
 });

@@ -296,29 +296,27 @@ abstract class IONode<
   }
 
   public send(msg: TOutput) {
-    // Every node has a return key, so a single-output node always treats the
-    // argument as the value (arrays included). Multi-output nodes use
-    // Node-RED's array-as-ports convention — one value per port, each wrapped,
-    // validated, and context-resolved independently.
-    const sendsValue = this.baseOutputs <= 1;
+    // Every emission is delivered as a Node-RED positional array — one slot per
+    // base output port — so the captured shape is uniform regardless of arity.
+    // Since `node.send([m]) === node.send(m)` for port 0, flow behaviour is
+    // unchanged; only the recorded/asserted shape becomes consistent.
+    //
+    // A multi-output node uses Node-RED's array-as-ports convention (one value
+    // per port). A single-output node always treats the argument as the value
+    // (arrays included) — hence the `baseOutputs > 1` guard, which keeps a
+    // single-output `send([a, b])` meaning "the value at port 0 is [a, b]".
+    const multi = this.baseOutputs > 1 && Array.isArray(msg);
+    const values = multi
+      ? (msg as unknown[]).slice(0, this.baseOutputs)
+      : [msg];
 
-    if (Array.isArray(msg) && !sendsValue) {
-      const slots = (msg as unknown[]).slice(0, this.baseOutputs);
-      const out = slots.map((m, port) => {
-        if (m == null) return m;
-        this.#validatePort(m, port);
-        return this.#wrapOutgoing(m, this.#resolveContextMode(port), port);
-      });
-      this.#deliver(out);
-      return;
-    }
+    const out = values.map((m, port) => {
+      if (m == null) return m; // preserve sparse/null slots
+      this.#validatePort(m, port);
+      return this.#wrapOutgoing(m, this.#resolveContextMode(port), port);
+    });
 
-    if (msg == null) {
-      this.#deliver(msg);
-      return;
-    }
-    this.#validatePort(msg, 0);
-    this.#deliver(this.#wrapOutgoing(msg, this.#resolveContextMode(0), 0));
+    this.#deliver(out);
   }
 
   #deliver(out: unknown) {
