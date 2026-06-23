@@ -66,11 +66,21 @@ type PortTuple<TOutput, TInput> =
         : [WrappedPort<TOutput, TInput>];
 
 interface TestNodeHelpers<TInput = any, TOutput = any> {
-  receive(msg: TInput): Promise<void>;
+  /** Drive the node's input handler with a Node-RED message. For an object
+   * input the declared shape is required while arbitrary extra message
+   * properties (`topic`, `_msgid`, correlation ids, …) are allowed — a real
+   * Node-RED message always carries more than the validated input schema. A
+   * non-object input type passes through unchanged. */
+  receive(
+    msg: TInput extends object ? TInput & Record<string, unknown> : TInput,
+  ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
   /** All raw emissions, each a positional array — `sent()[i][0]` is port 0 of
-   * emission `i`, typed from the node's declared output. */
+   * emission `i`, typed from the node's declared output. Built-in lifecycle
+   * ports (error/complete/status) are emitted as their own entries here, with
+   * slots beyond the declared ports; use `sent(port)` / `sent(name)` for typed,
+   * per-port assertions. */
   sent(): PortTuple<TOutput, TInput>[];
   sent<P extends PortNames<TOutput>>(
     port: P,
@@ -174,9 +184,7 @@ function attachHelpers<T>(
           .filter((msg) => msg != null);
       }
       return sentMessages
-        .map((msg) =>
-          Array.isArray(msg) ? msg[port] : port === 0 ? msg : undefined,
-        )
+        .map((msg) => (Array.isArray(msg) ? msg[port] : undefined))
         .filter((msg) => msg != null);
     },
     statuses() {
