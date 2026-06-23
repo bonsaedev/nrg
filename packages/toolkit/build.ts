@@ -90,22 +90,16 @@ async function buildTestUtils() {
 }
 
 function writeReExports() {
-  // ./server and ./client re-export the runtime — single source of truth.
+  // ./server re-exports the runtime VALUES at run time. The TYPES are owned by
+  // the toolkit (copyRuntimeTypes) so consumers never resolve nrg types through
+  // the transitive CJS runtime — that boundary splits TypeBox into nominally
+  // incompatible cjs/esm `TObject` builds. (./client is types-only.)
   mkdirSync(path.join(DIST, "server"), { recursive: true });
   writeFileSync(
     path.join(DIST, "server/index.cjs"),
     `'use strict';\nmodule.exports = require("@bonsae/nrg-runtime/server");\n`,
   );
-  mkdirSync(path.join(DIST, "types"), { recursive: true });
-  writeFileSync(
-    path.join(DIST, "types/server.d.ts"),
-    `export * from "@bonsae/nrg-runtime/server";\n`,
-  );
-  writeFileSync(
-    path.join(DIST, "types/client.d.ts"),
-    `export * from "@bonsae/nrg-runtime/client";\n`,
-  );
-  console.log("✓ Wrote server/client re-exports → dist/");
+  console.log("✓ Wrote server value re-export → dist/server/index.cjs");
 }
 
 function generateTypes() {
@@ -150,23 +144,36 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
   console.log("✓ Generated type declarations → dist/types/");
 }
 
-function copyShims() {
-  // tsconfig/core/client.json and tsconfig/test/client/component.json
-  // force-include the client type shims via relative `files` paths
-  // (../../types/shims/*). Post-split those shims are generated in the runtime
-  // package, so copy the whole tree into the toolkit's published dist to keep
-  // those paths resolvable for consumers (they are not module-resolved).
-  const shimsSrc = path.resolve(
+function copyRuntimeTypes() {
+  // The toolkit is the single publisher of nrg types. The runtime emits its
+  // .d.ts (self-contained: only bare imports + a ./shims/typebox.d.ts ref), and
+  // we copy server/client/shims into the toolkit's own (ESM) dist so consumers
+  // resolve every nrg type *here* — never through the transitive CJS runtime,
+  // which would resolve TypeBox to a different (cjs) `TObject` build than the
+  // ESM toolkit harness and break `createNode()` typechecks. Runtime VALUES are
+  // still re-exported from @bonsae/nrg-runtime at run time (writeReExports).
+  const runtimeTypes = path.resolve(
     WORKSPACE_ROOT,
-    "packages/runtime/dist/types/shims",
+    "packages/runtime/dist/types",
   );
-  if (!existsSync(shimsSrc)) {
+  if (!existsSync(path.join(runtimeTypes, "shims"))) {
     throw new Error(
-      `Runtime shims not found at ${shimsSrc} — build @bonsae/nrg-runtime first.`,
+      `Runtime types not found at ${runtimeTypes} — build @bonsae/nrg-runtime first.`,
     );
   }
-  cpSync(shimsSrc, path.join(DIST, "types/shims"), { recursive: true });
-  console.log("✓ Copied client type shims → dist/types/shims/");
+  mkdirSync(path.join(DIST, "types"), { recursive: true });
+  cpSync(path.join(runtimeTypes, "shims"), path.join(DIST, "types/shims"), {
+    recursive: true,
+  });
+  copyFileSync(
+    path.join(runtimeTypes, "server.d.ts"),
+    path.join(DIST, "types/server.d.ts"),
+  );
+  copyFileSync(
+    path.join(runtimeTypes, "client.d.ts"),
+    path.join(DIST, "types/client.d.ts"),
+  );
+  console.log("✓ Copied runtime types (server, client, shims) → dist/types/");
 }
 
 function copyAssets() {
@@ -191,7 +198,7 @@ async function main() {
   writeReExports();
   generateTypes();
   copyAssets();
-  copyShims();
+  copyRuntimeTypes();
   writePublishManifest(ROOT, DIST);
   console.log("✓ @bonsae/nrg (toolkit) built");
 }
