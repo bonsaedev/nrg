@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.23.0](https://github.com/bonsaedev/nrg/compare/v0.22.2...v0.23.0) (2026-06-23)
+
+
+### Features
+
+* **test:** type node.sent() positionally from the node's declared output ([616f91e](https://github.com/bonsaedev/nrg/commit/616f91e4dc914d2d3602f3e2f5c61451191bfbe0))
+
 ## [0.22.2](https://github.com/bonsaedev/nrg/compare/v0.22.1...v0.22.2) (2026-06-23)
 
 
