@@ -27,13 +27,55 @@ type PortNames<T> = [T] extends [Record<string, Record<string, any>>]
 type PortMessage<T, P extends string> =
   T extends Record<string, any> ? (P extends keyof T ? T[P] : never) : never;
 
+/** True only for `any` (distributes via the `1 & T` trick). */
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+/**
+ * A single delivered port message. The default return key `"output"` holds the
+ * declared value `V`; carry/trace mode also spread the incoming message, so the
+ * node's declared input keys may be present (typed optional). Extra keys are
+ * derived from the node — never `unknown` — and an `any` input collapses to just
+ * the precisely typed `output`.
+ */
+type WrappedPort<V, TInput> = { output: V } & (unknown extends TInput
+  ? unknown
+  : Partial<TInput>);
+
+/**
+ * The positional fan-out the runtime delivers for one emission — one wrapped
+ * slot per declared base output port, derived from the node's output type:
+ * - a tuple `outputsSchema` → a precise positional tuple (`[i][0]`, `[i][1]`, …);
+ * - a single `outputsSchema` → a one-slot tuple (`[i][0]`);
+ * - a named-port record → a sound per-port union (use `sent(name)` for precise
+ *   named access — record key order is not recoverable at the type level).
+ *
+ * Built-in lifecycle ports (error/complete/status) occupy slots beyond the
+ * declared ports and are intentionally not part of this typed shape.
+ */
+type PortTuple<TOutput, TInput> =
+  IsAny<TOutput> extends true
+    ? any[]
+    : TOutput extends readonly [any, ...any[]]
+      ? { [K in keyof TOutput]: WrappedPort<TOutput[K], TInput> }
+      : [TOutput] extends [Record<string, Record<string, any>>]
+        ? keyof TOutput extends never
+          ? [WrappedPort<TOutput, TInput>]
+          : string extends keyof TOutput
+            ? WrappedPort<unknown, TInput>[]
+            : WrappedPort<TOutput[keyof TOutput], TInput>[]
+        : [WrappedPort<TOutput, TInput>];
+
 interface TestNodeHelpers<TInput = any, TOutput = any> {
   receive(msg: TInput): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
-  sent(): TOutput[];
-  sent<P extends PortNames<TOutput>>(port: P): PortMessage<TOutput, P>[];
-  sent(port: number): any[];
+  /** All raw emissions, each a positional array — `sent()[i][0]` is port 0 of
+   * emission `i`, typed from the node's declared output. */
+  sent(): PortTuple<TOutput, TInput>[];
+  sent<P extends PortNames<TOutput>>(
+    port: P,
+  ): WrappedPort<PortMessage<TOutput, P>, TInput>[];
+  sent(port: number): WrappedPort<unknown, TInput>[];
   statuses(): any[];
   logged(level?: "info" | "warn" | "error" | "debug"): string[];
   warned(): string[];

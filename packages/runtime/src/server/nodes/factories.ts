@@ -35,7 +35,10 @@ function defineIONode<
   TCredsSchema extends TSchema | undefined = undefined,
   TSettingsSchema extends TSchema | undefined = undefined,
   TInputSchema extends TSchema | undefined = undefined,
-  TOutputsSchema extends
+  // `const` so an inline array literal (`outputsSchema: [A, B]`) infers as a
+  // tuple rather than a widened `TSchema[]`, giving precise positional output
+  // typing without the author needing `as const`.
+  const TOutputsSchema extends
     | TSchema
     | readonly TSchema[]
     | Record<string, TSchema>

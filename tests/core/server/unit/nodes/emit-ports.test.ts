@@ -36,6 +36,11 @@ const TestNode = defineIONode({
   },
 });
 
+// Built-in lifecycle ports (error/complete/status) occupy positional slots
+// beyond a node's declared output ports, so they fall outside the typed sent()
+// shape. These framework tests inspect those raw slots directly.
+const rawSent = (node: any): any[] => node.sent();
+
 describe("emit ports", () => {
   describe("port index calculation", () => {
     it("has only base output when all built-in port flags are false", async () => {
@@ -100,7 +105,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "explicit-error" });
 
-      const sent = node.sent();
+      const sent = rawSent(node);
       const errorSends = sent.filter(
         (s: any) => Array.isArray(s) && s[1]?.error,
       );
@@ -145,7 +150,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "status" });
 
-      const sent = node.sent();
+      const sent = rawSent(node);
       const statusSends = sent.filter(
         (s: any) => Array.isArray(s) && s[1]?.status && s[1]?.source,
       );
@@ -191,7 +196,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "explicit-error" });
 
-      const sent = node.sent();
+      const sent = rawSent(node);
       const errorSend = sent.find((s: any) => Array.isArray(s) && s[1]?.error);
       expect(errorSend![1].error.source).toEqual({
         id: expect.any(String),
@@ -242,7 +247,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "status" });
 
-      const sent = node.sent();
+      const sent = rawSent(node);
       const statusSend = sent.find(
         (s: any) => Array.isArray(s) && s[1]?.status && s[1]?.source,
       );
@@ -277,7 +282,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "go" });
 
-      const sent = node.sent();
+      const sent = rawSent(node);
       const statusSends = sent.filter(
         (s: any) => Array.isArray(s) && s.some((m: any) => m?.status),
       );
