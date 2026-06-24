@@ -249,10 +249,23 @@ abstract class IONode<
               : "Unknown error during input handling";
 
           // Send to error port if enabled — carry the input lineage too, so
-          // error branches continue the flow with the same context.
+          // error branches continue the flow with the same context. A thrown
+          // error's own enumerable properties are spread first, so authors can
+          // throw a custom `Error` subclass carrying extra data (e.g.
+          // `class MyError extends Error { constructor(m){ super(m); this.code = …; } }`).
+          // `name`/`message`/`source` are layered last so they stay
+          // authoritative and Catch-node compatible. Only enumerable own props
+          // ride along: `message`/`stack` are non-enumerable, so set extra data
+          // as instance properties and keep it serializable.
+          const errorData =
+            error && typeof error === "object"
+              ? { ...(error as Record<string, unknown>) }
+              : {};
           this.#sendToPort("error", {
             ...(msg as Record<string, unknown>),
             error: {
+              ...errorData,
+              name: (error as { name?: string })?.name ?? "Error",
               message: errorMsg,
               source: this.#nodeSource(),
             },
