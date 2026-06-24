@@ -13,6 +13,20 @@ const ConfigSchema = defineSchema(
   { $id: "emit-test:config" },
 );
 
+// A custom Error subclass carrying extra data, as a node author would build.
+class CustomError extends Error {
+  code: string;
+  retryable: boolean;
+  detail: { attempt: number };
+  constructor(message: string) {
+    super(message);
+    this.name = "CustomError";
+    this.code = "E_CUSTOM";
+    this.retryable = true;
+    this.detail = { attempt: 2 };
+  }
+}
+
 const TestNode = defineIONode({
   type: "emit-test",
   inputSchema: SchemaType.Object({}),
@@ -23,6 +37,13 @@ const TestNode = defineIONode({
     const payload = (msg as Record<string, unknown>).payload;
     if (payload === "error") {
       throw new Error("Test error");
+    }
+    if (payload === "custom-error") {
+      throw new CustomError("Custom failure");
+    }
+    if (payload === "throw-primitive") {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw "boom";
     }
     if (payload === "explicit-error") {
       this.error("Explicit error", msg);
@@ -35,11 +56,6 @@ const TestNode = defineIONode({
     this.send(msg);
   },
 });
-
-// Built-in lifecycle ports (error/complete/status) occupy positional slots
-// beyond a node's declared output ports, so they fall outside the typed sent()
-// shape. These framework tests inspect those raw slots directly.
-const rawSent = (node: any): any[] => node.sent();
 
 describe("emit ports", () => {
   describe("port index calculation", () => {
@@ -93,6 +109,35 @@ describe("emit ports", () => {
     });
   });
 
+  describe("sent() built-in port resolution", () => {
+    it("resolves error/complete/status slots with all built-in ports enabled", async () => {
+      const { node } = await createNode(TestNode, {
+        config: { errorPort: true, completePort: true, statusPort: true },
+      });
+
+      await node.receive({ payload: "status" });
+
+      // base=1 → error@1, complete@2, status@3. A successful run auto-emits to
+      // the complete port; "status" emits to the status port; no error.
+      expect(node.sent("error")).toHaveLength(0);
+      expect(node.sent("complete")).toHaveLength(1);
+      expect(node.sent("status")).toHaveLength(1);
+      expect(node.sent("status")[0].status.text).toBe("ok");
+    });
+
+    it("returns [] for a built-in port that is disabled", async () => {
+      const { node } = await createNode(TestNode, {
+        config: { errorPort: false, completePort: false, statusPort: false },
+      });
+
+      await node.receive({ payload: "status" });
+
+      expect(node.sent("complete")).toHaveLength(0);
+      expect(node.sent("error")).toHaveLength(0);
+      expect(node.sent("status")).toHaveLength(0);
+    });
+  });
+
   describe("error port", () => {
     it("sends exactly one message to error port on explicit error() call", async () => {
       const { node } = await createNode(TestNode, {
@@ -105,14 +150,49 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "explicit-error" });
 
-      const sent = rawSent(node);
-      const errorSends = sent.filter(
-        (s: any) => Array.isArray(s) && s[1]?.error,
-      );
+      const errorSends = node.sent("error");
       expect(errorSends).toHaveLength(1);
-      expect(errorSends[0][1].error.message).toBe("Explicit error");
-      // Port 0 (data) should be empty (sparse array slot)
-      expect(errorSends[0][0]).toBeUndefined();
+      expect(errorSends[0].error.message).toBe("Explicit error");
+      // The data port received nothing.
+      expect(node.sent(0)).toHaveLength(0);
+    });
+
+    it("carries a thrown custom error's own properties under msg.error", async () => {
+      const { node } = await createNode(TestNode, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      await expect(node.receive({ payload: "custom-error" })).rejects.toThrow();
+
+      const errorSends = node.sent("error");
+      expect(errorSends).toHaveLength(1);
+      const error = errorSends[0].error;
+      // Author's custom fields ride along, plus canonical name/message/source.
+      expect(error).toMatchObject({
+        name: "CustomError",
+        message: "Custom failure",
+        code: "E_CUSTOM",
+        retryable: true,
+        detail: { attempt: 2 },
+      });
+      expect(error.source).toMatchObject({ type: "emit-test" });
+    });
+
+    it("falls back to name 'Error' and a generic message for a non-Error throw", async () => {
+      const { node } = await createNode(TestNode, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      await expect(
+        node.receive({ payload: "throw-primitive" }),
+      ).rejects.toThrow();
+
+      const errorSends = node.sent("error");
+      expect(errorSends).toHaveLength(1);
+      expect(errorSends[0].error).toMatchObject({
+        name: "Error",
+        message: "Unknown error during input handling",
+      });
     });
 
     it("does not send to error port when disabled but still logs error", async () => {
@@ -126,11 +206,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "explicit-error" });
 
-      const sent = node.sent();
-      const errorSends = sent.filter(
-        (s: any) => Array.isArray(s) && s.some((m: any) => m?.error),
-      );
-      expect(errorSends).toHaveLength(0);
+      expect(node.sent("error")).toHaveLength(0);
       // Error should still be logged through the normal error() path
       expect(
         node.errored().some((e: string) => e.includes("Explicit error")),
@@ -150,16 +226,13 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "status" });
 
-      const sent = rawSent(node);
-      const statusSends = sent.filter(
-        (s: any) => Array.isArray(s) && s[1]?.status && s[1]?.source,
-      );
+      const statusSends = node.sent("status");
       expect(statusSends).toHaveLength(1);
-      expect(statusSends[0][1].status.fill).toBe("green");
-      expect(statusSends[0][1].status.text).toBe("ok");
-      expect(statusSends[0][1].source.type).toBe("emit-test");
-      // Port 0 (data) should be empty (sparse array slot)
-      expect(statusSends[0][0]).toBeUndefined();
+      expect(statusSends[0].status.fill).toBe("green");
+      expect(statusSends[0].status.text).toBe("ok");
+      expect(statusSends[0].source.type).toBe("emit-test");
+      // The data port received nothing.
+      expect(node.sent(0)).toHaveLength(0);
     });
 
     it("does not send to status port when disabled but still updates UI status", async () => {
@@ -173,11 +246,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "status" });
 
-      const sent = node.sent();
-      const statusSends = sent.filter(
-        (s: any) => Array.isArray(s) && s.some((m: any) => m?.status),
-      );
-      expect(statusSends).toHaveLength(0);
+      expect(node.sent("status")).toHaveLength(0);
       // Status should still be set on the node (UI update)
       const statuses = node.statuses();
       expect(statuses.some((s: any) => s.text === "ok")).toBe(true);
@@ -196,9 +265,8 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "explicit-error" });
 
-      const sent = rawSent(node);
-      const errorSend = sent.find((s: any) => Array.isArray(s) && s[1]?.error);
-      expect(errorSend![1].error.source).toEqual({
+      const errorSend = node.sent("error")[0];
+      expect(errorSend.error.source).toEqual({
         id: expect.any(String),
         type: "emit-test",
         name: expect.any(String),
@@ -227,11 +295,7 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "test" });
 
-      const sent = node.sent();
-      const errorSends = sent.filter(
-        (s: any) => Array.isArray(s) && s.some((m: any) => m?.error),
-      );
-      expect(errorSends).toHaveLength(0);
+      expect(node.sent("error")).toHaveLength(0);
     });
   });
 
@@ -247,12 +311,9 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "status" });
 
-      const sent = rawSent(node);
-      const statusSend = sent.find(
-        (s: any) => Array.isArray(s) && s[1]?.status && s[1]?.source,
-      );
+      const statusSend = node.sent("status")[0];
       expect(statusSend).toBeDefined();
-      expect(statusSend![1].source).toEqual({
+      expect(statusSend.source).toEqual({
         id: expect.any(String),
         type: "emit-test",
         name: expect.any(String),
@@ -282,14 +343,11 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "go" });
 
-      const sent = rawSent(node);
-      const statusSends = sent.filter(
-        (s: any) => Array.isArray(s) && s.some((m: any) => m?.status),
-      );
+      const statusSends = node.sent("status");
       expect(statusSends).toHaveLength(3);
-      expect(statusSends[0][1].status.text).toBe("step 1");
-      expect(statusSends[1][1].status.text).toBe("step 2");
-      expect(statusSends[2][1].status.text).toBe("step 3");
+      expect(statusSends[0].status.text).toBe("step 1");
+      expect(statusSends[1].status.text).toBe("step 2");
+      expect(statusSends[2].status.text).toBe("step 3");
     });
   });
 
@@ -401,10 +459,8 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "go" });
 
-      const sent = node.sent();
-      expect(sent).toHaveLength(1);
-      const statusSend = sent[0] as unknown[];
-      expect(statusSend[1]).toEqual(
+      const statusSend = node.sent("status")[0];
+      expect(statusSend).toEqual(
         expect.objectContaining({
           status: expect.objectContaining({ text: "working" }),
           source: expect.anything(),
@@ -502,10 +558,7 @@ describe("emit ports", () => {
       });
       await node.receive({ payload: "go" });
 
-      // baseOutputs=1, only completePort enabled → complete at index 1
-      const completeMsg = rawSent(node).find(
-        (s) => Array.isArray(s) && s[1]?.complete,
-      )?.[1];
+      const completeMsg = node.sent("complete")[0];
       expect(completeMsg.output).toEqual({ sum: 42 });
       expect(completeMsg.complete.source.type).toBe("return-complete-test");
     });
@@ -526,9 +579,7 @@ describe("emit ports", () => {
       });
       await node.receive({ payload: "go" });
 
-      const completeMsg = rawSent(node).find(
-        (s) => Array.isArray(s) && s[1]?.complete,
-      )?.[1];
+      const completeMsg = node.sent("complete")[0];
       expect(completeMsg.complete).toBeDefined();
       expect(completeMsg.output).toBeUndefined();
     });

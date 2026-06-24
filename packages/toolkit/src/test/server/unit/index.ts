@@ -65,6 +65,49 @@ type PortTuple<TOutput, TInput> =
             : WrappedPort<TOutput[keyof TOutput], TInput>[]
         : [WrappedPort<TOutput, TInput>];
 
+type NodeSource = { id: string; type: string; name: string };
+
+/** Message delivered on the built-in **error** port (`sent("error")`). A thrown
+ * error's own enumerable fields ride alongside the canonical `name`/`message`/
+ * `source`. */
+type ErrorPortMessage = {
+  error: { name: string; message: string; source: NodeSource };
+} & Record<string, unknown>;
+
+/** Message delivered on the built-in **complete** port (`sent("complete")`).
+ * Carries `output` when `input()` returned a value. */
+type CompletePortMessage = {
+  complete: { source: NodeSource };
+} & Record<string, unknown>;
+
+/** Message delivered on the built-in **status** port (`sent("status")`). */
+type StatusPortMessage = {
+  status: { fill?: string; shape?: string; text?: string };
+  source: NodeSource;
+} & Record<string, unknown>;
+
+/**
+ * Resolve a built-in lifecycle port name to its positional slot for `sent()`.
+ * Built-in ports are appended after the declared base outputs in a fixed order
+ * (error, complete, status), each present only when its config flag is on.
+ * Returns `undefined` for a non-built-in name (fall through to declared ports),
+ * or `-1` when the named built-in port is disabled.
+ */
+function builtinPortIndex(node: any, name: string): number | undefined {
+  if (name !== "error" && name !== "complete" && name !== "status") {
+    return undefined;
+  }
+  // Reached only for built-in port names, which are only meaningful on an
+  // IONode — so config (an object) and baseOutputs (a number) are always set.
+  const config = node.config;
+  const base = node.baseOutputs;
+  if (name === "error") return config.errorPort ? base : -1;
+  let index = base + (config.errorPort ? 1 : 0);
+  if (name === "complete") return config.completePort ? index : -1;
+  index += config.completePort ? 1 : 0;
+  return config.statusPort ? index : -1;
+}
+
 interface TestNodeHelpers<TInput = any, TOutput = any> {
   /** Drive the node's input handler with a Node-RED message. For an object
    * input the declared shape is required while arbitrary extra message
@@ -77,11 +120,13 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
   close(removed?: boolean): Promise<void>;
   reset(): void;
   /** All raw emissions, each a positional array — `sent()[i][0]` is port 0 of
-   * emission `i`, typed from the node's declared output. Built-in lifecycle
-   * ports (error/complete/status) are emitted as their own entries here, with
-   * slots beyond the declared ports; use `sent(port)` / `sent(name)` for typed,
-   * per-port assertions. */
+   * emission `i`, typed from the node's declared output. Read one port directly
+   * with `sent(name)` / `sent(port)`, including the built-in lifecycle ports by
+   * name: `sent("error")`, `sent("complete")`, `sent("status")`. */
   sent(): PortTuple<TOutput, TInput>[];
+  sent(port: "error"): ErrorPortMessage[];
+  sent(port: "complete"): CompletePortMessage[];
+  sent(port: "status"): StatusPortMessage[];
   sent<P extends PortNames<TOutput>>(
     port: P,
   ): WrappedPort<PortMessage<TOutput, P>, TInput>[];
@@ -168,7 +213,15 @@ function attachHelpers<T>(
     },
     sent(port?: number | string): any[] {
       if (port === undefined) return [...sentMessages];
+      const pluck = (idx: number) =>
+        sentMessages
+          .map((msg) => (Array.isArray(msg) ? msg[idx] : undefined))
+          .filter((msg) => msg != null);
       if (typeof port === "string") {
+        // Built-in lifecycle ports (error/complete/status) resolve to their
+        // positional slot beyond the declared ports.
+        const builtin = builtinPortIndex(node, port);
+        if (builtin !== undefined) return builtin === -1 ? [] : pluck(builtin);
         const schema = NodeClass.outputsSchema;
         if (
           !schema ||
@@ -179,13 +232,9 @@ function attachHelpers<T>(
         }
         const idx = Object.keys(schema).indexOf(port);
         if (idx === -1) return [];
-        return sentMessages
-          .map((msg) => (Array.isArray(msg) ? msg[idx] : undefined))
-          .filter((msg) => msg != null);
+        return pluck(idx);
       }
-      return sentMessages
-        .map((msg) => (Array.isArray(msg) ? msg[port] : undefined))
-        .filter((msg) => msg != null);
+      return pluck(port);
     },
     statuses() {
       return [...statusCalls];
