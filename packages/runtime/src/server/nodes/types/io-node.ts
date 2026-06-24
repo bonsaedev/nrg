@@ -83,7 +83,9 @@ interface IIONode<
   readonly g: string | undefined;
   readonly wires: string[][];
 
-  input(msg: TInput): void | Promise<void>;
+  // A returned value (when not `undefined`) rides the complete port under
+  // `output`; `void`/no return keeps the plain completion signal.
+  input(msg: TInput): unknown;
   send(msg: TOutput): void;
   status(status: IONodeStatus): void;
   updateWires(wires: string[][]): void;
@@ -148,6 +150,8 @@ interface IONodeDefinition<
     >,
     removed?: boolean,
   ): void | Promise<void>;
+  // A returned value (when not `undefined`) rides the complete port under
+  // `output`; `void`/no return keeps the plain completion signal.
   input?(
     this: BoundIONode<
       TConfigSchema,
@@ -157,7 +161,7 @@ interface IONodeDefinition<
       TOutputsSchema
     >,
     msg: InferOr<TInputSchema, any>,
-  ): void | Promise<void>;
+  ): unknown;
 }
 
 export {

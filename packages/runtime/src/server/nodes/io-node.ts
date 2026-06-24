@@ -223,13 +223,17 @@ abstract class IONode<
         try {
           nodeRedNode.log("Calling input");
           this.#currentInputMsg = msg;
-          await Promise.resolve(this.#input(msg as TInput, send));
+          const result = await this.#input(msg as TInput, send);
 
           // Send to complete port if enabled. Nest the input so a flow
           // resumed off the complete port (e.g. an iterator continuing after
           // all elements) carries the same `input` lineage as a normal send.
+          // When input() returns a value (e.g. an async node that awaits work
+          // and yields its result), it rides the complete port under `output`,
+          // so the flow continues with it — `void`/no return keeps today's shape.
           this.#sendToPort("complete", {
             ...(msg as Record<string, unknown>),
+            ...(result !== undefined ? { output: result } : {}),
             complete: {
               source: this.#nodeSource(),
             },
@@ -273,7 +277,9 @@ abstract class IONode<
     );
   }
 
-  public input(msg: TInput): void | Promise<void> {}
+  public input(msg: TInput): unknown {
+    return undefined;
+  }
 
   async #input(msg: TInput, send: (msg: any) => void) {
     const NodeClass = this.constructor as typeof IONode;
@@ -289,7 +295,7 @@ abstract class IONode<
     }
     this.#send = send;
     try {
-      await Promise.resolve(this.input(msg));
+      return await Promise.resolve(this.input(msg));
     } finally {
       this.#send = undefined;
     }

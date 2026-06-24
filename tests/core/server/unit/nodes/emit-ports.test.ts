@@ -484,4 +484,53 @@ describe("emit ports", () => {
       expect(sent[0][0]).toEqual(expect.objectContaining({ payload: "hello" }));
     });
   });
+
+  describe("input() return value on the complete port", () => {
+    it("rides the complete port under output when input() returns a value", async () => {
+      const ReturnNode = defineIONode({
+        type: "return-complete-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input() {
+          return { sum: 42 };
+        },
+      });
+
+      const { node } = await createNode(ReturnNode, {
+        config: { completePort: true },
+      });
+      await node.receive({ payload: "go" });
+
+      // baseOutputs=1, only completePort enabled → complete at index 1
+      const completeMsg = rawSent(node).find(
+        (s) => Array.isArray(s) && s[1]?.complete,
+      )?.[1];
+      expect(completeMsg.output).toEqual({ sum: 42 });
+      expect(completeMsg.complete.source.type).toBe("return-complete-test");
+    });
+
+    it("keeps the plain completion signal (no output) when input() returns nothing", async () => {
+      const VoidNode = defineIONode({
+        type: "void-complete-test",
+        inputSchema: SchemaType.Object({}),
+        outputsSchema: SchemaType.Object({}),
+        configSchema: ConfigSchema,
+        async input() {
+          // no return
+        },
+      });
+
+      const { node } = await createNode(VoidNode, {
+        config: { completePort: true },
+      });
+      await node.receive({ payload: "go" });
+
+      const completeMsg = rawSent(node).find(
+        (s) => Array.isArray(s) && s[1]?.complete,
+      )?.[1];
+      expect(completeMsg.complete).toBeDefined();
+      expect(completeMsg.output).toBeUndefined();
+    });
+  });
 });
