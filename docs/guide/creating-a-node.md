@@ -819,7 +819,7 @@ When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `errorPort` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { message, source: { id, type, name } } }` |
+| `errorPort` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { name, message, source: { id, type, name } } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)) |
 | `completePort` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` — plus `output: <value>` when `input()` returns one ([see below](#returning-a-custom-completion-message)) |
 | `statusPort` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
 
@@ -856,6 +856,36 @@ for a node that **awaits work and yields a single result on completion** rather
 than emitting per-message on a data port (e.g. a gather/aggregate node). `input()`'s
 return type is `unknown` by default; declare a stricter return (as above) to type
 the value. Requires `completePort` enabled.
+
+#### Throwing a custom error {#throwing-a-custom-error}
+
+The error port normally carries just `error.message`. If you **throw a custom
+`Error` subclass**, its own enumerable properties are merged into `msg.error`, so
+a downstream flow can route and react on structured detail instead of parsing a
+string. The canonical `name`, `message`, and `source` are layered last, so they
+stay authoritative and consistent with the message a Node-RED **Catch** node
+produces.
+
+```typescript
+class RateLimitError extends Error {
+  constructor(public retryAfterMs: number) {
+    super("rate limited");
+    this.name = "RateLimitError"; // set name explicitly — subclasses don't
+  }
+}
+
+async input(msg: Input) {
+  throw new RateLimitError(2000);
+  // error port: { ...msg, error: { name: "RateLimitError", message: "rate limited",
+  //                                retryAfterMs: 2000, source } }
+}
+```
+
+Notes: only **enumerable own** properties ride along — `message`/`stack` are
+non-enumerable, so set extra data as instance properties and keep it serializable
+(it is flattened to plain data so it survives `cloneMessage` and `JSON`).
+Discriminate on `error.name` (realm-safe) rather than `instanceof`. Requires
+`errorPort` enabled.
 
 #### Example: node with error and status ports
 

@@ -481,6 +481,24 @@ describe("built-in emit ports", () => {
     });
   });
 
+  it("should carry a thrown custom error's fields under error", async () => {
+    // Given a node that throws a custom Error subclass:
+    //
+    //   class RateLimitError extends Error {
+    //     constructor(public retryAfterMs: number) {
+    //       super("rate limited");
+    //       this.name = "RateLimitError";
+    //     }
+    //   }
+    //   input() { throw new RateLimitError(2000); }
+    const { node } = await createNode(RateLimitedNode);
+
+    await expect(node.receive({ payload: "go" })).rejects.toThrow();
+    expect(node.sent("error")[0]).toMatchObject({
+      error: { name: "RateLimitError", message: "rate limited", retryAfterMs: 2000 },
+    });
+  });
+
   it("should emit to complete port on successful processing", async () => {
     const { node } = await createNode(MyNode);
 
