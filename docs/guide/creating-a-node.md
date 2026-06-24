@@ -820,7 +820,7 @@ When a user enables a built-in port, an extra output is appended to the node:
 | Property | Trigger | Output message |
 | --- | --- | --- |
 | `errorPort` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { message, source: { id, type, name } } }` |
-| `completePort` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` |
+| `completePort` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` — plus `output: <value>` when `input()` returns one ([see below](#returning-a-custom-completion-message)) |
 | `statusPort` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
 
 Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
@@ -832,6 +832,30 @@ Port 2: Error        (if errorPort enabled)
 Port 3: Complete     (if completePort enabled)
 Port 4: Status       (if statusPort enabled)
 ```
+
+#### Returning a custom completion message {#returning-a-custom-completion-message}
+
+The complete port normally carries a plain "done" signal. If your `input()`
+handler **returns a value**, that value rides the complete port under `output` —
+the flow continues with it, the same way `this.send()` puts a result on a data
+port. Returning nothing (or `undefined`) keeps the plain signal, so this is
+backward-compatible.
+
+```typescript
+async input(msg: Input): Promise<Summary> {
+  const results = await Promise.all(this.collect(msg));
+  // continues on the complete port as
+  //   { ...msg, output: <summary>, complete: { source } }
+  return summarize(results);
+}
+```
+
+This makes the complete port author-controllable, symmetric with the error port
+(`throw` / `this.error()`) and status port (`this.status()`). It's the natural fit
+for a node that **awaits work and yields a single result on completion** rather
+than emitting per-message on a data port (e.g. a gather/aggregate node). `input()`'s
+return type is `unknown` by default; declare a stricter return (as above) to type
+the value. Requires `completePort` enabled.
 
 #### Example: node with error and status ports
 

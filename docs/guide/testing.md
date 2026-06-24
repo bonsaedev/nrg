@@ -193,7 +193,7 @@ Every node returned by `createNode` has these helpers:
 
 | Method                 | Description                                                                                                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `node.receive(msg)`    | Send a message through the node's `input()` handler                                                                                                                                             |
+| `node.receive(msg)`    | Send a message through the node's `input()` handler (extra Node-RED message props beyond the input schema are allowed) |
 | `node.close(removed?)` | Trigger the `closed()` lifecycle hook                                                                                                                                                           |
 | `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
 | `node.sent()`          | All raw emissions — each is a positional array, one slot per output port (so `node.sent()[i][0]` is the first port of emission `i`). Use `sent(port)` / `sent(name)` to read one port directly. |
@@ -486,6 +486,21 @@ describe("built-in emit ports", () => {
 
     await node.receive({ payload: "hello" });
     expect(node.sent("complete")).toHaveLength(1);
+  });
+
+  it("should ride the value returned by input() on the complete port", async () => {
+    // Given a node whose input() returns a value:
+    //
+    //   input(msg: Input) {
+    //     return { id: msg.payload, ok: true };
+    //   }
+    const { node } = await createNode(ReturningNode);
+
+    await node.receive({ payload: "abc" });
+    expect(node.sent("complete")).toHaveLength(1);
+    expect(node.sent("complete")[0]).toMatchObject({
+      output: { id: "abc", ok: true },
+    });
   });
 
   it("should emit to status port when status is set", async () => {
