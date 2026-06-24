@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.24.0](https://github.com/bonsaedev/nrg/compare/v0.23.0...v0.24.0) (2026-06-24)
+
+
+### Features
+
+* **runtime:** let input() return a custom continue message on the complete port ([535bd09](https://github.com/bonsaedev/nrg/commit/535bd09e0ad9a7773cdd9c154214cb746487399d))
+
 # [0.23.0](https://github.com/bonsaedev/nrg/compare/v0.22.2...v0.23.0) (2026-06-23)
 
 
