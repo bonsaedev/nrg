@@ -1,5 +1,13 @@
 # Changelog
 
+# [0.25.0](https://github.com/bonsaedev/nrg/compare/v0.24.0...v0.25.0) (2026-06-24)
+
+
+### Features
+
+* **runtime:** carry thrown custom-error fields on the error port ([decd691](https://github.com/bonsaedev/nrg/commit/decd69101598e9c7c1e175827735cb6c098b42aa))
+* **test:** resolve built-in lifecycle ports by name in sent() ([c66b6b0](https://github.com/bonsaedev/nrg/commit/c66b6b097fea9f475e348ffc1408d21561cf1fa8))
+
 # [0.24.0](https://github.com/bonsaedev/nrg/compare/v0.23.0...v0.24.0) (2026-06-24)
 
 
