@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.1](https://github.com/bonsaedev/nrg/compare/v0.25.0...v0.25.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **runtime:** scope per-input context to each input() call ([817e2c3](https://github.com/bonsaedev/nrg/commit/817e2c371e78ef0fd706e71f6642d3acab98e202))
+
 # [0.25.0](https://github.com/bonsaedev/nrg/compare/v0.24.0...v0.25.0) (2026-06-24)
 
 

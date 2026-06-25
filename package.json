@@ -1,6 +1,6 @@
 {
   "name": "bonsae-nrg",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "NRG monorepo — @bonsae/nrg (toolkit) + @bonsae/nrg-runtime",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",

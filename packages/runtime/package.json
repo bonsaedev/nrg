@@ -1,6 +1,6 @@
 {
   "name": "@bonsae/nrg-runtime",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "Runtime for Node-RED nodes built with @bonsae/nrg — no build tooling.",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
