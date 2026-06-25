@@ -14,6 +14,29 @@ import type {
 } from "./types";
 import { setupContext } from "./context";
 import { WIRE_HANDLERS } from "./symbols";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+/** Per-`input()`-invocation context carried by {@link inputInvocation}. */
+interface InputInvocation {
+  inputMsg: unknown;
+  send: (msg: any) => void;
+}
+
+/**
+ * Scopes the current input message + send callback to each `input()` execution
+ * — and everything it `await`s, including detached `.then`/timer continuations
+ * it schedules — via AsyncLocalStorage. Real Node-RED never awaits an async
+ * input handler before delivering the next message (its `emit('input')`/
+ * `receive` are fire-and-forget and `done()` is completion tracking, not
+ * back-pressure), so two inputs can be in flight on one node at once. Holding
+ * the per-invocation context here (rather than on a shared instance field)
+ * means concurrent inputs can never clobber each other's context, and a
+ * deferred send keeps the context of the input that scheduled it. `getStore()`
+ * is `undefined` only for a send made entirely outside any `input()` call (e.g.
+ * a timer set up in `created()`): such a send carries no inherited context and
+ * delivers via `node.send`.
+ */
+const inputInvocation = new AsyncLocalStorage<InputInvocation>();
 
 /**
  * Type guard for an `outputsSchema` shape — a single schema, an array of
@@ -144,14 +167,6 @@ abstract class IONode<
     return Object.keys(s);
   }
 
-  #send: ((msg: any) => void) | undefined;
-  /**
-   * Most recent input message — the spread base for output wrapping. Not
-   * cleared after input() so late async sends merge with the last received
-   * message.
-   */
-  #currentInputMsg: unknown;
-
   declare public readonly config: IONodeConfig<TConfig>;
   protected override readonly context: IONodeContext;
 
@@ -222,7 +237,6 @@ abstract class IONode<
 
         try {
           nodeRedNode.log("Calling input");
-          this.#currentInputMsg = msg;
           const result = await this.#input(msg as TInput, send);
 
           // Send to complete port if enabled. Nest the input so a flow
@@ -306,12 +320,12 @@ abstract class IONode<
       });
       this.log("Input is valid");
     }
-    this.#send = send;
-    try {
-      return await Promise.resolve(this.input(msg));
-    } finally {
-      this.#send = undefined;
-    }
+    // Scope this invocation's input msg + send so a concurrent input() call
+    // can't clobber the context this one carries. All per-invocation state
+    // lives in the store — there is no shared instance field to race on.
+    return await inputInvocation.run({ inputMsg: msg, send }, () =>
+      Promise.resolve(this.input(msg)),
+    );
   }
 
   public send(msg: TOutput) {
@@ -339,8 +353,12 @@ abstract class IONode<
   }
 
   #deliver(out: unknown) {
-    if (this.#send) {
-      this.#send(out);
+    // Deliver via this invocation's send callback (concurrency-safe). A send
+    // made outside any input() call (e.g. a timer) has no store and falls back
+    // to node.send.
+    const send = inputInvocation.getStore()?.send;
+    if (send) {
+      send(out);
     } else {
       this.node.send(out);
     }
@@ -407,7 +425,11 @@ abstract class IONode<
    */
   #wrapOutgoing(value: unknown, mode: ContextMode, port: number): unknown {
     const key = this.#returnPropertyKey(port);
-    const input = (this.#currentInputMsg as Record<string, unknown>) ?? {};
+    // The carried base is THIS invocation's input msg (per-call, concurrency-
+    // safe). A send made entirely outside an input() call (e.g. a timer set up
+    // in created()) has no scheduling input and so carries no inherited context.
+    const input =
+      (inputInvocation.getStore()?.inputMsg as Record<string, unknown>) ?? {};
     if (mode === "reset") {
       return { [key]: value };
     }

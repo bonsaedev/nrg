@@ -409,7 +409,7 @@ describe("returnProperty / output convention", () => {
     });
   });
 
-  it("late async sends carry the most recent input message", async () => {
+  it("a detached async send carries its scheduling input's context", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
 
@@ -429,13 +429,17 @@ describe("returnProperty / output convention", () => {
     });
 
     const { node } = await createNode(LateNode);
+    // seq:1 schedules the deferred send; seq:2 arrives before the gate fires.
     await node.receive({ fire: true, seq: 1 });
     await node.receive({ seq: 2 });
     release();
     await new Promise((resolve) => setImmediate(resolve));
 
+    // The deferred send belongs to the input that scheduled it (seq:1) — its
+    // context is preserved, not replaced by whatever arrived most recently.
     expect(node.sent(0)[0]).toEqual({
-      seq: 2,
+      fire: true,
+      seq: 1,
       output: "late",
     });
   });
