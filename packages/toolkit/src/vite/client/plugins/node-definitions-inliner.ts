@@ -65,29 +65,36 @@ function resolveIcon(iconsDir: string, type: string): string | undefined {
 }
 
 // The built server bundle imports the runtime as `@bonsae/nrg-runtime/server`
-// (single- or double-quoted). Matched so it can be rewritten to an absolute
-// path before the bundle is loaded at build time.
+// (single- or double-quoted). That specifier is the node's *output* dependency,
+// matched here so it can be rewritten to an absolute path before the bundle is
+// loaded at build time.
 const RUNTIME_SPECIFIER = "@bonsae/nrg-runtime/server";
 const RUNTIME_SPECIFIER_RE = /(['"])@bonsae\/nrg-runtime\/server\1/g;
 
+// At *build* time the runtime is not necessarily installed — the toolkit no
+// longer depends on @bonsae/nrg-runtime, so a node author installs only
+// @bonsae/nrg (the toolkit). Its server entry exposes the identical core values
+// (the toolkit emits the runtime bundle from the same source), so the
+// build-time load resolves the toolkit's server instead.
+const TOOLKIT_SERVER_SPECIFIER = "@bonsae/nrg/server";
+
 /**
- * Resolves the absolute path to `@bonsae/nrg-runtime`'s server entry.
+ * Resolves the absolute path to the core server values for the *build-time*
+ * load of node definitions.
  *
  * The built server bundle imports the runtime via the bare specifier
  * `@bonsae/nrg-runtime/server`. That resolves at the node's *runtime* (its
  * generated `dist/package.json` declares `@bonsae/nrg-runtime` directly), but
- * not necessarily at *build* time: the author installs only `@bonsae/nrg` (the
- * toolkit), which depends on the runtime. Under npm's flat layout the runtime is
- * hoisted to the consumer's top-level `node_modules` and resolves from the
- * output dir; under pnpm's strict layout it is nested under `@bonsae/nrg` and
- * only resolves from the toolkit's own scope. Try the output dir first, then the
- * toolkit (this plugin's own location).
+ * not at *build* time: the author installs only `@bonsae/nrg` (the toolkit),
+ * which no longer depends on the runtime. The toolkit's own server entry
+ * (`@bonsae/nrg/server`) ships the same core values, so resolve that instead.
+ * Try the output dir first, then the toolkit (this plugin's own location).
  */
 function resolveRuntimeServer(serverOutDir: string): string | undefined {
   const roots = [path.join(serverOutDir, "index.js"), import.meta.url];
   for (const root of roots) {
     try {
-      return createRequire(root).resolve(RUNTIME_SPECIFIER);
+      return createRequire(root).resolve(TOOLKIT_SERVER_SPECIFIER);
     } catch {
       // Try the next resolution root.
     }
@@ -100,13 +107,13 @@ function resolveRuntimeServer(serverOutDir: string): string | undefined {
  * function with a `.nodes` array) so node-class statics can be read at build
  * time.
  *
- * The runtime import is rewritten to an absolute path in a throwaway sibling
- * copy before loading. Without this, Node resolves `@bonsae/nrg-runtime/server`
- * relative to the consumer's output dir, which fails under pnpm where the
- * runtime is nested under the toolkit rather than hoisted (see
- * {@link resolveRuntimeServer}). All other bare imports (e.g. third-party deps)
- * still resolve from the output dir because the copy is a sibling of the
- * original bundle.
+ * The `@bonsae/nrg-runtime/server` import is rewritten to an absolute path (the
+ * resolved toolkit server, see {@link resolveRuntimeServer}) in a throwaway
+ * sibling copy before loading. Without this, Node resolves
+ * `@bonsae/nrg-runtime/server` relative to the consumer's output dir, which
+ * fails at build time where only the toolkit is installed. All other bare
+ * imports (e.g. third-party deps) still resolve from the output dir because the
+ * copy is a sibling of the original bundle.
  */
 async function loadServerPackageExport(serverOutDir: string): Promise<any> {
   const esmEntryPath = path.resolve(serverOutDir, "index.mjs");

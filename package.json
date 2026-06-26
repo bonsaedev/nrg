@@ -19,8 +19,7 @@
     "pnpm": ">=10.11.0"
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "build:runtime": "pnpm --filter @bonsae/nrg-runtime build",
+    "build": "pnpm --filter @bonsae/nrg build",
     "build:toolkit": "pnpm --filter @bonsae/nrg build",
     "test": "pnpm test:core && pnpm test:vite",
     "test:core": "pnpm test:core:server && pnpm test:core:client",

@@ -3,6 +3,8 @@ import {
   mkdirSync,
   copyFileSync,
   cpSync,
+  readFileSync,
+  readdirSync,
   writeFileSync,
   appendFileSync,
   existsSync,
@@ -14,15 +16,30 @@ import vue from "@vitejs/plugin-vue";
 import {
   DTS_FLAGS,
   esbuildBundle,
+  minifyFile,
   clean,
   writePublishManifest,
 } from "../../scripts/build-lib";
 
 // Runs with cwd = packages/toolkit (pnpm --filter @bonsae/nrg build).
+//
+// This single build emits BOTH published packages:
+//   - @bonsae/nrg         (the toolkit) → packages/toolkit/dist
+//   - @bonsae/nrg-runtime (the light artifact for deployed nodes) → a copied
+//     subset of the toolkit's core output, dropped into packages/runtime/dist
+//
+// The runtime is no longer a source package: packages/runtime keeps only its
+// publish manifest (package.json) + README, and its dist is emitted here.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
 const WORKSPACE_ROOT = path.resolve(ROOT, "../..");
 const DIST = path.resolve(ROOT, "dist");
+const RUNTIME_ROOT = path.resolve(WORKSPACE_ROOT, "packages/runtime");
+const RUNTIME_DIST = path.resolve(RUNTIME_ROOT, "dist");
+
+// ---------------------------------------------------------------------------
+// Toolkit entries (the @bonsae/nrg surface: index, vite plugin, test utils)
+// ---------------------------------------------------------------------------
 
 function buildRootEntry() {
   esbuildBundle("src/index.ts", { outfile: "dist/index.js" });
@@ -94,20 +111,64 @@ async function buildTestUtils() {
   console.log("✓ Built test utilities → dist/test/");
 }
 
-function writeReExports() {
-  // ./server re-exports the runtime VALUES at run time. The TYPES are owned by
-  // the toolkit (copyRuntimeTypes) so consumers never resolve nrg types through
-  // the transitive CJS runtime — that boundary splits TypeBox into nominally
-  // incompatible cjs/esm `TObject` builds. (./client is types-only.)
-  mkdirSync(path.join(DIST, "server"), { recursive: true });
-  writeFileSync(
-    path.join(DIST, "server/index.cjs"),
-    `'use strict';\nmodule.exports = require("@bonsae/nrg-runtime/server");\n`,
-  );
-  console.log("✓ Wrote server value re-export → dist/server/index.cjs");
+// ---------------------------------------------------------------------------
+// Core build (shared by both packages: server VALUES + editor client asset)
+// ---------------------------------------------------------------------------
+
+function buildCoreServer() {
+  // The core server, as a self-contained CJS bundle with external deps. This is
+  // the runtime VALUES served at ./server. It replaces the old re-export to
+  // @bonsae/nrg-runtime — the toolkit now owns this bundle, and the runtime
+  // artifact ships the very same bytes (deps are external, so identical for
+  // both packages).
+  esbuildBundle("src/core/server/index.ts", {
+    format: "cjs",
+    outfile: "dist/server/index.cjs",
+  });
+  console.log("✓ Built core server → dist/server/index.cjs");
 }
 
+async function buildClientAsset() {
+  // ESM-only plugin — dynamic import resolves it under tsx in this package.
+  const { default: cssInjectedByJsPlugin } =
+    await import("vite-plugin-css-injected-by-js");
+  // The editor client runtime, served as a static asset (in dev, by the
+  // toolkit); vue is externalized to the URL the editor loads it from.
+  await viteBuild({
+    configFile: false,
+    logLevel: "warn",
+    plugins: [vue(), cssInjectedByJsPlugin()],
+    build: {
+      outDir: path.join(DIST, "server/resources"),
+      emptyOutDir: false,
+      lib: {
+        entry: path.resolve(ROOT, "src/core/client/index.ts"),
+        name: "NrgClient",
+        // Force .js (not .mjs) — this is a static asset the editor loads from a
+        // URL; the toolkit being type:module would otherwise make vite emit
+        // .mjs for the ES bundle.
+        fileName: () => "nrg-client.js",
+        formats: ["es"],
+      },
+      rollupOptions: {
+        external: ["vue"],
+        output: { paths: { vue: "/nrg/assets/vue.esm-browser.prod.js" } },
+      },
+    },
+  });
+  // Vite leaves a newline between every concatenated module (~270KB over
+  // thousands of lines); a final esbuild pass collapses the whitespace to
+  // ~190KB without disturbing the externalized `vue` import.
+  minifyFile(path.join(DIST, "server/resources/nrg-client.js"));
+  console.log("✓ Built client asset → dist/server/resources/nrg-client.js");
+}
+
+// ---------------------------------------------------------------------------
+// Type declarations
+// ---------------------------------------------------------------------------
+
 function generateTypes() {
+  // ----- toolkit-owned surface (index, vite, test-*) -----
   execSync(
     `npx dts-bundle-generator -o dist/types/index.d.ts src/index.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },
@@ -150,40 +211,125 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
     { stdio: "inherit" },
   );
 
+  // ----- core surface (server + client), natively owned & generated here -----
+  // These were previously copied from packages/runtime/dist; the toolkit now
+  // owns the core source (src/core/*) so it generates them directly. Consumers
+  // resolve every nrg type *here* (the ESM toolkit), never through the
+  // transitive CJS runtime — that boundary splits TypeBox into nominally
+  // incompatible cjs/esm `TObject` builds.
+  execSync(
+    `npx dts-bundle-generator -o dist/types/server.d.ts src/core/server/index.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  const serverDts = readFileSync("dist/types/server.d.ts", "utf-8");
+  writeFileSync(
+    "dist/types/server.d.ts",
+    `/// <reference path="./shims/typebox.d.ts" />\n${serverDts}`,
+  );
+
+  execSync(
+    `npx dts-bundle-generator -o dist/types/client.d.ts src/core/client/types.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  appendFileSync(
+    "dist/types/client.d.ts",
+    `
+export declare function defineNode<T extends NodeDefinition>(options: T): T;
+export declare function registerType(definition: NodeDefinition): Promise<void>;
+export declare function registerTypes(nodes: NodeDefinition[]): Promise<void>;
+export declare function useFormNode<TConfig extends TSchema = TSchema, TCredentials extends TSchema = TSchema>(): {
+  node: NodeRedNode & Infer<TConfig> & { credentials: Infer<TCredentials> & Record<string, any> };
+  schema: Record<string, any>;
+  errors: Record<string, string>;
+};
+`,
+  );
+
   console.log("✓ Generated type declarations → dist/types/");
 }
 
-function copyRuntimeTypes() {
-  // The toolkit is the single publisher of nrg types. The runtime emits its
-  // .d.ts (self-contained: only bare imports + a ./shims/typebox.d.ts ref), and
-  // we copy server/client/shims into the toolkit's own (ESM) dist so consumers
-  // resolve every nrg type *here* — never through the transitive CJS runtime,
-  // which would resolve TypeBox to a different (cjs) `TObject` build than the
-  // ESM toolkit harness and break `createNode()` typechecks. Runtime VALUES are
-  // still re-exported from @bonsae/nrg-runtime at run time (writeReExports).
-  const runtimeTypes = path.resolve(
-    WORKSPACE_ROOT,
-    "packages/runtime/dist/types",
+function copyShims() {
+  mkdirSync("dist/types/shims/client", { recursive: true });
+  copyFileSync(
+    "src/core/client/shims-vue.d.ts",
+    "dist/types/shims/shims-vue.d.ts",
   );
-  if (!existsSync(path.join(runtimeTypes, "shims"))) {
-    throw new Error(
-      `Runtime types not found at ${runtimeTypes} — build @bonsae/nrg-runtime first.`,
+  copyFileSync(
+    "src/core/client/globals.d.ts",
+    "dist/types/shims/client/globals.d.ts",
+  );
+  copyFileSync("src/core/server/typebox.d.ts", "dist/types/shims/typebox.d.ts");
+  copyFileSync(
+    "src/core/schema-options.ts",
+    "dist/types/shims/schema-options.d.ts",
+  );
+  console.log("✓ Copied core shims → dist/types/shims/");
+}
+
+function generateComponentTypes() {
+  execSync("npx vue-tsc -p tsconfig.vue-dts.json", { stdio: "inherit" });
+
+  // vue-tsc mirrors the src-relative path under outDir, and the .vue files now
+  // live at src/core/client/form/components/*.vue, so the emitted declarations
+  // land under shims/core/client/form/components/.
+  const componentsDir = "dist/types/shims/core/client/form/components";
+  const vueFiles = readdirSync(componentsDir).filter((f) =>
+    f.endsWith(".vue.d.ts"),
+  );
+  for (const file of vueFiles) {
+    const filePath = path.join(componentsDir, file);
+    const content = readFileSync(filePath, "utf-8");
+    const match = content.match(
+      /declare const _default: typeof __VLS_export;\s*export default _default;\s*declare const __VLS_export:\s*([\s\S]+)$/,
+    );
+    if (!match) {
+      throw new Error(
+        `Unexpected vue-tsc declaration shape in ${filePath} — update generateComponentTypes()`,
+      );
+    }
+    const preamble = content.slice(0, match.index);
+    const actualType = match[1].trimEnd().replace(/;$/, "");
+    writeFileSync(
+      filePath,
+      `${preamble}declare const _default: ${actualType};\nexport default _default;\n`,
     );
   }
-  mkdirSync(path.join(DIST, "types"), { recursive: true });
-  cpSync(path.join(runtimeTypes, "shims"), path.join(DIST, "types/shims"), {
-    recursive: true,
+
+  const entries = vueFiles.map((file) => {
+    const baseName = file.replace(".vue.d.ts", "");
+    const componentName = baseName
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("");
+    return `    ${componentName}: (typeof import("./core/client/form/components/${baseName}.vue"))["default"];`;
   });
-  copyFileSync(
-    path.join(runtimeTypes, "server.d.ts"),
-    path.join(DIST, "types/server.d.ts"),
-  );
-  copyFileSync(
-    path.join(runtimeTypes, "client.d.ts"),
-    path.join(DIST, "types/client.d.ts"),
-  );
-  console.log("✓ Copied runtime types (server, client, shims) → dist/types/");
+
+  writeFileSync(
+    "dist/types/shims/components.d.ts",
+    `/**
+ * Global component type declarations for Volar / Vue Language Server.
+ * Auto-generated during build — do not edit manually.
+ */
+
+export {};
+
+declare module "vue" {
+  export interface ComponentCustomProperties {
+    $i18n: (label: string) => string;
+  }
+
+  export interface GlobalComponents {
+${entries.join("\n")}
+  }
 }
+`,
+  );
+  console.log("✓ Generated component type declarations → dist/types/shims/");
+}
+
+// ---------------------------------------------------------------------------
+// Toolkit assets (tsconfig + schemas + README/LICENSE)
+// ---------------------------------------------------------------------------
 
 function copyAssets() {
   mkdirSync("dist/tsconfig", { recursive: true });
@@ -199,17 +345,83 @@ function copyAssets() {
   console.log("✓ Copied tsconfigs, schemas, README, and LICENSE → dist/");
 }
 
+// ---------------------------------------------------------------------------
+// Runtime artifact (the @bonsae/nrg-runtime publishable package)
+// ---------------------------------------------------------------------------
+
+function emitRuntimeArtifact() {
+  // The runtime is the light subset of the toolkit's core output: the server
+  // VALUES bundle, the editor client asset, and the core type declarations +
+  // shims. The server.cjs is self-contained (external deps), so the same bytes
+  // are valid for both packages. NOTHING from internal/* ships here — the
+  // runtime has no test-support surface.
+  clean(RUNTIME_DIST);
+  mkdirSync(path.join(RUNTIME_DIST, "server"), { recursive: true });
+  mkdirSync(path.join(RUNTIME_DIST, "types"), { recursive: true });
+
+  copyFileSync(
+    path.join(DIST, "server/index.cjs"),
+    path.join(RUNTIME_DIST, "server/index.cjs"),
+  );
+  cpSync(
+    path.join(DIST, "server/resources"),
+    path.join(RUNTIME_DIST, "server/resources"),
+    { recursive: true },
+  );
+  copyFileSync(
+    path.join(DIST, "types/server.d.ts"),
+    path.join(RUNTIME_DIST, "types/server.d.ts"),
+  );
+  copyFileSync(
+    path.join(DIST, "types/client.d.ts"),
+    path.join(RUNTIME_DIST, "types/client.d.ts"),
+  );
+  cpSync(
+    path.join(DIST, "types/shims"),
+    path.join(RUNTIME_DIST, "types/shims"),
+    { recursive: true },
+  );
+
+  // The runtime publishes from dist/ (publishConfig.directory="dist"), so its
+  // publish manifest, README, and LICENSE go into dist/. The manifest is
+  // derived from packages/runtime/package.json (light deps only).
+  writePublishManifest(RUNTIME_ROOT, RUNTIME_DIST);
+  const runtimeReadme = path.join(RUNTIME_ROOT, "README.md");
+  copyFileSync(
+    existsSync(runtimeReadme)
+      ? runtimeReadme
+      : path.join(WORKSPACE_ROOT, "README.md"),
+    path.join(RUNTIME_DIST, "README.md"),
+  );
+  const license = path.join(WORKSPACE_ROOT, "LICENSE");
+  if (existsSync(license))
+    copyFileSync(license, path.join(RUNTIME_DIST, "LICENSE"));
+
+  console.log("✓ Emitted @bonsae/nrg-runtime artifact → packages/runtime/dist");
+}
+
+// ---------------------------------------------------------------------------
+
 async function main() {
   clean(DIST);
+  // Toolkit surface.
   buildRootEntry();
   buildVitePlugin();
   await buildTestUtils();
-  writeReExports();
+  // Core (shared) values: server CJS + editor client asset.
+  buildCoreServer();
+  await buildClientAsset();
+  // Types (toolkit surface + natively-owned core surface) + shims + components.
   generateTypes();
+  copyShims();
+  generateComponentTypes();
+  // Toolkit assets + publish manifest.
   copyAssets();
-  copyRuntimeTypes();
   writePublishManifest(ROOT, DIST);
   console.log("✓ @bonsae/nrg (toolkit) built");
+  // Emit the second published package from the core subset.
+  emitRuntimeArtifact();
+  console.log("✓ @bonsae/nrg-runtime artifact emitted");
 }
 
 main();

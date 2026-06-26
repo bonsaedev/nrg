@@ -44,25 +44,7 @@
     },
     "./client": {
       "types": "./dist/types/client.d.ts"
-    },
-    "./internal/server": {
-      "types": "./dist/types/internal/server/index.d.ts",
-      "require": "./dist/internal/server/index.cjs",
-      "default": "./dist/internal/server/index.cjs"
-    },
-    "./internal/client": {
-      "types": "./dist/types/internal/client/index.d.ts",
-      "import": "./dist/internal/client/index.mjs",
-      "default": "./dist/internal/client/index.mjs"
-    },
-    "./internal/client/components": {
-      "types": "./dist/types/internal/client/components.d.ts",
-      "import": "./dist/internal/client/components.mjs",
-      "default": "./dist/internal/client/components.mjs"
     }
-  },
-  "scripts": {
-    "build": "tsx build.ts"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.33",
