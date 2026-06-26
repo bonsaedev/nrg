@@ -50,6 +50,8 @@ const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSch
 // node.name → string, node.server → string (NodeRef), node.target → { value, type }
 ```
 
+Note the `import type` — it is erased at build time, so it's safe. Never **value**-import a server schema module into client or browser code (including component tests): the module imports `defineSchema`/`SchemaType` from `@bonsae/nrg/server`, which is Node-only. In component tests, resolve schemas by node `type` via `createNode({ type })` instead — see [Testing › Resolving schemas by node type](/guide/testing#resolving-schemas-by-node-type).
+
 See [Custom Form Component](/guide/creating-a-node#custom-form-component) for a full example.
 
 ## Config Schema

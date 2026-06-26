@@ -443,7 +443,7 @@ NRG brings the modern JavaScript ecosystem to Node-RED development:
 One command to start:
 
 ```bash
-pnpm vite dev
+pnpm dev
 ```
 
 Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. Server changes trigger a Node-RED restart; client changes trigger a browser reload. Change a file, see the result — no manual restart.
@@ -451,10 +451,8 @@ Vite watches your files, auto-rebuilds server and client, and proxies to a live 
 Standard scripts work out of the box:
 
 ```bash
-pnpm vite dev     # dev server with hot rebuild
-pnpm vite build   # production build
-pnpm lint         # eslint
-pnpm format       # prettier
-pnpm tsc:server   # type-check server
-pnpm tsc:client   # type-check client
+pnpm dev            # dev server with hot rebuild
+pnpm build          # production build
+pnpm validate       # type-check + lint + format (validate:tsc / :lint / :format)
+pnpm validate:tsc   # type-check
 ```

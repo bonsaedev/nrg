@@ -234,7 +234,11 @@ describe("my-node", () => {
     const { node } = await createNode(MyNode);
     await node.receive({ payload: "hello" });
 
-    expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
+    // send() wraps the result under the return key (`output`) and carries the
+    // incoming msg's fields, so the captured msg is the input plus `output`.
+    expect(node.sent(0)).toEqual([
+      { payload: "hello", output: { payload: "HELLO" } },
+    ]);
     expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
   });
 
@@ -287,7 +291,9 @@ describe("credentials", () => {
     });
 
     await node.receive({ payload: "test" });
-    expect(node.sent(0)).toEqual([{ payload: "authenticated" }]);
+    expect(node.sent(0)).toEqual([
+      { payload: "test", output: { payload: "authenticated" } },
+    ]);
   });
 });
 
@@ -298,7 +304,8 @@ describe("settings", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: 3000 }]);
+    // receive({}) carries no fields, so the wrapped msg is just `output`.
+    expect(node.sent(0)).toEqual([{ output: { payload: 3000 } }]);
   });
 });
 
@@ -316,7 +323,9 @@ describe("TypedInput", () => {
     });
 
     await node.receive({ payload: "from-msg" });
-    expect(node.sent(0)).toEqual([{ payload: "from-msg" }]);
+    expect(node.sent(0)).toEqual([
+      { payload: "from-msg", output: { payload: "from-msg" } },
+    ]);
   });
 
   it("should resolve string literal via TypedInput", async () => {
@@ -325,7 +334,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: "hello" }]);
+    expect(node.sent(0)).toEqual([{ output: { payload: "hello" } }]);
   });
 
   it("should resolve number via TypedInput", async () => {
@@ -334,7 +343,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: 42 }]);
+    expect(node.sent(0)).toEqual([{ output: { payload: 42 } }]);
   });
 });
 
@@ -362,8 +371,12 @@ describe("multi-output nodes", () => {
     await node.receive({ payload: 75 });
     await node.receive({ payload: 30 });
 
-    expect(node.sent(0)).toEqual([{ payload: 75, label: "above" }]);
-    expect(node.sent(1)).toEqual([{ payload: 30, label: "below" }]);
+    expect(node.sent(0)).toEqual([
+      { payload: 75, output: { payload: 75, label: "above" } },
+    ]);
+    expect(node.sent(1)).toEqual([
+      { payload: 30, output: { payload: 30, label: "below" } },
+    ]);
   });
 });
 
@@ -374,7 +387,10 @@ describe("context store", () => {
     await node.receive({});
     await node.receive({});
 
-    expect(node.sent(0)).toEqual([{ payload: 1 }, { payload: 2 }]);
+    expect(node.sent(0)).toEqual([
+      { output: { payload: 1 } },
+      { output: { payload: 2 } },
+    ]);
   });
 
   it("can preset and assert context directly", async () => {
@@ -386,7 +402,7 @@ describe("context store", () => {
     await node.receive({});
 
     // ...then assert what the node read/wrote
-    expect(node.sent(0)).toEqual([{ payload: 11 }]);
+    expect(node.sent(0)).toEqual([{ output: { payload: 11 } }]);
     expect(await node.context.flow!.get("count")).toBe(11);
   });
 });
@@ -416,7 +432,7 @@ describe("i18n", () => {
     const { node } = await createNode(MyNode);
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ payload: "my-node.greeting" }]);
+    expect(node.sent(0)).toEqual([{ output: { payload: "my-node.greeting" } }]);
   });
 });
 
@@ -433,7 +449,9 @@ describe("factory API", () => {
 
     const { node } = await createNode(FactoryNode);
     await node.receive({ payload: "hello" });
-    expect(node.sent(0)).toEqual([{ payload: "HELLO" }]);
+    expect(node.sent(0)).toEqual([
+      { payload: "hello", output: { payload: "HELLO" } },
+    ]);
   });
 });
 
@@ -451,7 +469,9 @@ describe("named output ports (sendToPort)", () => {
     });
 
     await node.receive({ payload: 75 });
-    expect(node.sent("success")).toEqual([{ payload: "passed" }]);
+    expect(node.sent("success")).toEqual([
+      { payload: 75, output: { payload: "passed" } },
+    ]);
     expect(node.sent("failure")).toHaveLength(0);
   });
 
@@ -461,18 +481,37 @@ describe("named output ports (sendToPort)", () => {
     });
 
     await node.receive({ payload: 10 });
-    expect(node.sent("failure")).toEqual([{ error: "below threshold" }]);
+    expect(node.sent("failure")).toEqual([
+      { payload: 10, output: { error: "below threshold" } },
+    ]);
   });
 });
 
 describe("built-in emit ports", () => {
-  // Every IONode has built-in error, complete, and status ports.
-  // They emit automatically — error port on thrown errors,
-  // complete port on successful input processing, and
-  // status port on this.status() calls.
+  // Built-in error, complete, and status ports are **opt-in**, not automatic.
+  // A node only gets them when it declares the matching boolean flags in its
+  // config schema and the flow author (or test) turns them on — see the
+  // emit ports section of the node guide:
+  // /guide/creating-a-node#emit-ports.
+  //
+  //   const EmitConfig = defineSchema(
+  //     {
+  //       errorPort: SchemaType.Boolean({ default: false }),
+  //       completePort: SchemaType.Boolean({ default: false }),
+  //       statusPort: SchemaType.Boolean({ default: false }),
+  //     },
+  //     { $id: "my-node:config" },
+  //   );
+  //
+  // The example nodes below add `EmitConfig` to their `configSchema`, and each
+  // test passes `config: { errorPort: true, ... }` to `createNode` to enable the
+  // port it asserts on. With the flag off, `node.sent("error")` returns `[]`.
 
-  it("should emit to error port when input throws", async () => {
-    const { node } = await createNode(ErrorNode);
+  it("should emit to error port when enabled and input throws", async () => {
+    // ErrorNode declares EmitConfig in its configSchema (see comment above).
+    const { node } = await createNode(ErrorNode, {
+      config: { errorPort: true },
+    });
 
     await expect(node.receive({ payload: "bad" })).rejects.toThrow();
     expect(node.sent("error")).toHaveLength(1);
@@ -481,17 +520,32 @@ describe("built-in emit ports", () => {
     });
   });
 
+  it("should not emit to a disabled built-in port", async () => {
+    // Same node, error port left off: the port simply isn't there.
+    const { node } = await createNode(ErrorNode, {
+      config: { errorPort: false },
+    });
+
+    await expect(node.receive({ payload: "bad" })).rejects.toThrow();
+    expect(node.sent("error")).toEqual([]);
+  });
+
   it("should carry a thrown custom error's fields under error", async () => {
-    // Given a node that throws a custom Error subclass:
+    // Given a node (with EmitConfig in its configSchema) that throws a custom
+    // Error subclass:
     //
     //   class RateLimitError extends Error {
-    //     constructor(public retryAfterMs: number) {
+    //     retryAfterMs: number;
+    //     constructor(retryAfterMs: number) {
     //       super("rate limited");
     //       this.name = "RateLimitError";
+    //       this.retryAfterMs = retryAfterMs;
     //     }
     //   }
     //   input() { throw new RateLimitError(2000); }
-    const { node } = await createNode(RateLimitedNode);
+    const { node } = await createNode(RateLimitedNode, {
+      config: { errorPort: true },
+    });
 
     await expect(node.receive({ payload: "go" })).rejects.toThrow();
     expect(node.sent("error")[0]).toMatchObject({
@@ -499,20 +553,25 @@ describe("built-in emit ports", () => {
     });
   });
 
-  it("should emit to complete port on successful processing", async () => {
-    const { node } = await createNode(MyNode);
+  it("should emit to complete port when enabled on successful processing", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { completePort: true },
+    });
 
     await node.receive({ payload: "hello" });
     expect(node.sent("complete")).toHaveLength(1);
   });
 
   it("should ride the value returned by input() on the complete port", async () => {
-    // Given a node whose input() returns a value:
+    // Given a node (with EmitConfig in its configSchema) whose input() returns
+    // a value:
     //
     //   input(msg: Input) {
     //     return { id: msg.payload, ok: true };
     //   }
-    const { node } = await createNode(ReturningNode);
+    const { node } = await createNode(ReturningNode, {
+      config: { completePort: true },
+    });
 
     await node.receive({ payload: "abc" });
     expect(node.sent("complete")).toHaveLength(1);
@@ -521,8 +580,10 @@ describe("built-in emit ports", () => {
     });
   });
 
-  it("should emit to status port when status is set", async () => {
-    const { node } = await createNode(MyNode);
+  it("should emit to status port when enabled and status is set", async () => {
+    const { node } = await createNode(MyNode, {
+      config: { statusPort: true },
+    });
 
     await node.receive({ payload: "hello" });
     expect(node.sent("status")).toHaveLength(1);
@@ -896,6 +957,10 @@ describe("validateNode", () => {
 
 Component tests render your Vue editor components in a real browser with mocked Node-RED globals. They use [Vitest browser mode](https://vitest.dev/guide/browser/) so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
 
+::: warning Server/client boundary
+Component tests run in a **real browser**. Never value-import the server runtime — and that includes your `src/server/schemas/*` modules, which import `defineSchema`/`SchemaType` from `@bonsae/nrg/server` (Node-only). Value-importing them pulls the node runtime into the browser bundle and crashes the test. Instead, pass your node's `type` to `createNode()` and let the [schemas globalSetup](#resolving-schemas-by-node-type) hand the real schema to the test as serialized data.
+:::
+
 ### Setup
 
 #### 1. Install dependencies
@@ -946,6 +1011,9 @@ The `defaultConfig` provides:
 - `@` alias pointing to `src/` in your project root
 - `@bonsae/nrg/client` alias resolved to the test library (so `useFormNode` imports work without a runtime bundle)
 - a default `include` of `tests/client/component/**/*.test.ts`
+- a `globalSetup` of `@bonsae/nrg/test/client/component/schemas`, which runs in Node, serializes your package's node schemas (the default export of `src/server`), and provides each node's `configSchema`/`credentialsSchema` to the browser tests as data — so `createNode({ type })` validates against your real production schema (see [Resolving schemas by node type](#resolving-schemas-by-node-type))
+
+The default config deliberately does **not** prebundle `@bonsae/nrg/server`: schemas reach the browser as serialized data via the globalSetup above, never by value-importing a schema (or node) module. Don't add `@bonsae/nrg/server` to your own `optimizeDeps`.
 
 To test on a single browser only, override the `browser.instances` array:
 
@@ -979,13 +1047,14 @@ export default mergeConfig(
 
 Creates a **reactive** mock Node-RED node and the `provide` object needed by `useFormNode()` components. Returns `{ node, errors, RED, provide }` — the node and errors are wrapped in Vue `reactive()`, so mutating them in a test re-renders mounted components and re-runs validation, exactly like the real editor.
 
-| Option              | Description                                                                                   |
-| ------------------- | --------------------------------------------------------------------------------------------- |
-| `configs`           | Initial config values, spread onto the node                                                   |
-| `credentials`       | Initial credential values, nested under `node.credentials`                                    |
-| `configSchema`      | Schema for the configs — enables automatic validation                                         |
-| `credentialsSchema` | Schema for the credentials — errors are keyed `node.credentials.<prop>`                       |
-| `nodes`             | Fake config nodes resolvable via `RED.nodes.node(id)` — required for NodeRef field validation |
+| Option              | Description                                                                                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`              | The node's registered `type`. Resolves the real `configSchema`/`credentialsSchema` for that node from the serialized-schema map the [schemas globalSetup](#resolving-schemas-by-node-type) provides — validate against the production schema without importing it into the browser. |
+| `configs`           | Initial config values, spread onto the node                                                                                                                                                                              |
+| `credentials`       | Initial credential values, nested under `node.credentials`                                                                                                                                                               |
+| `configSchema`      | Explicit config schema (plain JSON Schema **data**). Overrides the `type`-resolved config schema; use for inline/ad-hoc schemas.                                                                                          |
+| `credentialsSchema` | Explicit credentials schema (plain JSON Schema **data**). Overrides the `type`-resolved credentials schema; errors are keyed `node.credentials.<prop>`.                                                                   |
+| `nodes`             | Fake config nodes resolvable via `RED.nodes.node(id)` — required for NodeRef field validation                                                                                                                            |
 
 A plain object without any of these keys is shorthand for `configs`:
 
@@ -994,19 +1063,13 @@ const { provide } = createNode({ name: "test", retries: 3 });
 render(MyForm, { global: { provide } });
 ```
 
-When a schema is provided, `errors` is populated immediately and kept in sync as the node changes. Schemas can be your real TypeBox schemas imported straight from your server schema modules — no conversion needed:
+When you pass a node `type`, `errors` is populated immediately against that node's **real** production schema — the same JSON the vite plugin injects into the editor — and kept in sync as the node changes. No schema import, no server runtime in the browser:
 
 ```typescript
-import {
-  ConfigsSchema,
-  CredentialsSchema,
-} from "../../../src/server/schemas/my-node";
-
-const { node, errors, provide } = createNode({
+const { node, errors } = createNode({
+  type: "my-node",
   configs: { name: "" },
   credentials: { token: "" },
-  configSchema: ConfigsSchema,
-  credentialsSchema: CredentialsSchema,
 });
 expect(errors["node.name"]).toBeDefined(); // invalid initial state
 
@@ -1016,12 +1079,14 @@ await vi.waitFor(() => {
 });
 ```
 
+`configSchema`/`credentialsSchema` can still be passed explicitly for inline or ad-hoc schemas — each overrides the corresponding `type`-resolved schema independently. They must be plain JSON Schema **data**; never value-import a server schema module into a browser test (see the boundary note above).
+
 Fields declared with `SchemaType.NodeRef` validate that the referenced config node exists — register fakes with `nodes`:
 
 ```typescript
 const { errors } = createNode({
+  type: "my-node",
   configs: { connection: "cfg-1" },
-  configSchema: ConfigsSchema,
   nodes: [{ id: "cfg-1", type: "my-config" }],
 });
 expect(errors["node.connection"]).toBeUndefined();
@@ -1077,6 +1142,30 @@ const instance = vi.mocked(RED.editor.createEditor).mock.results[0].value;
 instance.setValue("new code"); // fires the component's change listener
 ```
 
+#### Resolving schemas by node type
+
+`createNode({ type })` gets its schema from a **globalSetup** the default config wires up: `@bonsae/nrg/test/client/component/schemas`. It runs in Node (where importing the server is fine), imports your package's node registry — the default export of `src/server` — serializes every node's `configSchema`/`credentialsSchema` to plain JSON (exactly as the vite plugin does for production), and provides them to the browser tests as data. Your test names a `type`; the harness hands back the real schema. Nothing server-side is ever value-imported into the browser.
+
+If your node registry is **not** the default export of `src/server`, write your own globalSetup with `provideSchemas`:
+
+```typescript
+// tests/client/component/schemas.ts
+import { provideSchemas } from "@bonsae/nrg/test/client/component/schemas";
+import registry from "../../../src/server"; // wherever your defineModule({ nodes }) lives
+
+export default provideSchemas(registry);
+```
+
+then point the config at it instead of the convention default:
+
+```typescript
+test: {
+  globalSetup: ["./tests/client/component/schemas.ts"],
+}
+```
+
+`@bonsae/nrg/test/client/component/schemas` also exports `loadRegistry(cwd?)` and `serializeRegistry(registry)` for fully custom setups.
+
 #### Driving state in tests
 
 Both `node` and `errors` are plain reactive objects — there are no special setters. Mutate them directly and mounted components react, exactly like in the real editor:
@@ -1102,7 +1191,6 @@ Note that when a `configSchema` is provided, validation owns `errors` — manual
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { createNode } from "@bonsae/nrg/test/client/component";
-import { ConfigsSchema } from "../../../src/server/schemas/my-node";
 import MyForm from "../../../src/client/components/my-form.vue";
 
 describe("my-form component", () => {
@@ -1171,8 +1259,8 @@ describe("my-form component", () => {
 
   test("clears the validation error once the node is valid", async () => {
     const { node, errors, provide } = createNode({
+      type: "my-node",
       configs: { name: "" },
-      configSchema: ConfigsSchema,
     });
     render(MyForm, { global: { provide } });
     expect(errors["node.name"]).toBeDefined();

@@ -37,8 +37,12 @@ my-node-red-nodes/
 │               └── {lang}.{md|html}  # Help sidebar documentation
 ├── tests/
 │   ├── server/
-│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/test/server/unit.json
-│   │   └── {type-id}.test.ts      # Server-side unit tests
+│   │   ├── unit/
+│   │   │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/server/unit.json
+│   │   │   └── {type-id}.test.ts  # Server-side unit tests
+│   │   └── integration/
+│   │       ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/server/integration.json
+│   │       └── {type-id}.test.ts  # Server integration tests (real Node-RED)
 │   └── client/
 │       ├── unit/
 │       │   ├── tsconfig.json      # Extends @bonsae/nrg/tsconfig/test/client/unit.json

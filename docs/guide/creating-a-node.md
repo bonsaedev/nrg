@@ -783,7 +783,7 @@ scaled horizontally (HA mode, or compiled to a stateless target like AWS Lambda)
 store, so there's nothing to serialize it against.
 :::
 
-### Emit Ports
+### Built-in Ports {#emit-ports}
 
 By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure scoping separately, which breaks the visual data flow.
 

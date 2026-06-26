@@ -12,12 +12,13 @@ The fastest way to start is with the official scaffolding command:
 ```bash
 pnpm create @bonsae/nrg my-node-red-nodes
 cd my-node-red-nodes
+pnpm install
 ```
 
 Then start the dev server:
 
 ```bash
-pnpm vite dev
+pnpm dev
 ```
 
 Open the URL printed by Vite in the terminal and you'll see your custom node in the Node-RED palette.
@@ -133,6 +134,8 @@ NRG auto-generates all client-side code (editor forms, node registration, defaul
 :::
 
 ### 5. Start developing
+
+The entry above imports `./nodes/my-node`, so create at least one node first or the build will fail on the unresolved import — see [Creating a Node](./creating-a-node) for a complete walkthrough. Then start the dev server:
 
 ```bash
 pnpm vite dev
