@@ -11,7 +11,7 @@
     "rootDir": "src",
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "dist/types/shims"
+    "outDir": "dist/toolkit/types/shims"
   },
   "files": ["src/core/client/globals.d.ts", "src/core/client/components.d.ts"],
   "include": ["src/core/client/form/components/*.vue"],

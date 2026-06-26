@@ -5,27 +5,21 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../../../../packages/toolkit/src/core/*"],
-      "@/test/*": ["../../../../packages/toolkit/src/test/*"],
+      "@/core/*": ["../../../../src/core/*"],
+      "@/test/*": ["../../../../src/test/*"],
       "@mocks/*": ["../mocks/*"],
-      "@bonsae/nrg/client": [
-        "../../../../packages/toolkit/src/test/client/unit"
-      ],
-      "@bonsae/nrg/server": [
-        "../../../../packages/toolkit/src/core/server/index.ts"
-      ],
-      "@bonsae/nrg-runtime/server": [
-        "../../../../packages/toolkit/src/core/server/index.ts"
-      ]
+      "@bonsae/nrg/client": ["../../../../src/test/client/unit"],
+      "@bonsae/nrg/server": ["../../../../src/core/server/index.ts"],
+      "@bonsae/nrg-runtime/server": ["../../../../src/core/server/index.ts"]
     }
   },
   "include": [
     "**/*.ts",
-    "../../../../packages/toolkit/src/core/client/shims-vue.d.ts",
-    "../../../../packages/toolkit/src/core/client/globals.d.ts",
-    "../../../../packages/toolkit/src/test/client/globals.ts",
-    "../../../../packages/toolkit/src/core/client/form/**/*.ts",
-    "../../../../packages/toolkit/src/core/client/form/**/*.vue"
+    "../../../../src/core/client/shims-vue.d.ts",
+    "../../../../src/core/client/globals.d.ts",
+    "../../../../src/test/client/globals.ts",
+    "../../../../src/core/client/form/**/*.ts",
+    "../../../../src/core/client/form/**/*.vue"
   ],
   "exclude": ["node_modules"]
 }

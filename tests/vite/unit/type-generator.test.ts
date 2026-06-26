@@ -552,7 +552,7 @@ export default defineIONode({
 });
 
 describe("rewriteRuntimeTypeImports", () => {
-  it("rewrites toolkit specifiers to the runtime in emitted .d.ts", () => {
+  it("leaves @bonsae/nrg type imports unchanged (runtime ships no types)", () => {
     const dir = makeTmpDir();
     const dts = [
       `import { IONode } from '@bonsae/nrg/server';`,
@@ -565,10 +565,11 @@ describe("rewriteRuntimeTypeImports", () => {
     rewriteRuntimeTypeImports(dir, ["index"]);
 
     const out = fs.readFileSync(path.join(dir, "index.d.ts"), "utf-8");
-    expect(out).toContain(`from '@bonsae/nrg-runtime/server'`);
-    expect(out).toContain(`from "@bonsae/nrg-runtime/client"`);
-    expect(out).not.toContain(`'@bonsae/nrg/server'`);
-    expect(out).not.toContain(`"@bonsae/nrg/client"`);
+    // The runtime ships no types, so node declarations keep their @bonsae/nrg/*
+    // imports (resolvable in the author/build env) — nothing is rewritten.
+    expect(out).toContain(`from '@bonsae/nrg/server'`);
+    expect(out).toContain(`from "@bonsae/nrg/client"`);
+    expect(out).not.toContain(`@bonsae/nrg-runtime`);
     // Unrelated imports are untouched.
     expect(out).toContain(`from 'jsforce'`);
   });

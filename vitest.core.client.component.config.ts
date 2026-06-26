@@ -1,6 +1,5 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { workspaceAliases } from "./vitest.shared";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
 
@@ -11,11 +10,18 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      ...workspaceAliases(__dirname),
+      "@/core": path.resolve(__dirname, "src/core"),
+      "@/vite": path.resolve(__dirname, "src/vite"),
+      "@/test": path.resolve(__dirname, "src/test"),
+      "@bonsae/nrg-runtime/server": path.resolve(
+        __dirname,
+        "src/core/server/index.ts",
+      ),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
       "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
       "@bonsae/nrg/client": path.resolve(
         __dirname,
-        "packages/toolkit/src/test/client/component",
+        "src/test/client/component",
       ),
     },
   },
@@ -51,12 +57,12 @@ export default defineConfig({
       // Everything the browser-mode tests exercise: the whole client plane
       // plus the shipped component-test utilities and mocks they validate.
       include: [
-        "packages/toolkit/src/core/client/**/*.{ts,vue}",
-        "packages/toolkit/src/core/constants.ts",
-        "packages/toolkit/src/test/client/mocks/**/*.ts",
-        "packages/toolkit/src/test/client/install-mocks.ts",
-        "packages/toolkit/src/test/client/component/index.ts",
-        "packages/toolkit/src/test/client/component/setup.ts",
+        "src/core/client/**/*.{ts,vue}",
+        "src/core/constants.ts",
+        "src/test/client/mocks/**/*.ts",
+        "src/test/client/install-mocks.ts",
+        "src/test/client/component/index.ts",
+        "src/test/client/component/setup.ts",
       ],
       exclude: ["**/types.ts", "**/*.d.ts"],
     },

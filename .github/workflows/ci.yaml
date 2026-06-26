@@ -64,13 +64,13 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: dist
-          path: packages/toolkit/dist
+          path: dist/toolkit
 
       - name: Upload Runtime Build Artifact
         uses: actions/upload-artifact@v6
         with:
           name: dist-runtime
-          path: packages/runtime/dist
+          path: dist/runtime
 
   vite-e2e:
     name: Vite E2E Tests (Node ${{ matrix.node-version }})
@@ -105,13 +105,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: packages/toolkit/dist
+          path: dist/toolkit
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: packages/runtime/dist
+          path: dist/runtime
 
       - name: Vite E2E Tests
         run: pnpm vitest run --config vitest.vite.e2e.config.ts --coverage
@@ -193,13 +193,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: packages/toolkit/dist
+          path: dist/toolkit
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: packages/runtime/dist
+          path: dist/runtime
 
       - name: Client E2E Tests
         run: pnpm vitest run --config vitest.core.client.e2e.config.ts
@@ -248,13 +248,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: packages/toolkit/dist
+          path: dist/toolkit
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: packages/runtime/dist
+          path: dist/runtime
 
       - name: Vite Integration Tests
         run: pnpm tsx tests/vite/integration/vite-integration.ts --timeout=300000
@@ -295,13 +295,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: dist
-          path: packages/toolkit/dist
+          path: dist/toolkit
 
       - name: Download Runtime Build Artifact
         uses: actions/download-artifact@v7
         with:
           name: dist-runtime
-          path: packages/runtime/dist
+          path: dist/runtime
 
       - name: Consumer Smoke Test
         run: pnpm test:smoke

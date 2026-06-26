@@ -1,11 +1,17 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { workspaceAliases } from "./vitest.shared";
 
 export default defineConfig({
   resolve: {
     alias: {
-      ...workspaceAliases(__dirname),
+      "@/core": path.resolve(__dirname, "src/core"),
+      "@/vite": path.resolve(__dirname, "src/vite"),
+      "@/test": path.resolve(__dirname, "src/test"),
+      "@bonsae/nrg-runtime/server": path.resolve(
+        __dirname,
+        "src/core/server/index.ts",
+      ),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
       "@mocks": path.resolve(__dirname, "tests/core/server/mocks"),
     },
   },
@@ -20,12 +26,12 @@ export default defineConfig({
       reportsDirectory: "coverage/server",
       reporter: ["text", "lcov"],
       include: [
-        "packages/toolkit/src/core/server/**/*.ts",
-        "packages/toolkit/src/core/validator.ts",
-        "packages/toolkit/src/core/errors.ts",
-        "packages/toolkit/src/core/constants.ts",
-        "packages/toolkit/src/test/server/unit/index.ts",
-        "packages/toolkit/src/test/server/unit/mocks.ts",
+        "src/core/server/**/*.ts",
+        "src/core/validator.ts",
+        "src/core/errors.ts",
+        "src/core/constants.ts",
+        "src/test/server/unit/index.ts",
+        "src/test/server/unit/mocks.ts",
       ],
       exclude: ["**/types/**", "**/types.ts", "**/*.d.ts"],
     },

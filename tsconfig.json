@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["node", "jquery"],
+    "baseUrl": ".",
+    "paths": {
+      "@bonsae/nrg/server": ["./src/core/server/index.ts"],
+      "@bonsae/nrg-runtime/server": ["./src/core/server/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

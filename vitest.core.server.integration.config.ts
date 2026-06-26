@@ -1,18 +1,20 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { workspaceAliases } from "./vitest.shared";
 
 export default defineConfig({
   resolve: {
     alias: {
-      ...workspaceAliases(__dirname),
+      "@/core": path.resolve(__dirname, "src/core"),
+      "@/vite": path.resolve(__dirname, "src/vite"),
+      "@/test": path.resolve(__dirname, "src/test"),
+      "@bonsae/nrg-runtime/server": path.resolve(
+        __dirname,
+        "src/core/server/index.ts",
+      ),
       // the integration lib imports the package entry so it binds to the host's
       // nrg copy; in-repo, that's the source server barrel (same identity as the
       // test nodes, so registerType's instanceof check passes)
-      "@bonsae/nrg/server": path.resolve(
-        __dirname,
-        "packages/toolkit/src/core/server/index.ts",
-      ),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
     },
   },
   test: {
@@ -27,9 +29,9 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       // the integration tier owns the integration harness; core server code is
       // measured by the server unit tier
-      include: ["packages/toolkit/src/test/server/integration/**/*.ts"],
+      include: ["src/test/server/integration/**/*.ts"],
       exclude: [
-        "packages/toolkit/src/test/server/integration/config.ts",
+        "src/test/server/integration/config.ts",
         "**/types/**",
         "**/types.ts",
         "**/*.d.ts",

@@ -9,21 +9,19 @@ import ts from "typescript";
  * Mirrors the JS bundle rewrite in output-wrapper and the dependency rewrite in
  * package-json-generator.
  */
-const RUNTIME_TYPE_REWRITES: Record<string, string> = {
-  "@bonsae/nrg/server": "@bonsae/nrg-runtime/server",
-  "@bonsae/nrg/client": "@bonsae/nrg-runtime/client",
-};
+// The runtime ships VALUES only — no type declarations. So a published node's
+// .d.ts keeps its `@bonsae/nrg/*` type imports rather than being rewritten to
+// the runtime, which has nothing to resolve against. Type generation runs with
+// `@bonsae/nrg/server` as input (resolvable in the author/build env where the
+// toolkit is installed); leaving those specifiers in the emitted .d.ts keeps
+// them resolvable there. Empty = no rewrite (the function below is a no-op).
+const RUNTIME_TYPE_REWRITES: Record<string, string> = {};
 
 /**
- * Rewrites toolkit type-import specifiers (`@bonsae/nrg/*`) to the runtime
- * package (`@bonsae/nrg-runtime/*`) in already-emitted declaration files.
- *
- * Type generation runs with `@bonsae/nrg/server` as the *input* so TypeScript
- * can resolve the declarations in the author's environment, where only the
- * toolkit is installed (the runtime is nested under it). But the *published*
- * node depends on `@bonsae/nrg-runtime`, not the toolkit — so the emitted .d.ts
- * must import from the runtime (which ships the identical declarations) to
- * resolve for downstream TypeScript consumers. Run after declaration emit.
+ * Rewrites declaration-file import specifiers per RUNTIME_TYPE_REWRITES. The map
+ * is currently empty (the runtime ships no types, so node `.d.ts` files keep
+ * their `@bonsae/nrg/*` imports), making this a no-op; the hook is retained for
+ * any future specifier remapping. Run after declaration emit.
  */
 function rewriteRuntimeTypeImports(outDir: string, entryNames: string[]): void {
   for (const name of entryNames) {

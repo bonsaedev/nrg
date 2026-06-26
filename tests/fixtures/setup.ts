@@ -2,16 +2,16 @@ import fs from "fs";
 import path from "path";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
-const TOOLKIT_PKG = path.join(REPO_ROOT, "packages", "toolkit");
-const RUNTIME_PKG = path.join(REPO_ROOT, "packages", "runtime");
+// The published packages ARE the build output dirs (publishable layout, with a
+// stripped package.json at their root) — dist/toolkit for @bonsae/nrg and
+// dist/runtime for @bonsae/nrg-runtime. Copy them verbatim into node_modules.
+const TOOLKIT_PKG = path.join(REPO_ROOT, "dist", "toolkit");
+const RUNTIME_PKG = path.join(REPO_ROOT, "dist", "runtime");
 
-/** Copy a built workspace package (package.json + dist) into node_modules. */
+/** Copy a built, publishable package directory into node_modules. */
 function copyPackage(pkgDir: string, destDir: string): void {
-  fs.mkdirSync(destDir, { recursive: true });
-  fs.cpSync(path.join(pkgDir, "package.json"), path.join(destDir, "package.json"));
-  fs.cpSync(path.join(pkgDir, "dist"), path.join(destDir, "dist"), {
-    recursive: true,
-  });
+  fs.mkdirSync(path.dirname(destDir), { recursive: true });
+  fs.cpSync(pkgDir, destDir, { recursive: true });
 }
 
 /**
@@ -19,9 +19,9 @@ function copyPackage(pkgDir: string, destDir: string): void {
  * resolve correctly. Must be called before running builds that import from
  * @bonsae/nrg.
  *
- * Both packages are copied because a real install pulls in @bonsae/nrg-runtime
- * transitively (the toolkit depends on it), and the built server bundle imports
- * `@bonsae/nrg-runtime/server` — which the client build loads at build time.
+ * Both are copied because a built node's server bundle imports
+ * `@bonsae/nrg-runtime/server` (loaded at build time by the client build) while
+ * the author-time surface resolves from @bonsae/nrg.
  */
 export function setupFixtureNodeModules(fixtureDir: string): void {
   const nrgDir = path.join(fixtureDir, "node_modules", "@bonsae", "nrg");

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
-import { build as buildServer } from "../../../packages/toolkit/src/vite/server/build";
-import { build as buildClient } from "../../../packages/toolkit/src/vite/client/build";
+import { build as buildServer } from "../../../src/vite/server/build";
+import { build as buildClient } from "../../../src/vite/client/build";
 import type {
   BuildContext,
   ServerBuildOptions,
   ClientBuildOptions,
-} from "../../../packages/toolkit/src/vite/types";
+} from "../../../src/vite/types";
 
 const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/basic-node");
 
@@ -45,10 +45,7 @@ describe("multi-node build", () => {
     };
     await buildServer(serverOpts, buildContext);
 
-    serverContent = fs.readFileSync(
-      path.join(outDir, "index.mjs"),
-      "utf-8",
-    );
+    serverContent = fs.readFileSync(path.join(outDir, "index.mjs"), "utf-8");
 
     const clientOpts: ClientBuildOptions = {
       srcDir: path.join(FIXTURE_DIR, "src/client"),

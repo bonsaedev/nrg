@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
-import { build } from "../../../packages/toolkit/src/vite/server/build";
-import type { ServerBuildOptions } from "../../../packages/toolkit/src/vite/types";
+import { build } from "../../../src/vite/server/build";
+import type { ServerBuildOptions } from "../../../src/vite/types";
 
 const BASIC_FIXTURE = path.resolve(__dirname, "../../fixtures/basic-node");
 const CUSTOM_FIXTURE = path.resolve(__dirname, "../../fixtures/custom-client");
@@ -51,13 +51,13 @@ describe("type generation — class-based nodes", () => {
     expect(fs.existsSync(path.join(outDir, "index.d.ts"))).toBe(true);
   });
 
-  it("should import types from @bonsae/nrg-runtime, not the toolkit", () => {
-    // The published node depends on @bonsae/nrg-runtime, so its declarations
-    // must resolve against the runtime — never the toolkit (a devDependency).
-    // Quote-agnostic: the dts emitter may use single or double quotes.
-    expect(dtsContent).toContain("@bonsae/nrg-runtime/server");
-    expect(dtsContent).not.toContain("@bonsae/nrg/server");
-    expect(dtsContent).not.toContain("@bonsae/nrg/client");
+  it("should import types from @bonsae/nrg (the toolkit), not the runtime", () => {
+    // The runtime ships VALUES only — no type declarations. A node's emitted
+    // declarations keep their @bonsae/nrg/* type imports (resolvable in the
+    // author/build env where the toolkit is installed); they are never
+    // rewritten to the runtime, which has nothing to resolve against.
+    expect(dtsContent).toContain("@bonsae/nrg/server");
+    expect(dtsContent).not.toContain("@bonsae/nrg-runtime");
   });
 
   // --- Class-based nodes ---

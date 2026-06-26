@@ -7,8 +7,10 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const DIST_DIR = path.join(REPO_ROOT, "packages", "toolkit");
-const DIST_RUNTIME_DIR = path.join(REPO_ROOT, "packages", "runtime");
+// @bonsae/nrg packs from the repo root (publishConfig.directory="dist/toolkit").
+// @bonsae/nrg-runtime is the build-emitted artifact at dist/runtime.
+const DIST_DIR = REPO_ROOT;
+const DIST_RUNTIME_DIR = path.join(REPO_ROOT, "dist", "runtime");
 const IS_WINDOWS = process.platform === "win32";
 
 const timeoutArg = process.argv.find((a) => a.startsWith("--timeout="));
@@ -255,12 +257,12 @@ async function main(): Promise<void> {
   log("=== NRG Vite Integration Tests ===");
   log(`Platform: ${process.platform}, Timeout: ${TIMEOUT}ms`);
 
-  if (!fs.existsSync(path.join(DIST_DIR, "dist"))) {
-    console.error("ERROR: packages/toolkit/dist not found. Build first.");
+  if (!fs.existsSync(path.join(DIST_DIR, "dist", "toolkit"))) {
+    console.error("ERROR: dist/toolkit not found. Build first.");
     process.exit(1);
   }
-  if (!fs.existsSync(path.join(DIST_RUNTIME_DIR, "dist"))) {
-    console.error("ERROR: packages/runtime/dist not found. Build first.");
+  if (!fs.existsSync(DIST_RUNTIME_DIR)) {
+    console.error("ERROR: dist/runtime not found. Build first.");
     process.exit(1);
   }
 

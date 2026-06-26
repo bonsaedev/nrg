@@ -4,16 +4,11 @@
     "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../../../../packages/toolkit/src/core/*"],
-      "@/test/*": ["../../../../packages/toolkit/src/test/*"],
-      "@bonsae/nrg/server": [
-        "../../../../packages/toolkit/src/core/server/index.ts"
-      ]
+      "@/core/*": ["../../../../src/core/*"],
+      "@/test/*": ["../../../../src/test/*"],
+      "@bonsae/nrg/server": ["../../../../src/core/server/index.ts"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "../../../../packages/toolkit/src/test/client/e2e/**/*.ts"
-  ],
+  "include": ["**/*.ts", "../../../../src/test/client/e2e/**/*.ts"],
   "exclude": ["node_modules"]
 }

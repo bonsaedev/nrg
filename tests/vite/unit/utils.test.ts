@@ -185,9 +185,9 @@ describe("copyFiles", () => {
 
 describe("getPackageName", () => {
   it("should return the package name from package.json", () => {
-    // Running from the workspace root, whose package.json name is "bonsae-nrg"
+    // Running from the repo root, whose package.json name is "@bonsae/nrg"
     const name = getPackageName();
-    expect(name).toBe("bonsae-nrg");
+    expect(name).toBe("@bonsae/nrg");
   });
 
   it("should return default when package.json does not exist", () => {

@@ -1,10 +1,17 @@
 import { defineConfig } from "vitest/config";
-import { workspaceAliases } from "./vitest.shared";
+import path from "path";
 
 export default defineConfig({
   resolve: {
     alias: {
-      ...workspaceAliases(__dirname),
+      "@/core": path.resolve(__dirname, "src/core"),
+      "@/vite": path.resolve(__dirname, "src/vite"),
+      "@/test": path.resolve(__dirname, "src/test"),
+      "@bonsae/nrg-runtime/server": path.resolve(
+        __dirname,
+        "src/core/server/index.ts",
+      ),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
     },
   },
   test: {
@@ -14,24 +21,24 @@ export default defineConfig({
       reportsDirectory: "coverage/vite",
       reporter: ["text", "lcov"],
       include: [
-        "packages/toolkit/src/vite/utils.ts",
-        "packages/toolkit/src/vite/async-utils.ts",
-        "packages/toolkit/src/vite/errors.ts",
-        "packages/toolkit/src/vite/logger.ts",
-        "packages/toolkit/src/vite/index.ts",
-        "packages/toolkit/src/vite/node-red-launcher/**/*.ts",
-        "packages/toolkit/src/vite/client/build.ts",
-        "packages/toolkit/src/vite/server/build.ts",
-        "packages/toolkit/src/vite/client/plugins/help-generator.ts",
-        "packages/toolkit/src/vite/client/plugins/help-i18n.ts",
-        "packages/toolkit/src/vite/client/plugins/html-generator.ts",
-        "packages/toolkit/src/vite/client/plugins/locales-generator.ts",
-        "packages/toolkit/src/vite/client/plugins/minifier.ts",
-        "packages/toolkit/src/vite/client/plugins/node-definitions-inliner.ts",
-        "packages/toolkit/src/vite/client/plugins/static-copy.ts",
-        "packages/toolkit/src/vite/server/plugins/output-wrapper.ts",
-        "packages/toolkit/src/vite/server/plugins/package-json-generator.ts",
-        "packages/toolkit/src/vite/server/plugins/type-generator.ts",
+        "src/vite/utils.ts",
+        "src/vite/async-utils.ts",
+        "src/vite/errors.ts",
+        "src/vite/logger.ts",
+        "src/vite/index.ts",
+        "src/vite/node-red-launcher/**/*.ts",
+        "src/vite/client/build.ts",
+        "src/vite/server/build.ts",
+        "src/vite/client/plugins/help-generator.ts",
+        "src/vite/client/plugins/help-i18n.ts",
+        "src/vite/client/plugins/html-generator.ts",
+        "src/vite/client/plugins/locales-generator.ts",
+        "src/vite/client/plugins/minifier.ts",
+        "src/vite/client/plugins/node-definitions-inliner.ts",
+        "src/vite/client/plugins/static-copy.ts",
+        "src/vite/server/plugins/output-wrapper.ts",
+        "src/vite/server/plugins/package-json-generator.ts",
+        "src/vite/server/plugins/type-generator.ts",
       ],
     },
   },

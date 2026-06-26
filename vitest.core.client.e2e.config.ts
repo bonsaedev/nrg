@@ -1,11 +1,18 @@
 import { defineConfig } from "vitest/config";
-import { workspaceAliases } from "./vitest.shared";
-import { defaultConfig } from "./packages/toolkit/src/test/client/e2e/config";
+import path from "path";
+import { defaultConfig } from "./src/test/client/e2e/config";
 
 export default defineConfig({
   resolve: {
     alias: {
-      ...workspaceAliases(__dirname),
+      "@/core": path.resolve(__dirname, "src/core"),
+      "@/vite": path.resolve(__dirname, "src/vite"),
+      "@/test": path.resolve(__dirname, "src/test"),
+      "@bonsae/nrg-runtime/server": path.resolve(
+        __dirname,
+        "src/core/server/index.ts",
+      ),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
     },
   },
   test: {

@@ -1,6 +1,5 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { workspaceAliases } from "./vitest.shared";
 
 export default defineConfig({
   esbuild: {
@@ -8,12 +7,16 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      ...workspaceAliases(__dirname),
-      "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
-      "@bonsae/nrg/client": path.resolve(
+      "@/core": path.resolve(__dirname, "src/core"),
+      "@/vite": path.resolve(__dirname, "src/vite"),
+      "@/test": path.resolve(__dirname, "src/test"),
+      "@bonsae/nrg-runtime/server": path.resolve(
         __dirname,
-        "packages/toolkit/src/test/client/unit",
+        "src/core/server/index.ts",
       ),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
+      "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
+      "@bonsae/nrg/client": path.resolve(__dirname, "src/test/client/unit"),
     },
   },
   server: {
@@ -31,11 +34,11 @@ export default defineConfig({
       reportsDirectory: "coverage/client-unit",
       reporter: ["text", "lcov"],
       include: [
-        "packages/toolkit/src/core/client/validation.ts",
-        "packages/toolkit/src/core/client/registration.ts",
-        "packages/toolkit/src/core/client/state.ts",
-        "packages/toolkit/src/core/client/labels.ts",
-        "packages/toolkit/src/core/client/form/index.ts",
+        "src/core/client/validation.ts",
+        "src/core/client/registration.ts",
+        "src/core/client/state.ts",
+        "src/core/client/labels.ts",
+        "src/core/client/form/index.ts",
       ],
     },
   },

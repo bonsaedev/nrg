@@ -4,14 +4,12 @@
     "lib": ["ESNext"],
     "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../packages/toolkit/src/core/*"],
-      "@/vite/*": ["../packages/toolkit/src/vite/*"],
-      "@/test/*": ["../packages/toolkit/src/test/*"],
+      "@/core/*": ["../src/core/*"],
+      "@/vite/*": ["../src/vite/*"],
+      "@/test/*": ["../src/test/*"],
       "@mocks/*": ["core/server/mocks/*"],
-      "@bonsae/nrg/server": ["../packages/toolkit/src/core/server/index.ts"],
-      "@bonsae/nrg-runtime/server": [
-        "../packages/toolkit/src/core/server/index.ts"
-      ]
+      "@bonsae/nrg/server": ["../src/core/server/index.ts"],
+      "@bonsae/nrg-runtime/server": ["../src/core/server/index.ts"]
     }
   },
   "include": ["**/*.ts"],

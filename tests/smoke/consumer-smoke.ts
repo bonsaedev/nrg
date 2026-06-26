@@ -25,8 +25,11 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
-const TOOLKIT_DIR = path.join(REPO_ROOT, "packages", "toolkit");
-const RUNTIME_DIR = path.join(REPO_ROOT, "packages", "runtime");
+// @bonsae/nrg packs from the repo root (publishConfig.directory="dist/toolkit"
+// is honored by pnpm pack). @bonsae/nrg-runtime is the build-emitted artifact
+// at dist/runtime (its own generated package.json, packed directly).
+const TOOLKIT_DIR = REPO_ROOT;
+const RUNTIME_DIR = path.join(REPO_ROOT, "dist", "runtime");
 const FIXTURE = path.join(REPO_ROOT, "tests", "fixtures", "smoke-consumer");
 const IS_WINDOWS = process.platform === "win32";
 
@@ -51,15 +54,17 @@ function depVersion(pkgJsonPath: string, dep: string): string {
   return v;
 }
 
-// pnpm pack (not npm pack) so the toolkit's `@bonsae/nrg-runtime: workspace:*`
-// is rewritten to a concrete version, and publishConfig.directory="dist" is
-// honored (the tarball contains the published layout).
+// pnpm pack (not npm pack) so publishConfig.directory is honored (the tarball
+// contains the published layout). The printed tarball path is absolute when
+// publishConfig.directory is set (the toolkit) but relative to the pack cwd
+// otherwise (the runtime), so resolve it against pkgDir to get an absolute path
+// either way.
 function pack(pkgDir: string): string {
   const out = execSync("pnpm pack --pack-destination .", {
     cwd: pkgDir,
     encoding: "utf-8",
   }).trim();
-  return out.split("\n").pop()!.trim();
+  return path.resolve(pkgDir, out.split("\n").pop()!.trim());
 }
 
 function killProcess(child: ChildProcess): void {
@@ -255,8 +260,8 @@ async function main(): Promise<void> {
   // Validate the built artifact; build it if absent so the test runs
   // standalone. CI builds first, so this is a no-op there.
   if (
-    !fs.existsSync(path.join(TOOLKIT_DIR, "dist")) ||
-    !fs.existsSync(path.join(RUNTIME_DIR, "dist"))
+    !fs.existsSync(path.join(REPO_ROOT, "dist", "toolkit")) ||
+    !fs.existsSync(RUNTIME_DIR)
   ) {
     log("dist not found — running pnpm build first...");
     execSync("pnpm build", { cwd: REPO_ROOT, stdio: "inherit" });

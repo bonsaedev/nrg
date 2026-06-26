@@ -1,10 +1,9 @@
 {
-  "name": "bonsae-nrg",
+  "name": "@bonsae/nrg",
   "version": "0.25.1",
-  "description": "NRG monorepo — @bonsae/nrg (toolkit) + @bonsae/nrg-runtime",
+  "description": "NRG framework — build Node-RED nodes with Vue 3, TypeScript, and JSON Schema",
   "author": "Allan Oricil <allanoricil@duck.com>",
   "license": "MIT",
-  "private": true,
   "type": "module",
   "homepage": "https://bonsaedev.github.io/nrg/",
   "bugs": {
@@ -14,13 +13,89 @@
     "url": "git+https://github.com/bonsaedev/nrg.git",
     "type": "git"
   },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist/toolkit"
+  },
   "engines": {
     "node": ">=20.19",
     "pnpm": ">=10.11.0"
   },
+  "keywords": [
+    "node-red",
+    "vue",
+    "vue3",
+    "typescript",
+    "json-schema",
+    "vite",
+    "vitest",
+    "iot",
+    "automation",
+    "low-code",
+    "framework"
+  ],
+  "files": [
+    "dist/toolkit"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/toolkit/types/index.d.ts",
+      "default": "./dist/toolkit/index.js"
+    },
+    "./server": {
+      "types": "./dist/toolkit/types/server.d.ts",
+      "require": "./dist/toolkit/server/index.cjs",
+      "default": "./dist/toolkit/server/index.cjs"
+    },
+    "./client": {
+      "types": "./dist/toolkit/types/client.d.ts"
+    },
+    "./vite": {
+      "types": "./dist/toolkit/types/vite.d.ts",
+      "default": "./dist/toolkit/vite/index.js"
+    },
+    "./test/server/unit": {
+      "types": "./dist/toolkit/types/test-server-unit.d.ts",
+      "default": "./dist/toolkit/test/server/unit/index.js"
+    },
+    "./test/server/unit/config": "./dist/toolkit/test/server/unit/config.js",
+    "./test/server/integration": {
+      "types": "./dist/toolkit/types/test-server-integration.d.ts",
+      "default": "./dist/toolkit/test/server/integration/index.js"
+    },
+    "./test/server/integration/config": "./dist/toolkit/test/server/integration/config.js",
+    "./test/client/component": {
+      "types": "./dist/toolkit/types/test-client-component.d.ts",
+      "default": "./dist/toolkit/test/client/component/index.js"
+    },
+    "./test/client/component/config": "./dist/toolkit/test/client/component/config.js",
+    "./test/client/component/schemas": {
+      "types": "./dist/toolkit/types/test-client-component-schemas.d.ts",
+      "default": "./dist/toolkit/test/client/component/schemas.js"
+    },
+    "./test/client/component/setup": "./dist/toolkit/test/client/component/setup.js",
+    "./test/client/unit": {
+      "types": "./dist/toolkit/types/test-client-unit.d.ts",
+      "default": "./dist/toolkit/test/client/unit/index.js"
+    },
+    "./test/client/unit/config": "./dist/toolkit/test/client/unit/config.js",
+    "./test/client/unit/setup": "./dist/toolkit/test/client/unit/setup.js",
+    "./test/client/e2e": {
+      "types": "./dist/toolkit/types/test-client-e2e.d.ts",
+      "default": "./dist/toolkit/test/client/e2e/index.js"
+    },
+    "./test/client/e2e/config": "./dist/toolkit/test/client/e2e/config.js",
+    "./tsconfig/base.json": "./dist/toolkit/tsconfig/base.json",
+    "./tsconfig/core/server.json": "./dist/toolkit/tsconfig/core/server.json",
+    "./tsconfig/core/client.json": "./dist/toolkit/tsconfig/core/client.json",
+    "./tsconfig/test/server/unit.json": "./dist/toolkit/tsconfig/test/server/unit.json",
+    "./tsconfig/test/server/integration.json": "./dist/toolkit/tsconfig/test/server/integration.json",
+    "./tsconfig/test/client/component.json": "./dist/toolkit/tsconfig/test/client/component.json",
+    "./tsconfig/test/client/unit.json": "./dist/toolkit/tsconfig/test/client/unit.json",
+    "./tsconfig/test/client/e2e.json": "./dist/toolkit/tsconfig/test/client/e2e.json"
+  },
   "scripts": {
-    "build": "pnpm --filter @bonsae/nrg build",
-    "build:toolkit": "pnpm --filter @bonsae/nrg build",
+    "build": "tsx build.ts",
     "test": "pnpm test:core && pnpm test:vite",
     "test:core": "pnpm test:core:server && pnpm test:core:client",
     "test:core:server": "pnpm test:core:server:unit && pnpm test:core:server:integration",
@@ -40,80 +115,116 @@
     "test:vite:e2e": "vitest run --config vitest.vite.e2e.config.ts",
     "test:smoke": "tsx tests/smoke/consumer-smoke.ts",
     "validate": "pnpm validate:tsc && pnpm validate:lint && pnpm validate:format",
-    "validate:tsc": "tsc -p packages/toolkit/tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
-    "validate:lint": "eslint packages/",
-    "validate:format": "prettier --check \"packages/**/*.{ts,vue,json}\"",
-    "lint": "eslint packages/ --fix",
-    "format": "prettier --write \"packages/**/*.{ts,vue,json}\"",
+    "validate:tsc": "tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
+    "validate:lint": "eslint src/",
+    "validate:format": "prettier --check \"src/**/*.{ts,vue,json}\" build.ts",
+    "lint": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.{ts,vue,json}\" build.ts",
     "docs:dev": "pnpm --dir docs dev",
     "docs:build": "pnpm --dir docs build",
     "docs:preview": "pnpm --dir docs preview",
     "prepare": "husky"
   },
   "lint-staged": {
-    "packages/**/*.{ts,vue}": [
+    "src/**/*.{ts,vue}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "build.ts": [
       "prettier --write"
     ],
     "tests/**/*.ts": [
       "prettier --write"
     ],
-    "packages/**/*.json": [
+    "src/**/*.json": [
       "prettier --write"
     ]
   },
-  "devDependencies": {
+  "peerDependencies": {
+    "@vitest/browser-playwright": "^4.0.0",
+    "@vitest/coverage-istanbul": "^4.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "happy-dom": "^20.0.0",
+    "playwright": "^1.50.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.0.0",
+    "vitest-browser-vue": "^2.0.0",
+    "vue": "^3.5.14"
+  },
+  "peerDependenciesMeta": {
+    "happy-dom": {
+      "optional": true
+    },
+    "@vitest/coverage-istanbul": {
+      "optional": true
+    },
+    "@vitest/coverage-v8": {
+      "optional": true
+    },
+    "@vitest/browser-playwright": {
+      "optional": true
+    },
+    "playwright": {
+      "optional": true
+    },
+    "vitest-browser-vue": {
+      "optional": true
+    }
+  },
+  "dependencies": {
     "@clack/prompts": "^1.0.1",
+    "@sinclair/typebox": "^0.34.33",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "ajv": "^8.17.1",
+    "ajv-errors": "^3.0.0",
+    "ajv-formats": "^3.0.1",
+    "chokidar": "^5.0.0",
+    "detect-port": "^2.1.0",
+    "es-toolkit": "^1.37.2",
+    "esbuild": "^0.25.4",
+    "get-port": "^7.1.0",
+    "jsonpointer": "^5.0.1",
+    "mime-types": "^3.0.1",
+    "tree-kill": "^1.2.2",
+    "typescript": "^5.8.3",
+    "vite-plugin-dts": "^4.5.4",
+    "vue": "^3.5.14"
+  },
+  "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^9.27.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
-    "@sinclair/typebox": "^0.34.33",
     "@types/express": "^5.0.1",
     "@types/jquery": "^4.0.0",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^22.15.18",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
-    "@vitejs/plugin-vue": "^5.2.3",
     "@vitest/browser-playwright": "^4.1.5",
     "@vitest/coverage-istanbul": "^4.1.8",
     "@vitest/coverage-v8": "^4.1.5",
-    "ajv": "^8.17.1",
-    "ajv-errors": "^3.0.0",
-    "ajv-formats": "^3.0.1",
-    "chokidar": "^5.0.0",
-    "detect-port": "^2.1.0",
     "dts-bundle-generator": "^9.5.1",
-    "es-toolkit": "^1.37.2",
-    "esbuild": "^0.25.4",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.1.0",
-    "get-port": "^7.1.0",
     "globals": "^16.1.0",
     "happy-dom": "^20.10.2",
     "husky": "^9.1.7",
-    "jsonpointer": "^5.0.1",
     "lint-staged": "^16.4.0",
-    "mime-types": "^3.0.1",
     "node-red": "5.0.0",
     "playwright": "^1.60.0",
     "prettier": "^3.5.3",
     "semantic-release": "^24.2.4",
-    "tree-kill": "^1.2.2",
     "tsx": "^4.22.4",
-    "typescript": "^5.8.3",
     "typescript-eslint": "^8.32.1",
     "vite": "^6.3.4",
     "vite-plugin-css-injected-by-js": "^5.0.1",
-    "vite-plugin-dts": "^4.5.4",
     "vite-plugin-static-copy": "^3.1.0",
     "vitest": "^4.1.5",
     "vitest-browser-vue": "^2.1.0",
-    "vue": "^3.5.14",
     "vue-tsc": "^3.2.8",
     "zod": "^4.4.3"
   }
