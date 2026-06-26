@@ -273,9 +273,13 @@ async function main(): Promise<void> {
     cwd: DIST_DIR,
     encoding: "utf-8",
   }).trim();
-  // With publishConfig.directory="dist" the tarball lands in dist/, so trust the
-  // absolute path pnpm prints on the last line rather than reconstructing it.
-  const tarballPath = packOutput.split("\n").pop()!.trim();
+  // pnpm prints an absolute path when publishConfig.directory is set (the
+  // toolkit) and a relative one otherwise (the runtime); resolve against the
+  // pack cwd so the path is absolute either way.
+  const tarballPath = path.resolve(
+    DIST_DIR,
+    packOutput.split("\n").pop()!.trim(),
+  );
   const tarballName = path.basename(tarballPath);
   log(`Packed: ${tarballName}`);
 
@@ -287,7 +291,10 @@ async function main(): Promise<void> {
     cwd: DIST_RUNTIME_DIR,
     encoding: "utf-8",
   }).trim();
-  const runtimeTarballPath = runtimePackOutput.split("\n").pop()!.trim();
+  const runtimeTarballPath = path.resolve(
+    DIST_RUNTIME_DIR,
+    runtimePackOutput.split("\n").pop()!.trim(),
+  );
   const runtimeTarballName = path.basename(runtimeTarballPath);
   log(`Packed: ${runtimeTarballName}`);
 
