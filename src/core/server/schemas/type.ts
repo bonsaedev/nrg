@@ -1,4 +1,11 @@
-import type { TSchema, TProperties, ObjectOptions } from "@sinclair/typebox";
+import type {
+  TSchema,
+  TProperties,
+  TString,
+  ObjectOptions,
+  StringOptions,
+  StringFormatOption,
+} from "@sinclair/typebox";
 import type { Schema, NrgSchemaOptions } from "./types";
 import { Type as BaseType, Kind } from "@sinclair/typebox";
 import { TypedInputSchema } from "./base";
@@ -29,6 +36,40 @@ function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
     ...options,
     [Kind]: "TypedInput",
   } as unknown as TTypedInput<T>;
+}
+
+/**
+ * String `format` values NRG validates at runtime. TypeBox's own
+ * `StringFormatOption` covers the standard JSON Schema formats (`email`,
+ * `date-time`, `uri`, `uuid`, `ipv4`, …); this adds the ajv-formats (full mode)
+ * that TypeBox omits but `addFormats()` in `core/validator.ts` registers —
+ * notably `password`, which drives the editor's password input. The trailing
+ * `(string & {})` inside `StringFormatOption` still accepts any string, so the
+ * extra literals only enrich autocomplete; they never restrict what compiles.
+ */
+type NrgStringFormat =
+  | StringFormatOption
+  | "password"
+  | "byte"
+  | "binary"
+  | "url"
+  | "duration"
+  | "iso-time"
+  | "iso-date-time"
+  | "json-pointer-uri-fragment";
+
+interface NrgStringOptions extends Omit<StringOptions, "format"> {
+  format?: NrgStringFormat;
+}
+
+/**
+ * String schema builder. Identical to TypeBox's `Type.String` at runtime, but
+ * its `format` option also autocompletes the ajv-formats NRG registers (e.g.
+ * `password`) on top of TypeBox's built-in list, so suggestions match what the
+ * validator actually enforces.
+ */
+function NrgString(options?: NrgStringOptions): TString {
+  return BaseType.String(options as StringOptions);
 }
 
 /**
@@ -110,6 +151,7 @@ function OutputContextModes(
  * use {@link NodeRef} / {@link TypedInput} instead. See the Schemas guide.
  */
 const SchemaType = Object.assign({}, BaseType, {
+  String: NrgString,
   NodeRef,
   TypedInput,
   OutputReturnProperties,
