@@ -189,9 +189,6 @@ importers:
 
   packages/toolkit:
     dependencies:
-      '@bonsae/nrg-runtime':
-        specifier: workspace:*
-        version: link:../runtime/dist
       '@clack/prompts':
         specifier: ^1.0.1
         version: 1.2.0
