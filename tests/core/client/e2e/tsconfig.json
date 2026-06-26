@@ -4,10 +4,10 @@
     "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../../../../packages/runtime/src/*"],
+      "@/core/*": ["../../../../packages/toolkit/src/core/*"],
       "@/test/*": ["../../../../packages/toolkit/src/test/*"],
       "@bonsae/nrg/server": [
-        "../../../../packages/runtime/src/server/index.ts"
+        "../../../../packages/toolkit/src/core/server/index.ts"
       ]
     }
   },

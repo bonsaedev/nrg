@@ -11,7 +11,7 @@ export default defineConfig({
       // test nodes, so registerType's instanceof check passes)
       "@bonsae/nrg/server": path.resolve(
         __dirname,
-        "packages/runtime/src/server/index.ts",
+        "packages/toolkit/src/core/server/index.ts",
       ),
     },
   },

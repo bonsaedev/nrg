@@ -130,7 +130,6 @@
     }
   },
   "dependencies": {
-    "@bonsae/nrg-runtime": "workspace:*",
     "@clack/prompts": "^1.0.1",
     "@sinclair/typebox": "^0.34.33",
     "@vitejs/plugin-vue": "^5.2.3",

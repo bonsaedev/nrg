@@ -1,2 +1,2 @@
 export { defineRuntimeSettings } from "./utils";
-export type { NodeRedRuntimeSettings } from "@bonsae/nrg-runtime/server";
+export type { NodeRedRuntimeSettings } from "./core/server";

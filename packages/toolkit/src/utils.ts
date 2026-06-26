@@ -1,4 +1,4 @@
-import type { NodeRedRuntimeSettings } from "@bonsae/nrg-runtime/server";
+import type { NodeRedRuntimeSettings } from "./core/server";
 
 /**
  * Type-safe helper for defining Node-RED runtime settings.

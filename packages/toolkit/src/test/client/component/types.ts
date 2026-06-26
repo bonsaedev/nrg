@@ -1,7 +1,7 @@
-import type { JsonSchemaObject } from "@bonsae/nrg-runtime/internal/client";
+import type { JsonSchemaObject } from "../../../core/client/types";
 import type { MockRED } from "../mocks";
 
-export { useFormNode } from "@bonsae/nrg-runtime/internal/client";
+export { useFormNode } from "../../../core/client/use-form-node";
 
 export type {
   MockRED,

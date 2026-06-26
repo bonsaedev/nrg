@@ -4,8 +4,8 @@ import { reactive, watch } from "vue";
 import {
   validateForm,
   composeValidationSchema,
-} from "@bonsae/nrg-runtime/internal/client";
-import type { JsonSchemaObject } from "@bonsae/nrg-runtime/internal/client";
+} from "../../../core/client/validation";
+import type { JsonSchemaObject } from "../../../core/client/types";
 import type { MockRED } from "../mocks";
 import type {
   TestNode,
@@ -18,7 +18,7 @@ import type {
 // the SerializedNodeSchemas type and the vitest ProvidedContext augmentation.
 import type { SerializedNodeSchemas } from "./schemas";
 
-export { useFormNode } from "@bonsae/nrg-runtime/internal/client";
+export { useFormNode } from "../../../core/client/use-form-node";
 // ./types is the single source of truth for the harness types (it's also the
 // published declaration entry for this subpath); re-export them here so the
 // runtime entry keeps the same public surface.

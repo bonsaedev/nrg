@@ -51,8 +51,8 @@ export default defineConfig({
       // Everything the browser-mode tests exercise: the whole client plane
       // plus the shipped component-test utilities and mocks they validate.
       include: [
-        "packages/runtime/src/client/**/*.{ts,vue}",
-        "packages/runtime/src/constants.ts",
+        "packages/toolkit/src/core/client/**/*.{ts,vue}",
+        "packages/toolkit/src/core/constants.ts",
         "packages/toolkit/src/test/client/mocks/**/*.ts",
         "packages/toolkit/src/test/client/install-mocks.ts",
         "packages/toolkit/src/test/client/component/index.ts",
