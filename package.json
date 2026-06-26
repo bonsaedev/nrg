@@ -95,7 +95,7 @@
     "./tsconfig/test/client/e2e.json": "./dist/toolkit/tsconfig/test/client/e2e.json"
   },
   "scripts": {
-    "build": "tsx build.ts",
+    "build": "tsx build/index.ts",
     "test": "pnpm test:core && pnpm test:vite",
     "test:core": "pnpm test:core:server && pnpm test:core:client",
     "test:core:server": "pnpm test:core:server:unit && pnpm test:core:server:integration",
@@ -117,9 +117,9 @@
     "validate": "pnpm validate:tsc && pnpm validate:lint && pnpm validate:format",
     "validate:tsc": "tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit && tsc -p tests/core/client/unit/tsconfig.json --noEmit && tsc -p tests/core/client/component/tsconfig.json --noEmit && tsc -p tests/core/client/e2e/tsconfig.json --noEmit",
     "validate:lint": "eslint src/",
-    "validate:format": "prettier --check \"src/**/*.{ts,vue,json}\" build.ts",
+    "validate:format": "prettier --check \"src/**/*.{ts,vue,json}\" build/index.ts",
     "lint": "eslint src/ --fix",
-    "format": "prettier --write \"src/**/*.{ts,vue,json}\" build.ts",
+    "format": "prettier --write \"src/**/*.{ts,vue,json}\" build/index.ts",
     "docs:dev": "pnpm --dir docs dev",
     "docs:build": "pnpm --dir docs build",
     "docs:preview": "pnpm --dir docs preview",
@@ -130,7 +130,7 @@
       "eslint --fix",
       "prettier --write"
     ],
-    "build.ts": [
+    "build/index.ts": [
       "prettier --write"
     ],
     "tests/**/*.ts": [

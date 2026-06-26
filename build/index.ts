@@ -15,8 +15,9 @@ import { fileURLToPath } from "url";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-// Runs with cwd = the repo root (pnpm build → tsx build.ts). This single build
-// emits BOTH published packages under dist/:
+// This script lives at build/index.ts and runs with cwd = the repo root
+// (pnpm build → tsx build/index.ts). One build emits BOTH published packages
+// under dist/:
 //   - @bonsae/nrg         (the toolkit)               → dist/toolkit
 //   - @bonsae/nrg-runtime (light artifact for nodes)  → dist/runtime
 //
@@ -25,7 +26,10 @@ import vue from "@vitejs/plugin-vue";
 // plus a manifest generated from the root package.json and the dep list in
 // build/runtime/dependencies. It ships no types and no test-support surface.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = __dirname;
+// __dirname is build/, so the repo root is one level up. Relative paths below
+// (esbuild outdirs, dts -o, tsconfig.dts.json) stay cwd-relative — pnpm runs
+// this script from the repo root.
+const ROOT = path.resolve(__dirname, "..");
 const DIST = path.resolve(ROOT, "dist/toolkit");
 const RUNTIME_DIST = path.resolve(ROOT, "dist/runtime");
 const RUNTIME_SRC = path.resolve(ROOT, "build/runtime");
