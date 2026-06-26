@@ -16,7 +16,7 @@ import type {
   StatusPortSchema,
 } from "../base";
 
-import type { NodeRefResolved } from "../../../brands";
+import type { NodeRefResolved } from "../../../types";
 
 /** Schema type representing a reference to a config node. Resolves to the node instance at runtime. */
 interface TNodeRef<T = any> extends TSchema {
@@ -32,7 +32,7 @@ interface TNodeRef<T = any> extends TSchema {
  * runtime: NodeRef brands resolve to the referenced node instance and
  * TypedInputs stay as their resolving wrapper. The client counterpart
  * (`EditorStatic` in client/types) maps the same brands — shared via
- * core/brands — to raw editor form values instead.
+ * core/types — to raw editor form values instead.
  */
 type ResolvedStatic<T> =
   T extends NodeRefResolved<infer I>

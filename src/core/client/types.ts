@@ -1,7 +1,7 @@
 import type { Component, App } from "vue";
 import type { TSchema, Static } from "@sinclair/typebox";
 import type { SchemaObject } from "ajv";
-import type { NodeRefResolved, TypedInputResolved } from "../brands";
+import type { NodeRefResolved, TypedInputResolved } from "../types";
 import type { JsonSchemaObjectExtensions } from "../schema-options";
 
 export interface NodeStateCredentials {
@@ -224,7 +224,7 @@ export interface TypedInputValue {
 /**
  * Maps a schema's static type to the raw values the editor form holds.
  * The server counterpart (`ResolvedStatic` in server/schemas/types) maps the
- * same brands — shared via core/brands — to resolved runtime values instead.
+ * same brands — shared via core/types — to resolved runtime values instead.
  * - `NodeRef<T>` → `string` (the referenced node's id)
  * - `TypedInput<T>` → `TypedInputValue` (raw value + type pair)
  * - Functions pass through, arrays and objects map recursively
