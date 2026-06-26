@@ -71,6 +71,11 @@ async function buildTestUtils() {
   esbuildBundle("src/test/client/component/config.ts", {
     outdir: "dist/test/client/component",
   });
+  // Node-context globalSetup (no Vue) that serializes node schemas for the
+  // browser component tests. Bundled standalone like config.ts.
+  esbuildBundle("src/test/client/component/schemas.ts", {
+    outdir: "dist/test/client/component",
+  });
   esbuildBundle("src/test/client/unit/index.ts", {
     outdir: "dist/test/client/unit",
   });
@@ -130,6 +135,10 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
   );
   execSync(
     `npx dts-bundle-generator -o dist/types/test-client-component.d.ts src/test/client/component/types.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  execSync(
+    `npx dts-bundle-generator -o dist/types/test-client-component-schemas.d.ts src/test/client/component/schemas.ts ${DTS_FLAGS} --external-types vitest`,
     { stdio: "inherit" },
   );
   execSync(

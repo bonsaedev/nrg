@@ -30,6 +30,10 @@ export default defineConfig({
   test: {
     testTimeout: 30_000,
     setupFiles: ["tests/core/client/component/setup.ts"],
+    // Serializes a fixture node registry in Node and provides it to the browser
+    // tests as data — exercises the shipped schemas globalSetup end-to-end so
+    // createNode({ type }) can resolve a real schema without a server import.
+    globalSetup: ["tests/core/client/component/fixtures/provide-schemas.ts"],
     include: ["tests/core/client/component/**/*.test.ts"],
     browser: {
       enabled: true,

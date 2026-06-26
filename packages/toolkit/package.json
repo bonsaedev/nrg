@@ -70,6 +70,10 @@
       "default": "./dist/test/client/component/index.js"
     },
     "./test/client/component/config": "./dist/test/client/component/config.js",
+    "./test/client/component/schemas": {
+      "types": "./dist/types/test-client-component-schemas.d.ts",
+      "default": "./dist/test/client/component/schemas.js"
+    },
     "./test/client/component/setup": "./dist/test/client/component/setup.js",
     "./test/client/unit": {
       "types": "./dist/types/test-client-unit.d.ts",

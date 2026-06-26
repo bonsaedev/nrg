@@ -1,10 +1,11 @@
 import "../globals";
-import { vi } from "vitest";
+import { vi, inject } from "vitest";
 import { reactive, watch } from "vue";
 import {
   validateForm,
   composeValidationSchema,
 } from "@bonsae/nrg-runtime/internal/client";
+import type { JsonSchemaObject } from "@bonsae/nrg-runtime/internal/client";
 import type { MockRED } from "../mocks";
 import type {
   TestNode,
@@ -12,6 +13,10 @@ import type {
   CreateNodeResult,
   CreateNodeOptions,
 } from "./types";
+// Type-only: the value module is Node-context (server import + node:url) and
+// must never enter the browser bundle. The `import type` is erased; it pulls in
+// the SerializedNodeSchemas type and the vitest ProvidedContext augmentation.
+import type { SerializedNodeSchemas } from "./schemas";
 
 export { useFormNode } from "@bonsae/nrg-runtime/internal/client";
 // ./types is the single source of truth for the harness types (it's also the
@@ -25,12 +30,28 @@ export function createNode(
   options: CreateNodeOptions | Record<string, any> = {},
 ): CreateNodeResult {
   const opts: CreateNodeOptions =
+    "type" in options ||
     "configs" in options ||
     "configSchema" in options ||
     "credentialsSchema" in options ||
     "nodes" in options
       ? (options as CreateNodeOptions)
       : { configs: options };
+
+  // Resolve each schema from the node `type` unless passed explicitly. The
+  // schemas globalSetup serializes the real configSchema/credentialsSchema per
+  // type and provides them as data; a test just names its node type and
+  // validates against the production schema — no schema import, no server in
+  // the browser. Each field falls back independently, so overriding one schema
+  // explicitly still resolves the other from the type (rather than disabling
+  // all validation).
+  const provided = opts.type ? injectSchemas()?.[opts.type] : undefined;
+  const configSchema =
+    opts.configSchema ??
+    (provided?.configSchema as JsonSchemaObject | undefined);
+  const credentialsSchema =
+    opts.credentialsSchema ??
+    (provided?.credentialsSchema as JsonSchemaObject | undefined);
 
   const node: TestNode = reactive({
     id: `test-${counter}`,
@@ -51,10 +72,9 @@ export function createNode(
   // (masking e.g. a credentialsSchema added in a later test). The validator
   // also stamps $id onto what it compiles, so never hand it the caller's
   // imported schema object.
-  const composed = composeValidationSchema(
-    opts.configSchema,
-    opts.credentialsSchema,
-  ) as Record<string, any> | undefined;
+  const composed = composeValidationSchema(configSchema, credentialsSchema) as
+    | Record<string, any>
+    | undefined;
   let validationSchema: Record<string, any> | undefined;
   if (composed) {
     const { $id: _ignored, ...rest } = composed;
@@ -95,6 +115,19 @@ export function createNode(
   };
 
   return { node, errors, RED, provide };
+}
+
+// Reads the serialized-schema map provided by the schemas globalSetup.
+// inject() returns undefined (it does not throw) when no globalSetup provided
+// __nrg_schemas, so createNode stays usable without it — a test that passes its
+// schema inline just falls through. The try/catch is a belt-and-suspenders
+// guard for environments where vitest's worker state is unavailable.
+function injectSchemas(): Record<string, SerializedNodeSchemas> | undefined {
+  try {
+    return inject("__nrg_schemas");
+  } catch {
+    return undefined;
+  }
 }
 
 function spyIfNeeded(obj: any, method: string): void {

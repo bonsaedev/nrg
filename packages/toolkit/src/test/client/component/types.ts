@@ -36,6 +36,16 @@ export interface CreateNodeResult {
 }
 
 export interface CreateNodeOptions {
+  /**
+   * The node's registered `type`. When set, createNode resolves each schema not
+   * passed explicitly (configSchema/credentialsSchema) from the map serialized
+   * by the `schemas` globalSetup — so the test validates against the production
+   * schema without importing it. Used only for schema lookup; the harness keeps
+   * its own unique internal node type. Note: this is a reserved options key — a
+   * raw-shorthand config object that itself carries a `type` field must be
+   * passed via the explicit `{ configs }` form.
+   */
+  type?: string;
   configs?: Record<string, any>;
   credentials?: Record<string, any>;
   configSchema?: JsonSchemaObject;

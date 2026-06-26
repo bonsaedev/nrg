@@ -234,6 +234,73 @@ describe("createNode", () => {
   });
 });
 
+describe("createNode schema resolution by node type", () => {
+  // The fixture registry (tests/.../fixtures/schema-registry.ts) ships a
+  // "fixture-node" with name>=1 (config) and token>=1 (credentials). The
+  // schemas globalSetup serializes it and provides it to the browser; createNode
+  // resolves it by type — no schema import, no server runtime in the browser.
+  test("resolves the real schema for a node type from the globalSetup", async () => {
+    const { node, errors } = createNode({
+      type: "fixture-node",
+      configs: { name: "" },
+      credentials: { token: "" },
+    });
+    expect(errors["node.name"]).toBeDefined();
+    expect(errors["node.credentials.token"]).toBeDefined();
+
+    node.name = "valid";
+    node.credentials!.token = "secret";
+
+    await vi.waitFor(() => {
+      expect(errors["node.name"]).toBeUndefined();
+      expect(errors["node.credentials.token"]).toBeUndefined();
+    });
+  });
+
+  test("an explicit configSchema overrides only config; credentials still resolve from the type", () => {
+    const { errors } = createNode({
+      type: "fixture-node",
+      // "" would violate fixture-node's config schema (name>=1), but the
+      // explicit schema below replaces it and only constrains `count`.
+      configs: { name: "" },
+      // empty token still violates fixture-node's credentials schema (token>=1),
+      // which is resolved from the type because it wasn't passed explicitly.
+      credentials: { token: "" },
+      configSchema: {
+        type: "object",
+        properties: { count: { type: "number" } },
+        additionalProperties: true,
+      } as any,
+    });
+    expect(errors["node.name"]).toBeUndefined();
+    expect(errors["node.credentials.token"]).toBeDefined();
+  });
+
+  test("an explicit credentialsSchema overrides only credentials; config still resolves from the type", () => {
+    const { errors } = createNode({
+      type: "fixture-node",
+      // still constrained by fixture-node's config schema (name>=1) → error
+      configs: { name: "" },
+      // overridden by a creds schema with no minLength → empty token is valid
+      credentials: { token: "" },
+      credentialsSchema: {
+        type: "object",
+        properties: { token: { type: "string" } },
+      } as any,
+    });
+    expect(errors["node.name"]).toBeDefined();
+    expect(errors["node.credentials.token"]).toBeUndefined();
+  });
+
+  test("an unknown type resolves to no schema, so nothing validates", () => {
+    const { errors } = createNode({
+      type: "does-not-exist",
+      configs: { name: "" },
+    });
+    expect(errors).toEqual({});
+  });
+});
+
 describe("useFormNode", () => {
   test("throws a helpful error outside an NRG-mounted form", () => {
     const Probe = defineComponent({
