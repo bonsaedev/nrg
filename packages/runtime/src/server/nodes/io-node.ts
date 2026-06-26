@@ -16,27 +16,11 @@ import { setupContext } from "./context";
 import { WIRE_HANDLERS } from "./symbols";
 import { AsyncLocalStorage } from "node:async_hooks";
 
-/** Per-`input()`-invocation context carried by {@link inputInvocation}. */
+/** Per-`input()`-invocation context — see `IONode.#invocation`. */
 interface InputInvocation {
   inputMsg: unknown;
   send: (msg: any) => void;
 }
-
-/**
- * Scopes the current input message + send callback to each `input()` execution
- * — and everything it `await`s, including detached `.then`/timer continuations
- * it schedules — via AsyncLocalStorage. Real Node-RED never awaits an async
- * input handler before delivering the next message (its `emit('input')`/
- * `receive` are fire-and-forget and `done()` is completion tracking, not
- * back-pressure), so two inputs can be in flight on one node at once. Holding
- * the per-invocation context here (rather than on a shared instance field)
- * means concurrent inputs can never clobber each other's context, and a
- * deferred send keeps the context of the input that scheduled it. `getStore()`
- * is `undefined` only for a send made entirely outside any `input()` call (e.g.
- * a timer set up in `created()`): such a send carries no inherited context and
- * delivers via `node.send`.
- */
-const inputInvocation = new AsyncLocalStorage<InputInvocation>();
 
 /**
  * Type guard for an `outputsSchema` shape — a single schema, an array of
@@ -166,6 +150,21 @@ abstract class IONode<
     if (!s || Array.isArray(s) || isSchemaLike(s)) return undefined;
     return Object.keys(s);
   }
+
+  /**
+   * Per-`input()`-invocation context, scoped via AsyncLocalStorage. One store
+   * per class, shared by every instance: each `.run()` isolates one input()
+   * call (and everything it `await`s, including detached `.then`/timer
+   * continuations it schedules) into its own session, so concurrent inputs on a
+   * node never clobber each other's context and a deferred send keeps the
+   * context of the input that scheduled it. Real Node-RED never awaits an async
+   * input handler before delivering the next message, so two inputs can be in
+   * flight at once. `getStore()` is `undefined` only for a send made entirely
+   * outside any `input()` (e.g. a timer set up in `created()`): it carries no
+   * inherited context and delivers via `node.send`. Server-only — this is part
+   * of the node runtime and is never imported in a browser.
+   */
+  static readonly #invocation = new AsyncLocalStorage<InputInvocation>();
 
   declare public readonly config: IONodeConfig<TConfig>;
   protected override readonly context: IONodeContext;
@@ -323,7 +322,7 @@ abstract class IONode<
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
     // lives in the store — there is no shared instance field to race on.
-    return await inputInvocation.run({ inputMsg: msg, send }, () =>
+    return await IONode.#invocation.run({ inputMsg: msg, send }, () =>
       Promise.resolve(this.input(msg)),
     );
   }
@@ -356,7 +355,7 @@ abstract class IONode<
     // Deliver via this invocation's send callback (concurrency-safe). A send
     // made outside any input() call (e.g. a timer) has no store and falls back
     // to node.send.
-    const send = inputInvocation.getStore()?.send;
+    const send = IONode.#invocation.getStore()?.send;
     if (send) {
       send(out);
     } else {
@@ -429,7 +428,8 @@ abstract class IONode<
     // safe). A send made entirely outside an input() call (e.g. a timer set up
     // in created()) has no scheduling input and so carries no inherited context.
     const input =
-      (inputInvocation.getStore()?.inputMsg as Record<string, unknown>) ?? {};
+      (IONode.#invocation.getStore()?.inputMsg as Record<string, unknown>) ??
+      {};
     if (mode === "reset") {
       return { [key]: value };
     }
