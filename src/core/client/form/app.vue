@@ -52,7 +52,7 @@
         {{
           resolveLabel(
             "help.outputs",
-            "Per-port output settings. Validate checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
+            "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
           )
         }}
         <a

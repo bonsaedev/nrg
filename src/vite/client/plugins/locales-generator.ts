@@ -58,7 +58,7 @@ function localesGenerator(options: {
         validateInput:
           "Validate incoming messages against the input schema before input() runs.",
         outputs:
-          "Per-port output settings. Validate checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
+          "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
         lifecyclePorts:
           "Optional extra output ports that fire on error, on completion, and on every status change.",
         learnMore: "Learn more",
@@ -96,7 +96,7 @@ function localesGenerator(options: {
         validateInput:
           "Eingehende Nachrichten vor dem Ausführen von input() gegen das Eingabe-Schema validieren.",
         outputs:
-          "Ausgabe-Einstellungen pro Port. Validieren prüft den gesendeten Wert gegen das Schema des Ports; Kontextmodus steuert, wie die eingehende Nachricht übertragen wird.",
+          "Ausgabe-Einstellungen pro Port. Daten validieren prüft den gesendeten Wert gegen das Schema des Ports; Kontextmodus steuert, wie die eingehende Nachricht übertragen wird.",
         lifecyclePorts:
           "Optionale zusätzliche Ausgänge, die bei Fehler, Abschluss und jeder Statusänderung auslösen.",
         learnMore: "Mehr erfahren",
@@ -134,7 +134,7 @@ function localesGenerator(options: {
         validateInput:
           "Valida los mensajes entrantes con el esquema de entrada antes de ejecutar input().",
         outputs:
-          "Ajustes de salida por puerto. Validar comprueba el valor enviado con el esquema del puerto; Modo de contexto controla cómo se transporta el mensaje entrante.",
+          "Ajustes de salida por puerto. Validar datos comprueba el valor enviado con el esquema del puerto; Modo de contexto controla cómo se transporta el mensaje entrante.",
         lifecyclePorts:
           "Puertos de salida adicionales opcionales que se activan en error, al completar y en cada cambio de estado.",
         learnMore: "Más información",
@@ -172,7 +172,7 @@ function localesGenerator(options: {
         validateInput:
           "Valide les messages entrants avec le schéma d'entrée avant l'exécution de input().",
         outputs:
-          "Réglages de sortie par port. Valider vérifie la valeur envoyée avec le schéma du port ; Mode de contexte contrôle la façon dont le message entrant est transmis.",
+          "Réglages de sortie par port. Valider les données vérifie la valeur envoyée avec le schéma du port ; Mode de contexte contrôle la façon dont le message entrant est transmis.",
         lifecyclePorts:
           "Ports de sortie supplémentaires optionnels déclenchés en cas d'erreur, à la fin et à chaque changement de statut.",
         learnMore: "En savoir plus",
@@ -210,7 +210,7 @@ function localesGenerator(options: {
         validateInput:
           "input() 실행 전에 들어오는 메시지를 입력 스키마로 검증합니다.",
         outputs:
-          "포트별 출력 설정. 검증은 전송 값을 포트 스키마로 확인하고, 컨텍스트 모드는 들어온 메시지를 전달하는 방식을 제어합니다.",
+          "포트별 출력 설정. 데이터 검증은 전송 값을 포트 스키마로 확인하고, 컨텍스트 모드는 들어온 메시지를 전달하는 방식을 제어합니다.",
         lifecyclePorts:
           "오류, 완료, 모든 상태 변경 시 발생하는 선택적 추가 출력 포트입니다.",
         learnMore: "자세히 보기",
@@ -248,7 +248,7 @@ function localesGenerator(options: {
         validateInput:
           "Valida as mensagens recebidas com o esquema de entrada antes de input() executar.",
         outputs:
-          "Configurações de saída por porta. Validar verifica o valor enviado com o esquema da porta; Modo de contexto controla como a mensagem recebida é transportada.",
+          "Configurações de saída por porta. Validar dados verifica o valor enviado com o esquema da porta; Modo de contexto controla como a mensagem recebida é transportada.",
         lifecyclePorts:
           "Portas de saída extras opcionais que disparam em erro, na conclusão e a cada mudança de status.",
         learnMore: "Saiba mais",
@@ -286,7 +286,7 @@ function localesGenerator(options: {
         validateInput:
           "Проверять входящие сообщения по схеме ввода перед вызовом input().",
         outputs:
-          "Настройки вывода для каждого порта. «Проверять» сверяет отправленное значение со схемой порта; «Режим контекста» управляет тем, как переносится входящее сообщение.",
+          "Настройки вывода для каждого порта. «Проверять данные» сверяет отправленное значение со схемой порта; «Режим контекста» управляет тем, как переносится входящее сообщение.",
         lifecyclePorts:
           "Дополнительные необязательные выходные порты, срабатывающие при ошибке, завершении и каждом изменении статуса.",
         learnMore: "Подробнее",
@@ -324,7 +324,7 @@ function localesGenerator(options: {
         validateInput:
           "input() の実行前に、受信メッセージを入力スキーマで検証します。",
         outputs:
-          "ポートごとの出力設定。検証は送信値をポートのスキーマで確認し、コンテキストモードは受信メッセージの引き継ぎ方を制御します。",
+          "ポートごとの出力設定。データの検証は送信値をポートのスキーマで確認し、コンテキストモードは受信メッセージの引き継ぎ方を制御します。",
         lifecyclePorts:
           "エラー時・完了時・ステータス変更ごとに発火する任意の追加出力ポート。",
         learnMore: "詳細",
@@ -361,7 +361,7 @@ function localesGenerator(options: {
       help: {
         validateInput: "在 input() 运行前，根据输入模式校验传入消息。",
         outputs:
-          "按端口的输出设置。验证根据端口模式校验发送的值；上下文模式控制如何携带传入消息。",
+          "按端口的输出设置。验证数据根据端口模式校验发送的值；上下文模式控制如何携带传入消息。",
         lifecyclePorts:
           "可选的额外输出端口，在出错、完成以及每次状态变化时触发。",
         learnMore: "了解更多",
@@ -398,7 +398,7 @@ function localesGenerator(options: {
       help: {
         validateInput: "在 input() 執行前，依輸入結構描述驗證傳入訊息。",
         outputs:
-          "依連接埠的輸出設定。驗證依連接埠結構描述檢查送出的值；內容模式控制如何攜帶傳入訊息。",
+          "依連接埠的輸出設定。驗證資料依連接埠結構描述檢查送出的值；內容模式控制如何攜帶傳入訊息。",
         lifecyclePorts:
           "可選的額外輸出連接埠，在發生錯誤、完成以及每次狀態變更時觸發。",
         learnMore: "瞭解更多",
