@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.3](https://github.com/bonsaedev/nrg/compare/v0.26.2...v0.26.3) (2026-06-27)
+
+
+### Bug Fixes
+
+* **build:** externalize @bonsae/nrg/server in the integration bundle ([774c1bb](https://github.com/bonsaedev/nrg/commit/774c1bb987c4bc5aeb2872df80da34b6e06b7f43))
+
 ## [0.26.2](https://github.com/bonsaedev/nrg/compare/v0.26.1...v0.26.2) (2026-06-27)
 
 
