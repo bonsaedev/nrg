@@ -64,11 +64,18 @@ function esbuildBundle(
     outfile,
     outdir,
     cjsShim = false,
+    external = [],
   }: {
     format?: string;
     outfile?: string;
     outdir?: string;
     cjsShim?: boolean;
+    // Force-external specifiers that a tsconfig `paths` map would otherwise
+    // make esbuild resolve to source and inline. `--packages=external` only
+    // covers BARE specifiers, so `@bonsae/nrg/server` (mapped to src for tsc)
+    // gets inlined without this — duplicating Node/registerTypes and breaking
+    // the consumer's `instanceof Node` at registration.
+    external?: string[];
   },
 ): void {
   // The CJS-shim banner has quotes/newlines that don't survive shell quoting
@@ -82,13 +89,15 @@ function esbuildBundle(
       format: "esm",
       platform: "node",
       ...(outfile ? { outfile } : { outdir: outdir! }),
+      ...(external.length ? { external } : {}),
       banner: { js: ESM_CJS_SHIM },
     });
     return;
   }
   const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
+  const ext = external.map((e) => `--external:${e}`).join(" ");
   execSync(
-    `esbuild ${entry} --bundle --packages=external --format=${format} --platform=node ${out}`,
+    `esbuild ${entry} --bundle --packages=external --format=${format} --platform=node ${ext} ${out}`,
     { stdio: "inherit" },
   );
 }
@@ -246,6 +255,11 @@ async function buildTestUtils() {
   esbuildBundle("src/test/server/integration/index.ts", {
     outdir: "dist/toolkit/test/server/integration",
     cjsShim: true,
+    // Keep the host's nrg copy: runtime.ts imports registerTypes from here so
+    // registration binds to the SAME Node class the consumer's nodes extend
+    // (otherwise instanceof Node fails). Externalizing it also stops the bundle
+    // inlining the core server (its assets.ts __dirname / ajv deep-import).
+    external: ["@bonsae/nrg/server"],
   });
   esbuildBundle("src/test/server/integration/config.ts", {
     outdir: "dist/toolkit/test/server/integration",

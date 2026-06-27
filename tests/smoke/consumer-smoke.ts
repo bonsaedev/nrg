@@ -253,23 +253,26 @@ async function testDevServer(
   throw new Error(`Dev server exited unexpectedly: ${result}`);
 }
 
-// Import AND boot the published `@bonsae/nrg/test/server/integration` entry the
-// way a consumer's test runner does: Node's *native* ESM resolver (node_modules
-// externalized), not vitest-on-source or CJS require(). That resolver rejects
-// extensionless deep imports (`ajv/dist/compile/rules`), and the ESM bundle has
-// no CJS globals — so bundled core-server code reading `__dirname` ReferenceErrors
-// at boot. Both tolerated under CJS require()/the source-aliased in-repo tests,
-// so this is the one place that catches such breakage in the *built ESM* entries
-// before a consumer's CI does. 0.26.0 shipped the ajv break and 0.26.1 the
-// __dirname break — an import-only probe missed the latter, so we boot the
-// runtime here (startRuntime → initRoutes → initAssetsRoutes exercises both).
+// Import, boot, AND register a real node through the published
+// `@bonsae/nrg/test/server/integration` entry the way a consumer's test runner
+// does: Node's *native* ESM resolver (node_modules externalized), not
+// vitest-on-source or CJS require(). Three published-only failure modes this
+// catches, all masked in-repo (source = single identity) and under CJS
+// require(): (a) extensionless deep import `ajv/dist/compile/rules` — import
+// fails [0.26.0]; (b) bundled core-server `__dirname` undefined in ESM — boot
+// fails [0.26.1]; (c) the bundle inlining its own `@bonsae/nrg/server` copy, so
+// a consumer node fails `instanceof Node` at registration [0.26.2]. (a) needs
+// only an import, (b) a boot with nodes:[], (c) a boot that actually REGISTERS a
+// node extending the host's `@bonsae/nrg/server` — so register one here.
 function testEsmBoot(consumerDir: string): void {
-  log("--- Test: ESM import + boot of @bonsae/nrg/test/server/integration ---");
+  log("--- Test: ESM import + boot + register of the integration runtime ---");
   const probe = path.join(consumerDir, "__nrg_esm_smoke.mjs");
   fs.writeFileSync(
     probe,
-    `import { startRuntime } from "@bonsae/nrg/test/server/integration";\n` +
-      `const rt = await startRuntime({ nodes: [] });\n` +
+    `import { defineIONode } from "@bonsae/nrg/server";\n` +
+      `import { startRuntime } from "@bonsae/nrg/test/server/integration";\n` +
+      `const Probe = defineIONode({ type: "nrg-smoke-probe", input(msg) { this.send?.(msg); } });\n` +
+      `const rt = await startRuntime({ nodes: [Probe] });\n` +
       `await rt.stop();\n` +
       `console.log("ESM_BOOT_OK");\n`,
   );
@@ -278,7 +281,10 @@ function testEsmBoot(consumerDir: string): void {
       cwd: consumerDir,
       encoding: "utf-8",
     });
-    assert(out.includes("ESM_BOOT_OK"), "integration runtime did not boot");
+    assert(
+      out.includes("ESM_BOOT_OK"),
+      "integration runtime did not boot/register a node",
+    );
   } finally {
     try {
       fs.rmSync(probe, { force: true });
@@ -287,7 +293,7 @@ function testEsmBoot(consumerDir: string): void {
     }
   }
   log(
-    "PASS: the published test/server/integration entry imports and boots under Node ESM.",
+    "PASS: the published integration entry imports, boots, and registers a node under Node ESM.",
   );
 }
 
