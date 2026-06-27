@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.1](https://github.com/bonsaedev/nrg/compare/v0.26.0...v0.26.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* **server:** pin the ajv deep import to .js so ESM consumers resolve it ([930104d](https://github.com/bonsaedev/nrg/commit/930104d826913e29ba8164d8435d667afea7fdcc))
+
 # [0.26.0](https://github.com/bonsaedev/nrg/compare/v0.25.1...v0.26.0) (2026-06-27)
 
 
