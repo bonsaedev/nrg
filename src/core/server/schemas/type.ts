@@ -10,7 +10,10 @@ import type { Schema, NrgSchemaOptions } from "./types";
 import { Type as BaseType, Kind } from "@sinclair/typebox";
 import { TypedInputSchema } from "./base";
 import type { TNodeRef, TTypedInput } from "./types";
-import { isJSONType } from "ajv/dist/compile/rules";
+// Deep import needs the explicit .js — ajv has no exports entry for it, so
+// under ESM (the built test/server/integration bundle) a bare specifier fails
+// Node resolution. CJS (server/index.cjs) tolerates either; .js works for both.
+import { isJSONType } from "ajv/dist/compile/rules.js";
 
 /** Creates a schema for a reference to a config node by ID. */
 function NodeRef<T extends (new (...args: any[]) => any) & { type: string }>(

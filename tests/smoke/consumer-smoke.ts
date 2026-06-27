@@ -253,6 +253,42 @@ async function testDevServer(
   throw new Error(`Dev server exited unexpectedly: ${result}`);
 }
 
+// Load the published `@bonsae/nrg/test/server/integration` entry the way a
+// consumer's test runner does: Node's *native* ESM resolver (node_modules is
+// externalized), not vitest-on-source or CJS require(). That resolver rejects
+// extensionless deep imports (e.g. a bare `ajv/dist/compile/rules`), which CJS
+// require() and the source-aliased in-repo tests both tolerate — so this is the
+// one place that catches such breakage in the *built ESM* test entries before a
+// consumer's CI does (it shipped once in 0.26.0 and broke node-red-salesforce).
+function testEsmImport(consumerDir: string): void {
+  log("--- Test: ESM import of @bonsae/nrg/test/server/integration ---");
+  const probe = path.join(consumerDir, "__nrg_esm_smoke.mjs");
+  fs.writeFileSync(
+    probe,
+    `import * as m from "@bonsae/nrg/test/server/integration";\n` +
+      `if (typeof m.startRuntime !== "function") {\n` +
+      `  throw new Error("integration entry missing startRuntime export");\n` +
+      `}\n` +
+      `console.log("ESM_IMPORT_OK");\n`,
+  );
+  try {
+    const out = execSync(`"${process.execPath}" "${probe}"`, {
+      cwd: consumerDir,
+      encoding: "utf-8",
+    });
+    assert(out.includes("ESM_IMPORT_OK"), "ESM entry did not load cleanly");
+  } finally {
+    try {
+      fs.rmSync(probe, { force: true });
+    } catch {
+      /* best-effort cleanup */
+    }
+  }
+  log(
+    "PASS: the published test/server/integration ESM entry loads under Node ESM.",
+  );
+}
+
 async function main(): Promise<void> {
   log("=== NRG Consumer Smoke Test ===");
   log(`Platform: ${process.platform}`);
@@ -318,6 +354,7 @@ async function main(): Promise<void> {
     const failures: string[] = [];
     const checks: Array<[string, () => void | Promise<void>]> = [
       ["tsc", () => testTypecheck(consumerDir)],
+      ["esm-import", () => testEsmImport(consumerDir)],
       ["build", () => testBuild(consumerDir, viteEntry)],
       ["dev", () => testDevServer(consumerDir, viteEntry)],
     ];
