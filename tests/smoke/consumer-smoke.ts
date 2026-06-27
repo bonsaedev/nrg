@@ -253,30 +253,32 @@ async function testDevServer(
   throw new Error(`Dev server exited unexpectedly: ${result}`);
 }
 
-// Load the published `@bonsae/nrg/test/server/integration` entry the way a
-// consumer's test runner does: Node's *native* ESM resolver (node_modules is
+// Import AND boot the published `@bonsae/nrg/test/server/integration` entry the
+// way a consumer's test runner does: Node's *native* ESM resolver (node_modules
 // externalized), not vitest-on-source or CJS require(). That resolver rejects
-// extensionless deep imports (e.g. a bare `ajv/dist/compile/rules`), which CJS
-// require() and the source-aliased in-repo tests both tolerate — so this is the
-// one place that catches such breakage in the *built ESM* test entries before a
-// consumer's CI does (it shipped once in 0.26.0 and broke node-red-salesforce).
-function testEsmImport(consumerDir: string): void {
-  log("--- Test: ESM import of @bonsae/nrg/test/server/integration ---");
+// extensionless deep imports (`ajv/dist/compile/rules`), and the ESM bundle has
+// no CJS globals — so bundled core-server code reading `__dirname` ReferenceErrors
+// at boot. Both tolerated under CJS require()/the source-aliased in-repo tests,
+// so this is the one place that catches such breakage in the *built ESM* entries
+// before a consumer's CI does. 0.26.0 shipped the ajv break and 0.26.1 the
+// __dirname break — an import-only probe missed the latter, so we boot the
+// runtime here (startRuntime → initRoutes → initAssetsRoutes exercises both).
+function testEsmBoot(consumerDir: string): void {
+  log("--- Test: ESM import + boot of @bonsae/nrg/test/server/integration ---");
   const probe = path.join(consumerDir, "__nrg_esm_smoke.mjs");
   fs.writeFileSync(
     probe,
-    `import * as m from "@bonsae/nrg/test/server/integration";\n` +
-      `if (typeof m.startRuntime !== "function") {\n` +
-      `  throw new Error("integration entry missing startRuntime export");\n` +
-      `}\n` +
-      `console.log("ESM_IMPORT_OK");\n`,
+    `import { startRuntime } from "@bonsae/nrg/test/server/integration";\n` +
+      `const rt = await startRuntime({ nodes: [] });\n` +
+      `await rt.stop();\n` +
+      `console.log("ESM_BOOT_OK");\n`,
   );
   try {
     const out = execSync(`"${process.execPath}" "${probe}"`, {
       cwd: consumerDir,
       encoding: "utf-8",
     });
-    assert(out.includes("ESM_IMPORT_OK"), "ESM entry did not load cleanly");
+    assert(out.includes("ESM_BOOT_OK"), "integration runtime did not boot");
   } finally {
     try {
       fs.rmSync(probe, { force: true });
@@ -285,7 +287,7 @@ function testEsmImport(consumerDir: string): void {
     }
   }
   log(
-    "PASS: the published test/server/integration ESM entry loads under Node ESM.",
+    "PASS: the published test/server/integration entry imports and boots under Node ESM.",
   );
 }
 
@@ -354,7 +356,7 @@ async function main(): Promise<void> {
     const failures: string[] = [];
     const checks: Array<[string, () => void | Promise<void>]> = [
       ["tsc", () => testTypecheck(consumerDir)],
-      ["esm-import", () => testEsmImport(consumerDir)],
+      ["esm-boot", () => testEsmBoot(consumerDir)],
       ["build", () => testBuild(consumerDir, viteEntry)],
       ["dev", () => testDevServer(consumerDir, viteEntry)],
     ];

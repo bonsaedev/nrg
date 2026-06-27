@@ -12,6 +12,7 @@ import {
 } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { buildSync } from "esbuild";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
 
@@ -43,6 +44,18 @@ const RUNTIME_SRC = path.resolve(ROOT, "build/runtime");
 const DTS_FLAGS =
   "--no-check --project tsconfig.dts.json --export-referenced-types=false";
 
+// Defines __dirname/__filename (from import.meta.url) at the top of an ESM
+// bundle. Core-server code (api/assets.ts) reads __dirname to locate the editor
+// assets; esbuild leaves it a free reference under --format=esm, so any ESM
+// bundle that pulls that path in (the server test helpers) ReferenceErrors at
+// boot without this. Node-only — never apply to client bundles (no node:
+// builtins in the browser).
+const ESM_CJS_SHIM =
+  'import { fileURLToPath as __nrgFileURLToPath } from "url";\n' +
+  'import { dirname as __nrgDirname } from "path";\n' +
+  "var __filename = __nrgFileURLToPath(import.meta.url);\n" +
+  "var __dirname = __nrgDirname(__filename);\n";
+
 /** Bundle one entry with esbuild (bundled, deps external, node platform). */
 function esbuildBundle(
   entry: string,
@@ -50,8 +63,29 @@ function esbuildBundle(
     format = "esm",
     outfile,
     outdir,
-  }: { format?: string; outfile?: string; outdir?: string },
+    cjsShim = false,
+  }: {
+    format?: string;
+    outfile?: string;
+    outdir?: string;
+    cjsShim?: boolean;
+  },
 ): void {
+  // The CJS-shim banner has quotes/newlines that don't survive shell quoting
+  // cross-platform, so route shimmed bundles through esbuild's JS API instead
+  // of the CLI.
+  if (cjsShim && format === "esm") {
+    buildSync({
+      entryPoints: [entry],
+      bundle: true,
+      packages: "external",
+      format: "esm",
+      platform: "node",
+      ...(outfile ? { outfile } : { outdir: outdir! }),
+      banner: { js: ESM_CJS_SHIM },
+    });
+    return;
+  }
   const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
   execSync(
     `esbuild ${entry} --bundle --packages=external --format=${format} --platform=node ${out}`,
@@ -203,15 +237,19 @@ function buildVitePlugin() {
 async function buildTestUtils() {
   esbuildBundle("src/test/server/unit/index.ts", {
     outdir: "dist/toolkit/test/server/unit",
+    cjsShim: true,
   });
   esbuildBundle("src/test/server/unit/config.ts", {
     outdir: "dist/toolkit/test/server/unit",
+    cjsShim: true,
   });
   esbuildBundle("src/test/server/integration/index.ts", {
     outdir: "dist/toolkit/test/server/integration",
+    cjsShim: true,
   });
   esbuildBundle("src/test/server/integration/config.ts", {
     outdir: "dist/toolkit/test/server/integration",
+    cjsShim: true,
   });
   // index.ts/setup.ts pull in Vue-touching modules — use vite with the vue
   // plugin. All bare imports are external (consumers resolve them).
