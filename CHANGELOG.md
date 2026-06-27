@@ -1,5 +1,20 @@
 # Changelog
 
+# [0.26.0](https://github.com/bonsaedev/nrg/compare/v0.25.1...v0.26.0) (2026-06-27)
+
+
+### Bug Fixes
+
+* **client:** align outputs help text with the "Validate Data" rename ([d3f4542](https://github.com/bonsaedev/nrg/commit/d3f45427b938205c35638b5136fb5ef0cf85c8d5))
+* **test:** resolve packed tarball paths against the pack cwd in vite-integration ([d70fc0a](https://github.com/bonsaedev/nrg/commit/d70fc0a372f0b992b5b3147975d7db6d9268725f))
+
+
+### Features
+
+* **client:** refine the editor outputs form and rename Validate to "Validate Data" ([ddf9636](https://github.com/bonsaedev/nrg/commit/ddf963648cf007a5dab407d2bad5244c06d4fbaa))
+* **schemas:** autocomplete ajv string formats on SchemaType.String ([d80b951](https://github.com/bonsaedev/nrg/commit/d80b9516945826c72be0550846046f9fd1ca4c87))
+* **test:** resolve component-test schemas from the node registry ([5b4c5e6](https://github.com/bonsaedev/nrg/commit/5b4c5e6e142631b9bf9e414bca04f5d45a50e4fc))
+
 ## [0.25.1](https://github.com/bonsaedev/nrg/compare/v0.25.0...v0.25.1) (2026-06-25)
 
 
