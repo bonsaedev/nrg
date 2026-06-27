@@ -263,7 +263,7 @@ describe("client build", () => {
     );
     // config-server has user labels but no configs.name — framework should inject it
     expect(labels["config-server"].configs.name).toBe("Name");
-    expect(labels["config-server"].toggles.validateInput).toBe("Validate");
+    expect(labels["config-server"].toggles.validateInput).toBe("Validate Data");
     expect(labels["config-server"].toggles.errorPort).toBe("Error Port");
     // per-port Outputs table + Lifecycle Ports editor labels
     expect(labels["config-server"].outputs.contextMode).toBe("Context Mode");
@@ -296,7 +296,9 @@ describe("client build", () => {
     if (!fs.existsSync(dePath)) return;
     const labels = JSON.parse(fs.readFileSync(dePath, "utf-8"));
     expect(labels["config-server"].configs.name).toBe("Name");
-    expect(labels["config-server"].toggles.validateInput).toBe("Validieren");
+    expect(labels["config-server"].toggles.validateInput).toBe(
+      "Daten validieren",
+    );
     expect(labels["config-server"].sections.lifecyclePorts).toBe(
       "Lebenszyklus-Ports",
     );

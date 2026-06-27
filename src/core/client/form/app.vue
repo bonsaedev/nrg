@@ -23,7 +23,7 @@
       <div class="form-row">
         <NodeRedToggle
           v-model="localNode.validateInput"
-          :label="resolveLabel('toggles.validateInput', 'Validate')"
+          :label="resolveLabel('toggles.validateInput', 'Validate Data')"
         />
         <div class="nrg-help">
           {{
@@ -71,7 +71,7 @@
             </th>
             <th>{{ resolveLabel("outputs.label", "Label") }}</th>
             <th class="nrg-outputs-flag">
-              {{ resolveLabel("outputs.validate", "Validate") }}
+              {{ resolveLabel("outputs.validate", "Validate Data") }}
             </th>
             <th v-if="hasOutputReturnProperties">
               {{ resolveLabel("outputs.returnProperty", "Return Property") }}
@@ -86,15 +86,10 @@
             <td class="nrg-outputs-index">{{ port.index }}</td>
             <td>{{ port.label }}</td>
             <td class="nrg-outputs-flag">
-              <input
-                type="checkbox"
-                :checked="validateOutputFor(port.index)"
-                @change="
-                  (e) =>
-                    setValidateOutput(
-                      port.index,
-                      (e.target as HTMLInputElement).checked,
-                    )
+              <NodeRedToggle
+                :model-value="validateOutputFor(port.index)"
+                @update:model-value="
+                  (val: boolean) => setValidateOutput(port.index, val)
                 "
               />
             </td>
@@ -142,7 +137,7 @@
   </div>
 
   <!-- 3. Lifecycle Ports — its own section, after Ports Settings -->
-  <div v-if="hasBuiltinPorts" class="nrg-section">
+  <div v-if="hasBuiltinPorts" class="nrg-section nrg-section-lifecycle">
     <div class="nrg-section-title">
       {{ resolveLabel("sections.lifecyclePorts", "Lifecycle Ports") }}
     </div>
@@ -514,6 +509,12 @@ export default defineComponent({
   padding-top: 8px;
 }
 
+/* Breathing room below the last section so its toggles don't butt against the
+   edit tray's bottom edge. */
+.nrg-section-lifecycle {
+  padding-bottom: 16px;
+}
+
 .nrg-section-title {
   font-weight: bold;
   font-size: 14px;
@@ -594,12 +595,15 @@ export default defineComponent({
 }
 
 .nrg-outputs-flag {
-  width: 4.5em;
+  /* Wide enough to keep the "Validate Data" header on one line; the extra
+     width is taken from the auto columns (mostly the roomy Label column). */
+  width: 116px;
+  white-space: nowrap;
 }
 
-.nrg-outputs-flag input {
-  margin: 0;
-  vertical-align: middle;
+/* Center the toggle in the cell (the wrapper is inline-flex). */
+.nrg-outputs-flag .nrg-toggle-wrapper {
+  justify-content: center;
 }
 
 .nrg-outputs-return {
@@ -637,6 +641,19 @@ export default defineComponent({
 .nrg-outputs-context:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Node-RED's global rules force input[type=text] (and select) to 34px with
+   their own padding/margin and beat a single scoped class. Re-assert ours at
+   higher specificity (.nrg-outputs td .x → wins over .red-ui-editor
+   input[type=text]) so the return-property input and context-mode select share
+   one height and line up in the row. */
+.nrg-outputs td .nrg-outputs-return,
+.nrg-outputs td .nrg-outputs-context {
+  height: 28px;
+  margin: 0;
+  padding: 0 6px;
+  line-height: normal;
 }
 
 :deep(.node-red-vue-input-error-message) {

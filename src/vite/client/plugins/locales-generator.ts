@@ -29,7 +29,7 @@ function localesGenerator(options: {
     "en-US": {
       configs: { name: "Name" },
       toggles: {
-        validateInput: "Validate",
+        validateInput: "Validate Data",
         errorPort: "Error Port",
         completePort: "Complete Port",
         statusPort: "Status Port",
@@ -43,7 +43,7 @@ function localesGenerator(options: {
       outputs: {
         port: "Port",
         label: "Label",
-        validate: "Validate",
+        validate: "Validate Data",
         returnProperty: "Return Property",
         contextMode: "Context Mode",
       },
@@ -67,7 +67,7 @@ function localesGenerator(options: {
     de: {
       configs: { name: "Name" },
       toggles: {
-        validateInput: "Validieren",
+        validateInput: "Daten validieren",
         errorPort: "Fehler-Port",
         completePort: "Abschluss-Port",
         statusPort: "Status-Port",
@@ -81,7 +81,7 @@ function localesGenerator(options: {
       outputs: {
         port: "Port",
         label: "Bezeichnung",
-        validate: "Validieren",
+        validate: "Daten validieren",
         returnProperty: "Rückgabe-Eigenschaft",
         contextMode: "Kontextmodus",
       },
@@ -105,7 +105,7 @@ function localesGenerator(options: {
     "es-ES": {
       configs: { name: "Nombre" },
       toggles: {
-        validateInput: "Validar",
+        validateInput: "Validar datos",
         errorPort: "Puerto de error",
         completePort: "Puerto de completado",
         statusPort: "Puerto de estado",
@@ -119,7 +119,7 @@ function localesGenerator(options: {
       outputs: {
         port: "Puerto",
         label: "Etiqueta",
-        validate: "Validar",
+        validate: "Validar datos",
         returnProperty: "Propiedad de retorno",
         contextMode: "Modo de contexto",
       },
@@ -143,7 +143,7 @@ function localesGenerator(options: {
     fr: {
       configs: { name: "Nom" },
       toggles: {
-        validateInput: "Valider",
+        validateInput: "Valider les données",
         errorPort: "Port d'erreur",
         completePort: "Port de complétion",
         statusPort: "Port de statut",
@@ -157,7 +157,7 @@ function localesGenerator(options: {
       outputs: {
         port: "Port",
         label: "Libellé",
-        validate: "Valider",
+        validate: "Valider les données",
         returnProperty: "Propriété de retour",
         contextMode: "Mode de contexte",
       },
@@ -181,7 +181,7 @@ function localesGenerator(options: {
     ko: {
       configs: { name: "이름" },
       toggles: {
-        validateInput: "검증",
+        validateInput: "데이터 검증",
         errorPort: "오류 포트",
         completePort: "완료 포트",
         statusPort: "상태 포트",
@@ -195,7 +195,7 @@ function localesGenerator(options: {
       outputs: {
         port: "포트",
         label: "레이블",
-        validate: "검증",
+        validate: "데이터 검증",
         returnProperty: "반환 속성",
         contextMode: "컨텍스트 모드",
       },
@@ -219,7 +219,7 @@ function localesGenerator(options: {
     "pt-BR": {
       configs: { name: "Nome" },
       toggles: {
-        validateInput: "Validar",
+        validateInput: "Validar dados",
         errorPort: "Porta de Erro",
         completePort: "Porta de Conclusão",
         statusPort: "Porta de Status",
@@ -233,7 +233,7 @@ function localesGenerator(options: {
       outputs: {
         port: "Porta",
         label: "Rótulo",
-        validate: "Validar",
+        validate: "Validar dados",
         returnProperty: "Propriedade de retorno",
         contextMode: "Modo de contexto",
       },
@@ -257,7 +257,7 @@ function localesGenerator(options: {
     ru: {
       configs: { name: "Имя" },
       toggles: {
-        validateInput: "Проверять",
+        validateInput: "Проверять данные",
         errorPort: "Порт ошибки",
         completePort: "Порт завершения",
         statusPort: "Порт статуса",
@@ -271,7 +271,7 @@ function localesGenerator(options: {
       outputs: {
         port: "Порт",
         label: "Метка",
-        validate: "Проверять",
+        validate: "Проверять данные",
         returnProperty: "Свойство возврата",
         contextMode: "Режим контекста",
       },
@@ -295,7 +295,7 @@ function localesGenerator(options: {
     ja: {
       configs: { name: "名前" },
       toggles: {
-        validateInput: "検証",
+        validateInput: "データを検証",
         errorPort: "エラーポート",
         completePort: "完了ポート",
         statusPort: "ステータスポート",
@@ -309,7 +309,7 @@ function localesGenerator(options: {
       outputs: {
         port: "ポート",
         label: "ラベル",
-        validate: "検証",
+        validate: "データを検証",
         returnProperty: "戻りプロパティ",
         contextMode: "コンテキストモード",
       },
@@ -333,7 +333,7 @@ function localesGenerator(options: {
     "zh-CN": {
       configs: { name: "名称" },
       toggles: {
-        validateInput: "验证",
+        validateInput: "验证数据",
         errorPort: "错误端口",
         completePort: "完成端口",
         statusPort: "状态端口",
@@ -347,7 +347,7 @@ function localesGenerator(options: {
       outputs: {
         port: "端口",
         label: "标签",
-        validate: "验证",
+        validate: "验证数据",
         returnProperty: "返回属性",
         contextMode: "上下文模式",
       },
@@ -370,7 +370,7 @@ function localesGenerator(options: {
     "zh-TW": {
       configs: { name: "名稱" },
       toggles: {
-        validateInput: "驗證",
+        validateInput: "驗證資料",
         errorPort: "錯誤端口",
         completePort: "完成端口",
         statusPort: "狀態端口",
@@ -384,7 +384,7 @@ function localesGenerator(options: {
       outputs: {
         port: "端口",
         label: "標籤",
-        validate: "驗證",
+        validate: "驗證資料",
         returnProperty: "返回屬性",
         contextMode: "內容模式",
       },

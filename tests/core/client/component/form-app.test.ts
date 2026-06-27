@@ -80,7 +80,7 @@ describe("app shell — input validation", () => {
         outputPorts: [],
       },
     });
-    expect(toggleFor(component.container, "Validate")).toBeTruthy();
+    expect(toggleFor(component.container, "Validate Data")).toBeTruthy();
   });
 
   test("toggling Validate writes validateInput on the node", async () => {
@@ -94,7 +94,9 @@ describe("app shell — input validation", () => {
       },
     });
 
-    toggleFor(component.container, "Validate").querySelector("input")!.click();
+    toggleFor(component.container, "Validate Data")
+      .querySelector("input")!
+      .click();
 
     await vi.waitFor(() => {
       expect(node.validateInput).toBe(true);
@@ -249,7 +251,7 @@ describe("app shell — Outputs table", () => {
     );
   });
 
-  test("the validate checkbox writes validateOutputs[port]", async () => {
+  test("the validate toggle writes validateOutputs[port]", async () => {
     const { node, component } = renderApp({
       configs: { name: "x" },
       schema: nameSchema(),
