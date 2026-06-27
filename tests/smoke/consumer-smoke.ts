@@ -2,7 +2,7 @@
 //
 // Proves the *publishable* artifacts work for a downstream nrg project. It
 // builds and packs the toolkit + runtime tarballs (honoring
-// publishConfig.directory="dist"), installs them into a copy of the
+// publishConfig.directory="dist/toolkit"), installs them into a copy of the
 // tests/fixtures/smoke-consumer folder OUTSIDE the workspace, and then runs the
 // three things a consumer actually does:
 //
@@ -280,6 +280,8 @@ function testEsmBoot(consumerDir: string): void {
     const out = execSync(`"${process.execPath}" "${probe}"`, {
       cwd: consumerDir,
       encoding: "utf-8",
+      // Fail fast if a boot hangs instead of blocking until the CI job timeout.
+      timeout: 60_000,
     });
     assert(
       out.includes("ESM_BOOT_OK"),

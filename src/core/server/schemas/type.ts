@@ -46,12 +46,14 @@ function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
  * `StringFormatOption` covers the standard JSON Schema formats (`email`,
  * `date-time`, `uri`, `uuid`, `ipv4`, …); this adds the ajv-formats (full mode)
  * that TypeBox omits but `addFormats()` in `core/validator.ts` registers —
- * notably `password`, which drives the editor's password input. The trailing
- * `(string & {})` inside `StringFormatOption` still accepts any string, so the
- * extra literals only enrich autocomplete; they never restrict what compiles.
+ * notably `password`, which drives the editor's password input — plus NRG's own
+ * `node-id` (registered in the core validation modules). The trailing `({} & string)`
+ * inside `StringFormatOption` still accepts any string, so the extra literals
+ * only enrich autocomplete; they never restrict what compiles.
  */
 type NrgStringFormat =
   | StringFormatOption
+  | "node-id"
   | "password"
   | "byte"
   | "binary"
@@ -185,6 +187,22 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
     for (const prop of Object.values(schema.properties)) {
       markNonValidatable(prop as TSchema);
     }
+  }
+
+  // Record schemas (SchemaType.Record, OutputReturnProperties/ContextModes) put
+  // their value schema under patternProperties / additionalProperties, not
+  // properties — recurse so a non-JSON Record value is marked too.
+  if (schema.patternProperties) {
+    for (const prop of Object.values(schema.patternProperties)) {
+      markNonValidatable(prop as TSchema);
+    }
+  }
+
+  if (
+    schema.additionalProperties &&
+    typeof schema.additionalProperties === "object"
+  ) {
+    markNonValidatable(schema.additionalProperties as TSchema);
   }
 
   if (schema.items) {

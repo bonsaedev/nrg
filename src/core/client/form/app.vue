@@ -88,6 +88,7 @@
             <td class="nrg-outputs-flag">
               <NodeRedToggle
                 :model-value="validateOutputFor(port.index)"
+                :aria-label="`${resolveLabel('outputs.validate', 'Validate Data')} — ${port.label}`"
                 @update:model-value="
                   (val: boolean) => setValidateOutput(port.index, val)
                 "
@@ -595,10 +596,11 @@ export default defineComponent({
 }
 
 .nrg-outputs-flag {
-  /* Wide enough to keep the "Validate Data" header on one line; the extra
-     width is taken from the auto columns (mostly the roomy Label column). */
+  /* Wide enough to keep the English "Validate Data" header on one line; the
+     extra width is taken from the auto columns (mostly the roomy Label column).
+     No nowrap: longer localized headers wrap to two lines instead of clipping
+     under table-layout:fixed + overflow:hidden. */
   width: 116px;
-  white-space: nowrap;
 }
 
 /* Center the toggle in the cell (the wrapper is inline-flex). */

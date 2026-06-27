@@ -126,49 +126,5 @@ describe("NodeRedValidator", () => {
       const invalid = RED.validator.validate({ id: "has spaces!" }, schema);
       expect(invalid.valid).toBe(false);
     });
-
-    it("should validate flow-id format", () => {
-      const RED = createRED();
-      initValidator(RED);
-
-      const schema = {
-        $id: "flow-id-format-test",
-        type: "object",
-        properties: {
-          flowId: { type: "string", format: "flow-id" },
-        },
-      };
-
-      const valid = RED.validator.validate(
-        { flowId: "abcdef0123456789" },
-        schema,
-      );
-      expect(valid.valid).toBe(true);
-
-      const invalid = RED.validator.validate({ flowId: "too-short" }, schema);
-      expect(invalid.valid).toBe(false);
-    });
-
-    it("should validate topic-path format", () => {
-      const RED = createRED();
-      initValidator(RED);
-
-      const schema = {
-        $id: "topic-path-format-test",
-        type: "object",
-        properties: {
-          topic: { type: "string", format: "topic-path" },
-        },
-      };
-
-      const valid = RED.validator.validate(
-        { topic: "devices/sensor_1/data" },
-        schema,
-      );
-      expect(valid.valid).toBe(true);
-
-      const invalid = RED.validator.validate({ topic: "has spaces!" }, schema);
-      expect(invalid.valid).toBe(false);
-    });
   });
 });

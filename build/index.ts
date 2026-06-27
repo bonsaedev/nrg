@@ -12,7 +12,6 @@ import {
 } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildSync } from "esbuild";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
 
@@ -44,18 +43,6 @@ const RUNTIME_SRC = path.resolve(ROOT, "build/runtime");
 const DTS_FLAGS =
   "--no-check --project tsconfig.dts.json --export-referenced-types=false";
 
-// Defines __dirname/__filename (from import.meta.url) at the top of an ESM
-// bundle. Core-server code (api/assets.ts) reads __dirname to locate the editor
-// assets; esbuild leaves it a free reference under --format=esm, so any ESM
-// bundle that pulls that path in (the server test helpers) ReferenceErrors at
-// boot without this. Node-only — never apply to client bundles (no node:
-// builtins in the browser).
-const ESM_CJS_SHIM =
-  'import { fileURLToPath as __nrgFileURLToPath } from "url";\n' +
-  'import { dirname as __nrgDirname } from "path";\n' +
-  "var __filename = __nrgFileURLToPath(import.meta.url);\n" +
-  "var __dirname = __nrgDirname(__filename);\n";
-
 /** Bundle one entry with esbuild (bundled, deps external, node platform). */
 function esbuildBundle(
   entry: string,
@@ -63,43 +50,91 @@ function esbuildBundle(
     format = "esm",
     outfile,
     outdir,
-    cjsShim = false,
     external = [],
   }: {
     format?: string;
     outfile?: string;
     outdir?: string;
-    cjsShim?: boolean;
     // Force-external specifiers that a tsconfig `paths` map would otherwise
     // make esbuild resolve to source and inline. `--packages=external` only
     // covers BARE specifiers, so `@bonsae/nrg/server` (mapped to src for tsc)
     // gets inlined without this — duplicating Node/registerTypes and breaking
-    // the consumer's `instanceof Node` at registration.
+    // the consumer's `instanceof Node` at registration. assertEsmTestBundles()
+    // re-checks this invariant on every build.
     external?: string[];
   },
 ): void {
-  // The CJS-shim banner has quotes/newlines that don't survive shell quoting
-  // cross-platform, so route shimmed bundles through esbuild's JS API instead
-  // of the CLI.
-  if (cjsShim && format === "esm") {
-    buildSync({
-      entryPoints: [entry],
-      bundle: true,
-      packages: "external",
-      format: "esm",
-      platform: "node",
-      ...(outfile ? { outfile } : { outdir: outdir! }),
-      ...(external.length ? { external } : {}),
-      banner: { js: ESM_CJS_SHIM },
-    });
-    return;
-  }
   const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
-  const ext = external.map((e) => `--external:${e}`).join(" ");
-  execSync(
-    `esbuild ${entry} --bundle --packages=external --format=${format} --platform=node ${ext} ${out}`,
-    { stdio: "inherit" },
+  const flags = [
+    "--bundle",
+    "--packages=external",
+    `--format=${format}`,
+    "--platform=node",
+    ...external.map((e) => `--external:${e}`),
+    out,
+  ];
+  execSync(`esbuild ${entry} ${flags.join(" ")}`, { stdio: "inherit" });
+}
+
+/**
+ * Post-build invariant guard for the published server test bundles. They are
+ * ESM and must NOT inline core-server VALUES: a regression here ships broken to
+ * consumers (Node's strict native ESM resolver) yet is invisible in-repo, where
+ * source is a single identity and the source-aliased tests run fine. We hit
+ * this class three times in 0.26.x — an extensionless `ajv/dist/compile/rules`
+ * import, an ESM-undefined `__dirname` from inlined assets.ts, and a duplicated
+ * `Node`/registerTypes identity that broke `instanceof Node` at registration.
+ * This deterministic, dependency-free check fails the build the instant any of
+ * them reappears (e.g. someone drops the integration entry's `external`).
+ */
+function assertEsmTestBundles(): void {
+  const entries = [
+    "test/server/unit/index.js",
+    "test/server/unit/config.js",
+    "test/server/integration/index.js",
+    "test/server/integration/config.js",
+  ];
+  const problems: string[] = [];
+  const deepImport =
+    /\bfrom\s+"([a-z@][^"]*\/(?:dist|lib|build|cjs|esm|src)\/[^"]*)"/g;
+  for (const rel of entries) {
+    const code = readFileSync(path.join(DIST, rel), "utf-8");
+    // (1) No CJS globals in an ESM bundle (the inlined-assets.ts __dirname bug).
+    if (/\b__dirname\b/.test(code) || /\b__filename\b/.test(code)) {
+      problems.push(`${rel}: references __dirname/__filename in an ESM bundle`);
+    }
+    // (2) Deep package imports must carry a file extension — Node's native ESM
+    //     resolver won't resolve a bare "pkg/dist/x" not in the package exports.
+    for (const m of code.matchAll(deepImport)) {
+      if (!/\.(js|cjs|mjs|json)$/.test(m[1])) {
+        problems.push(`${rel}: extensionless deep import "${m[1]}"`);
+      }
+    }
+  }
+  // (3) The integration entry must keep @bonsae/nrg/server external and inline
+  //     no core-server values (the 0.26.2 instanceof-Node regression).
+  const integ = readFileSync(
+    path.join(DIST, "test/server/integration/index.js"),
+    "utf-8",
   );
+  if (!/\bfrom\s+"@bonsae\/nrg\/server"/.test(integ)) {
+    problems.push(
+      "test/server/integration/index.js: @bonsae/nrg/server is not external (core server inlined → duplicate Node identity)",
+    );
+  }
+  for (const marker of ["initValidator", "initRoutes"]) {
+    if (integ.includes(marker)) {
+      problems.push(
+        `test/server/integration/index.js: inlines core-server "${marker}" (must resolve via the external @bonsae/nrg/server)`,
+      );
+    }
+  }
+  if (problems.length) {
+    throw new Error(
+      "ESM test-bundle invariant violated:\n  - " + problems.join("\n  - "),
+    );
+  }
+  console.log("✓ Verified server test bundles stay ESM-clean & externalized");
 }
 
 /**
@@ -246,15 +281,12 @@ function buildVitePlugin() {
 async function buildTestUtils() {
   esbuildBundle("src/test/server/unit/index.ts", {
     outdir: "dist/toolkit/test/server/unit",
-    cjsShim: true,
   });
   esbuildBundle("src/test/server/unit/config.ts", {
     outdir: "dist/toolkit/test/server/unit",
-    cjsShim: true,
   });
   esbuildBundle("src/test/server/integration/index.ts", {
     outdir: "dist/toolkit/test/server/integration",
-    cjsShim: true,
     // Keep the host's nrg copy: runtime.ts imports registerTypes from here so
     // registration binds to the SAME Node class the consumer's nodes extend
     // (otherwise instanceof Node fails). Externalizing it also stops the bundle
@@ -263,8 +295,8 @@ async function buildTestUtils() {
   });
   esbuildBundle("src/test/server/integration/config.ts", {
     outdir: "dist/toolkit/test/server/integration",
-    cjsShim: true,
   });
+  assertEsmTestBundles();
   // index.ts/setup.ts pull in Vue-touching modules — use vite with the vue
   // plugin. All bare imports are external (consumers resolve them).
   await viteBuild({

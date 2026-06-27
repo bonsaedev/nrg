@@ -220,56 +220,6 @@ describe("custom formats", () => {
       true,
     );
   });
-
-  it("validates flow-id format", () => {
-    const schema = {
-      type: "object",
-      properties: { fid: { type: "string", format: "flow-id" } },
-      additionalProperties: true,
-    };
-    expect(
-      validateNode({ type: "fmt-fid", fid: "abcdef0123456789" }, schema),
-    ).toBe(true);
-    expect(validateNode({ type: "fmt-fid", fid: "not-hex" }, schema)).not.toBe(
-      true,
-    );
-  });
-
-  it("rejects flow-id with wrong length or uppercase", () => {
-    const schema = {
-      type: "object",
-      properties: { fid: { type: "string", format: "flow-id" } },
-      additionalProperties: true,
-    };
-    // 15 chars — too short
-    expect(
-      validateNode({ type: "fmt-fid", fid: "abcdef012345678" }, schema),
-    ).not.toBe(true);
-    // 17 chars — too long
-    expect(
-      validateNode({ type: "fmt-fid", fid: "abcdef01234567890" }, schema),
-    ).not.toBe(true);
-    // uppercase hex — invalid
-    expect(
-      validateNode({ type: "fmt-fid", fid: "ABCDEF0123456789" }, schema),
-    ).not.toBe(true);
-    // empty string — also invalid (regex requires exactly 16 hex chars)
-    expect(validateNode({ type: "fmt-fid", fid: "" }, schema)).not.toBe(true);
-  });
-
-  it("validates topic-path format", () => {
-    const schema = {
-      type: "object",
-      properties: { topic: { type: "string", format: "topic-path" } },
-      additionalProperties: true,
-    };
-    expect(validateNode({ type: "fmt-tp", topic: "a/b/c_1-2" }, schema)).toBe(
-      true,
-    );
-    expect(
-      validateNode({ type: "fmt-tp", topic: "bad path!" }, schema),
-    ).not.toBe(true);
-  });
 });
 
 describe("x-nrg-node-type keyword", () => {

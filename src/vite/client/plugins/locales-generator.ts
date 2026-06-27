@@ -359,9 +359,9 @@ function localesGenerator(options: {
         },
       },
       help: {
-        validateInput: "在 input() 运行前，根据输入模式校验传入消息。",
+        validateInput: "在 input() 运行前，根据输入结构描述校验传入消息。",
         outputs:
-          "按端口的输出设置。验证数据根据端口模式校验发送的值；上下文模式控制如何携带传入消息。",
+          "按端口的输出设置。验证数据根据端口结构描述校验发送的值；上下文模式控制如何携带传入消息。",
         lifecyclePorts:
           "可选的额外输出端口，在出错、完成以及每次状态变化时触发。",
         learnMore: "了解更多",

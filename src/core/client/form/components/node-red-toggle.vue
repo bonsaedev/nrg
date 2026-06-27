@@ -5,6 +5,7 @@
         type="checkbox"
         :checked="modelValue"
         class="nrg-toggle__input"
+        :aria-label="ariaLabel || undefined"
         @change="
           $emit(
             'update:modelValue',
@@ -36,6 +37,13 @@ export default defineComponent({
       default: "",
     },
     icon: {
+      type: String,
+      default: "",
+    },
+    /** Accessible name for the control when no visible `label` is rendered
+     *  (e.g. a bare toggle in a table cell where the column header is the
+     *  visible label but isn't programmatically associated). */
+    ariaLabel: {
       type: String,
       default: "",
     },

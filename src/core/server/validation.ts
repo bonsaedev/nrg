@@ -24,8 +24,6 @@ function initValidator(RED: RED): void {
       ],
       customFormats: {
         "node-id": /^[a-zA-Z0-9-_]+$/,
-        "flow-id": /^[a-f0-9]{16}$/,
-        "topic-path": (data: string) => /^[a-zA-Z0-9/_-]+$/.test(data),
       },
     }),
   };

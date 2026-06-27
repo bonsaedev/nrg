@@ -5,7 +5,7 @@
  * from one definition instead of drifting copies.
  */
 export interface JsonSchemaObjectExtensions {
-  format?: "node-id" | "flow-id" | "topic-path" | (string & {});
+  format?: "node-id" | (string & {});
   /** expose this settings property to the editor via RED.settings */
   exportable?: boolean;
   /** set by SchemaType.NodeRef — the referenced config node type */

@@ -3,9 +3,11 @@ import type { Plugin } from "vite";
 // In production the bundle imports the standalone runtime, which the built
 // node declares as its dependency. In dev there is no install step — Node-RED
 // loads the bundle straight from the output dir — so it must import
-// `@bonsae/nrg/server` (the toolkit, a direct dependency that resolves; its
-// shim forwards to the runtime). Importing the runtime in dev would fail under
-// pnpm, where the runtime is nested under the toolkit, not hoisted.
+// `@bonsae/nrg/server` (the toolkit, a direct dependency that resolves). The
+// toolkit ships its own `./server/index.cjs`, byte-identical to the runtime's
+// copy, so dev node + registration share one nrg identity. Importing the
+// runtime in dev would fail under pnpm, where the runtime is nested under the
+// toolkit, not hoisted.
 function nrgServerSpecifier(isDev: boolean): string {
   return isDev ? "@bonsae/nrg/server" : "@bonsae/nrg-runtime/server";
 }
