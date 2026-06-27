@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.2](https://github.com/bonsaedev/nrg/compare/v0.26.1...v0.26.2) (2026-06-27)
+
+
+### Bug Fixes
+
+* **build:** define __dirname in the ESM server-test bundles so they boot ([08ae930](https://github.com/bonsaedev/nrg/commit/08ae9306200589c83f08e97dda4d449c9c77ee5c))
+
 ## [0.26.1](https://github.com/bonsaedev/nrg/compare/v0.26.0...v0.26.1) (2026-06-27)
 
 
