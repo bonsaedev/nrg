@@ -20,6 +20,12 @@ import { AsyncLocalStorage } from "node:async_hooks";
 interface InputInvocation {
   inputMsg: unknown;
   send: (msg: any) => void;
+  /**
+   * Set by `this.error(message, msg)` once it has emitted to the error port, so
+   * the input handler's catch does not ALSO auto-emit if the same invocation
+   * then throws — one failure must produce exactly one error-port message.
+   */
+  errorEmitted?: boolean;
 }
 
 /**
@@ -229,14 +235,24 @@ abstract class IONode<
       ) => {
         try {
           await createdPromise;
-        } catch {
-          done(new Error("Node failed to initialize"));
+        } catch (initError) {
+          // Surface the real cause from created() instead of a generic message.
+          done(
+            initError instanceof Error
+              ? initError
+              : new Error(String(initError)),
+          );
           return;
         }
 
+        // Own the invocation store here so the catch below can see whether
+        // `this.error(msg)` already emitted to the error port (the ALS run()
+        // scope has exited by the time the catch runs).
+        const store: InputInvocation = { inputMsg: msg, send };
+
         try {
           nodeRedNode.log("Calling input");
-          const result = await this.#input(msg as TInput, send);
+          const result = await this.#input(msg as TInput, store);
 
           // Send to complete port if enabled. Nest the input so a flow
           // resumed off the complete port (e.g. an iterator continuing after
@@ -244,14 +260,20 @@ abstract class IONode<
           // When input() returns a value (e.g. an async node that awaits work
           // and yields its result), it rides the complete port under `output`,
           // so the flow continues with it — `void`/no return keeps today's shape.
-          this.#sendToPort("complete", {
-            ...(msg as Record<string, unknown>),
-            ...(result !== undefined ? { output: result } : {}),
-            complete: {
-              source: this.#nodeSource(),
-            },
-            [INPUT_KEY]: msg,
-          });
+          // Guard before building: the complete-port payload (msg spread +
+          // nodeSource alloc) is otherwise constructed on every successful input
+          // even though the complete port is disabled by default, then discarded
+          // inside #sendToPort.
+          if (this.config.completePort) {
+            this.#sendToPort("complete", {
+              ...(msg as Record<string, unknown>),
+              ...(result !== undefined ? { output: result } : {}),
+              complete: {
+                source: this.#nodeSource(),
+              },
+              [INPUT_KEY]: msg,
+            });
+          }
 
           done();
           nodeRedNode.log("Input processed");
@@ -270,20 +292,22 @@ abstract class IONode<
           // authoritative and Catch-node compatible. Only enumerable own props
           // ride along: `message`/`stack` are non-enumerable, so set extra data
           // as instance properties and keep it serializable.
-          const errorData =
-            error && typeof error === "object"
-              ? { ...(error as Record<string, unknown>) }
-              : {};
-          this.#sendToPort("error", {
-            ...(msg as Record<string, unknown>),
-            error: {
-              ...errorData,
-              name: (error as { name?: string })?.name ?? "Error",
-              message: errorMsg,
-              source: this.#nodeSource(),
-            },
-            [INPUT_KEY]: msg,
-          });
+          if (this.config.errorPort && !store.errorEmitted) {
+            const errorData =
+              error && typeof error === "object"
+                ? { ...(error as Record<string, unknown>) }
+                : {};
+            this.#sendToPort("error", {
+              ...(msg as Record<string, unknown>),
+              error: {
+                ...errorData,
+                name: (error as { name?: string })?.name ?? "Error",
+                message: errorMsg,
+                source: this.#nodeSource(),
+              },
+              [INPUT_KEY]: msg,
+            });
+          }
 
           if (error instanceof Error) {
             nodeRedNode.error(
@@ -307,7 +331,7 @@ abstract class IONode<
     return undefined;
   }
 
-  async #input(msg: TInput, send: (msg: any) => void) {
+  async #input(msg: TInput, store: InputInvocation) {
     const NodeClass = this.constructor as typeof IONode;
     const shouldValidateInput =
       this.config.validateInput ?? NodeClass.validateInput;
@@ -322,7 +346,7 @@ abstract class IONode<
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
     // lives in the store — there is no shared instance field to race on.
-    return await IONode.#invocation.run({ inputMsg: msg, send }, () =>
+    return await IONode.#invocation.run(store, () =>
       Promise.resolve(this.input(msg)),
     );
   }
@@ -545,15 +569,22 @@ abstract class IONode<
 
   public override error(message: string, msg?: any) {
     super.error(message, msg);
-    if (msg) {
+    if (msg && this.config.errorPort) {
       this.#sendToPort("error", {
         ...msg,
         error: {
+          // `name` keeps the error-port payload Catch-node compatible and
+          // consistent with the auto-emit from a thrown error.
+          name: "Error",
           message,
           source: this.#nodeSource(),
         },
         [INPUT_KEY]: msg,
       });
+      // Dedupe: if this call also throws, the input handler's catch must not
+      // emit a second error-port message for the same failure.
+      const store = IONode.#invocation.getStore();
+      if (store) store.errorEmitted = true;
     }
   }
 

@@ -129,7 +129,14 @@ abstract class Node<
             throw error;
           },
         );
-        createdPromise.catch(() => {});
+        // Surface a failed created() as an error status, not just a log. A node
+        // with inputs also reports the failure per-input via done(), but an
+        // input-less node has no handler awaiting createdPromise, so without
+        // this its created() rejection would be logged once and otherwise
+        // silently swallowed while the node stays registered.
+        createdPromise.catch(() => {
+          this.status({ fill: "red", shape: "ring", text: "created() failed" });
+        });
 
         node[WIRE_HANDLERS](this, createdPromise);
       },

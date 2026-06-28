@@ -49,6 +49,12 @@ const TestNode = defineIONode({
       this.error("Explicit error", msg);
       return;
     }
+    if (payload === "error-then-throw") {
+      // A node that logs/routes the error via error(msg) AND then throws must
+      // still produce exactly ONE error-port message (not two).
+      this.error("Logged then threw", msg);
+      throw new Error("Logged then threw");
+    }
     if (payload === "status") {
       this.status({ fill: "green", shape: "dot", text: "ok" });
       return;
@@ -153,8 +159,26 @@ describe("emit ports", () => {
       const errorSends = node.sent("error");
       expect(errorSends).toHaveLength(1);
       expect(errorSends[0].error.message).toBe("Explicit error");
+      // The error payload carries `name` (Catch-node compatible).
+      expect(errorSends[0].error.name).toBe("Error");
       // The data port received nothing.
       expect(node.sent(0)).toHaveLength(0);
+    });
+
+    it("emits exactly one error-port message (with name) when error(msg) is called AND the call throws", async () => {
+      const { node } = await createNode(TestNode, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      await expect(
+        node.receive({ payload: "error-then-throw" }),
+      ).rejects.toThrow("Logged then threw");
+
+      const errorSends = node.sent("error");
+      // Deduped: error(msg) emitted, so the input-handler catch did NOT re-emit.
+      expect(errorSends).toHaveLength(1);
+      expect(errorSends[0].error.name).toBe("Error");
+      expect(errorSends[0].error.message).toBe("Logged then threw");
     });
 
     it("carries a thrown custom error's own properties under msg.error", async () => {
