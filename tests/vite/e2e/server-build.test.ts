@@ -124,6 +124,39 @@ describe("server build", () => {
     });
   });
 
+  describe("dev build (isDev)", () => {
+    let devOutDir: string;
+    let bundleContent: string;
+
+    beforeAll(async () => {
+      devOutDir = path.join(outDir, "dev");
+      fs.mkdirSync(devOutDir, { recursive: true });
+
+      const opts: ServerBuildOptions = {
+        srcDir: path.join(FIXTURE_DIR, "src/server"),
+        entry: "index.ts",
+        format: "esm",
+        bundled: [],
+        types: false,
+        nodeTarget: "node22",
+      };
+
+      await build(opts, { ...buildContext, outDir: devOutDir, isDev: true });
+      bundleContent = fs.readFileSync(
+        path.join(devOutDir, "index.mjs"),
+        "utf-8",
+      );
+    });
+
+    it("keeps the @bonsae/nrg toolkit import (no runtime rewrite)", () => {
+      // A dev build (dev server, or `vite build --mode development` preview) must
+      // import the installed toolkit — @bonsae/nrg-runtime is only resolvable
+      // once the package is published, so rewriting to it would break locally.
+      expect(bundleContent).toContain("@bonsae/nrg/server");
+      expect(bundleContent).not.toContain("@bonsae/nrg-runtime/server");
+    });
+  });
+
   describe("CJS format", () => {
     let cjsOutDir: string;
     let bundleContent: string;

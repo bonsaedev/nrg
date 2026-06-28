@@ -7,6 +7,11 @@ import type {
 
 const DEFAULT_OUTPUT_DIR = "./dist";
 
+// Dev/serve builds land here instead of polluting the project root with `dist`
+// (the publishable artifact, written only by `vite build`). Matches the
+// `.next`/`.nuxt`/`.svelte-kit` convention; add it to the consumer's .gitignore.
+const DEFAULT_DEV_OUTPUT_DIR = "./.nrg";
+
 /**
  * Resources convention root. Drop folders here and the build handles them by
  * name: `icons/` and `locales/{docs,labels}/` run their pipelines, every other
@@ -64,4 +69,5 @@ export {
   DEFAULT_EXTRA_FILES_COPY_TARGETS,
   DEFAULT_RESOURCES_DIR,
   DEFAULT_OUTPUT_DIR,
+  DEFAULT_DEV_OUTPUT_DIR,
 };
