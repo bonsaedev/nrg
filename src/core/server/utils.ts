@@ -42,10 +42,21 @@ function getCredentialsFromSchema(
 
   for (const [key, value] of Object.entries(schema.properties)) {
     const property = value as NodeSchemaOptions;
+    const isPassword = property.format === "password";
+    if (!isPassword) {
+      // A credential without format:"password" is registered as a `text`
+      // credential, which Node-RED returns to the editor in cleartext. Warn so
+      // an author who meant it to be secret adds the password format (rather
+      // than silently defaulting to password, which would break legitimately
+      // visible credential fields like a public client id).
+      console.warn(
+        `[nrg] credential "${key}" has no format:"password" — it is stored as a visible (cleartext-in-editor) credential. Add { format: "password" } to mask it.`,
+      );
+    }
     result[key] = {
       // NOTE: required is always false because it is controlled by the JSON Schema and AJV validation instead of using node-red client core
       required: false,
-      type: property.format === "password" ? "password" : "text",
+      type: isPassword ? "password" : "text",
       value: property.default ?? undefined,
     };
   }
