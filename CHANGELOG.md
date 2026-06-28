@@ -1,5 +1,13 @@
 # Changelog
 
+# [0.28.0](https://github.com/bonsaedev/nrg/compare/v0.27.0...v0.28.0) (2026-06-28)
+
+
+### Features
+
+* **eslint:** add a shared @bonsae/nrg/eslint config for node conventions ([258b58d](https://github.com/bonsaedev/nrg/commit/258b58d26ed7233594939002662fa1d95a3dc860))
+* **vite:** adopt a src/resources convention, drop the locales/icons/copy configs ([ee7ce39](https://github.com/bonsaedev/nrg/commit/ee7ce39e43f15b4bebf98d6f0a83b7d8681dc66f))
+
 # [0.27.0](https://github.com/bonsaedev/nrg/compare/v0.26.3...v0.27.0) (2026-06-28)
 
 
