@@ -6,7 +6,7 @@ This guide walks through creating a complete Node-RED node — from schema defin
 
 Schemas define the shape of your node's configuration. They're used for runtime validation and to auto-generate editor defaults.
 
-Create `src/server/schemas/my-node.ts`:
+Create `src/schemas/my-node.ts`:
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/server";
@@ -569,7 +569,7 @@ import {
   ConfigsSchema,
   CredentialsSchema,
   SettingsSchema,
-} from "../schemas/my-node";
+} from "../../schemas/my-node";
 
 export type Config = Infer<typeof ConfigsSchema>;
 export type Credentials = Infer<typeof CredentialsSchema>;
@@ -1002,7 +1002,7 @@ The `useFormNode` composable gives your form component typed access to the node,
 ```vue
 <script setup lang="ts">
 import { useFormNode } from "@bonsae/nrg/client";
-import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+import type { ConfigsSchema, CredentialsSchema } from "../../schemas/my-node";
 
 const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 
@@ -1035,7 +1035,7 @@ For standalone type inference without the form context, use `Infer`:
 
 ```typescript
 import type { Infer } from "@bonsae/nrg/client";
-import type { ConfigsSchema } from "../../server/schemas/my-node";
+import type { ConfigsSchema } from "../../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 // { name: string; prefix: string; threshold: number; enabled: boolean }
@@ -1081,7 +1081,7 @@ Use this to replace the auto-generated JSON schema form with a fully custom Vue 
 ```vue
 <script setup lang="ts">
 import { useFormNode } from "@bonsae/nrg/client";
-import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+import type { ConfigsSchema, CredentialsSchema } from "../../schemas/my-node";
 
 const { node } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 </script>
@@ -1103,7 +1103,7 @@ This example shows an HTTP request form that conditionally shows/hides fields an
 <script setup lang="ts">
 import { computed } from "vue";
 import { useFormNode } from "@bonsae/nrg/client";
-import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/http-request";
+import type { ConfigsSchema, CredentialsSchema } from "../../schemas/http-request";
 
 const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 
@@ -1315,7 +1315,7 @@ To create a configuration node (e.g., a server connection), extend `ConfigNode`:
 
 ```typescript
 import { ConfigNode, type Schema } from "@bonsae/nrg/server";
-import { ConfigsSchema, type Config } from "../schemas/remote-server";
+import { ConfigsSchema, type Config } from "../../schemas/remote-server";
 
 export default class RemoteServer extends ConfigNode<Config> {
   static readonly type = "remote-server";

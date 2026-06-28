@@ -12,10 +12,10 @@ my-node-red-nodes/
 │   ├── server/
 │   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/server.json
 │   │   ├── index.ts               # Server entry — exports { nodes: [...] }
-│   │   ├── nodes/
-│   │   │   └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
-│   │   └── schemas/
-│   │       └── {type-id}.ts       # TypeBox schema definition
+│   │   └── nodes/
+│   │       └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
+│   ├── schemas/                   # Shared contract — server-value, client-type-only
+│   │   └── {type-id}.ts           # TypeBox schema definition
 │   ├── client/
 │   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/client.json
 │   │   ├── index.ts               # Client entry — registerTypes([...])
@@ -62,9 +62,15 @@ my-node-red-nodes/
 
 ### `src/server/`
 
-Contains the Node.js runtime code. Each node is a TypeScript class extending `IONode` (for message-processing nodes) or `ConfigNode` (for configuration nodes). Schemas live alongside in `schemas/`.
+Contains the Node.js runtime code. Each node is a TypeScript class extending `IONode` (for message-processing nodes) or `ConfigNode` (for configuration nodes).
 
 The entry file (`index.ts`) exports an object with a `nodes` array listing all node classes.
+
+### `src/schemas/`
+
+The TypeBox schemas (config, credentials, input, outputs) — the **shared contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). They live at the top level so neither plane reaches into the other's folder.
+
+They are **server-value / client-type-only**, not dual-plane like `src/shared/`: a schema file imports `@bonsae/nrg/server` (which pulls in TypeBox and the node runtime), so **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
 
 ### `src/client/`
 

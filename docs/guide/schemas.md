@@ -44,7 +44,7 @@ The client package resolves the same schemas to their editor form representation
 
 ```typescript
 import { useFormNode } from "@bonsae/nrg/client";
-import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+import type { ConfigsSchema, CredentialsSchema } from "../../schemas/my-node";
 
 const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 // each field resolves to its editor form: a plain field stays as-is, a NodeRef
@@ -274,6 +274,23 @@ export default class MyNode extends IONode<Config> {
   }
 }
 ```
+
+For **named output ports**, provide a record instead of an array — each key becomes a port, its name shows as the editor label, and `sendToPort()` gets per-port type safety and autocomplete:
+
+```typescript
+export default class MyNode extends IONode<Config> {
+  static readonly outputsSchema = {
+    success: SuccessSchema,
+    failure: FailureSchema,
+  };
+
+  async input(msg: Input) {
+    this.sendToPort("success", { payload: "ok" });
+  }
+}
+```
+
+So `outputsSchema` takes three shapes: a single `Schema` (one port), a `Schema[]` (N positional ports), or a `Record<string, Schema>` (N named ports). See [Named Output Ports](./creating-a-node#named-output-ports) for the full treatment.
 
 ## Non-data inputs & outputs {#non-data-ports}
 
