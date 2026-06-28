@@ -1,55 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { debounce, withTimeout, retry } from "@/vite/async-utils";
+import { withTimeout, retry } from "@/vite/async-utils";
 
-describe("debounce", () => {
-  it("should delay execution", async () => {
-    vi.useFakeTimers();
-    const fn = vi.fn();
-    const debounced = debounce(fn, 100);
-
-    debounced();
-    expect(fn).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(100);
-    expect(fn).toHaveBeenCalledOnce();
-
-    vi.useRealTimers();
-  });
-
-  it("should cancel previous call on rapid invocations", async () => {
-    vi.useFakeTimers();
-    const fn = vi.fn();
-    const debounced = debounce(fn, 100);
-
-    debounced("a");
-    debounced("b");
-    debounced("c");
-
-    vi.advanceTimersByTime(100);
-    expect(fn).toHaveBeenCalledOnce();
-    expect(fn).toHaveBeenCalledWith("c");
-
-    vi.useRealTimers();
-  });
-
-  it("should allow separate calls after delay", async () => {
-    vi.useFakeTimers();
-    const fn = vi.fn();
-    const debounced = debounce(fn, 100);
-
-    debounced("first");
-    vi.advanceTimersByTime(100);
-
-    debounced("second");
-    vi.advanceTimersByTime(100);
-
-    expect(fn).toHaveBeenCalledTimes(2);
-    expect(fn).toHaveBeenNthCalledWith(1, "first");
-    expect(fn).toHaveBeenNthCalledWith(2, "second");
-
-    vi.useRealTimers();
-  });
-});
+// `debounce` was removed from async-utils in favour of es-toolkit's `debounce`
+// (single implementation across the client + the vite plugin); es-toolkit tests
+// its own debounce, so there's nothing to cover here.
 
 describe("withTimeout", () => {
   it("should resolve when promise completes before timeout", async () => {

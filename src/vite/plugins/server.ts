@@ -10,7 +10,7 @@ const color = {
   yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
 };
 import type { ServerPluginOptions } from "../types";
-import { debounce } from "../async-utils";
+import { debounce } from "es-toolkit";
 import { BuildError, NodeRedStartError } from "../errors";
 import { logger } from "../logger";
 import { cleanDir, copyFiles } from "../utils";

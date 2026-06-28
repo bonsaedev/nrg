@@ -1,15 +1,3 @@
-function debounce<T extends (...args: any[]) => any>(
-  fn: T,
-  delay: number,
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-
-  return (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => fn(...args), delay);
-  };
-}
-
 function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
@@ -58,4 +46,4 @@ async function retry<T>(
   throw lastError;
 }
 
-export { debounce, withTimeout, retry };
+export { withTimeout, retry };
