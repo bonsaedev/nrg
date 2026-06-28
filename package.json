@@ -54,6 +54,7 @@
       "types": "./dist/toolkit/types/vite.d.ts",
       "default": "./dist/toolkit/vite/index.js"
     },
+    "./eslint": "./dist/toolkit/eslint/index.js",
     "./test/server/unit": {
       "types": "./dist/toolkit/types/test-server-unit.d.ts",
       "default": "./dist/toolkit/test/server/unit/index.js"

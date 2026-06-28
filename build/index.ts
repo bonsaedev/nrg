@@ -278,6 +278,16 @@ function buildVitePlugin() {
   console.log("✓ Built vite plugin → dist/toolkit/vite/");
 }
 
+function buildEslintConfig() {
+  // The shared ESLint conventions (@bonsae/nrg/eslint), spread into a consumer's
+  // flat config. Self-contained (no eslint type-import in the bundle), so it
+  // emits like the test configs — values only, no .d.ts.
+  esbuildBundle("src/eslint/index.ts", {
+    outfile: "dist/toolkit/eslint/index.js",
+  });
+  console.log("✓ Built eslint config → dist/toolkit/eslint/index.js");
+}
+
 async function buildTestUtils() {
   esbuildBundle("src/test/server/unit/index.ts", {
     outdir: "dist/toolkit/test/server/unit",
@@ -631,6 +641,7 @@ async function main() {
   // Toolkit surface.
   buildRootEntry();
   buildVitePlugin();
+  buildEslintConfig();
   await buildTestUtils();
   // Core (shared) values: server CJS + editor client asset.
   buildCoreServer();
