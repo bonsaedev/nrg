@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.1](https://github.com/bonsaedev/nrg/compare/v0.28.0...v0.28.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **vite:** resolve dev-vs-publish from vite command; build dev to .nrg ([7c28878](https://github.com/bonsaedev/nrg/commit/7c2887825565de40d45b7850a50b9291ede59ae2))
+
 # [0.28.0](https://github.com/bonsaedev/nrg/compare/v0.27.0...v0.28.0) (2026-06-28)
 
 
