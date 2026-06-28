@@ -2,41 +2,92 @@ import type {
   TSchema,
   TProperties,
   TString,
+  TUnsafe,
   ObjectOptions,
   StringOptions,
   StringFormatOption,
 } from "@sinclair/typebox";
 import type { Schema, NrgSchemaOptions } from "./types";
+import type { UnsafeResolved, ConfigNodeBrand } from "../../types";
 import { Type as BaseType, Kind } from "@sinclair/typebox";
 import { TypedInputSchema } from "./base";
 import type { TNodeRef, TTypedInput } from "./types";
-// Deep import needs the explicit .js — ajv has no exports entry for it, so
-// under ESM (the built test/server/integration bundle) a bare specifier fails
-// Node resolution. CJS (server/index.cjs) tolerates either; .js works for both.
-import { isJSONType } from "ajv/dist/compile/rules.js";
 
-/** Creates a schema for a reference to a config node by ID. */
-function NodeRef<T extends (new (...args: any[]) => any) & { type: string }>(
-  nodeClass: T,
+// The seven JSON Schema primitive type names. Reimplemented locally rather than
+// importing AJV's private `ajv/dist/compile/rules.js` — that deep path resolves
+// only because AJV 8 ships no `exports` map, so a future AJV that adds one would
+// break every consumer at load time (and this module is on the browser-safe
+// shared authoring surface).
+const JSON_TYPES = new Set([
+  "null",
+  "boolean",
+  "object",
+  "array",
+  "number",
+  "integer",
+  "string",
+]);
+function isJSONType(value: unknown): boolean {
+  return typeof value === "string" && JSON_TYPES.has(value);
+}
+
+/** A constructor type — used to detect when the NodeRef generic is a class. */
+type AnyConstructor = abstract new (...args: any[]) => any;
+
+/** Resolves the NodeRef generic: a class → its instance, anything else → itself. */
+type NodeRefInstance<T> = T extends AnyConstructor ? InstanceType<T> : T;
+
+/**
+ * What the `NodeRef<T>` generic accepts: a config node instance type, or its
+ * constructor. Both carry {@link ConfigNodeBrand} (declared by `ConfigNode` /
+ * `IConfigNode`), so `NodeRef<string>` or `NodeRef<{ host: string }>` is a
+ * compile error while any real config class passes. Constrained via the shared
+ * brand so this browser-safe module never imports the server `ConfigNode` type.
+ */
+type ConfigNodeRef =
+  | ConfigNodeBrand
+  | (abstract new (...args: any[]) => ConfigNodeBrand);
+
+/**
+ * Creates a schema for a reference to a config node by its registered `type`.
+ *
+ * Pass the node `type` string at runtime and the config class as a *type-only*
+ * generic: `SchemaType.NodeRef<BrokerConfig>("broker-config")`. The generic is
+ * erased at compile time, so this never value-imports the config class and the
+ * call stays safe to evaluate in the browser/editor bundle (where server node
+ * classes don't exist). The runtime payload is identical on both planes.
+ *
+ * Type resolution is per-plane and unchanged: on the server `this.config.<ref>`
+ * still resolves to the referenced node *instance* (`BrokerConfig`, with all its
+ * props/methods); on the client the same field resolves to the node id `string`.
+ * The generic accepts either the class (`NodeRef<BrokerConfig>`) or an instance
+ * type (`NodeRef<BrokerConfigInstance>`); omit it for an untyped (`unknown`) ref.
+ */
+function NodeRef<T extends ConfigNodeRef = ConfigNodeBrand>(
+  type: string,
   options?: NrgSchemaOptions,
-): TNodeRef<InstanceType<T>> {
+): TNodeRef<NodeRefInstance<T>> {
   return {
     ...BaseType.String({
-      description: options?.description || `Reference to ${nodeClass.type}`,
-      format: "node-id",
+      description: options?.description || `Reference to ${type}`,
     }),
-    "x-nrg-node-type": nodeClass.type,
+    // `...options` first so user options (description, x-nrg-form, …) apply, but
+    // the framework keys below win — a caller can't clobber `format`/
+    // `x-nrg-node-type`/`Kind` and silently break NodeRef resolution.
     ...options,
+    format: "node-id",
+    "x-nrg-node-type": type,
     [Kind]: "NodeRef",
-  } as unknown as TNodeRef<InstanceType<T>>;
+  } as unknown as TNodeRef<NodeRefInstance<T>>;
 }
 
 /** Creates a schema for a Node-RED TypedInput (value + type pair). */
 function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
   return {
     ...TypedInputSchema,
-    "x-nrg-typed-input": true,
+    // `...options` first; the framework key below wins (see NodeRef).
     ...options,
+    "x-nrg-typed-input": true,
     [Kind]: "TypedInput",
   } as unknown as TTypedInput<T>;
 }
@@ -145,6 +196,18 @@ function OutputContextModes(
 }
 
 /**
+ * Identical to TypeBox's `Type.Unsafe` at runtime (no validation), but brands
+ * the static type as {@link UnsafeResolved} so the per-plane resolvers pass `T`
+ * through unchanged. Without the brand a class instance (`Unsafe<Connection>`)
+ * is deep-mapped into a structural object and loses its private/`#` members,
+ * making it unassignable to `Connection`. The brand is phantom — runtime output
+ * is exactly TypeBox's empty/`options` schema.
+ */
+function NrgUnsafe<T = unknown>(options?: object): TUnsafe<UnsafeResolved<T>> {
+  return BaseType.Unsafe(options) as unknown as TUnsafe<UnsafeResolved<T>>;
+}
+
+/**
  * Extended TypeBox type builder with NRG-specific schema types.
  * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput},
  * {@link OutputReturnProperties} and {@link OutputContextModes}.
@@ -155,13 +218,22 @@ function OutputContextModes(
  * validation too but lose the type. For config-node references and typed inputs
  * use {@link NodeRef} / {@link TypedInput} instead. See the Schemas guide.
  */
-const SchemaType = Object.assign({}, BaseType, {
+// The NRG-specific builders. Some (String, Unsafe) shadow a TypeBox builder of
+// the same name: `Object.assign` would otherwise INTERSECT the two function
+// types into an overload and the call could resolve to TypeBox's version — which
+// for `Unsafe` loses the `UnsafeResolved` brand. The explicit type below omits
+// the shadowed keys from TypeBox so the NRG versions are the only ones visible.
+const NrgBuilders = {
   String: NrgString,
+  Unsafe: NrgUnsafe,
   NodeRef,
   TypedInput,
   OutputReturnProperties,
   OutputContextModes,
-});
+};
+
+const SchemaType: Omit<typeof BaseType, keyof typeof NrgBuilders> &
+  typeof NrgBuilders = Object.assign({}, BaseType, NrgBuilders);
 
 function markNonValidatable<T extends TSchema>(schema: T): T {
   const type = (schema as any).type;

@@ -35,5 +35,32 @@ export default typescriptEslint.config(
       ],
     },
   },
+  {
+    // core/shared must stay dual-plane: safe to bundle into both the server
+    // runtime and the editor/browser client. Forbid importing plane-specific
+    // code so the boundary can't drift (a value import would couple the planes).
+    files: ["src/core/shared/**/*.{ts,vue}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/core/server/**",
+                "**/core/client/**",
+                "*/server",
+                "*/client",
+                "@bonsae/nrg/server",
+                "@bonsae/nrg/client",
+              ],
+              message:
+                "src/core/shared must stay dual-plane — import only TypeBox/ajv and other shared modules, never server- or client-only code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintConfigPrettier,
 );

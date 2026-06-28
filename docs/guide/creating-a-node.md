@@ -53,9 +53,9 @@ export const SettingsSchema = defineSchema(
 | `SchemaType.Array(SchemaType.String())` | Textarea (one entry per line) |
 | `SchemaType.Array(SchemaType.String({ enum: [...] }))` | Multi-select dropdown |
 | `SchemaType.Union([SchemaType.Literal(...)])` | Single-select dropdown |
-| `SchemaType.Object(...)` | Text input (stored as JSON) |
+| `SchemaType.Object(...)` | JSON textarea (edited as JSON, stored as a parsed object) |
 | `SchemaType.TypedInput<T>()` | Node-RED TypedInput (value + type pair, resolves to `T`) |
-| `SchemaType.NodeRef(NodeClass)` | Config node selector dropdown |
+| `SchemaType.NodeRef<NodeClass>("node-type")` | Config node selector dropdown |
 
 ### Customizing Form Rendering with `x-nrg-form`
 
@@ -89,7 +89,7 @@ export const ConfigsSchema = defineSchema(
     url: SchemaType.String({ default: "", "x-nrg-form": { icon: "globe" } }),
     timeout: SchemaType.Number({ default: 5000, "x-nrg-form": { icon: "clock-o" } }),
     enabled: SchemaType.Boolean({ default: true, "x-nrg-form": { icon: "check", toggle: true } }),
-    server: SchemaType.NodeRef(RemoteServer, { "x-nrg-form": { icon: "server" } }),
+    server: SchemaType.NodeRef<RemoteServer>("remote-server", { "x-nrg-form": { icon: "server" } }),
     endpoint: SchemaType.TypedInput({
       "x-nrg-form": { icon: "plug", typedInputTypes: ["str", "msg", "flow"] },
     }),
@@ -367,18 +367,26 @@ async input(msg: Input) {
 
 ### NodeRef (Config Node Reference)
 
-A `NodeRef` creates a typed reference to a config node:
+A `NodeRef` creates a typed reference to a config node. Pass the config node's
+registered `type` string at runtime, and the config class as a **type-only**
+generic:
 
 ```typescript
-import RemoteServer from "../nodes/remote-server";
+import type RemoteServer from "../nodes/remote-server";
 
 export const ConfigsSchema = defineSchema(
   {
-    server: SchemaType.NodeRef(RemoteServer),
+    server: SchemaType.NodeRef<RemoteServer>("remote-server"),
   },
   { $id: "my-node:configs" }
 );
 ```
+
+The generic is erased at compile time, so the schema **never value-imports the
+config class** — keep the import `import type` (as above). That keeps the schema
+safe to evaluate in the editor/browser bundle, where server node classes don't
+exist, while `this.config.server` still resolves to the referenced node
+*instance* on the server and to the node-id `string` on the client.
 
 In a custom form, use `<NodeRedConfigInput>`:
 
@@ -984,7 +992,7 @@ The client package uses the same TypeBox schemas defined on the server to provid
 | `SchemaType.String()` | `string` | `string` |
 | `SchemaType.Number()` | `number` | `number` |
 | `SchemaType.Boolean()` | `boolean` | `boolean` |
-| `SchemaType.NodeRef(T)` | Config node instance (`T`) | `string` (node ID) |
+| `SchemaType.NodeRef<T>("type")` | Config node instance (`T`) | `string` (node ID) |
 | `SchemaType.TypedInput<T>()` | `TypedInput<T>` (with `.resolve()`) | `{ value: string; type: string }` |
 
 #### `useFormNode` (recommended)
@@ -1458,11 +1466,11 @@ Nodes created with `defineIONode` and `defineConfigNode` work with `NodeRef` the
 
 ```typescript
 import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
-import MyBroker from "./my-broker";
+import type MyBroker from "./my-broker";
 
 const ConfigsSchema = defineSchema(
   {
-    broker: SchemaType.NodeRef(MyBroker),
+    broker: SchemaType.NodeRef<MyBroker>("my-broker"),
     topic: SchemaType.String({ default: "test/topic" }),
   },
   { $id: "my-subscriber:configs" },

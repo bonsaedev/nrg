@@ -27,6 +27,10 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
   public static override readonly category: string = "config";
   declare public readonly config: ConfigNodeConfig<TConfig>;
 
+  // Phantom marker (type-only, no runtime field) so `SchemaType.NodeRef<T>` can
+  // require T to be a config node. See ConfigNodeBrand in core/types.
+  declare public readonly __nrg_config_node: true;
+
   protected override readonly context: ConfigNodeContext;
 
   constructor(

@@ -10,6 +10,7 @@ import type {
 } from "./node";
 import type { InferOr } from "../../schemas/types";
 import type { ConfigNodeConfigSchema } from "../../schemas";
+import type { ConfigNodeBrand } from "../../../types";
 
 type ConfigNodeContextScope = Exclude<NodeContextScope, "flow">;
 
@@ -31,11 +32,8 @@ type BoundConfigNode<
 > = ConfigNode<InferOr<TC, any>, InferOr<TCr, any>, InferOr<TS, any>>;
 
 /** Public instance interface for config nodes. Implemented by {@link ConfigNode}. */
-interface IConfigNode<
-  TConfig = any,
-  TCredentials = any,
-  TSettings = any,
-> extends INode<TConfig, TCredentials, TSettings> {
+interface IConfigNode<TConfig = any, TCredentials = any, TSettings = any>
+  extends INode<TConfig, TCredentials, TSettings>, ConfigNodeBrand {
   readonly config: ConfigNodeConfig<TConfig>;
   readonly credentials: ConfigNodeCredentials<TCredentials> | undefined;
   readonly userIds: string[];

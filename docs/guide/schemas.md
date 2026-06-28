@@ -25,7 +25,7 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-The `$id` is required and must be unique across all schemas. It's used as the AJV cache key.
+The `$id` is optional but strongly recommended: when present it must be unique across all schemas and is used as the AJV cache key. If omitted, a per-schema cache key is derived from the node type.
 
 ## Type Inference
 
@@ -47,7 +47,8 @@ import { useFormNode } from "@bonsae/nrg/client";
 import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
 
 const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
-// node.name → string, node.server → string (NodeRef), node.target → { value, type }
+// each field resolves to its editor form: a plain field stays as-is, a NodeRef
+// field → string (node id), a TypedInput field → { value: string; type: string }
 ```
 
 Note the `import type` — it is erased at build time, so it's safe. Never **value**-import a server schema module into client or browser code (including component tests): the module imports `defineSchema`/`SchemaType` from `@bonsae/nrg/server`, which is Node-only. In component tests, resolve schemas by node `type` via `createNode({ type })` instead — see [Testing › Resolving schemas by node type](/guide/testing#resolving-schemas-by-node-type).
@@ -329,8 +330,10 @@ inputs.
 Don't reach for `Unsafe` here — these have first-class builders the editor and
 the client type-resolver understand, and skipping them loses both:
 
-- **Config-node reference** → `SchemaType.NodeRef(TheConfigClass)` — stored as the
-  node id; resolves to `string` on the client.
+- **Config-node reference** → `SchemaType.NodeRef<TheConfigClass>("the-config-type")`
+  — stored as the node id; resolves to `string` on the client. The class is a
+  type-only generic (import it with `import type`); only the `type` string is
+  passed at runtime.
 - **Typed input** → `SchemaType.TypedInput()` — resolves to `{ value, type }`.
 :::
 
@@ -339,7 +342,7 @@ the client type-resolver understand, and skipping them loses both:
 | Builder | Validates | Static type | Use when |
 | --- | --- | --- | --- |
 | `SchemaType.Object({ … })` | yes | inferred | plain data |
-| `SchemaType.NodeRef(Cfg)` | yes | `string` (node id) | a config-node reference |
+| `SchemaType.NodeRef<Cfg>("cfg-type")` | yes | `string` (node id) | a config-node reference |
 | `SchemaType.TypedInput()` | yes | `{ value, type }` | a Node-RED TypedInput |
 | `SchemaType.Unsafe<T>()` | no | **`T`** | a non-data value you want typed (function, instance, `Buffer`, stream, connection) |
 | `SchemaType.Any()` | no | `any` | a truly untyped passthrough |

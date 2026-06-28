@@ -30,11 +30,7 @@ describe("SchemaType", () => {
 
   describe("NodeRef", () => {
     it("should create a NodeRef schema with x-nrg-node-type", () => {
-      class MockNode {
-        static type = "remote-server";
-      }
-
-      const s = SchemaType.NodeRef(MockNode as any);
+      const s = SchemaType.NodeRef("remote-server");
       expect(s[Kind]).toBe("NodeRef");
       expect(s["x-nrg-node-type"]).toBe("remote-server");
       expect(s.type).toBe("string");
@@ -42,31 +38,19 @@ describe("SchemaType", () => {
     });
 
     it("should include a default description", () => {
-      class MockNode {
-        static type = "my-config";
-      }
-
-      const s = SchemaType.NodeRef(MockNode as any);
+      const s = SchemaType.NodeRef("my-config");
       expect(s.description).toContain("my-config");
     });
 
     it("should allow custom description", () => {
-      class MockNode {
-        static type = "my-config";
-      }
-
-      const s = SchemaType.NodeRef(MockNode as any, {
+      const s = SchemaType.NodeRef("my-config", {
         description: "Custom desc",
       });
       expect(s.description).toBe("Custom desc");
     });
 
     it("should pass through x-nrg-form options", () => {
-      class MockNode {
-        static type = "my-config";
-      }
-
-      const s = SchemaType.NodeRef(MockNode as any, {
+      const s = SchemaType.NodeRef("my-config", {
         "x-nrg-form": { icon: "server" },
       });
       expect(s["x-nrg-form"]).toEqual({ icon: "server" });

@@ -52,11 +52,14 @@ function setupConfigProxy<T extends object>(
 
         const value = target[prop];
 
-        if (
-          typeof value === "string" &&
-          value.length > 0 &&
-          nodeRefProps.has(prop)
-        ) {
+        if (nodeRefProps.has(prop)) {
+          // An unset reference (empty/non-string id) resolves to `undefined`
+          // rather than the raw `""` — `""` is typed as the node instance, so
+          // `this.config.ref.method()` would throw the opaque
+          // `"".method is not a function`. `undefined` makes falsy-guards and
+          // optional chaining behave. A set-but-unresolved id falls back to the
+          // raw id (the node may register later).
+          if (typeof value !== "string" || value.length === 0) return undefined;
           return RED.nodes.getNode(value)?._node ?? value;
         }
 

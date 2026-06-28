@@ -37,7 +37,7 @@ class TestConfigNode extends ConfigNode<TestConfig> {
 const TestIOSchema = defineSchema(
   {
     name: SchemaType.String({ default: "test-io" }),
-    server: SchemaType.NodeRef(TestConfigNode),
+    server: SchemaType.NodeRef<typeof TestConfigNode>("test-config"),
     greeting: SchemaType.String({ default: "hello" }),
   },
   { $id: "test-helpers:io-config" },

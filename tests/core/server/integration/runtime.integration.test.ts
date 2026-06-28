@@ -35,7 +35,7 @@ const Greeter = defineIONode({
   configSchema: defineSchema(
     {
       name: SchemaType.String({ default: "" }),
-      source: SchemaType.NodeRef(Greeting, {}),
+      source: SchemaType.NodeRef<typeof Greeting>("greeting-config", {}),
     },
     { $id: "greeter:config" },
   ),

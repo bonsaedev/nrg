@@ -26,7 +26,7 @@ describe("setupConfigProxy", () => {
 
       const config = { server: "server-1", name: "test" };
       const schema = defineSchema({
-        server: SchemaType.NodeRef(RemoteServer),
+        server: SchemaType.NodeRef(RemoteServer.type),
         name: SchemaType.String(),
       });
 
@@ -62,7 +62,7 @@ describe("setupConfigProxy", () => {
       const RED = createRED();
       const config = { server: "missing-id" };
       const schema = defineSchema({
-        server: SchemaType.NodeRef(RemoteServer),
+        server: SchemaType.NodeRef(RemoteServer.type),
       });
 
       const proxy = setupConfigProxy({
@@ -74,11 +74,11 @@ describe("setupConfigProxy", () => {
       expect(proxy.server).toBe("missing-id");
     });
 
-    it("should not resolve empty strings", () => {
+    it("resolves an unset (empty) reference to undefined, not the raw string", () => {
       const RED = createRED();
       const config = { server: "" };
       const schema = defineSchema({
-        server: SchemaType.NodeRef(RemoteServer),
+        server: SchemaType.NodeRef(RemoteServer.type),
       });
 
       const proxy = setupConfigProxy({
@@ -87,7 +87,9 @@ describe("setupConfigProxy", () => {
         config,
         schema,
       });
-      expect(proxy.server).toBe("");
+      // undefined (not "") so optional-chaining / falsy guards behave and a
+      // `this.config.server.method()` fails clearly instead of `"".method`.
+      expect(proxy.server).toBeUndefined();
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
     });
   });
@@ -154,7 +156,7 @@ describe("setupConfigProxy", () => {
       const RED = createRED();
       const config = { id: "node-123", name: "test" };
       const schema = defineSchema({
-        id: SchemaType.NodeRef(SomeNode),
+        id: SchemaType.NodeRef(SomeNode.type),
       });
 
       const proxy = setupConfigProxy({

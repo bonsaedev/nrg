@@ -772,7 +772,7 @@ class Greeting extends ConfigNode {
 const Greeter = defineIONode({
   type: "greeter",
   configSchema: defineSchema(
-    { source: SchemaType.NodeRef(Greeting, {}) },
+    { source: SchemaType.NodeRef<Greeting>("greeting-config", {}) },
     { $id: "greeter:config" },
   ),
   inputSchema: SchemaType.Object({}),

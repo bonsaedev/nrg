@@ -50,11 +50,15 @@ describe("Server Infer", () => {
     }>();
   });
 
-  it("TypedInput class satisfies the shared TypedInputResolved brand", () => {
-    // the client's EditorStatic matches TypedInputResolved structurally —
-    // if TypedInput stops satisfying the brand, client inference would
-    // silently degrade, so this must stay a compile-time guarantee
-    expectTypeOf<TypedInput<string>>().toMatchTypeOf<TypedInputResolved>();
+  it("TypedInput schema carries the shared TypedInputResolved brand", () => {
+    // The schema's `static` carrier is the nominal TypedInputResolved<T> brand
+    // (server-class-free). Each plane maps it: server ResolvedStatic →
+    // TypedInput<T>, client EditorStatic → TypedInputValue. If the carrier
+    // stops being the brand, both planes' inference would silently degrade, so
+    // this must stay a compile-time guarantee.
+    expectTypeOf<TTypedInput<string>["static"]>().toEqualTypeOf<
+      TypedInputResolved<string>
+    >();
   });
 
   it("infers arrays", () => {

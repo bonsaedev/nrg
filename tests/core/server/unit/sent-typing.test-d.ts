@@ -73,6 +73,12 @@ async function recordProof() {
   const err: number = node.sent("failure")[0].output.err;
   void ok;
   void err;
+  // Anti-`any` guard: if the record-port output ever widens to `any` (the
+  // failure mode of a brand/resolver regression) the positive assertions above
+  // still compile, so pin a type mismatch that only breaks when it's precise.
+  // @ts-expect-error output.ok is a string, not a number
+  const badOk: number = node.sent("success")[0].output.ok;
+  void badOk;
   // @ts-expect-error "missing" is not a declared port
   node.sent("missing");
 }

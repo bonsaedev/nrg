@@ -273,12 +273,12 @@ Define a schema. The editor form is auto-generated with validation and inline er
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/server";
-import RemoteServer from "./nodes/remote-server";
+import type RemoteServer from "./nodes/remote-server";
 
 const ConfigsSchema = defineSchema({
   name: SchemaType.String({ default: "my-node" }),
   url: SchemaType.String({ default: "", minLength: 1 }),
-  server: SchemaType.NodeRef(RemoteServer),
+  server: SchemaType.NodeRef<RemoteServer>("remote-server"),
 }, { $id: "my-node:configs" });
 ```
 

@@ -1,7 +1,11 @@
 import type { Component, App } from "vue";
 import type { TSchema, Static } from "@sinclair/typebox";
 import type { SchemaObject } from "ajv";
-import type { NodeRefResolved, TypedInputResolved } from "../types";
+import type {
+  NodeRefResolved,
+  TypedInputResolved,
+  UnsafeResolved,
+} from "../types";
 import type { JsonSchemaObjectExtensions } from "../schema-options";
 
 export interface NodeStateCredentials {
@@ -232,15 +236,17 @@ export interface TypedInputValue {
 export type EditorStatic<T> =
   T extends NodeRefResolved<any>
     ? string
-    : T extends TypedInputResolved
+    : T extends TypedInputResolved<any>
       ? TypedInputValue
-      : T extends (...args: any[]) => any
-        ? T
-        : T extends Array<infer I>
-          ? EditorStatic<I>[]
-          : T extends object
-            ? { [K in keyof T]: EditorStatic<T[K]> }
-            : T;
+      : T extends UnsafeResolved<infer V>
+        ? V
+        : T extends (...args: any[]) => any
+          ? T
+          : T extends Array<infer I>
+            ? EditorStatic<I>[]
+            : T extends object
+              ? { [K in keyof T]: EditorStatic<T[K]> }
+              : T;
 
 /**
  * Infers the client-side TypeScript type from a TypeBox schema.
@@ -250,6 +256,9 @@ export type EditorStatic<T> =
  * - `TypedInput<T>` → `{ value: string; type: string }`
  * - All other types resolve via TypeBox's `Static<T>`
  *
+ * Accepts a single schema or a record of schemas (e.g. an outputs map),
+ * mirroring the server `Infer` so the same pattern compiles on both planes.
+ *
  * @example
  * ```ts
  * import type { Infer } from "@bonsae/nrg/client";
@@ -258,4 +267,11 @@ export type EditorStatic<T> =
  * type Config = Infer<typeof ConfigSchema>;
  * ```
  */
-export type Infer<T extends TSchema> = EditorStatic<Static<T>>;
+export type Infer<T extends TSchema | Record<string, TSchema>> =
+  T extends TSchema
+    ? EditorStatic<Static<T>>
+    : {
+        [K in keyof T & string]: T[K] extends TSchema
+          ? EditorStatic<Static<T[K]>>
+          : never;
+      };

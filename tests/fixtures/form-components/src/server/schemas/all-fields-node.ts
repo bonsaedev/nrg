@@ -1,5 +1,5 @@
 import { defineSchema, SchemaType } from "@bonsae/nrg/server";
-import TestConfig from "../nodes/test-config";
+import type TestConfig from "../nodes/test-config";
 
 const ConfigsSchema = defineSchema(
   {
@@ -42,7 +42,7 @@ const ConfigsSchema = defineSchema(
       default: "<p>Hello</p>",
       "x-nrg-form": { editorLanguage: "html" },
     } as any),
-    server: SchemaType.NodeRef(TestConfig),
+    server: SchemaType.NodeRef<TestConfig>("test-config"),
     errorPort: SchemaType.Boolean({ default: false }),
   },
   { $id: "all-fields-node:configs" },

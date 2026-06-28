@@ -1,51 +1,32 @@
-import type {
-  Kind,
-  TSchema,
-  TObject,
-  TProperties,
-  Static,
-  SchemaOptions,
-} from "@sinclair/typebox";
-import type { TYPED_INPUT_TYPES } from "../../../constants";
+import type { Static, TSchema } from "@sinclair/typebox";
 import type TypedInput from "../../typed-input";
-import type { JsonSchemaObjectExtensions } from "../../schema-options";
 import type {
-  NodeSourceSchema,
-  ErrorPortSchema,
-  CompletePortSchema,
-  StatusPortSchema,
-} from "../base";
-
-import type { NodeRefResolved } from "../../../types";
-
-/** Schema type representing a reference to a config node. Resolves to the node instance at runtime. */
-interface TNodeRef<T = any> extends TSchema {
-  [Kind]: "NodeRef";
-  static: NodeRefResolved<T>;
-  type: "string";
-  format: "node-id";
-  "x-nrg-node-type"?: string;
-}
+  NodeRefResolved,
+  TypedInputResolved,
+  UnsafeResolved,
+} from "../../../types";
 
 /**
  * Maps a schema's static type to the values server node code sees at
  * runtime: NodeRef brands resolve to the referenced node instance and
- * TypedInputs stay as their resolving wrapper. The client counterpart
- * (`EditorStatic` in client/types) maps the same brands — shared via
- * core/types — to raw editor form values instead.
+ * TypedInput brands resolve to the `TypedInput<T>` wrapper (with `.resolve()`).
+ * The client counterpart (`EditorStatic` in client/types) maps the same brands
+ * — shared via core/types — to raw editor form values instead.
  */
 type ResolvedStatic<T> =
   T extends NodeRefResolved<infer I>
     ? I
-    : T extends TypedInput<any>
-      ? T
-      : T extends (...args: any[]) => any
-        ? T
-        : T extends Array<infer Item>
-          ? ResolvedStatic<Item>[]
-          : T extends object
-            ? { [K in keyof T]: ResolvedStatic<T[K]> }
-            : T;
+    : T extends TypedInputResolved<infer U>
+      ? TypedInput<U>
+      : T extends UnsafeResolved<infer V>
+        ? V
+        : T extends (...args: any[]) => any
+          ? T
+          : T extends Array<infer Item>
+            ? ResolvedStatic<Item>[]
+            : T extends object
+              ? { [K in keyof T]: ResolvedStatic<T[K]> }
+              : T;
 
 /**
  * Infers the TypeScript type from a schema or a record of schemas.
@@ -64,25 +45,6 @@ type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
         : never;
     };
 
-type TypedInputType = (typeof TYPED_INPUT_TYPES)[number];
-
-/** Schema type representing a Node-RED TypedInput (value + type pair). */
-interface TTypedInput<T = unknown> extends TSchema {
-  [Kind]: "TypedInput";
-  static: TypedInput<T>;
-  "x-nrg-typed-input": true;
-}
-
-interface NrgSchemaOptions extends SchemaOptions, JsonSchemaObjectExtensions {}
-
-/** An NRG object schema created by {@link defineSchema}. */
-type Schema<T extends TProperties = TProperties> = TObject<T>;
-
-type NodeSource = Static<typeof NodeSourceSchema>;
-type ErrorPortMessage = Static<typeof ErrorPortSchema>;
-type CompletePortMessage = Static<typeof CompletePortSchema>;
-type StatusPortMessage = Static<typeof StatusPortSchema>;
-
 type InferOr<T, Fallback> = T extends TSchema ? Infer<T> : Fallback;
 
 type InferOutputs<T> = T extends readonly TSchema[]
@@ -93,43 +55,8 @@ type InferOutputs<T> = T extends readonly TSchema[]
       ? { [K in keyof T & string]: Infer<T[K]> }
       : any;
 
-export {
-  Infer,
-  InferOr,
-  InferOutputs,
-  ResolvedStatic,
-  NodeRefResolved,
-  TNodeRef,
-  TTypedInput,
-  TypedInputType,
-};
-export type {
-  NodeSource,
-  ErrorPortMessage,
-  CompletePortMessage,
-  StatusPortMessage,
-};
-export type { NrgSchemaOptions };
-export type { Schema };
-export type {
-  TSchema,
-  TObject,
-  TProperties,
-  TString,
-  TNumber,
-  TBoolean,
-  TArray,
-  TUnion,
-  TIntersect,
-  TLiteral,
-  TEnum,
-  TRecord,
-  TTuple,
-  TOptional,
-  TNull,
-  TInteger,
-  TRef,
-  TConst,
-  TFunction,
-  SchemaOptions,
-} from "@sinclair/typebox";
+export type { Infer, InferOr, InferOutputs, ResolvedStatic };
+
+// Shared schema types live in core/shared/schemas/types — re-exported here so
+// the long-standing `server/schemas/types` import surface stays intact.
+export type * from "../../../shared/schemas/types";
