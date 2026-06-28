@@ -1,4 +1,4 @@
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-schema-form.vue";
 import { createNode } from "@/test/client/component";
@@ -400,5 +400,60 @@ describe("NodeRedJsonSchemaForm", () => {
     });
     const formRows = screen.container.querySelectorAll(".form-row");
     expect(formRows.length).toBe(0);
+  });
+
+  test("object field: renders a Monaco JSON editor and parses to a real object", async () => {
+    const { node } = createNode({ metadata: { version: "1.0" } });
+
+    // The spy accumulates across tests, so snapshot the count and wait for THIS
+    // render's createEditor call.
+    const createEditor = window.RED.editor.createEditor as unknown as {
+      mock: {
+        calls: [{ mode?: string }][];
+        results: {
+          value: { getValue(): string; setValue(v: string): void };
+        }[];
+      };
+    };
+    const before = createEditor.mock.results.length;
+
+    render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: {
+            metadata: {
+              type: "object",
+              title: "Metadata",
+              properties: { version: { type: "string" } },
+            },
+          },
+        },
+      },
+    });
+
+    // The object field renders a code editor (Monaco, JSON mode) — not a plain
+    // text input that would store a never-parsed "[object Object]" string.
+    await vi.waitFor(() =>
+      expect(createEditor.mock.results.length).toBeGreaterThan(before),
+    );
+    const lastCall = createEditor.mock.calls.at(-1) as [{ mode?: string }];
+    expect(lastCall[0].mode).toBe("json");
+    const editor = createEditor.mock.results.at(-1)!.value;
+    // initial content is the object serialized as JSON
+    expect(editor.getValue()).toContain('"version"');
+
+    // editing with valid JSON parses into a real object (so AJV type:"object"
+    // validates and the saved value is an object, not a never-parsed string).
+    editor.setValue('{ "version": "2.0", "enabled": true }');
+    await vi.waitFor(() =>
+      expect(node.metadata).toEqual({ version: "2.0", enabled: true }),
+    );
+
+    // invalid JSON keeps the raw string so the type error surfaces instead of
+    // being silently swallowed.
+    editor.setValue("{ not json");
+    await vi.waitFor(() => expect(node.metadata).toBe("{ not json"));
   });
 });

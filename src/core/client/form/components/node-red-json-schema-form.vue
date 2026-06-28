@@ -115,6 +115,21 @@
       </div>
 
       <NodeRedEditorInput
+        v-else-if="field.inputType === 'object-json'"
+        :value="
+          typeof node[field.key] === 'string'
+            ? node[field.key]
+            : JSON.stringify(node[field.key] ?? {}, null, 2)
+        "
+        language="json"
+        :label="field.label"
+        :icon="field.icon"
+        :required="field.required"
+        :error="errors[`node.${field.key}`]"
+        @update:value="setObjectField(field.key, $event)"
+      />
+
+      <NodeRedEditorInput
         v-else-if="field.inputType === 'editor'"
         v-model:value="node[field.key]"
         :language="field.language"
@@ -190,7 +205,8 @@ interface FormField {
     | "typed"
     | "config"
     | "editor"
-    | "array-text";
+    | "array-text"
+    | "object-json";
   required: boolean;
   htmlType?: "text" | "number" | "password";
   options?: Array<{ value: string; label: string }>;
@@ -348,14 +364,15 @@ function buildField(
           language: form.editorLanguage,
         };
       }
-      // Plain object → text input (stored as JSON string)
+      // Plain object → JSON textarea that parses to a real object (so AJV's
+      // `type: "object"` validates and the saved value is an object, not a
+      // never-parsed string).
       return {
         key,
         label,
         icon,
-        inputType: "text",
+        inputType: "object-json",
         required,
-        htmlType: "text",
       };
 
     default:
@@ -451,6 +468,18 @@ export default defineComponent({
     },
   },
   methods: {
+    // Parse a JSON-object field's textarea into a real object so AJV's
+    // `type: "object"` validates and the saved value is an object. On invalid
+    // JSON, keep the raw string so the type error surfaces instead of being
+    // silently swallowed. Runs on blur (`@change`) so typing isn't reformatted.
+    setObjectField(key: string, raw: string): void {
+      const node = this.node as Record<string, unknown>;
+      try {
+        node[key] = JSON.parse(raw);
+      } catch {
+        node[key] = raw;
+      }
+    },
     resolveI18n(prefix: string, key: string): string | undefined {
       const resolved = this.$i18n(`${prefix}.${key}`);
       const fullKey = `${this.node.type}.${prefix}.${key}`;
