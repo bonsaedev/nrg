@@ -362,7 +362,11 @@ the client type-resolver understand, and skipping them loses both:
 - **Config-node reference** → `SchemaType.NodeRef<TheConfigClass>("the-config-type")`
   — stored as the node id; resolves to `string` on the client. The class is a
   type-only generic (import it with `import type`); only the `type` string is
-  passed at runtime.
+  passed at runtime. This is also why the reference must stay a type: the server
+  node value-imports this schema, so a schema that *value*-imported the node back
+  would form an import cycle. The `@bonsae/nrg/schema-server-imports-type-only`
+  lint rule (in `nrgConventions`) enforces that schemas only `import type` from
+  `server/`.
 - **Typed input** → `SchemaType.TypedInput()` — resolves to `{ value, type }`.
 :::
 

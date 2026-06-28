@@ -72,6 +72,8 @@ The TypeBox schemas (config, credentials, input, outputs) — the **shared contr
 
 They are **server-value / client-type-only**, not dual-plane like `src/shared/`: a schema file imports `@bonsae/nrg/server` (which pulls in TypeBox and the node runtime), so **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
 
+The reverse direction is guarded too: a schema may only **`import type`** from `**/server/**`. Each server node *value*-imports its own schema, so a schema that value-imported a server module would close a runtime import cycle (server node ⇄ schema) and pull the node runtime into the editor bundle. Config-node references therefore go through `SchemaType.NodeRef<T>("type")`, which takes the node `type` string at runtime and the class only as a type-only generic. This is enforced by the `@bonsae/nrg/schema-server-imports-type-only` rule shipped in `nrgConventions` (`@bonsae/nrg/eslint`).
+
 ### `src/client/`
 
 Contains the browser-side code that registers nodes with the Node-RED editor. Each file in `nodes/` calls `defineNode()` to configure a node's editor behavior — category, color, form component, etc.
