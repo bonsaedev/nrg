@@ -34,19 +34,38 @@ function composeValidationSchema(
   configSchema?: JsonSchemaObject,
   credentialsSchema?: JsonSchemaObject,
 ): JsonSchemaObject | undefined {
-  if (configSchema && credentialsSchema?.properties) {
+  const credsProps = credentialsSchema?.properties;
+  // No credentials → the config schema as-is (possibly undefined).
+  if (!credsProps) return configSchema;
+
+  const credentialsObject: JsonSchemaObject = {
+    type: "object",
+    properties: credsProps,
+    // Propagate `required` so required credentials are actually enforced
+    // (previously they never were, even alongside a config schema).
+    ...(credentialsSchema?.required
+      ? { required: credentialsSchema.required }
+      : {}),
+  };
+
+  if (configSchema) {
     return {
       ...configSchema,
       properties: {
         ...configSchema.properties,
-        credentials: {
-          type: "object",
-          properties: credentialsSchema.properties,
-        },
+        credentials: credentialsObject,
       },
     };
   }
-  return configSchema;
+
+  // Credentials-only node (no config schema): synthesize a schema so the
+  // credentials still validate. Previously this returned undefined, which
+  // disabled credential validation entirely and threw on `undefined.$id`.
+  return {
+    type: "object",
+    properties: { credentials: credentialsObject },
+    additionalProperties: true,
+  };
 }
 
 /**

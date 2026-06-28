@@ -302,11 +302,19 @@ describe("composeValidationSchema", () => {
     },
   } as any;
 
-  it("returns undefined when no config schema", () => {
+  it("returns undefined when neither schema is provided", () => {
     expect(composeValidationSchema(undefined, undefined)).toBeUndefined();
-    expect(
-      composeValidationSchema(undefined, credentialsSchema),
-    ).toBeUndefined();
+  });
+
+  it("synthesizes a schema for a credentials-only node (no config schema)", () => {
+    const composed = composeValidationSchema(undefined, credentialsSchema);
+    expect(composed).toBeDefined();
+    // The credential field is now actually validated (it used to be dropped).
+    const errors = validateForm(
+      { type: "creds-only", credentials: { token: "" } },
+      composed!,
+    );
+    expect(errors["node.credentials.token"]).toBeDefined();
   });
 
   it("returns config schema as-is when no credentials schema", () => {
