@@ -440,6 +440,13 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
     `npx dts-bundle-generator -o dist/toolkit/types/test-client-unit.d.ts src/test/client/unit/index.ts ${DTS_FLAGS} --external-types vitest`,
     { stdio: "inherit" },
   );
+  // NOTE: `zod` must stay a devDependency for this step. No source imports it,
+  // but playwright-core's published types.d.ts imports `zod`/`zod/v3` at the top
+  // level (an optional typed-assertion integration, guarded with @ts-ignore so
+  // tsc tolerates its absence). dts-bundle-generator is stricter — it eagerly
+  // resolves those imports while bundling this e2e d.ts and hard-fails if zod
+  // isn't installed. The --external-imports flags don't bypass it. Do not remove
+  // zod just because it looks unused.
   execSync(
     `npx dts-bundle-generator -o dist/toolkit/types/test-client-e2e.d.ts src/test/client/e2e/index.ts ${DTS_FLAGS} --external-imports playwright --external-imports playwright-core`,
     { stdio: "inherit" },
