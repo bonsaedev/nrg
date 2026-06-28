@@ -6,6 +6,7 @@ import {
   mergeOptions,
   cleanDir,
   copyFiles,
+  discoverResourceCopyTargets,
   getPackageName,
 } from "@/vite/utils";
 
@@ -180,6 +181,70 @@ describe("copyFiles", () => {
         "utf-8",
       ),
     ).toBe("data");
+  });
+});
+
+describe("discoverResourceCopyTargets", () => {
+  let resourcesDir: string;
+
+  beforeEach(() => {
+    resourcesDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "nrg-test-resources-"),
+    );
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(resourcesDir)) {
+      fs.rmSync(resourcesDir, { recursive: true });
+    }
+  });
+
+  it("returns [] when the resources dir does not exist", () => {
+    expect(
+      discoverResourceCopyTargets(path.join(resourcesDir, "missing")),
+    ).toEqual([]);
+  });
+
+  it("returns [] when the resources dir is empty", () => {
+    expect(discoverResourceCopyTargets(resourcesDir)).toEqual([]);
+  });
+
+  it("copies arbitrary resource folders verbatim to dist/<name>", () => {
+    fs.mkdirSync(path.join(resourcesDir, "examples"));
+    fs.mkdirSync(path.join(resourcesDir, "templates"));
+
+    const targets = discoverResourceCopyTargets(resourcesDir);
+
+    expect(targets).toEqual(
+      expect.arrayContaining([
+        { src: path.join(resourcesDir, "examples"), dest: "examples" },
+        { src: path.join(resourcesDir, "templates"), dest: "templates" },
+      ]),
+    );
+    expect(targets).toHaveLength(2);
+  });
+
+  it("skips the icons and locales pipeline folders", () => {
+    fs.mkdirSync(path.join(resourcesDir, "icons"));
+    fs.mkdirSync(path.join(resourcesDir, "locales"));
+    fs.mkdirSync(path.join(resourcesDir, "examples"));
+
+    const targets = discoverResourceCopyTargets(resourcesDir);
+
+    expect(targets).toEqual([
+      { src: path.join(resourcesDir, "examples"), dest: "examples" },
+    ]);
+  });
+
+  it("ignores loose files, copying only directories", () => {
+    fs.writeFileSync(path.join(resourcesDir, "README.md"), "# readme");
+    fs.mkdirSync(path.join(resourcesDir, "examples"));
+
+    const targets = discoverResourceCopyTargets(resourcesDir);
+
+    expect(targets).toEqual([
+      { src: path.join(resourcesDir, "examples"), dest: "examples" },
+    ]);
   });
 });
 
