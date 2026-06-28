@@ -141,4 +141,4 @@ The entry above imports `./nodes/my-node`, so create at least one node first or 
 pnpm vite dev
 ```
 
-This launches a local Node-RED instance with your nodes pre-installed. Changes to server or client code trigger automatic rebuilds and restarts.
+This launches a local Node-RED instance with your nodes pre-installed. A change to server or client code triggers an automatic rebuild and a full Node-RED restart — then refresh the browser to see it. There's no hot module replacement yet, so the page reloads fully (your flows are preserved).

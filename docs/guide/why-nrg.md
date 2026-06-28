@@ -432,7 +432,7 @@ NRG brings the modern JavaScript ecosystem to Node-RED development:
 
 | Tool | Role |
 | --- | --- |
-| **Vite** | Dev server with watch mode, hot rebuild, and Node-RED proxy |
+| **Vite** | Dev server that watches, rebuilds, restarts Node-RED, and proxies to it |
 | **esbuild** | Fast TypeScript/ESM bundling for server and client |
 | **tsc** | Type checking at build time — errors caught before deploy |
 | **Vue 3** | Component-based editor forms with reactivity |
@@ -446,12 +446,14 @@ One command to start:
 pnpm dev
 ```
 
-Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. Server changes trigger a Node-RED restart; client changes trigger a browser reload. Change a file, see the result — no manual restart.
+Vite watches your files, rebuilds the server and client on change, and proxies to a live Node-RED instance. Every change — server or client — triggers a full Node-RED restart; then refresh the browser to load the rebuilt editor and forms.
+
+This is a rebuild-and-restart loop, **not** hot module replacement (HMR): the page reloads fully and any open edit-dialog state resets, though your flow definitions are preserved by Node-RED across restarts. You don't restart Node-RED yourself — Vite does — but you do refresh the browser.
 
 Standard scripts work out of the box:
 
 ```bash
-pnpm dev            # dev server with hot rebuild
+pnpm dev            # dev server: watch, rebuild, restart Node-RED
 pnpm build          # production build
 pnpm validate       # type-check + lint + format (validate:tsc / :lint / :format)
 pnpm validate:tsc   # type-check

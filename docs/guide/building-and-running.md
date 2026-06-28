@@ -10,11 +10,13 @@ pnpm vite dev
 
 This will:
 
-1. Build your server and client code
+1. Build your server and client code into `.nrg/` (a gitignored dev directory — **not** `dist/`, which is reserved for the publishable build from `pnpm build`)
 2. Launch a local Node-RED instance (URL printed in the terminal)
 3. Watch for file changes and automatically rebuild + restart
 
-Server-side changes trigger a full Node-RED restart. Client-side changes trigger a browser page reload. The flow editor state (your flow definitions) is preserved across restarts.
+The dev build imports the `@bonsae/nrg` toolkit directly (never `@bonsae/nrg-runtime`), so it runs locally with nothing extra installed.
+
+Every change — server or client — triggers a full Node-RED restart; then refresh the browser to load the rebuilt editor and client forms. This is a full restart and reload, **not** hot module replacement (HMR): open edit-dialog state resets, but your flow definitions are preserved by Node-RED across restarts. Vite handles the restart; you do the browser refresh.
 
 ### Node-RED Settings
 
