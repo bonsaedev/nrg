@@ -41,7 +41,7 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   // and results are frequently non-objects
   readonly outputsSchema?: TSchema | TSchema[] | Record<string, TSchema>;
   readonly validateInput?: boolean;
-  readonly validateOutput?: boolean;
+  readonly validateOutput?: boolean | boolean[];
   readonly name: string;
   registered?(RED: RED): void | Promise<void>;
   register(RED: RED): void | Promise<void>;

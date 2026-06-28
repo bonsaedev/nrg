@@ -128,7 +128,9 @@ interface IONodeDefinition<
   outputsSchema?: TOutputsSchema;
 
   validateInput?: boolean;
-  validateOutput?: boolean;
+  /** A single boolean validates every output port; a boolean[] sets per-port
+   * defaults by base-output index (missing entries default to false). */
+  validateOutput?: boolean | boolean[];
 
   registered?(RED: RED): void | Promise<void>;
   created?(

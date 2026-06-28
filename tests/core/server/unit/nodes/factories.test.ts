@@ -57,6 +57,17 @@ describe("defineIONode", () => {
     expect(Node.validateOutput).toBe(true);
   });
 
+  it("should accept a per-port boolean[] validateOutput", () => {
+    const Node = defineIONode({
+      type: "per-port-io",
+      outputsSchema: [SchemaType.Object({}), SchemaType.Object({})],
+      validateOutput: [true, false],
+      input() {},
+    });
+    expect(Node.outputs).toBe(2);
+    expect(Node.validateOutput).toEqual([true, false]);
+  });
+
   it("should set a readable class name from the type", () => {
     const Node = defineIONode({
       type: "my-custom-node",

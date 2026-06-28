@@ -113,7 +113,9 @@ abstract class IONode<
     | TSchema[]
     | Record<string, TSchema>;
   public static readonly validateInput: boolean = false;
-  public static readonly validateOutput: boolean = false;
+  // A single boolean applies to every output port; a boolean[] sets the
+  // per-port default by base-output index (missing entries default to false).
+  public static readonly validateOutput: boolean | boolean[] = false;
 
   public static get inputs(): 0 | 1 {
     return this.inputSchema ? 1 : 0;
@@ -390,12 +392,17 @@ abstract class IONode<
   /**
    * Per-port output validation. A port validates when its flow-author flag
    * (`config.validateOutputs[port]`) — or the node's static `validateOutput`
-   * fallback — is on and a schema exists for that port.
+   * fallback — is on and a schema exists for that port. The static fallback is
+   * a single boolean (all ports) or a boolean[] (per-port, by base index).
    */
   #validatePort(value: unknown, port: number) {
     const NodeClass = this.constructor as typeof IONode;
+    const staticFlag = NodeClass.validateOutput;
+    const staticForPort = Array.isArray(staticFlag)
+      ? (staticFlag[port] ?? false)
+      : staticFlag;
     const configured = this.config.validateOutputs?.[port];
-    if (!(configured ?? NodeClass.validateOutput)) return;
+    if (!(configured ?? staticForPort)) return;
 
     const schema = this.#outputSchemaForPort(port);
     if (!schema) return;

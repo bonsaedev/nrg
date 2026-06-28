@@ -90,7 +90,7 @@ function defineIONode<
       | undefined;
     static override readonly validateInput: boolean =
       def.validateInput ?? false;
-    static override readonly validateOutput: boolean =
+    static override readonly validateOutput: boolean | boolean[] =
       def.validateOutput ?? false;
 
     static override registered(RED: RED) {

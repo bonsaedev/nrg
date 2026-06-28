@@ -260,6 +260,107 @@ describe("IONode", () => {
       expect(() => instance.send([{ result: "" }, null])).toThrow();
     });
 
+    it("honors a per-port boolean[] validateOutput default", () => {
+      const schema1 = defineSchema(
+        { result: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-output-perport1-test" },
+      );
+      const schema2 = defineSchema(
+        { error: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-output-perport2-test" },
+      );
+
+      class PerPortValidateNode extends IONode {
+        static override readonly type = "per-port-validate";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        // port 0 unchecked, port 1 validated
+        static override readonly validateOutput = [false, true];
+        static override readonly outputsSchema = [schema1, schema2];
+        public override async input() {}
+      }
+
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new PerPortValidateNode(RED, node, {}, {});
+
+      // Port 0 default is false: an invalid value passes through unvalidated.
+      expect(() => instance.send([{ result: "" }, null])).not.toThrow();
+      // Port 1 default is true: an invalid value throws.
+      expect(() => instance.send([null, { error: "" }])).toThrow();
+      // Port 1 valid passes.
+      expect(() => instance.send([null, { error: "boom" }])).not.toThrow();
+    });
+
+    it("defaults ports beyond the boolean[] length to no validation", () => {
+      const schema1 = defineSchema(
+        { result: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-output-perport-short1-test" },
+      );
+      const schema2 = defineSchema(
+        { error: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-output-perport-short2-test" },
+      );
+
+      class ShortFlagsNode extends IONode {
+        static override readonly type = "short-flags-validate";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        // only port 0 declared; port 1 has no entry -> defaults to false
+        static override readonly validateOutput = [true];
+        static override readonly outputsSchema = [schema1, schema2];
+        public override async input() {}
+      }
+
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new ShortFlagsNode(RED, node, {}, {});
+
+      // Port 0 is validated.
+      expect(() => instance.send([{ result: "" }, null])).toThrow();
+      // Port 1 has no flag entry -> not validated.
+      expect(() => instance.send([null, { error: "" }])).not.toThrow();
+    });
+
+    it("lets the per-instance config override the static boolean[] default", () => {
+      const schema1 = defineSchema(
+        { result: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-output-override1-test" },
+      );
+      const schema2 = defineSchema(
+        { error: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-output-override2-test" },
+      );
+
+      class OverrideNode extends IONode {
+        static override readonly type = "override-validate";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        // both ports validated by default
+        static override readonly validateOutput = [true, true];
+        static override readonly outputsSchema = [schema1, schema2];
+        public override async input() {}
+      }
+
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      // Flow author turns port 0 off; port 1 keeps the static default.
+      const instance = new OverrideNode(
+        RED,
+        node,
+        { validateOutputs: { 0: false } },
+        {},
+      );
+
+      // Port 0 overridden off: invalid value passes.
+      expect(() => instance.send([{ result: "" }, null])).not.toThrow();
+      // Port 1 still on: invalid value throws.
+      expect(() => instance.send([null, { error: "" }])).toThrow();
+    });
+
     it("validates an array sent from a single-output node as the value", () => {
       // A single-output node treats an array argument as the value (not as
       // per-port messages), so the schema describes the array itself.

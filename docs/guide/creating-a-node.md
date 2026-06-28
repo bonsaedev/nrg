@@ -1548,6 +1548,8 @@ export default defineIONode({
 });
 ```
 
+`validateOutput` also accepts a `boolean[]` to set the default **per port** by index (e.g. `validateOutput: [true, false]` validates port 0 but not port 1); a single `boolean` applies to every port. The flow author can override any port from the editor's Outputs table; those **Validate** toggles reflect only per-instance overrides and start unchecked, so a port's author default still applies at runtime until it's explicitly toggled off.
+
 ::: warning Arrow functions
 Don't use arrow functions for `input`, `created`, or `closed` handlers. Arrow functions don't bind `this`, so `this.config`, `this.send()`, etc. would be `undefined` at runtime. TypeScript won't catch this — it's the same constraint as Vue's Options API.
 
