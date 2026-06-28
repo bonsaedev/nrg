@@ -193,12 +193,22 @@ function packageJsonGenerator(options: {
         distDependencies = undefined;
       }
 
+      // Whitelist the published fields rather than spreading the consumer's
+      // root manifest — spreading leaks `private`, `publishConfig`, `files`,
+      // `peerDependencies`, `lint-staged`, etc. A `private: true` root would
+      // otherwise emit an unpublishable Node-RED package.
       const distPackageJson: PackageJson = {
-        ...rootPackageJson,
+        name: rootPackageJson.name,
+        version: rootPackageJson.version,
+        description: rootPackageJson.description,
+        author: rootPackageJson.author,
+        license: rootPackageJson.license,
+        homepage: rootPackageJson.homepage,
+        repository: rootPackageJson.repository,
+        bugs: rootPackageJson.bugs,
+        engines: rootPackageJson.engines,
         main: "index.js",
         type: "commonjs",
-        devDependencies: undefined,
-        scripts: undefined,
         dependencies: distDependencies,
         keywords: [
           ...new Set([...(rootPackageJson.keywords ?? []), "node-red"]),
