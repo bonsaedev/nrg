@@ -66,14 +66,19 @@ function setupContext(
       await set(key, next);
       return next;
     };
-    const run = (chains.get(lockKey) ?? Promise.resolve()).then(task, task);
-    chains.set(
-      lockKey,
-      run.then(
-        () => undefined,
-        () => undefined,
-      ),
+    const previous = chains.get(lockKey) ?? Promise.resolve();
+    const run = previous.then(task, task);
+    const settled = run.then(
+      () => undefined,
+      () => undefined,
     );
+    chains.set(lockKey, settled);
+    // Prune the tail once this is the last queued op for the key, so the lock
+    // map doesn't grow unbounded for high-cardinality keys. If a newer op has
+    // queued behind it, the entry has been replaced and is left in place.
+    void settled.then(() => {
+      if (chains.get(lockKey) === settled) chains.delete(lockKey);
+    });
     return run;
   };
 
