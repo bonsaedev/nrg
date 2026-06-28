@@ -24,17 +24,19 @@ my-node-red-nodes/
 │   │   │   └── {type-id}.ts       # Client node definition (defineNode)
 │   │   └── components/
 │   │       └── {type-id}.vue      # Vue 3 SFC for the editor form (optional)
-│   ├── examples/
-│   │   └── {example-name}.json    # Example flow.json files
-│   ├── icons/
-│   │   └── {type-id}.png          # Palette icon (20x20 recommended)
-│   └── locales/
-│       ├── labels/
-│       │   └── {type-id}/
-│       │       └── {lang}.json    # i18n label strings
-│       └── docs/
-│           └── {type-id}/
-│               └── {lang}.{md|html}  # Help sidebar documentation
+│   ├── shared/                    # Optional cross-plane code (server + client)
+│   └── resources/
+│       ├── icons/
+│       │   └── {type-id}.{svg|png}    # Palette icon (inlined + copied to dist/icons)
+│       ├── locales/
+│       │   ├── labels/
+│       │   │   └── {type-id}/
+│       │   │       └── {lang}.json    # i18n label strings
+│       │   └── docs/
+│       │       └── {type-id}/
+│       │           └── {lang}.{md|html}  # Help sidebar documentation
+│       └── examples/              # Any other folder → copied to dist/examples
+│           └── {example-name}.json    # Example flow.json files
 ├── tests/
 │   ├── server/
 │   │   ├── unit/
@@ -74,17 +76,20 @@ The entry file (`index.ts`) calls `registerTypes()` with all node definitions.
 
 Optional Vue 3 single-file components (`.vue`) used as custom editor forms. When a file named `{type}.vue` exists here, it replaces the auto-generated JSON schema form for that node. NRG provides built-in components like `<NodeRedInput>`, `<NodeRedTypedInput>`, and `<NodeRedConfigInput>` for building forms.
 
-### `src/examples/`
+### `src/shared/`
 
-Example `flow.json` files that demonstrate how to use your nodes. These are copied to the build output and can be imported by users into their Node-RED instance.
+Optional cross-plane code imported by both the server and the client (shared types, constants, helpers).
 
-### `src/icons/`
+### `src/resources/`
 
-PNG icons displayed in the Node-RED palette. Name them to match the node type (e.g., `my-node.png`).
+Convention-based assets folder. The build handles each subfolder by name — no config props and no hardcoded per-type paths:
 
-### `src/locales/`
+- `src/resources/icons/` — palette icons named to match the node type (`{type}.svg` or `{type}.png`). Each icon is inlined into its node definition and copied to `dist/icons/`.
+- `src/resources/locales/labels/{node}/{lang}.json` — translatable label and description strings for the editor UI.
+- `src/resources/locales/docs/{node}/{lang}.md` (or `.html`) — manual help docs shown in the Node-RED info sidebar.
+- Any other folder is copied verbatim to `dist/<folder>`. For example, `src/resources/examples/` ships to `dist/examples/`. Drop a new folder in and it ships — no prop needed.
 
-Internationalization files. Labels provide translatable strings for the editor UI. Docs provide help text shown in the Node-RED info sidebar.
+The package-root `LICENSE` and `README` are always copied to `dist/`.
 
 ### `node-red.settings.ts`
 

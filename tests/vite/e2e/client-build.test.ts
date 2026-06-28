@@ -32,6 +32,7 @@ describe("client build", () => {
       outDir,
       packageName: "node-red-test-basic",
       isDev: false,
+      resourcesDir: path.join(FIXTURE_DIR, "src/resources"),
     };
 
     const serverOpts: ServerBuildOptions = {
@@ -51,13 +52,6 @@ describe("client build", () => {
       format: "es",
       external: ["jquery", "node-red", "vue", "@bonsae/nrg/client"],
       globals: { jquery: "$", "node-red": "RED", vue: "Vue" },
-      locales: {
-        docsDir: path.join(FIXTURE_DIR, "src/locales/docs"),
-        labelsDir: path.join(FIXTURE_DIR, "src/locales/labels"),
-      },
-      staticDirs: {
-        icons: path.join(FIXTURE_DIR, "src/icons"),
-      },
     };
     await buildClient(clientOpts, buildContext);
 

@@ -25,6 +25,7 @@ describe("server build", () => {
       outDir,
       packageName: "node-red-test-basic",
       isDev: false,
+      resourcesDir: path.join(FIXTURE_DIR, "src/resources"),
     };
   });
 

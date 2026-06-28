@@ -192,23 +192,13 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       const clientSrcDir = path.resolve(
         clientBuildOptions.srcDir ?? "./client",
       );
-      const localesDocsDir = path.resolve(
-        clientBuildOptions.locales?.docsDir ?? "./locales/docs",
-      );
-      const localesLabelsDir = path.resolve(
-        clientBuildOptions.locales?.labelsDir ?? "./locales/labels",
-      );
-      const iconsDir = path.resolve(
-        clientBuildOptions.staticDirs?.icons ??
-          path.join(path.dirname(clientSrcDir), "icons"),
-      );
 
+      // Watch the whole resources convention dir (icons, locales, examples, …)
+      // so any change rebuilds; the per-type paths are derived in the build.
       const watchPaths = [
         serverSrcDir,
         clientSrcDir,
-        localesDocsDir,
-        localesLabelsDir,
-        iconsDir,
+        buildContext.resourcesDir,
       ];
 
       watcher = chokidar.watch(watchPaths, {

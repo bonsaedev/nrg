@@ -33,6 +33,7 @@ describe("multi-node build", () => {
       outDir,
       packageName: "node-red-test-basic",
       isDev: false,
+      resourcesDir: path.join(FIXTURE_DIR, "src/resources"),
     };
 
     const serverOpts: ServerBuildOptions = {
@@ -54,9 +55,6 @@ describe("multi-node build", () => {
       format: "es",
       external: ["jquery", "node-red", "vue", "@bonsae/nrg/client"],
       globals: { jquery: "$", "node-red": "RED", vue: "Vue" },
-      staticDirs: {
-        icons: path.join(FIXTURE_DIR, "src/icons"),
-      },
     };
     await buildClient(clientOpts, buildContext);
 

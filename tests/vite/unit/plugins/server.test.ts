@@ -27,7 +27,12 @@ function pluginConfig(launcher: NodeRedLauncher) {
     serverBuildOptions: {},
     clientBuildOptions: {},
     extraFilesCopyTargets: [],
-    buildContext: { outDir: "/tmp/out", packageName: "pkg", isDev: true },
+    buildContext: {
+      outDir: "/tmp/out",
+      packageName: "pkg",
+      isDev: true,
+      resourcesDir: "/tmp/resources",
+    },
   });
   // config() is a synchronous Vite hook returning the partial config
   return (plugin as unknown as { config: () => any }).config();

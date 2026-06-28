@@ -57,6 +57,7 @@ class NodeRedTestEnvironment {
       outDir: this.outDir,
       packageName: this.options.packageName,
       isDev: false,
+      resourcesDir: path.join(this.projectDir, "src/resources"),
     };
 
     const serverOpts: ServerBuildOptions = {

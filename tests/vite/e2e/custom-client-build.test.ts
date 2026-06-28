@@ -31,6 +31,7 @@ describe("custom client entry build", () => {
       outDir,
       packageName: "node-red-test-custom",
       isDev: false,
+      resourcesDir: path.join(FIXTURE_DIR, "src/resources"),
     };
 
     const serverOpts: ServerBuildOptions = {

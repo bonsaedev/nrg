@@ -30,6 +30,7 @@ describe("dev mode build", () => {
       outDir,
       packageName: "node-red-test-basic",
       isDev: true,
+      resourcesDir: path.join(FIXTURE_DIR, "src/resources"),
     };
   });
 

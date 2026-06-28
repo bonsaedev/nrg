@@ -5,7 +5,7 @@ NRG supports internationalization (i18n) for node labels, help documentation, an
 ## Directory Structure
 
 ```
-src/locales/
+src/resources/locales/
 ├── labels/
 │   └── {type}/
 │       ├── en-US.json     ← required
@@ -17,8 +17,8 @@ src/locales/
         └── de.html         ← optional manual help doc
 ```
 
-- **Labels** (`locales/labels/`) — JSON files with human-readable labels and descriptions
-- **Docs** (`locales/docs/`) — optional manual help docs (Markdown or HTML) for the Node-RED info panel
+- **Labels** (`src/resources/locales/labels/`) — JSON files with human-readable labels and descriptions
+- **Docs** (`src/resources/locales/docs/`) — optional manual help docs (Markdown or HTML) for the Node-RED info panel
 
 ## Label File Format
 
@@ -197,7 +197,7 @@ For local development or when using a linked package, use the local path instead
 
 ## Auto-Generated Help Docs
 
-When a node type has **no manual doc** in `locales/docs/{type}/{lang}.md` or `.html`, the build system auto-generates help documentation from:
+When a node type has **no manual doc** in `src/resources/locales/docs/{type}/{lang}.md` or `.html`, the build system auto-generates help documentation from:
 
 1. **`description`** from the label file — shown at the top of the help panel
 2. **Schema properties** — rendered as an HTML table with Property, Label, Type, Required, Default, and Description columns
@@ -206,7 +206,7 @@ When a node type has **no manual doc** in `locales/docs/{type}/{lang}.md` or `.h
 ### How it works
 
 For each node type, the help generator:
-1. Discovers which languages have label files in `locales/labels/{type}/`
+1. Discovers which languages have label files in `src/resources/locales/labels/{type}/`
 2. For each language, checks if a manual doc exists — if so, skips auto-generation
 3. Reads labels from the label file and schema metadata from the server bundle
 4. Generates a Markdown help doc with HTML tables and appends it to the build output
@@ -254,10 +254,10 @@ The generated help panel shows:
 
 ## Manual Help Docs
 
-For full control, create a manual doc at `locales/docs/{type}/{lang}.md` (Markdown) or `.html` (HTML). Manual docs take priority — the auto-generator skips any node that has one.
+For full control, create a manual doc at `src/resources/locales/docs/{type}/{lang}.md` (Markdown) or `.html` (HTML). Manual docs take priority — the auto-generator skips any node that has one.
 
 ```markdown
-<!-- locales/docs/my-node/en-US.md -->
+<!-- src/resources/locales/docs/my-node/en-US.md -->
 This node processes incoming messages and transforms them.
 
 ### Properties

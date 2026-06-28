@@ -181,7 +181,6 @@ export default defineConfig({
 | `outDir` | `"./dist"` | Output directory for the built Node-RED package |
 | `server` | — | Options for building the server-side node runtime (see [`ServerBuildOptions`](#serverbuildoptions)) |
 | `client` | — | Options for building the client-side editor UI (see [`ClientBuildOptions`](#clientbuildoptions)) |
-| `extraFilesCopyTargets` | `[]` | Extra files to copy into the output directory (e.g., LICENSE, README) |
 
 ### `ServerBuildOptions`
 
@@ -207,21 +206,26 @@ export default defineConfig({
 | `format` | `"es"` | Output format for the client bundle (`"es"`, `"iife"`, or `"umd"`) |
 | `base` | — | Base public path for serving resources |
 | `licensePath` | `"./LICENSE"` | Path to LICENSE file to include in the HTML output |
-| `locales` | — | Internationalization options (see below) |
-| `staticDirs.icons` | `"./src/icons"` | Directory containing node icons |
-| `staticDirs.public` | `"./src/client/public"` | Directory for public static files copied to `dist/resources/` |
+| `publicDir` | `"./src/client/public"` | Directory for public static files copied to `dist/resources/` |
 | `external` | `["jquery", "node-red", "vue", "@bonsae/nrg/client"]` | Modules to treat as external (not bundled) |
 | `globals` | — | Global variable mappings for external modules |
 | `manualChunks` | — | Custom chunk splitting function for Rollup |
 
-### `LocalesOptions`
+### Node resources (icons, locales, examples)
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `docsDir` | `"./src/locales/docs"` | Directory containing documentation files (`{type}/{lang}.md` or `.html`) |
-| `labelsDir` | `"./src/locales/labels"` | Directory containing label files (`{type}/{lang}.json`) |
+Node icons, editor labels/descriptions, help docs, and example flows are not
+configured here — they're handled automatically by the `src/resources/`
+convention, with no build options. Drop files into the right subfolder and they
+ship:
 
-Supported languages: `en-US`, `de`, `es-ES`, `fr`, `ko`, `pt-BR`, `ru`, `ja`, `zh-CN`, `zh-TW`.
+- `src/resources/icons/` — node icons named `{type}.svg` or `{type}.png`
+- `src/resources/locales/labels/{node}/{lang}.json` — editor labels & descriptions
+- `src/resources/locales/docs/{node}/{lang}.md` (or `.html`) — Node-RED info-panel help
+- any other folder (e.g. `src/resources/examples/`) is copied verbatim to `dist/<folder>`
+
+See the [Project Structure](./project-structure) and [Locales](./locales) guides for
+details. Supported languages: `en-US`, `de`, `es-ES`, `fr`, `ko`, `pt-BR`, `ru`,
+`ja`, `zh-CN`, `zh-TW`.
 
 ### `NodeRedLauncherOptions`
 

@@ -35,6 +35,7 @@ describe("type generation — class-based nodes", () => {
       outDir,
       packageName: "node-red-test-basic",
       isDev: false,
+      resourcesDir: path.join(BASIC_FIXTURE, "src/resources"),
     });
 
     dtsContent = fs.readFileSync(path.join(outDir, "index.d.ts"), "utf-8");
@@ -183,6 +184,7 @@ describe("type generation — factory-based nodes", () => {
       outDir,
       packageName: "node-red-test-custom",
       isDev: false,
+      resourcesDir: path.join(CUSTOM_FIXTURE, "src/resources"),
     });
 
     dtsContent = fs.readFileSync(path.join(outDir, "index.d.ts"), "utf-8");

@@ -4,6 +4,12 @@ interface BuildContext {
   isDev: boolean;
   /** Resolved server source dir, scanned to recover `Unsafe<T>()` types for docs. */
   serverSrcDir?: string;
+  /**
+   * Resolved resources dir (default ./src/resources). Its convention subfolders
+   * are auto-handled: `icons/` and `locales/{docs,labels}/` run their pipelines,
+   * every other folder is copied verbatim to `dist/<name>`. @default ./src/resources
+   */
+  resourcesDir: string;
 }
 
 interface BuildPluginOptions {
@@ -30,15 +36,8 @@ interface ClientBuildOptions {
   base?: string;
   /** Path to LICENSE file to include in the HTML output. @default "./LICENSE" */
   licensePath?: string;
-  /** Internationalization options for labels and docs. */
-  locales?: LocalesOptions;
-  /** Directories for static assets (icons, public files). */
-  staticDirs?: {
-    /** Directory containing node icons ({type}.png). @default "./src/icons" */
-    icons?: string;
-    /** Directory for public static files copied to dist/resources/. @default "./src/client/public" */
-    public?: string;
-  };
+  /** Directory for the editor's public static files, copied to dist/resources/. @default "./src/client/public" */
+  publicDir?: string;
   /** Modules to treat as external (not bundled). @default ["jquery", "node-red", "vue", "@bonsae/nrg/client"] */
   external?: string[];
   /** Global variable mappings for external modules. */
@@ -52,13 +51,6 @@ interface CopyTarget {
   src: string;
   /** Destination path relative to the output directory. */
   dest: string;
-}
-
-interface LocalesOptions {
-  /** Directory containing documentation files ({type}/{lang}.md or .html). @default "./src/locales/docs" */
-  docsDir?: string;
-  /** Directory containing label files ({type}/{lang}.json). @default "./src/locales/labels" */
-  labelsDir?: string;
 }
 
 interface LoggerOptions {
@@ -99,8 +91,6 @@ interface BuildOptions {
   server?: ServerBuildOptions;
   /** Options for building the client-side editor UI. */
   client?: ClientBuildOptions;
-  /** Extra files to copy into the output directory (e.g., LICENSE, README). */
-  extraFilesCopyTargets?: CopyTarget[];
 }
 
 /**
@@ -188,7 +178,6 @@ export {
   BuildPluginOptions,
   ClientBuildOptions,
   CopyTarget,
-  LocalesOptions,
   LoggerOptions,
   NodeRedLauncher,
   NodeRedLauncherOptions,

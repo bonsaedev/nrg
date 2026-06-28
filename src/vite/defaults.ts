@@ -7,6 +7,13 @@ import type {
 
 const DEFAULT_OUTPUT_DIR = "./dist";
 
+/**
+ * Resources convention root. Drop folders here and the build handles them by
+ * name: `icons/` and `locales/{docs,labels}/` run their pipelines, every other
+ * folder (e.g. `examples/`) is copied verbatim to `dist/<name>`. No config props.
+ */
+const DEFAULT_RESOURCES_DIR = "./src/resources";
+
 const DEFAULT_CLIENT_BUILD_OPTIONS: ClientBuildOptions = {
   srcDir: "./src/client",
   entry: "index.ts",
@@ -20,14 +27,7 @@ const DEFAULT_CLIENT_BUILD_OPTIONS: ClientBuildOptions = {
     "node-red": "RED",
     vue: "Vue",
   },
-  locales: {
-    docsDir: "./src/locales/docs",
-    labelsDir: "./src/locales/labels",
-  },
-  staticDirs: {
-    icons: "./src/icons",
-    public: "./src/client/public",
-  },
+  publicDir: "./src/client/public",
 };
 
 const DEFAULT_SERVER_BUILD_OPTIONS: ServerBuildOptions = {
@@ -50,10 +50,11 @@ const DEFAULT_NODE_RED_LAUNCHER_OPTIONS: NodeRedLauncherOptions = {
   args: [],
 };
 
+// Always-copied package files (examples and other assets now live under the
+// resources convention, auto-discovered — see DEFAULT_RESOURCES_DIR).
 const DEFAULT_EXTRA_FILES_COPY_TARGETS: CopyTarget[] = [
   { src: "./LICENSE", dest: "LICENSE" },
   { src: "./README.md", dest: "README.md" },
-  { src: "./src/examples", dest: "examples" },
 ];
 
 export {
@@ -61,5 +62,6 @@ export {
   DEFAULT_SERVER_BUILD_OPTIONS,
   DEFAULT_NODE_RED_LAUNCHER_OPTIONS,
   DEFAULT_EXTRA_FILES_COPY_TARGETS,
+  DEFAULT_RESOURCES_DIR,
   DEFAULT_OUTPUT_DIR,
 };

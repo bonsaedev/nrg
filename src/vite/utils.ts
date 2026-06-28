@@ -29,6 +29,28 @@ function copyFiles(targets: CopyTarget[], outDir: string): void {
   }
 }
 
+/**
+ * Auto-discover copy targets under the resources convention dir. `icons/` and
+ * `locales/` have their own build pipelines (icon inlining, help/i18n
+ * generation), so they're skipped here; every other folder (e.g. `examples/`)
+ * is copied verbatim to `dist/<name>`. Returns [] when the dir is absent.
+ */
+const RESOURCE_PIPELINE_FOLDERS = new Set(["icons", "locales"]);
+
+function discoverResourceCopyTargets(resourcesDir: string): CopyTarget[] {
+  if (!fs.existsSync(resourcesDir)) return [];
+  return fs
+    .readdirSync(resourcesDir, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() && !RESOURCE_PIPELINE_FOLDERS.has(entry.name),
+    )
+    .map((entry) => ({
+      src: path.join(resourcesDir, entry.name),
+      dest: entry.name,
+    }));
+}
+
 function getPackageName(): string {
   const pkgPath = path.resolve("./package.json");
   if (fs.existsSync(pkgPath)) {
@@ -79,4 +101,10 @@ function mergeOptions<T extends Record<string, any>>(
   return result;
 }
 
-export { cleanDir, copyFiles, getPackageName, mergeOptions };
+export {
+  cleanDir,
+  copyFiles,
+  discoverResourceCopyTargets,
+  getPackageName,
+  mergeOptions,
+};

@@ -37,12 +37,14 @@ async function build(
     name = "NodeRedNodes",
     format = "es",
     licensePath = "./LICENSE",
-    locales,
-    staticDirs = {},
+    publicDir,
     external = [],
     globals = {},
     manualChunks,
   } = clientBuildOptions;
+
+  // Resources convention: icons + locales are derived from src/resources/*.
+  const resourcesDir = buildContext.resourcesDir;
 
   // Cache dir for generated entry/node-definition files. Keyed by output dir so
   // concurrent builds of the same project (e.g. `build` and `build:dev` writing
@@ -72,9 +74,7 @@ async function build(
     generatedEntry = true;
   }
 
-  const iconsDir = path.resolve(
-    staticDirs.icons ?? path.join(path.dirname(path.resolve(srcDir)), "icons"),
-  );
+  const iconsDir = path.join(resourcesDir, "icons");
 
   const plugins: Plugin[] = [
     vue(),
@@ -96,18 +96,14 @@ async function build(
     }),
   );
 
-  if (locales) {
-    const { docsDir = "./locales/docs", labelsDir = "./locales/labels" } =
-      locales;
-
+  const localesDir = path.join(resourcesDir, "locales");
+  if (fs.existsSync(localesDir)) {
+    const docsDir = path.join(localesDir, "docs");
+    const labelsDir = path.join(localesDir, "labels");
     const localesOutDir = path.join(buildContext.outDir, "locales");
 
     plugins.push(
-      localesGenerator({
-        outDir: localesOutDir,
-        docsDir: path.resolve(docsDir),
-        labelsDir: path.resolve(labelsDir),
-      }),
+      localesGenerator({ outDir: localesOutDir, docsDir, labelsDir }),
     );
 
     // Generate help docs from schemas for nodes without manual docs.
@@ -116,8 +112,8 @@ async function build(
       helpGenerator({
         outDir: buildContext.outDir,
         localesOutDir,
-        docsDir: path.resolve(docsDir),
-        labelsDir: path.resolve(labelsDir),
+        docsDir,
+        labelsDir,
         srcDir: buildContext.serverSrcDir,
       }),
     );
@@ -125,12 +121,12 @@ async function build(
 
   const copyTargets: CopyTarget[] = [];
 
-  const publicDir = path.resolve(
-    staticDirs.public ?? path.join(srcDir, "public"),
+  const resolvedPublicDir = path.resolve(
+    publicDir ?? path.join(srcDir, "public"),
   );
-  if (fs.existsSync(publicDir)) {
+  if (fs.existsSync(resolvedPublicDir)) {
     copyTargets.push({
-      src: publicDir,
+      src: resolvedPublicDir,
       dest: path.join(buildContext.outDir, "resources"),
     });
   }
