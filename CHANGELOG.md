@@ -1,5 +1,23 @@
 # Changelog
 
+# [0.27.0](https://github.com/bonsaedev/nrg/compare/v0.26.3...v0.27.0) (2026-06-28)
+
+
+### Bug Fixes
+
+* address code-review findings (dead banner, a11y, ESM build guard, cleanup) ([fc328bd](https://github.com/bonsaedev/nrg/commit/fc328bd01bda1a915ea5b268f50ea15f734ac605))
+* **build:** whitelist published package.json fields ([cd18222](https://github.com/bonsaedev/nrg/commit/cd18222c02f54e1ab1e9e4ae2ad054e9c407f8c7))
+* **client:** validate credentials-only nodes ([ca1a388](https://github.com/bonsaedev/nrg/commit/ca1a388b2f47e4fdcfc8e9298ccf16c54a198c06))
+* **server:** dedup error port, surface real created() failure cause ([bdf53b3](https://github.com/bonsaedev/nrg/commit/bdf53b349ada5b00256080200409647a955f57ca))
+* **server:** prune per-node context update lock map ([c33a687](https://github.com/bonsaedev/nrg/commit/c33a687cce8930effb214298b16b4b5fb068161d))
+* **server:** warn on cleartext credential fields ([9eaa94b](https://github.com/bonsaedev/nrg/commit/9eaa94b92bd06da01a178058025ddaa1fb2be398))
+
+
+### Features
+
+* **client:** edit object config fields in a Monaco JSON editor ([f369892](https://github.com/bonsaedev/nrg/commit/f369892130d946898e1dd1c1c6058fa8858422cd))
+* **schemas:** unify NodeRef, decouple authoring into core/shared, constrain to config nodes ([1af7000](https://github.com/bonsaedev/nrg/commit/1af70001dc765032b1bf8e5856fb5f8ce69b0255))
+
 ## [0.26.3](https://github.com/bonsaedev/nrg/compare/v0.26.2...v0.26.3) (2026-06-27)
 
 
