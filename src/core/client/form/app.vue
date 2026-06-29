@@ -69,14 +69,16 @@
             <th class="nrg-outputs-index">
               {{ resolveLabel("outputs.port", "Port") }}
             </th>
-            <th>{{ resolveLabel("outputs.label", "Label") }}</th>
+            <th class="nrg-outputs-label">
+              {{ resolveLabel("outputs.label", "Label") }}
+            </th>
             <th class="nrg-outputs-flag">
               {{ resolveLabel("outputs.validate", "Validate Data") }}
             </th>
-            <th v-if="hasOutputReturnProperties">
+            <th v-if="hasOutputReturnProperties" class="nrg-outputs-return-col">
               {{ resolveLabel("outputs.returnProperty", "Return Property") }}
             </th>
-            <th v-if="hasOutputContextModes">
+            <th v-if="hasOutputContextModes" class="nrg-outputs-context-col">
               {{ resolveLabel("outputs.contextMode", "Context Mode") }}
             </th>
           </tr>
@@ -84,7 +86,7 @@
         <tbody>
           <tr v-for="port in outputRows" :key="port.index">
             <td class="nrg-outputs-index">{{ port.index }}</td>
-            <td>{{ port.label }}</td>
+            <td class="nrg-outputs-label">{{ port.label }}</td>
             <td class="nrg-outputs-flag">
               <NodeRedToggle
                 :model-value="validateOutputFor(port.index)"
@@ -94,7 +96,7 @@
                 "
               />
             </td>
-            <td v-if="hasOutputReturnProperties">
+            <td v-if="hasOutputReturnProperties" class="nrg-outputs-return-col">
               <input
                 type="text"
                 class="nrg-outputs-return"
@@ -109,7 +111,7 @@
                 "
               />
             </td>
-            <td v-if="hasOutputContextModes">
+            <td v-if="hasOutputContextModes" class="nrg-outputs-context-col">
               <select
                 class="nrg-outputs-context"
                 :value="contextModeFor(port.index)"
@@ -552,7 +554,10 @@ export default defineComponent({
 }
 
 .nrg-outputs {
-  width: 100%;
+  /* Size to the sum of the fixed column widths instead of filling the panel,
+     so the table stays compact. max-width keeps it from overflowing when a
+     localized header or the optional Context Mode column makes it wide. */
+  width: max-content;
   max-width: 100%;
   table-layout: fixed;
   margin-top: 6px;
@@ -593,6 +598,28 @@ export default defineComponent({
 
 .nrg-outputs-index {
   width: 3em;
+}
+
+/* Fixed Label column — long labels truncate with an ellipsis instead of
+   widening the table. */
+.nrg-outputs-label {
+  width: 200px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sized to hold the "Return Property" / "Context Mode" headers on one line; the
+   inner input/select fills the column (width: 100%). */
+.nrg-outputs-return-col {
+  width: 150px;
+  white-space: nowrap;
+}
+
+.nrg-outputs-context-col {
+  width: 130px;
+  white-space: nowrap;
 }
 
 .nrg-outputs-flag {
