@@ -6,7 +6,7 @@ hero:
   text: Node-RED Framework
   tagline: Build fully typed nodes and plugins with TypeScript, Vue 3, JSON Schemas, and Vite.
   image:
-    src: https://gist.githubusercontent.com/AllanOricil/84412df273de46b28c5d6945b391afd4/raw/0c9cdb994c40ab3d7b7ad06dcee162145d77d531/nrg-icon.svg
+    src: https://gist.githubusercontent.com/AllanOricil/84412df273de46b28c5d6945b391afd4/raw/c7e401ad279e1c19c6c8d30c9df0562907d39356/nrg-icon.svg
     alt: NRG
   actions:
     - theme: brand
