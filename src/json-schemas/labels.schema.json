@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "$id": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
   "title": "NRG Node Labels",
   "description": "Label file for NRG Node-RED nodes. Provides human-readable labels for the editor UI and auto-generated help docs.",
   "type": "object",
