@@ -503,8 +503,10 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
     `/// <reference path="./shims/typebox.d.ts" />\n${schemaDts}`,
   );
 
+  // Generated from the curated client/public.ts (not the raw ./types) so the
+  // editor-runtime internals stay out of the public ./client surface.
   execSync(
-    `npx dts-bundle-generator -o dist/toolkit/types/client.d.ts src/core/client/types.ts ${DTS_FLAGS}`,
+    `npx dts-bundle-generator -o dist/toolkit/types/client.d.ts src/core/client/public.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },
   );
   appendFileSync(
