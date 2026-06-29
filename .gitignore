@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+graphify-out/
+docs/.vitepress/cache/
 tests/.tmp/
 test-results/
 tests/fixtures/*/node_modules/
