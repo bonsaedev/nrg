@@ -791,7 +791,7 @@ scaled horizontally (HA mode, or compiled to a stateless target like AWS Lambda)
 store, so there's nothing to serialize it against.
 :::
 
-### Built-in Ports {#emit-ports}
+### Lifecycle Output Ports {#lifecycle-output-ports}
 
 By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure scoping separately, which breaks the visual data flow.
 
@@ -819,7 +819,7 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-The framework detects these properties by name. When present, toggle switches appear in the editor under a **Lifecycle Ports** section (see [The editor form](#the-editor-form)). Users can enable or disable each port independently.
+The framework detects these properties by name. When present, toggle switches appear in the editor under a **Lifecycle Output Ports** section (see [The editor form](#the-editor-form)). Users can enable or disable each port independently.
 
 #### How it works
 
@@ -942,7 +942,7 @@ nrg generates the node's edit dialog from your schema — you don't write any HT
 - **Ports Settings**
   - **Input** — a _Validate_ toggle when the node declares an `inputSchema`.
   - **Outputs** — a per-port table (one row per base output port) with a **Validate** column plus optional **Return Property** and **Context Mode** columns. _Validate_ checks the sent value against that port's schema; _Return Property_ — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key) — sets each port's return key (default `output`); _Context Mode_ — shown only when the schema declares [`outputContextModes`](./schemas#context-modes) — picks how each configurable output carries the incoming message (ports without a declared default stay locked to `carry`). The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
-- **Lifecycle Ports** — _Error_, _Complete_, and _Status_ toggles, shown for whichever [built-in ports](#emit-ports) the schema declares.
+- **Lifecycle Output Ports** — _Error_, _Complete_, and _Status_ toggles, shown for whichever [lifecycle output ports](#lifecycle-output-ports) the schema declares.
 
 Each help line links to the relevant docs. Sections only appear when there is something to configure — a node with no input/output schema and no built-in ports shows just its fields.
 

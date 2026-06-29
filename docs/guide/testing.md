@@ -491,8 +491,8 @@ describe("built-in emit ports", () => {
   // Built-in error, complete, and status ports are **opt-in**, not automatic.
   // A node only gets them when it declares the matching boolean flags in its
   // config schema and the flow author (or test) turns them on — see the
-  // emit ports section of the node guide:
-  // /guide/creating-a-node#emit-ports.
+  // lifecycle output ports section of the node guide:
+  // /guide/creating-a-node#lifecycle-output-ports.
   //
   //   const EmitConfig = defineSchema(
   //     {

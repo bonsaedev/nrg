@@ -1,200 +1,268 @@
 <template>
-  <!-- 1. Node fields (schema-driven, name first) -->
-  <div style="width: 100%; padding-bottom: 12px">
-    <NodeRedNodeForm
-      :node="localNode"
-      :schema="schema"
-      :errors="errors"
-      style="width: 100%"
-    />
-  </div>
-
-  <!-- 2. Ports Settings -->
-  <div v-if="showPortsSettings" class="nrg-section">
-    <div class="nrg-section-title">
-      {{ resolveLabel("sections.portsSettings", "Ports Settings") }}
+  <div class="nrg-form-app">
+    <!-- 1. Node fields (schema-driven, name first) -->
+    <div style="width: 100%; padding-bottom: 12px">
+      <NodeRedNodeForm
+        :node="localNode"
+        :schema="schema"
+        :errors="errors"
+        style="width: 100%"
+      />
     </div>
 
-    <!-- Input -->
-    <div v-if="features.hasInputSchema" class="nrg-subsection">
-      <div class="nrg-subsection-title">
-        {{ resolveLabel("sections.input", "Input") }}
+    <!-- 2. Ports Settings -->
+    <div v-if="showPortsSettings" class="nrg-section">
+      <div class="nrg-section-title">
+        {{ resolveLabel("sections.portsSettings", "Ports Settings") }}
       </div>
-      <div class="form-row">
-        <NodeRedToggle
-          v-model="localNode.validateInput"
-          :label="resolveLabel('toggles.validateInput', 'Validate Data')"
-        />
+
+      <!-- Input -->
+      <div v-if="features.hasInputSchema" class="nrg-subsection">
+        <div class="nrg-subsection-title">
+          {{ resolveLabel("sections.input", "Input") }}
+        </div>
+        <div class="form-row">
+          <NodeRedToggle
+            v-model="localNode.validateInput"
+            :label="resolveLabel('toggles.validateInput', 'Validate Data')"
+          />
+          <div class="nrg-help">
+            {{
+              resolveLabel(
+                "help.validateInput",
+                "Validate incoming messages against the input schema before input() runs.",
+              )
+            }}
+            <a
+              class="nrg-help-link"
+              :href="docsUrl('/guide/schemas#input-schema')"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div v-if="showOutputs && outputRows.length" class="nrg-subsection">
+        <div class="nrg-subsection-title">
+          {{ resolveLabel("sections.outputs", "Outputs") }}
+        </div>
         <div class="nrg-help">
           {{
             resolveLabel(
-              "help.validateInput",
-              "Validate incoming messages against the input schema before input() runs.",
+              "help.outputs",
+              "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
             )
           }}
           <a
             class="nrg-help-link"
-            :href="docsUrl('/guide/schemas#input-schema')"
+            :href="docsUrl('/guide/creating-a-node#the-editor-form')"
             target="_blank"
             rel="noopener noreferrer"
             >{{ resolveLabel("help.learnMore", "Learn more") }}</a
           >
         </div>
-      </div>
-    </div>
-
-    <!-- Outputs -->
-    <div v-if="showOutputs && outputRows.length" class="nrg-subsection">
-      <div class="nrg-subsection-title">
-        {{ resolveLabel("sections.outputs", "Outputs") }}
-      </div>
-      <div class="nrg-help">
-        {{
-          resolveLabel(
-            "help.outputs",
-            "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
-          )
-        }}
-        <a
-          class="nrg-help-link"
-          :href="docsUrl('/guide/creating-a-node#the-editor-form')"
-          target="_blank"
-          rel="noopener noreferrer"
-          >{{ resolveLabel("help.learnMore", "Learn more") }}</a
-        >
-      </div>
-      <table class="nrg-outputs">
-        <thead>
-          <tr>
-            <th class="nrg-outputs-index">
-              {{ resolveLabel("outputs.port", "Port") }}
-            </th>
-            <th class="nrg-outputs-label">
-              {{ resolveLabel("outputs.label", "Label") }}
-            </th>
-            <th class="nrg-outputs-flag">
-              {{ resolveLabel("outputs.validate", "Validate Data") }}
-            </th>
-            <th v-if="hasOutputReturnProperties" class="nrg-outputs-return-col">
-              {{ resolveLabel("outputs.returnProperty", "Return Property") }}
-            </th>
-            <th v-if="hasOutputContextModes" class="nrg-outputs-context-col">
-              {{ resolveLabel("outputs.contextMode", "Context Mode") }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="port in outputRows" :key="port.index">
-            <td class="nrg-outputs-index">{{ port.index }}</td>
-            <td class="nrg-outputs-label">{{ port.label }}</td>
-            <td class="nrg-outputs-flag">
-              <NodeRedToggle
-                :model-value="validateOutputFor(port.index)"
-                :aria-label="`${resolveLabel('outputs.validate', 'Validate Data')} — ${port.label}`"
-                @update:model-value="
-                  (val: boolean) => setValidateOutput(port.index, val)
-                "
-              />
-            </td>
-            <td v-if="hasOutputReturnProperties" class="nrg-outputs-return-col">
-              <input
-                type="text"
-                class="nrg-outputs-return"
-                placeholder="output"
-                :value="returnPropertyFor(port.index)"
-                @input="
-                  (e) =>
-                    setReturnProperty(
-                      port.index,
-                      (e.target as HTMLInputElement).value,
-                    )
-                "
-              />
-            </td>
-            <td v-if="hasOutputContextModes" class="nrg-outputs-context-col">
-              <select
-                class="nrg-outputs-context"
-                :value="contextModeFor(port.index)"
-                :disabled="!contextModeEnabled(port.index)"
-                @change="
-                  (e) =>
-                    setContextMode(
-                      port.index,
-                      (e.target as HTMLSelectElement).value,
-                    )
-                "
+        <table class="nrg-outputs">
+          <thead>
+            <tr>
+              <th class="nrg-outputs-index">
+                {{ resolveLabel("outputs.port", "Port") }}
+              </th>
+              <th class="nrg-outputs-label">
+                {{ resolveLabel("outputs.label", "Label") }}
+              </th>
+              <th class="nrg-outputs-flag">
+                {{ resolveLabel("outputs.validate", "Validate Data") }}
+              </th>
+              <th
+                v-if="hasOutputReturnProperties"
+                class="nrg-outputs-return-col"
               >
-                <option
-                  v-for="opt in contextModeOptions"
-                  :key="opt.value"
-                  :value="opt.value"
+                {{ resolveLabel("outputs.returnProperty", "Return Property") }}
+              </th>
+              <th v-if="hasOutputContextModes" class="nrg-outputs-context-col">
+                {{ resolveLabel("outputs.contextMode", "Context Mode") }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="port in outputRows" :key="port.index">
+              <td class="nrg-outputs-index">{{ port.index }}</td>
+              <td class="nrg-outputs-label">{{ port.label }}</td>
+              <td class="nrg-outputs-flag">
+                <NodeRedToggle
+                  :model-value="validateOutputFor(port.index)"
+                  :aria-label="`${resolveLabel('outputs.validate', 'Validate Data')} — ${port.label}`"
+                  @update:model-value="
+                    (val: boolean) => setValidateOutput(port.index, val)
+                  "
+                />
+              </td>
+              <td
+                v-if="hasOutputReturnProperties"
+                class="nrg-outputs-return-col"
+              >
+                <input
+                  type="text"
+                  class="nrg-outputs-return"
+                  placeholder="output"
+                  :value="returnPropertyFor(port.index)"
+                  @input="
+                    (e) =>
+                      setReturnProperty(
+                        port.index,
+                        (e.target as HTMLInputElement).value,
+                      )
+                  "
+                />
+              </td>
+              <td v-if="hasOutputContextModes" class="nrg-outputs-context-col">
+                <select
+                  class="nrg-outputs-context"
+                  :value="contextModeFor(port.index)"
+                  :disabled="!contextModeEnabled(port.index)"
+                  @change="
+                    (e) =>
+                      setContextMode(
+                        port.index,
+                        (e.target as HTMLSelectElement).value,
+                      )
+                  "
                 >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+                  <option
+                    v-for="opt in contextModeOptions"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-  <!-- 3. Lifecycle Ports — its own section, after Ports Settings -->
-  <div v-if="hasBuiltinPorts" class="nrg-section nrg-section-lifecycle">
-    <div class="nrg-section-title">
-      {{ resolveLabel("sections.lifecyclePorts", "Lifecycle Ports") }}
-    </div>
-    <div class="nrg-help">
-      {{
-        resolveLabel(
-          "help.lifecyclePorts",
-          "Optional extra output ports that fire on error, on completion, and on every status change.",
-        )
-      }}
-      <a
-        class="nrg-help-link"
-        :href="docsUrl('/guide/creating-a-node#emit-ports')"
-        target="_blank"
-        rel="noopener noreferrer"
-        >{{ resolveLabel("help.learnMore", "Learn more") }}</a
-      >
-    </div>
-    <div class="nrg-toggles-grid">
-      <div v-if="hasErrorPort" class="form-row">
-        <NodeRedToggle
-          :model-value="localNode.errorPort"
-          :label="resolveLabel('toggles.errorPort', 'Error Port')"
-          @update:model-value="
-            (val: boolean) => {
-              localNode.errorPort = val;
-              recalculateOutputs();
-            }
-          "
-        />
-      </div>
-      <div v-if="hasCompletePort" class="form-row">
-        <NodeRedToggle
-          :model-value="localNode.completePort"
-          :label="resolveLabel('toggles.completePort', 'Complete Port')"
-          @update:model-value="
-            (val: boolean) => {
-              localNode.completePort = val;
-              recalculateOutputs();
-            }
-          "
-        />
-      </div>
-      <div v-if="hasStatusPort" class="form-row">
-        <NodeRedToggle
-          :model-value="localNode.statusPort"
-          :label="resolveLabel('toggles.statusPort', 'Status Port')"
-          @update:model-value="
-            (val: boolean) => {
-              localNode.statusPort = val;
-              recalculateOutputs();
-            }
-          "
-        />
+      <!-- Lifecycle ports: extra output ports, a subsection of Ports Settings -->
+      <div v-if="hasBuiltinPorts" class="nrg-subsection">
+        <div class="nrg-subsection-title">
+          {{
+            resolveLabel("sections.lifecyclePorts", "Lifecycle Output Ports")
+          }}
+        </div>
+        <div class="nrg-help">
+          {{
+            resolveLabel(
+              "help.lifecyclePorts",
+              "Optional extra output ports that fire on error, on completion, and on every status change.",
+            )
+          }}
+          <a
+            class="nrg-help-link"
+            :href="docsUrl('/guide/creating-a-node#lifecycle-output-ports')"
+            target="_blank"
+            rel="noopener noreferrer"
+            >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+          >
+        </div>
+        <table class="nrg-lifecycle">
+          <thead>
+            <tr>
+              <th class="nrg-lifecycle-port">
+                {{ resolveLabel("lifecyclePorts.port", "Port") }}
+              </th>
+              <th class="nrg-outputs-flag">
+                {{ resolveLabel("lifecyclePorts.enable", "Enable") }}
+              </th>
+              <th class="nrg-lifecycle-desc">
+                {{ resolveLabel("lifecyclePorts.description", "Description") }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="hasErrorPort">
+              <td class="nrg-lifecycle-port">
+                {{ resolveLabel("lifecyclePorts.error.name", "Error") }}
+              </td>
+              <td class="nrg-outputs-flag">
+                <NodeRedToggle
+                  :model-value="localNode.errorPort"
+                  :aria-label="resolveLabel('toggles.errorPort', 'Error Port')"
+                  @update:model-value="
+                    (val: boolean) => {
+                      localNode.errorPort = val;
+                      recalculateOutputs();
+                    }
+                  "
+                />
+              </td>
+              <td class="nrg-lifecycle-desc">
+                {{
+                  resolveLabel(
+                    "lifecyclePorts.error.description",
+                    "Routes the message to a separate output when this node fails, so you can handle errors on their own wire.",
+                  )
+                }}
+              </td>
+            </tr>
+            <tr v-if="hasCompletePort">
+              <td class="nrg-lifecycle-port">
+                {{ resolveLabel("lifecyclePorts.complete.name", "Complete") }}
+              </td>
+              <td class="nrg-outputs-flag">
+                <NodeRedToggle
+                  :model-value="localNode.completePort"
+                  :aria-label="
+                    resolveLabel('toggles.completePort', 'Complete Port')
+                  "
+                  @update:model-value="
+                    (val: boolean) => {
+                      localNode.completePort = val;
+                      recalculateOutputs();
+                    }
+                  "
+                />
+              </td>
+              <td class="nrg-lifecycle-desc">
+                {{
+                  resolveLabel(
+                    "lifecyclePorts.complete.description",
+                    "Emits a message from a separate output once this node finishes, so you can trigger what comes next.",
+                  )
+                }}
+              </td>
+            </tr>
+            <tr v-if="hasStatusPort">
+              <td class="nrg-lifecycle-port">
+                {{ resolveLabel("lifecyclePorts.status.name", "Status") }}
+              </td>
+              <td class="nrg-outputs-flag">
+                <NodeRedToggle
+                  :model-value="localNode.statusPort"
+                  :aria-label="
+                    resolveLabel('toggles.statusPort', 'Status Port')
+                  "
+                  @update:model-value="
+                    (val: boolean) => {
+                      localNode.statusPort = val;
+                      recalculateOutputs();
+                    }
+                  "
+                />
+              </td>
+              <td class="nrg-lifecycle-desc">
+                {{
+                  resolveLabel(
+                    "lifecyclePorts.status.description",
+                    "Emits a message from a separate output whenever this node's status changes, so your flow can react.",
+                  )
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -275,7 +343,9 @@ export default defineComponent({
       return this.features.hasOutputSchema;
     },
     showPortsSettings(): boolean {
-      return this.features.hasInputSchema || this.showOutputs;
+      return (
+        this.features.hasInputSchema || this.showOutputs || this.hasBuiltinPorts
+      );
     },
     /**
      * Base output ports to render in the Outputs table. Reactive: a node with
@@ -496,26 +566,33 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.nrg-toggles-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px 16px;
+/* Root wrapper guarantees breathing room below the last section so it never
+   butts against the edit tray's bottom edge, regardless of which section ends
+   the form. */
+.nrg-form-app {
+  padding-bottom: 16px;
 }
 
-.nrg-toggles-grid .form-row {
-  margin-bottom: 0;
+/* Lifecycle ports reuse the .nrg-outputs table chrome; PORT/ENABLE size to
+   content (nowrap) and DESCRIPTION stays on one line — see the table-layout
+   override below. */
+.nrg-lifecycle-port {
+  white-space: nowrap;
+}
+
+/* Left-align the description (overrides the shared centered cell rule, which
+   out-specifies a bare class) and keep it — with its Learn more link — on one
+   line. Header stays centered like the others. */
+.nrg-lifecycle td.nrg-lifecycle-desc {
+  text-align: left;
+  white-space: nowrap;
+  color: var(--red-ui-text-color-disabled, #999);
 }
 
 .nrg-section {
   border-top: 1px solid var(--red-ui-secondary-border-color, #ddd);
   margin-top: 12px;
   padding-top: 8px;
-}
-
-/* Breathing room below the last section so its toggles don't butt against the
-   edit tray's bottom edge. */
-.nrg-section-lifecycle {
-  padding-bottom: 16px;
 }
 
 .nrg-section-title {
@@ -525,6 +602,10 @@ export default defineComponent({
 }
 
 .nrg-help {
+  /* No width cap: each help sentence lays out on a single line and contributes
+     its natural width to the form, so Node-RED sizes the edit tray wide enough
+     to show it unwrapped (alongside the no-wrap lifecycle descriptions). */
+  white-space: nowrap;
   font-size: 11px;
   line-height: 1.4;
   color: var(--red-ui-text-color-disabled, #999);
@@ -553,11 +634,13 @@ export default defineComponent({
   margin: 6px 0 4px;
 }
 
-.nrg-outputs {
-  /* Size to the sum of the fixed column widths instead of filling the panel,
-     so the table stays compact. max-width keeps it from overflowing when a
-     localized header or the optional Context Mode column makes it wide. */
-  width: max-content;
+.nrg-outputs,
+.nrg-lifecycle {
+  /* Fill the panel so the table grows when the tray is widened. At the default
+     tray width this is moot: with the help prose capped (see .nrg-help), the
+     table's fixed column-sum is the widest intrinsic element, so Node-RED sizes
+     the tray to the table. Dragging the tray wider then stretches the columns. */
+  width: 100%;
   max-width: 100%;
   table-layout: fixed;
   margin-top: 6px;
@@ -569,8 +652,22 @@ export default defineComponent({
   font-size: 12px;
 }
 
+/* Lifecycle table: auto layout so PORT and ENABLE shrink to their content and
+   DESCRIPTION (kept on one line) drives the table's natural width — Node-RED
+   then sizes the tray to fit it, so descriptions never wrap. Declared after the
+   shared rule so table-layout: auto wins over the fixed default. */
+.nrg-lifecycle {
+  table-layout: auto;
+}
+
+.nrg-lifecycle .nrg-outputs-flag {
+  width: auto;
+}
+
 .nrg-outputs th,
-.nrg-outputs td {
+.nrg-outputs td,
+.nrg-lifecycle th,
+.nrg-lifecycle td {
   padding: 5px 8px;
   text-align: center;
   vertical-align: middle;
@@ -579,15 +676,19 @@ export default defineComponent({
 }
 
 .nrg-outputs th:last-child,
-.nrg-outputs td:last-child {
+.nrg-outputs td:last-child,
+.nrg-lifecycle th:last-child,
+.nrg-lifecycle td:last-child {
   border-right: none;
 }
 
-.nrg-outputs tbody tr:last-child td {
+.nrg-outputs tbody tr:last-child td,
+.nrg-lifecycle tbody tr:last-child td {
   border-bottom: none;
 }
 
-.nrg-outputs thead th {
+.nrg-outputs thead th,
+.nrg-lifecycle thead th {
   background: var(--red-ui-tertiary-background, #f3f3f3);
   color: var(--red-ui-text-color-disabled, #777);
   font-size: 11px;
@@ -630,8 +731,13 @@ export default defineComponent({
   width: 116px;
 }
 
-/* Center the toggle in the cell (the wrapper is inline-flex). */
+/* Center the toggle in the cell. Block-level `flex` (not the component's default
+   inline-flex) so the cell's `vertical-align: middle` centers it on the row's
+   true center, not the text x-height — otherwise the toggle sits slightly high
+   relative to the return-property input / context-mode select in the same row. */
 .nrg-outputs-flag .nrg-toggle-wrapper {
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 

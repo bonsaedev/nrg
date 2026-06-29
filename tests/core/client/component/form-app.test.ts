@@ -59,14 +59,18 @@ function renderApp(options: {
 function toggleFor(container: HTMLElement, label: string): HTMLElement {
   const labels = Array.from(container.querySelectorAll(".nrg-toggle__label"));
   const el = labels.find((l) => l.textContent?.trim() === label);
-  if (!el) {
-    throw new Error(
-      `Toggle "${label}" not found. Available: ${labels
-        .map((l) => l.textContent?.trim())
-        .join(", ")}`,
-    );
-  }
-  return el.closest("label.nrg-toggle") as HTMLElement;
+  if (el) return el.closest("label.nrg-toggle") as HTMLElement;
+  // Lifecycle-port toggles render no visible label (the name lives in the
+  // table's Port column); fall back to the toggle's accessible name.
+  const input = container.querySelector(
+    `.nrg-toggle__input[aria-label="${label}"]`,
+  );
+  if (input) return input.closest("label.nrg-toggle") as HTMLElement;
+  throw new Error(
+    `Toggle "${label}" not found. Available: ${labels
+      .map((l) => l.textContent?.trim())
+      .join(", ")}`,
+  );
 }
 
 describe("app shell — input validation", () => {
@@ -121,9 +125,13 @@ describe("app shell — built-in port toggles", () => {
         completePort: { type: "boolean" },
       }),
     });
-    expect(component.container.textContent).toContain("Error Port");
-    expect(component.container.textContent).toContain("Complete Port");
-    expect(component.container.textContent).not.toContain("Status Port");
+    // Lifecycle rows label the port by its short name; the toggle keeps the
+    // full "<name> Port" accessible name.
+    expect(toggleFor(component.container, "Error Port")).toBeTruthy();
+    expect(toggleFor(component.container, "Complete Port")).toBeTruthy();
+    expect(
+      component.container.querySelector('[aria-label="Status Port"]'),
+    ).toBeNull();
 
     toggleFor(component.container, "Error Port")
       .querySelector("input")!
