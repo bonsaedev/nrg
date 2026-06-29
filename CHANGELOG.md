@@ -1,5 +1,22 @@
 # Changelog
 
+# [0.30.0](https://github.com/bonsaedev/nrg/compare/v0.29.0...v0.30.0) (2026-06-29)
+
+
+### Bug Fixes
+
+* compact the editor OUTPUTS table columns ([62434be](https://github.com/bonsaedev/nrg/commit/62434be224002bb61ca5e5992804e5a383253024))
+* resolve editor output-port labels from the i18n catalog ([21e9cd2](https://github.com/bonsaedev/nrg/commit/21e9cd24077ffa04955f634f9e17a5ed4d9150a2))
+* vertically center the toggle in form table cells ([9355f18](https://github.com/bonsaedev/nrg/commit/9355f1883cd54c744d16f40c7e4e10ddcb6aac5b))
+
+
+### Features
+
+* add a Label column to the editor Input table ([a615cbf](https://github.com/bonsaedev/nrg/commit/a615cbfa3e0ae5bf81a44c3b1275b7916749a9e8))
+* enforce a valid default type on TypedInput schemas ([03a6b60](https://github.com/bonsaedev/nrg/commit/03a6b60dc2876f40be832274529190d037992082))
+* lifecycle output-ports settings table and form layout refinements ([c10b10e](https://github.com/bonsaedev/nrg/commit/c10b10ea54996009ebac6f144b74071014f238c6))
+* render the Input section as a table ([d108e32](https://github.com/bonsaedev/nrg/commit/d108e32c2fde36d6a5683133e42a5866a5c80178))
+
 # [0.29.0](https://github.com/bonsaedev/nrg/compare/v0.28.1...v0.29.0) (2026-06-29)
 
 
