@@ -73,6 +73,10 @@ export default defineComponent({
   cursor: pointer;
   gap: 4px;
   user-select: none;
+  /* Reset Node-RED's global `label { margin-bottom: 5px }` (forms.scss) — the
+     stray bottom margin offsets the toggle above the row's vertical center.
+     `!important` to beat that same rule, as with `display` above. */
+  margin: 0 !important;
 }
 
 .nrg-toggle__input {
