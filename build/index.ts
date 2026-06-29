@@ -617,7 +617,7 @@ ${entries.join("\n")}
 function copyAssets() {
   mkdirSync("dist/toolkit/tsconfig", { recursive: true });
   cpSync("src/tsconfig", "dist/toolkit/tsconfig", { recursive: true });
-  cpSync("src/assets", "dist/toolkit/schemas", { recursive: true });
+  cpSync("src/json-schemas", "dist/toolkit/schemas", { recursive: true });
 
   // The package publishes from dist/toolkit (publishConfig.directory), so
   // README and LICENSE go in there.
