@@ -81,12 +81,57 @@ function NodeRef<T extends ConfigNodeRef = ConfigNodeBrand>(
   } as unknown as TNodeRef<NodeRefInstance<T>>;
 }
 
-/** Creates a schema for a Node-RED TypedInput (value + type pair). */
+/**
+ * Creates a schema for a Node-RED TypedInput (value + type pair).
+ *
+ * A default `type` is always set (the editor's TypedInput renders broken with no
+ * type). When the field restricts its types via `x-nrg-form.typedInputTypes` —
+ * a subset of {@link TYPED_INPUT_TYPES} and/or custom editor-registered types —
+ * the default type must be one of them (an explicit default outside that set is
+ * rejected, and a missing default falls back to `str` when allowed else the
+ * first listed type). When types are unrestricted, the full set (standard plus
+ * any custom types) isn't known here, so an explicit default type is trusted
+ * as-is and a missing one defaults to `str`.
+ */
 function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
+  const opts = (options ?? {}) as {
+    default?: { type?: string; value?: unknown };
+    "x-nrg-form"?: { typedInputTypes?: string[] };
+  };
+  const restrictedTypes = opts["x-nrg-form"]?.typedInputTypes;
+  if (restrictedTypes && restrictedTypes.length === 0) {
+    throw new Error(
+      "SchemaType.TypedInput: typedInputTypes must list at least one type.",
+    );
+  }
+  const explicitType = opts.default?.type;
+  if (
+    restrictedTypes &&
+    explicitType !== undefined &&
+    !restrictedTypes.includes(explicitType)
+  ) {
+    throw new Error(
+      `SchemaType.TypedInput: default type "${explicitType}" is not one of its ` +
+        `typedInputTypes [${restrictedTypes.join(", ")}].`,
+    );
+  }
+  const defaultType =
+    explicitType ??
+    (restrictedTypes
+      ? restrictedTypes.includes("str")
+        ? "str"
+        : restrictedTypes[0]
+      : "str");
+
   return {
     ...TypedInputSchema,
-    // `...options` first; the framework key below wins (see NodeRef).
+    // `...options` first; the framework keys below win (see NodeRef).
     ...options,
+    default: {
+      ...(TypedInputSchema as { default?: Record<string, unknown> }).default,
+      ...opts.default,
+      type: defaultType,
+    },
     "x-nrg-typed-input": true,
     [Kind]: "TypedInput",
   } as unknown as TTypedInput<T>;

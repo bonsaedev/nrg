@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Kind } from "@sinclair/typebox";
-import {
-  SchemaType,
-  defineSchema,
-} from "@/core/server/schemas";
+import { SchemaType, defineSchema } from "@/core/server/schemas";
 import { initValidator } from "@/core/server/validation";
 import { createRED } from "@mocks/red";
 
@@ -72,6 +69,52 @@ describe("SchemaType", () => {
       });
       expect(s["x-nrg-form"]).toEqual({ typedInputTypes: ["str", "num"] });
     });
+
+    it("always sets a default type (str by default)", () => {
+      const s = SchemaType.TypedInput() as { default?: { type?: string } };
+      expect(s.default?.type).toBe("str");
+    });
+
+    it("defaults to the first available type when str is excluded", () => {
+      const s = SchemaType.TypedInput({
+        "x-nrg-form": { typedInputTypes: ["msg", "flow"] },
+      }) as { default?: { type?: string } };
+      expect(s.default?.type).toBe("msg");
+    });
+
+    it("keeps an explicit default type that is available", () => {
+      const s = SchemaType.TypedInput({
+        default: { type: "num", value: 0 },
+        "x-nrg-form": { typedInputTypes: ["str", "num"] },
+      }) as { default?: { type?: string } };
+      expect(s.default?.type).toBe("num");
+    });
+
+    it("throws when the default type is not one of the available types", () => {
+      expect(() =>
+        SchemaType.TypedInput({
+          default: { type: "num", value: 0 },
+          "x-nrg-form": { typedInputTypes: ["str", "msg"] },
+        }),
+      ).toThrow(/not one of its typedInputTypes/);
+    });
+
+    it("trusts a custom default type when types are unrestricted", () => {
+      // No typedInputTypes → the full set (incl. editor-registered custom types
+      // like "sobject") isn't known here, so the explicit default is kept.
+      const s = SchemaType.TypedInput({
+        default: { type: "sobject", value: "" },
+      }) as { default?: { type?: string } };
+      expect(s.default?.type).toBe("sobject");
+    });
+
+    it("allows a custom type listed in typedInputTypes", () => {
+      const s = SchemaType.TypedInput({
+        default: { type: "sobject", value: "" },
+        "x-nrg-form": { typedInputTypes: ["sobject", "str"] },
+      }) as { default?: { type?: string } };
+      expect(s.default?.type).toBe("sobject");
+    });
   });
 });
 
@@ -98,7 +141,10 @@ describe("defineSchema", () => {
       { $id: "func-schema" },
     );
 
-    const transformProp = schema.properties.transform as Record<string, unknown>;
+    const transformProp = schema.properties.transform as Record<
+      string,
+      unknown
+    >;
     expect(transformProp["x-nrg-skip-validation"]).toBe(true);
     expect(transformProp.type).toBeUndefined();
   });
@@ -116,7 +162,10 @@ describe("defineSchema", () => {
       { $id: "func-default-schema" },
     );
 
-    const transformProp = schema.properties.transform as Record<string, unknown>;
+    const transformProp = schema.properties.transform as Record<
+      string,
+      unknown
+    >;
     expect(transformProp.default).toBeUndefined();
     expect(transformProp._default).toBe(fn);
   });
