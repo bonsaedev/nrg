@@ -62,5 +62,46 @@ export default typescriptEslint.config(
       ],
     },
   },
+  {
+    // The editor/browser plane must never VALUE-import server-only code — it
+    // would pull the node runtime (io-node, node:async_hooks, ajv) into the
+    // editor bundle. Types are erased at build time, so `import type` is fine.
+    files: ["src/core/client/**/*.{ts,vue}"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/core/server/**", "*/server", "@bonsae/nrg/server"],
+              allowTypeImports: true,
+              message:
+                "Editor/client code must not value-import server-only modules — they pull in the node runtime. Use `import type` for cross-plane types.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Symmetric guard: server code must not VALUE-import the editor/browser
+    // plane (Vue components, editor-only modules). `import type` is allowed.
+    files: ["src/core/server/**/*.{ts,vue}"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/core/client/**", "*/client", "@bonsae/nrg/client"],
+              allowTypeImports: true,
+              message:
+                "Server code must not value-import editor/client-only modules. Use `import type` for cross-plane types.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintConfigPrettier,
 );
