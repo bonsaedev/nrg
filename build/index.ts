@@ -288,6 +288,20 @@ function buildEslintConfig() {
   console.log("✓ Built eslint config → dist/toolkit/eslint/index.js");
 }
 
+function buildSchemaEntry() {
+  // The neutral schema kit (@bonsae/nrg/schema): defineSchema + SchemaType built
+  // from the browser-safe core/shared/schemas tree (TypeBox only, no node
+  // runtime). Schema modules import the builders from here so the shared
+  // contract never reaches into `./server`. Ships CJS VALUES like the server
+  // entry — consumers `require` it in dev; the production build rewrites the
+  // import to @bonsae/nrg-runtime/server, which re-exports the same values.
+  esbuildBundle("src/core/shared/schemas/index.ts", {
+    format: "cjs",
+    outfile: "dist/toolkit/schema/index.cjs",
+  });
+  console.log("✓ Built schema kit → dist/toolkit/schema/index.cjs");
+}
+
 async function buildTestUtils() {
   esbuildBundle("src/test/server/unit/index.ts", {
     outdir: "dist/toolkit/test/server/unit",
@@ -476,6 +490,19 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
     `/// <reference path="./shims/typebox.d.ts" />\n${serverDts}`,
   );
 
+  // The neutral schema kit (@bonsae/nrg/schema) — defineSchema/SchemaType and
+  // the plane-neutral schema types. Plane-specific `Infer` stays in ./server
+  // and ./client. Same TypeBox shim as the server surface.
+  execSync(
+    `npx dts-bundle-generator -o dist/toolkit/types/schema.d.ts src/core/shared/schemas/index.ts ${DTS_FLAGS}`,
+    { stdio: "inherit" },
+  );
+  const schemaDts = readFileSync("dist/toolkit/types/schema.d.ts", "utf-8");
+  writeFileSync(
+    "dist/toolkit/types/schema.d.ts",
+    `/// <reference path="./shims/typebox.d.ts" />\n${schemaDts}`,
+  );
+
   execSync(
     `npx dts-bundle-generator -o dist/toolkit/types/client.d.ts src/core/client/types.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },
@@ -642,6 +669,7 @@ async function main() {
   buildRootEntry();
   buildVitePlugin();
   buildEslintConfig();
+  buildSchemaEntry();
   await buildTestUtils();
   // Core (shared) values: server CJS + editor client asset.
   buildCoreServer();

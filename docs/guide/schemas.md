@@ -4,10 +4,10 @@ NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime 
 
 ## Defining Schemas
 
-Use `defineSchema` to create a schema with a required `$id`:
+Use `defineSchema` to create a schema with a required `$id`. Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/schemas/` never depends on `./server`:
 
 ```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 export const ConfigsSchema = defineSchema(
   {
@@ -26,6 +26,10 @@ export const ConfigsSchema = defineSchema(
 ```
 
 The `$id` is optional but strongly recommended: when present it must be unique across all schemas and is used as the AJV cache key. If omitted, a per-schema cache key is derived from the node type.
+
+::: tip Where the builders live
+`@bonsae/nrg/schema` ships only the builders plus TypeBox — no node runtime — so a dedicated file in `src/schemas/` stays decoupled from the server. `@bonsae/nrg/server` re-exports `defineSchema`/`SchemaType` as well, so a node that defines its schema inline can import them next to `IONode` from a single entry. Type inference (`Infer`, below) is plane-specific — always from `@bonsae/nrg/server` on the server or `@bonsae/nrg/client` on the client.
+:::
 
 ## Type Inference
 
@@ -51,7 +55,7 @@ const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSch
 // field → string (node id), a TypedInput field → { value: string; type: string }
 ```
 
-Note the `import type` — it is erased at build time, so it's safe. Never **value**-import a server schema module into client or browser code (including component tests): the module imports `defineSchema`/`SchemaType` from `@bonsae/nrg/server`, which is Node-only. In component tests, resolve schemas by node `type` via `createNode({ type })` instead — see [Testing › Resolving schemas by node type](/guide/testing#resolving-schemas-by-node-type).
+Note the `import type` — it is erased at build time, so it's safe. Never **value**-import a schema module into client or browser code (including component tests): the module imports `defineSchema`/`SchemaType` from `@bonsae/nrg/schema`, which pulls in TypeBox — kept out of the browser bundle by design. In component tests, resolve schemas by node `type` via `createNode({ type })` instead — see [Testing › Resolving schemas by node type](/guide/testing#resolving-schemas-by-node-type).
 
 See [Custom Form Component](/guide/creating-a-node#custom-form-component) for a full example.
 
@@ -319,7 +323,7 @@ source, so the generated node help still shows it in the **Type** column — you
 write the type just once:
 
 ```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 type Connection = { query(sql: string): Promise<unknown[]> };
 

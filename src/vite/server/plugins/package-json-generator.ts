@@ -16,6 +16,10 @@ const nodeBuiltins = new Set([
 // @bonsae/nrg carries build tooling that must never reach the Node-RED container.
 const RUNTIME_REWRITES: Record<string, string> = {
   "@bonsae/nrg/server": "@bonsae/nrg-runtime/server",
+  // The neutral schema kit is a build-time/dev convenience; at runtime its
+  // values (defineSchema/SchemaType) are the same ones the runtime server
+  // re-exports, so a published node resolves them from the runtime package.
+  "@bonsae/nrg/schema": "@bonsae/nrg-runtime/server",
 };
 
 // Runtime package → the dev package whose version it tracks (lockstep), so a

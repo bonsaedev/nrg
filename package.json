@@ -47,6 +47,11 @@
       "require": "./dist/toolkit/server/index.cjs",
       "default": "./dist/toolkit/server/index.cjs"
     },
+    "./schema": {
+      "types": "./dist/toolkit/types/schema.d.ts",
+      "require": "./dist/toolkit/schema/index.cjs",
+      "default": "./dist/toolkit/schema/index.cjs"
+    },
     "./client": {
       "types": "./dist/toolkit/types/client.d.ts"
     },
