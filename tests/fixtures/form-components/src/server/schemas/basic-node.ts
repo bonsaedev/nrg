@@ -2,7 +2,7 @@ import { defineSchema, SchemaType } from "@bonsae/nrg/server";
 
 // A deliberately small node: just a name plus the framework-managed port
 // settings, so the editor form shows the Name field and the Ports Settings /
-// Lifecycle Ports sections without any other config fields in between.
+// Lifecycle Output Ports sections without any other config fields in between.
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "", minLength: 1 }),

@@ -182,6 +182,22 @@ export class NodeRedEditor {
   }
 
   /**
+   * Clicks a Lifecycle Output Ports table toggle (Error/Complete/Status) by its
+   * accessible name. These toggles live in a table cell, not a `.form-row`, so
+   * they're located by the toggle input's aria-label rather than via field().
+   */
+  async toggleLifecyclePort(ariaLabel: string): Promise<void> {
+    const slider = this.page
+      .locator(".red-ui-tray")
+      .last()
+      .locator(
+        `.nrg-lifecycle label.nrg-toggle:has(input[aria-label="${ariaLabel}"]) .nrg-toggle__slider`,
+      );
+    await slider.scrollIntoViewIfNeeded();
+    await slider.click();
+  }
+
+  /**
    * Returns a JSON-safe snapshot of a node in the editor's model — use it to
    * assert values persisted after clickDone(). Functions, internals
    * (underscore-prefixed keys like `_def`), config `users` back-references,

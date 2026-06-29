@@ -259,13 +259,13 @@ describe("client build", () => {
     expect(labels["config-server"].configs.name).toBe("Name");
     expect(labels["config-server"].toggles.validateInput).toBe("Validate Data");
     expect(labels["config-server"].toggles.errorPort).toBe("Error Port");
-    // per-port Outputs table + Lifecycle Ports editor labels
+    // per-port Outputs table + Lifecycle Output Ports editor labels
     expect(labels["config-server"].outputs.contextMode).toBe("Context Mode");
     expect(labels["config-server"].outputs.returnProperty).toBe(
       "Return Property",
     );
     expect(labels["config-server"].sections.lifecyclePorts).toBe(
-      "Lifecycle Ports",
+      "Lifecycle Output Ports",
     );
     expect(labels["config-server"].contextModes.modes.carry).toBe("carry");
     expect(labels["config-server"].help.learnMore).toBe("Learn more");
@@ -294,7 +294,7 @@ describe("client build", () => {
       "Daten validieren",
     );
     expect(labels["config-server"].sections.lifecyclePorts).toBe(
-      "Lebenszyklus-Ports",
+      "Lebenszyklus-Ausgangsports",
     );
   });
 });

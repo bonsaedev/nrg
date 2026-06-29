@@ -23,7 +23,8 @@ describe.each(BROWSERS)(
 
     beforeAll(async () => {
       browser = await type.launch();
-      const page = await browser.newPage();
+      // 2x so the docs screenshot captured below is crisp on retina displays.
+      const page = await browser.newPage({ deviceScaleFactor: 2 });
       editor = new NodeRedEditor(page, Number(process.env.NODE_RED_PORT), {
         screenshotDir: "test-results/screenshots",
       });
@@ -312,22 +313,32 @@ describe.each(BROWSERS)(
       expect(await editor.getNodePortCount("n1")).toBe(1);
 
       await editor.editNode("n1");
-      await editor.field("Error Port").toggle();
+      await editor.toggleLifecyclePort("Error Port");
       await editor.clickDone();
       await expect.poll(() => editor.getNodePortCount("n1")).toBe(2);
 
       await editor.editNode("n1");
-      await editor.field("Error Port").toggle();
+      await editor.toggleLifecyclePort("Error Port");
       await editor.clickDone();
       await expect.poll(() => editor.getNodePortCount("n1")).toBe(1);
     });
 
-    test("renders the sectioned ports form (Ports Settings + Lifecycle Ports)", async () => {
+    test("renders the sectioned ports form (Ports Settings + Lifecycle Output Ports)", async () => {
       await editor.editNode("n3");
       const tray = editor.page.locator(".red-ui-tray").last();
-      const titles = await tray.locator(".nrg-section-title").allInnerTexts();
-      expect(titles).toEqual(
-        expect.arrayContaining(["Ports Settings", "Lifecycle Ports"]),
+      // Ports Settings is a top-level section; Lifecycle Output Ports is a
+      // subsection alongside Input/Outputs.
+      const sectionTitles = await tray
+        .locator(".nrg-section-title")
+        .allInnerTexts();
+      expect(sectionTitles).toEqual(expect.arrayContaining(["Ports Settings"]));
+      // textContent (not innerText) — subsection titles are uppercased via CSS
+      // text-transform, so innerText would read "LIFECYCLE OUTPUT PORTS".
+      const subsectionTitles = (
+        await tray.locator(".nrg-subsection-title").allTextContents()
+      ).map((t) => t.trim());
+      expect(subsectionTitles).toEqual(
+        expect.arrayContaining(["Lifecycle Output Ports"]),
       );
       // the Outputs table renders one row for the single base output port
       expect(await tray.locator(".nrg-outputs tbody tr").count()).toBe(1);
