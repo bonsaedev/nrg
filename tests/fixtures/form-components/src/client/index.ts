@@ -9,4 +9,5 @@ registerTypes([
   defineNode({ type: "all-fields-node" }),
   defineNode({ type: "test-config" }),
   defineNode({ type: "basic-node" }),
+  defineNode({ type: "ctx-modes-node" }),
 ]);

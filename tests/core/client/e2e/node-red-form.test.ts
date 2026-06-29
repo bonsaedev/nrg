@@ -350,6 +350,25 @@ describe.each(BROWSERS)(
       await editor.clickCancel();
     });
 
+    test("renders the Context Mode column with editable and locked ports", async () => {
+      await editor.editNode("n4");
+      const tray = editor.page.locator(".red-ui-tray").last();
+      const table = tray.locator(".nrg-outputs");
+      // 3 base output ports; ports 0 & 1 have context-mode defaults (editable),
+      // port 2 has none (locked/disabled).
+      expect(await table.locator("tbody tr").count()).toBe(3);
+      const selects = table.locator("select.nrg-outputs-context");
+      expect(await selects.nth(0).isDisabled()).toBe(false);
+      expect(await selects.nth(1).isDisabled()).toBe(false);
+      expect(await selects.nth(2).isDisabled()).toBe(true);
+      // capture the Outputs table for the docs context-modes screenshot
+      if (name === "chromium") {
+        await editor.page.waitForTimeout(300);
+        await table.screenshot({ path: "docs/public/context-modes.png" });
+      }
+      await editor.clickCancel();
+    });
+
     test("edited values persist on the node model after Done", async () => {
       await editor.editNode("n1");
       await editor.field("Name").fill("persisted-name");
