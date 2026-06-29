@@ -26,6 +26,9 @@
         <table class="nrg-input">
           <thead>
             <tr>
+              <th class="nrg-outputs-label">
+                {{ resolveLabel("outputs.label", "Label") }}
+              </th>
               <th class="nrg-outputs-flag">
                 {{ resolveLabel("toggles.validateInput", "Validate Data") }}
               </th>
@@ -36,6 +39,7 @@
           </thead>
           <tbody>
             <tr>
+              <td class="nrg-outputs-label">{{ inputLabel }}</td>
               <td class="nrg-outputs-flag">
                 <NodeRedToggle
                   :model-value="localNode.validateInput"
@@ -399,6 +403,17 @@ export default defineComponent({
         index,
         label: this.features.outputPorts[index]?.label ?? `Output ${index}`,
       }));
+    },
+    /**
+     * Label for the single input port, resolved from the node's i18n catalog
+     * (`inputLabels.0`, then `inputLabels`) — mirrors createDefaultInputLabels.
+     * Falls back to "Input" since there is only ever one input port.
+     */
+    inputLabel(): string {
+      return (
+        this.resolveLabel("inputLabels.0", "") ||
+        this.resolveLabel("inputLabels", "Input")
+      );
     },
     contextModeOptions(): { value: string; label: string }[] {
       return [
