@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { RED, NodeRedNode } from "../../../core/server/types";
+import type { RED, NodeRedNode } from "../../../core/server/nodered";
 import type { INode } from "../../../core/server/nodes/types";
 
 interface MockRED extends RED {

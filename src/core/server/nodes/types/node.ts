@@ -1,7 +1,7 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { Schema } from "../../schemas/types";
 import type { NodeConfigSchema } from "../../schemas";
-import type { RED, NodeRedNode } from "../../types";
+import type { RED, NodeRedNode } from "../../nodered";
 
 type NodeContextScope = "node" | "flow" | "global";
 

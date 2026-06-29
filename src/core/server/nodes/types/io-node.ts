@@ -1,7 +1,7 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { IONodeConfigSchema } from "../../schemas";
 import type { BUILTIN_PORT_KEYS } from "../../../shared/constants";
-import type { RED } from "../../types";
+import type { RED } from "../../nodered";
 import type { IONode } from "../io-node";
 import type {
   INode,

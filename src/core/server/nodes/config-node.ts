@@ -1,4 +1,4 @@
-import type { RED, NodeRedNode } from "../types";
+import type { RED, NodeRedNode } from "../nodered";
 import { Node } from "./node";
 import type {
   ConfigNodeConfig,

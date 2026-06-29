@@ -1,6 +1,6 @@
 import { type TSchema } from "@sinclair/typebox";
 import type { Schema, InferOr, InferOutputs } from "../schemas/types";
-import type { RED } from "../types";
+import type { RED } from "../nodered";
 import type {
   IONodeDefinition,
   ConfigNodeDefinition,

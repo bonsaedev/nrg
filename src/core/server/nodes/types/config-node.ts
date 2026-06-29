@@ -1,5 +1,5 @@
 import type { Static, TSchema } from "@sinclair/typebox";
-import type { RED } from "../../types";
+import type { RED } from "../../nodered";
 import type { ConfigNode } from "../config-node";
 import type {
   INode,
