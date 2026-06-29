@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/vite/server", () => ({ build: vi.fn() }));
 vi.mock("@/vite/client", () => ({ build: vi.fn() }));
 
-import { serverPlugin } from "@/vite/plugins/server";
+import { serverPlugin } from "@/vite/lifecycle/server";
 import type { NodeRedLauncher } from "@/vite/types";
 
 function fakeLauncher(over: Partial<NodeRedLauncher> = {}): NodeRedLauncher {

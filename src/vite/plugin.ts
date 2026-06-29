@@ -16,7 +16,7 @@ import {
   mergeOptions,
 } from "./utils";
 import { NodeRedLauncher } from "./node-red-launcher";
-import { serverPlugin, buildPlugin } from "./plugins";
+import { serverPlugin, buildPlugin } from "./lifecycle";
 
 /**
  * Whether this run targets local development (build to `.nrg`, resolve the
