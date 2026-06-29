@@ -16,32 +16,57 @@
         {{ resolveLabel("sections.portsSettings", "Ports Settings") }}
       </div>
 
-      <!-- Input -->
+      <!-- Input — a single Validate Data row, rendered as a table so it matches
+           the Outputs / Lifecycle Output Ports sections (muted headers) instead
+           of a bright toggle label that outweighs the section title. -->
       <div v-if="features.hasInputSchema" class="nrg-subsection">
         <div class="nrg-subsection-title">
           {{ resolveLabel("sections.input", "Input") }}
         </div>
-        <div class="form-row">
-          <NodeRedToggle
-            v-model="localNode.validateInput"
-            :label="resolveLabel('toggles.validateInput', 'Validate Data')"
-          />
-          <div class="nrg-help">
-            {{
-              resolveLabel(
-                "help.validateInput",
-                "Validate incoming messages against the input schema before input() runs.",
-              )
-            }}
-            <a
-              class="nrg-help-link"
-              :href="docsUrl('/guide/schemas#input-schema')"
-              target="_blank"
-              rel="noopener noreferrer"
-              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
-            >
-          </div>
-        </div>
+        <table class="nrg-input">
+          <thead>
+            <tr>
+              <th class="nrg-outputs-flag">
+                {{ resolveLabel("toggles.validateInput", "Validate Data") }}
+              </th>
+              <th class="nrg-input-desc">
+                {{ resolveLabel("lifecyclePorts.description", "Description") }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nrg-outputs-flag">
+                <NodeRedToggle
+                  :model-value="localNode.validateInput"
+                  :aria-label="
+                    resolveLabel('toggles.validateInput', 'Validate Data')
+                  "
+                  @update:model-value="
+                    (val: boolean) => {
+                      localNode.validateInput = val;
+                    }
+                  "
+                />
+              </td>
+              <td class="nrg-input-desc">
+                {{
+                  resolveLabel(
+                    "help.validateInput",
+                    "Validate incoming messages against the input schema before input() runs.",
+                  )
+                }}
+                <a
+                  class="nrg-help-link"
+                  :href="docsUrl('/guide/schemas#input-schema')"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+                >
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Outputs -->
@@ -583,7 +608,8 @@ export default defineComponent({
 /* Left-align the description (overrides the shared centered cell rule, which
    out-specifies a bare class) and keep it — with its Learn more link — on one
    line. Header stays centered like the others. */
-.nrg-lifecycle td.nrg-lifecycle-desc {
+.nrg-lifecycle td.nrg-lifecycle-desc,
+.nrg-input td.nrg-input-desc {
   text-align: left;
   white-space: nowrap;
   color: var(--red-ui-text-color-disabled, #999);
@@ -635,7 +661,8 @@ export default defineComponent({
 }
 
 .nrg-outputs,
-.nrg-lifecycle {
+.nrg-lifecycle,
+.nrg-input {
   /* Fill the panel so the table grows when the tray is widened. At the default
      tray width this is moot: with the help prose capped (see .nrg-help), the
      table's fixed column-sum is the widest intrinsic element, so Node-RED sizes
@@ -656,18 +683,22 @@ export default defineComponent({
    DESCRIPTION (kept on one line) drives the table's natural width — Node-RED
    then sizes the tray to fit it, so descriptions never wrap. Declared after the
    shared rule so table-layout: auto wins over the fixed default. */
-.nrg-lifecycle {
+.nrg-lifecycle,
+.nrg-input {
   table-layout: auto;
 }
 
-.nrg-lifecycle .nrg-outputs-flag {
+.nrg-lifecycle .nrg-outputs-flag,
+.nrg-input .nrg-outputs-flag {
   width: auto;
 }
 
 .nrg-outputs th,
 .nrg-outputs td,
 .nrg-lifecycle th,
-.nrg-lifecycle td {
+.nrg-lifecycle td,
+.nrg-input th,
+.nrg-input td {
   padding: 5px 8px;
   text-align: center;
   vertical-align: middle;
@@ -678,17 +709,21 @@ export default defineComponent({
 .nrg-outputs th:last-child,
 .nrg-outputs td:last-child,
 .nrg-lifecycle th:last-child,
-.nrg-lifecycle td:last-child {
+.nrg-lifecycle td:last-child,
+.nrg-input th:last-child,
+.nrg-input td:last-child {
   border-right: none;
 }
 
 .nrg-outputs tbody tr:last-child td,
-.nrg-lifecycle tbody tr:last-child td {
+.nrg-lifecycle tbody tr:last-child td,
+.nrg-input tbody tr:last-child td {
   border-bottom: none;
 }
 
 .nrg-outputs thead th,
-.nrg-lifecycle thead th {
+.nrg-lifecycle thead th,
+.nrg-input thead th {
   background: var(--red-ui-tertiary-background, #f3f3f3);
   color: var(--red-ui-text-color-disabled, #777);
   font-size: 11px;
