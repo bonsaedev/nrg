@@ -3,7 +3,7 @@ import type { NodeConstructor } from "./nodes/types";
 import type { RED } from "./types";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
-import { NrgError } from "../errors";
+import { NrgError } from "../shared/errors";
 
 /**
  * Registers a custom node with Node-RED.

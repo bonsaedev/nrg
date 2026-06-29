@@ -2,7 +2,7 @@ import { Kind, type TSchema } from "@sinclair/typebox";
 import type { Schema } from "../schemas/types";
 import type { RED, NodeRedNode } from "../types";
 import { Node } from "./node";
-import { NrgError } from "../../errors";
+import { NrgError } from "../../shared/errors";
 import type {
   HexColor,
   IIONode,

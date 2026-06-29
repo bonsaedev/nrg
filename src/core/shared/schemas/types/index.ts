@@ -6,8 +6,8 @@ import type {
   Static,
   SchemaOptions,
 } from "@sinclair/typebox";
-import type { TYPED_INPUT_TYPES } from "../../../constants";
-import type { JsonSchemaObjectExtensions } from "../../../schema-options";
+import type { TYPED_INPUT_TYPES } from "../../constants";
+import type { JsonSchemaObjectExtensions } from "../../schema-options";
 import type {
   NodeSourceSchema,
   ErrorPortSchema,
@@ -15,7 +15,7 @@ import type {
   StatusPortSchema,
 } from "../base";
 
-import type { NodeRefResolved, TypedInputResolved } from "../../../types";
+import type { NodeRefResolved, TypedInputResolved } from "../../types";
 
 /** Schema type representing a reference to a config node. Resolves to the node instance at runtime. */
 interface TNodeRef<T = any> extends TSchema {

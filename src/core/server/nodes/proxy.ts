@@ -1,6 +1,6 @@
 import type { ResolvedStatic, Schema } from "../schemas/types";
 import type { RED, NodeRedNode } from "../types";
-import { NrgError } from "../../errors";
+import { NrgError } from "../../shared/errors";
 import TypedInput from "../typed-input";
 
 interface SetupConfigProxyOptions<T extends object> {

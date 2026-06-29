@@ -5,8 +5,8 @@ import type {
   NodeRefResolved,
   TypedInputResolved,
   UnsafeResolved,
-} from "../types";
-import type { JsonSchemaObjectExtensions } from "../schema-options";
+} from "../shared/types";
+import type { JsonSchemaObjectExtensions } from "../shared/schema-options";
 
 interface NodeStateCredentials {
   [key: string]: any;

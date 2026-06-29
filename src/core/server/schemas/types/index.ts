@@ -4,7 +4,7 @@ import type {
   NodeRefResolved,
   TypedInputResolved,
   UnsafeResolved,
-} from "../../../types";
+} from "../../../shared/types";
 
 /**
  * Maps a schema's static type to the values server node code sees at

@@ -1,4 +1,4 @@
-import { TYPED_INPUT_TYPES } from "../../constants";
+import { TYPED_INPUT_TYPES } from "../constants";
 // Use TypeBox's `Type` directly (not NRG's `SchemaType`) so this module does NOT
 // import ./type. These base schemas need only plain JSON-schema builders, and the
 // import would otherwise form a type.ts ↔ base.ts cycle — type.ts imports

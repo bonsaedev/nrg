@@ -167,7 +167,7 @@ import NodeRedSelectInput from "./node-red-select-input.vue";
 import NodeRedTypedInput from "./node-red-typed-input.vue";
 import NodeRedConfigInput from "./node-red-config-input.vue";
 import NodeRedEditorInput from "./node-red-editor-input.vue";
-import { BUILTIN_PORT_KEYS } from "../../../constants";
+import { BUILTIN_PORT_KEYS } from "../../../shared/constants";
 import type { JsonPropertySchema } from "../../types";
 
 // System fields managed by Node-RED — not shown in the editor form.

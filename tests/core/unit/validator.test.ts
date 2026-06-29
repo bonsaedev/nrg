@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Validator, ValidationError } from "@/core/validator";
+import { Validator, ValidationError } from "@/core/shared/validator";
 
 describe("Validator", () => {
   describe("validate", () => {
@@ -225,16 +225,14 @@ describe("Validator", () => {
   describe("addSchema / removeSchema", () => {
     it("should add and reference schemas", () => {
       const validator = new Validator();
-      validator.addSchema(
-        {
-          $id: "address",
-          type: "object",
-          properties: {
-            street: { type: "string" },
-          },
-          required: ["street"],
+      validator.addSchema({
+        $id: "address",
+        type: "object",
+        properties: {
+          street: { type: "string" },
         },
-      );
+        required: ["street"],
+      });
       const schema = {
         type: "object",
         properties: {
@@ -253,7 +251,10 @@ describe("Validator", () => {
       validator.addSchema({ $id: "removable", type: "string" });
       validator.removeSchema("removable");
       // After removal, re-adding with the same $id should not throw
-      const fn = validator.createValidator({ $id: "removable", type: "number" });
+      const fn = validator.createValidator({
+        $id: "removable",
+        type: "number",
+      });
       expect(fn).toBeDefined();
       // The new schema should validate numbers, not strings
       expect(fn(42)).toBe(true);

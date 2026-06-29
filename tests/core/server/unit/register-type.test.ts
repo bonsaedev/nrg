@@ -1,11 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { NrgError } from "@/core/errors";
+import { NrgError } from "@/core/shared/errors";
 import { createRED } from "@mocks/red";
 
 async function getModules() {
-  const { Node, IONode, ConfigNode } = await import(
-    "@/core/server/nodes"
-  );
+  const { Node, IONode, ConfigNode } = await import("@/core/server/nodes");
   const { registerType } = await import("@/core/server/index");
   return { Node, IONode, ConfigNode, registerType };
 }
@@ -75,9 +73,7 @@ describe("registerType validation", () => {
 
   it("should derive inputs from inputSchema presence", async () => {
     const { IONode } = await getModules();
-    const { SchemaType } = await import(
-      "@/core/server/schemas"
-    );
+    const { SchemaType } = await import("@/core/server/schemas");
 
     class WithInput extends IONode {
       static override readonly type = "with-input";
@@ -96,9 +92,7 @@ describe("registerType validation", () => {
 
   it("should derive outputs from outputsSchema", async () => {
     const { IONode } = await getModules();
-    const { SchemaType } = await import(
-      "@/core/server/schemas"
-    );
+    const { SchemaType } = await import("@/core/server/schemas");
 
     class SingleOutput extends IONode {
       static override readonly type = "single-output";
@@ -109,7 +103,11 @@ describe("registerType validation", () => {
     class MultiOutputs extends IONode {
       static override readonly type = "multi-outputs";
       static override readonly category = "function";
-      static override readonly outputsSchema = [SchemaType.Object({}), SchemaType.Object({}), SchemaType.Object({})];
+      static override readonly outputsSchema = [
+        SchemaType.Object({}),
+        SchemaType.Object({}),
+        SchemaType.Object({}),
+      ];
     }
 
     class NoOutputs extends IONode {

@@ -1,4 +1,4 @@
-import { Validator } from "../validator";
+import { Validator } from "../shared/validator";
 import type { RED } from "./types";
 
 function initValidator(RED: RED): void {

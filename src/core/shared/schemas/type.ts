@@ -8,7 +8,7 @@ import type {
   StringFormatOption,
 } from "@sinclair/typebox";
 import type { Schema, NrgSchemaOptions } from "./types";
-import type { UnsafeResolved, ConfigNodeBrand } from "../../types";
+import type { UnsafeResolved, ConfigNodeBrand } from "../types";
 import { Type as BaseType, Kind } from "@sinclair/typebox";
 import { TypedInputSchema } from "./base";
 import type { TNodeRef, TTypedInput } from "./types";

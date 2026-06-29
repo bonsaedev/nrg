@@ -173,7 +173,7 @@ declare namespace NodeRED {
   // -- TypedInput --
 
   type DefaultTypedInputType =
-    (typeof import("../constants").TYPED_INPUT_TYPES)[number];
+    (typeof import("../shared/constants").TYPED_INPUT_TYPES)[number];
 
   interface TypedInputTypeDefinition {
     value?: string;

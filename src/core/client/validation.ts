@@ -1,5 +1,5 @@
 import jsonpointer from "jsonpointer";
-import { Validator } from "../validator";
+import { Validator } from "../shared/validator";
 import type { ErrorObject } from "ajv";
 import type { JsonSchemaObject } from "./types";
 

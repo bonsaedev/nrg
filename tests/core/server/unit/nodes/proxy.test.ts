@@ -3,7 +3,7 @@ import { setupConfigProxy } from "@/core/server/nodes/proxy";
 import { defineSchema, SchemaType } from "@/core/server/schemas";
 import { defineConfigNode } from "@/core/server/nodes/factories";
 import type TypedInput from "@/core/server/typed-input";
-import { NrgError } from "@/core/errors";
+import { NrgError } from "@/core/shared/errors";
 import { createRED, createNodeRedNode } from "@mocks/red";
 
 const RemoteServer = defineConfigNode({ type: "remote-server" });

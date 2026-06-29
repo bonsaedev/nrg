@@ -12,7 +12,7 @@ import type {
 import { setupConfigProxy } from "./proxy";
 import { getCredentialsFromSchema } from "../utils";
 import { WIRE_HANDLERS } from "./symbols";
-import { NrgError } from "../../errors";
+import { NrgError } from "../../shared/errors";
 
 /** Module-scoped cache for validated settings, keyed by constructor. */
 const cachedSettingsMap = new WeakMap<typeof Node, unknown>();

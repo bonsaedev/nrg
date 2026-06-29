@@ -2,7 +2,7 @@ import type { EventEmitter } from "events";
 import type { Express, RequestHandler } from "express";
 import type { NodeRedRuntimeSettings } from "./runtime-settings";
 import type { INode } from "../nodes/types";
-import type { Validator } from "../../validator";
+import type { Validator } from "../../shared/validator";
 
 interface NodeRedLog {
   info(msg: any): void;

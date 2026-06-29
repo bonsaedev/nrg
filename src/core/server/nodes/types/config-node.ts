@@ -10,7 +10,7 @@ import type {
 } from "./node";
 import type { InferOr } from "../../schemas/types";
 import type { ConfigNodeConfigSchema } from "../../schemas";
-import type { ConfigNodeBrand } from "../../../types";
+import type { ConfigNodeBrand } from "../../../shared/types";
 
 type ConfigNodeContextScope = Exclude<NodeContextScope, "flow">;
 

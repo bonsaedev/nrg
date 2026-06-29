@@ -37,7 +37,7 @@ export type {
   IIONode,
   IConfigNode,
 } from "./nodes/types";
-export { NrgError } from "../errors";
+export { NrgError } from "../shared/errors";
 export type { RED, NodeRedRuntimeSettings } from "./types";
 export {
   SchemaType,

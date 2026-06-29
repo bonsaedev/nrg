@@ -541,7 +541,7 @@ function copyShims() {
     "dist/toolkit/types/shims/typebox.d.ts",
   );
   copyFileSync(
-    "src/core/schema-options.ts",
+    "src/core/shared/schema-options.ts",
     "dist/toolkit/types/shims/schema-options.d.ts",
   );
   console.log("✓ Copied core shims → dist/toolkit/types/shims/");
