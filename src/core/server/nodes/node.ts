@@ -1,5 +1,5 @@
 import type { Schema } from "../schemas/types";
-import { type RED, type NodeRedNode } from "../../server/types";
+import { type RED, type NodeRedNode } from "../types";
 import type {
   ConfigNodeContext,
   INode,

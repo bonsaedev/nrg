@@ -1,3 +1,3 @@
-export * from "./node";
-export * from "./io-node";
-export * from "./config-node";
+export type * from "./node";
+export type * from "./io-node";
+export type * from "./config-node";

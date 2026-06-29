@@ -1,7 +1,7 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { Schema } from "../../schemas/types";
 import type { NodeConfigSchema } from "../../schemas";
-import type { RED, NodeRedNode } from "../../../server/types";
+import type { RED, NodeRedNode } from "../../types";
 
 type NodeContextScope = "node" | "flow" | "global";
 
@@ -88,7 +88,7 @@ interface INode<TConfig = any, TCredentials = any, TSettings = any> {
   closed?(removed?: boolean): void | Promise<void>;
 }
 
-export {
+export type {
   INode,
   NodeConfig,
   NodeContextStore,

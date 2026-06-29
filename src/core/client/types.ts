@@ -8,7 +8,7 @@ import type {
 } from "../types";
 import type { JsonSchemaObjectExtensions } from "../schema-options";
 
-export interface NodeStateCredentials {
+interface NodeStateCredentials {
   [key: string]: any;
 }
 
@@ -121,11 +121,6 @@ export interface NodeDefinition {
   onPaletteRemove?: (this: NodeRedNode) => void;
   form?: NodeFormDefinition;
 }
-
-/** Form rendering hints carried by the `x-nrg-form` schema keyword. */
-export type NrgFormOptions = NonNullable<
-  JsonSchemaObjectExtensions["x-nrg-form"]
->;
 
 /**
  * A serialized property schema inside {@link JsonSchemaObject} `properties`,

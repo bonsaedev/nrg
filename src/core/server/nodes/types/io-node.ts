@@ -1,7 +1,7 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { IONodeConfigSchema } from "../../schemas";
 import type { BUILTIN_PORT_KEYS } from "../../../constants";
-import type { RED } from "../../../server/types";
+import type { RED } from "../../types";
 import type { IONode } from "../io-node";
 import type {
   INode,
@@ -166,7 +166,7 @@ interface IONodeDefinition<
   ): unknown;
 }
 
-export {
+export type {
   BoundIONode,
   HexColor,
   IIONode,

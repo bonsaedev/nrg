@@ -1,6 +1,6 @@
 import { Kind, type TSchema } from "@sinclair/typebox";
 import type { Schema } from "../schemas/types";
-import type { RED, NodeRedNode } from "../../server/types";
+import type { RED, NodeRedNode } from "../types";
 import { Node } from "./node";
 import { NrgError } from "../../errors";
 import type {

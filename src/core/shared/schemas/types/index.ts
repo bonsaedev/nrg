@@ -46,7 +46,6 @@ type CompletePortMessage = Static<typeof CompletePortSchema>;
 type StatusPortMessage = Static<typeof StatusPortSchema>;
 
 export type {
-  NodeRefResolved,
   TNodeRef,
   TTypedInput,
   TypedInputType,

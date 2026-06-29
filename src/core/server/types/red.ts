@@ -198,7 +198,7 @@ interface NodeRedContextStore {
   ): void;
 }
 
-export {
+export type {
   RED,
   NodeRedExpressApp,
   NodeRedRequestHandler,

@@ -1,5 +1,5 @@
 import type { Static, TSchema } from "@sinclair/typebox";
-import type { RED } from "../../../server/types";
+import type { RED } from "../../types";
 import type { ConfigNode } from "../config-node";
 import type {
   INode,
@@ -62,7 +62,7 @@ interface ConfigNodeDefinition<
   ): void | Promise<void>;
 }
 
-export {
+export type {
   BoundConfigNode,
   ConfigNodeConfig,
   ConfigNodeContext,
