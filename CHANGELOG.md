@@ -1,5 +1,14 @@
 # Changelog
 
+# [0.29.0](https://github.com/bonsaedev/nrg/compare/v0.28.1...v0.29.0) (2026-06-29)
+
+
+### Features
+
+* allow per-port validateOutput via boolean[] ([839532c](https://github.com/bonsaedev/nrg/commit/839532c8f081515df5c11901860f759c1ed09e2f))
+* **eslint:** guard schemas against value-importing server modules ([42c2abd](https://github.com/bonsaedev/nrg/commit/42c2abd59ddc320b611a85603f459c3ef45154ca))
+* **schema:** add neutral @bonsae/nrg/schema entry for schema builders ([9b1a35c](https://github.com/bonsaedev/nrg/commit/9b1a35c3265794e1eeae6a1c9471befe3f627650))
+
 ## [0.28.1](https://github.com/bonsaedev/nrg/compare/v0.28.0...v0.28.1) (2026-06-28)
 
 
