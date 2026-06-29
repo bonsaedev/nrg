@@ -3,6 +3,7 @@ import { validateNode, composeValidationSchema } from "./validation";
 import { mountApp, unmountApp } from "./form";
 import { getNodeState, getChanges, applyState } from "./state";
 import {
+  resolveI18n,
   createDefaultLabel,
   createDefaultPaletteLabel,
   createDefaultInputLabels,
@@ -104,18 +105,27 @@ function computeBuiltinPortOutputs(
 
 /**
  * Resolves the base output ports (excluding built-in error/complete/status) the
- * context-mode rows configure. Named-port schemas label each port by its name
- * (resolved server-side in `outputPortNames`); positional/single schemas fall
+ * context-mode rows configure. Labels follow the same precedence as the canvas
+ * port labels (`createDefaultOutputLabels`): named-port schemas label each port
+ * by its name (resolved server-side in `outputPortNames`); otherwise the node's
+ * `<type>.outputLabels.<index>` i18n catalog entry is used (so a single/positional
+ * schema with locale labels matches the canvas hover label); failing both, fall
  * back to `Output {index}`.
  */
 function computeOutputPorts(
+  node: NodeRedNode,
+  type: string,
   outputPortNames: string[] | undefined,
   baseOutputs: number,
 ): { index: number; label: string }[] {
   const names = outputPortNames ?? [];
   const ports: { index: number; label: string }[] = [];
   for (let i = 0; i < baseOutputs; i++) {
-    ports.push({ index: i, label: names[i] ?? `Output ${i}` });
+    const label =
+      names[i] ??
+      resolveI18n(node, `${type}.outputLabels.${i}`, `${type}.outputLabels`) ??
+      `Output ${i}`;
+    ports.push({ index: i, label });
   }
   return ports;
 }
@@ -154,11 +164,6 @@ async function registerType(definition: NodeDefinition): Promise<void> {
         baseOutputs,
       ));
     }
-    const outputPorts = computeOutputPorts(
-      nodeDefinition.outputPortNames,
-      baseOutputs,
-    );
-
     if (validationSchema && defaults) {
       const firstProp = Object.keys(defaults)[0];
       if (firstProp) {
@@ -176,6 +181,15 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       const form: NodeFormDefinition | undefined =
         definition.form ??
         (_forms[type] ? { component: _forms[type] } : undefined);
+      // Resolve output-port labels here (not at registration) so the node's i18n
+      // catalog is available via `this._` for the `<type>.outputLabels.<index>`
+      // fallback, matching the canvas port labels.
+      const outputPorts = computeOutputPorts(
+        this,
+        type,
+        nodeDefinition.outputPortNames,
+        baseOutputs,
+      );
       const features: NodeFeatures = {
         hasInputSchema: !!nodeDefinition.inputSchema,
         hasOutputSchema: !!nodeDefinition.outputsSchema,

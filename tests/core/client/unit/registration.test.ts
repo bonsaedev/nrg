@@ -354,9 +354,14 @@ describe("registerType — output ports (context modes)", () => {
   });
 
   // oneditprepare builds `features` (incl. outputPorts) and hands it to
-  // mountApp (mocked) as its 4th argument.
-  function featuresFor(registered: any) {
-    registered.oneditprepare.call({});
+  // mountApp (mocked) as its 4th argument. `this` must carry an i18n `_` (a
+  // real Node-RED node does) since output-port labels fall back to the node's
+  // catalog; the default stub returns the key unchanged (no translation).
+  function featuresFor(
+    registered: any,
+    node: { _: (k: string) => string } = { _: (k) => k },
+  ) {
+    registered.oneditprepare.call(node);
     return vi.mocked(mountApp).mock.calls[0][3] as {
       outputPorts: { index: number; label: string }[];
     };
@@ -386,6 +391,22 @@ describe("registerType — output ports (context modes)", () => {
     expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
       { index: 0, label: "Output 0" },
       { index: 1, label: "Output 1" },
+    ]);
+  });
+
+  it("labels an unnamed port from the node's i18n outputLabels catalog", async () => {
+    // A single/positional output schema yields no `outputPortNames`, but the
+    // node may still define `<type>.outputLabels` in its locale (as the canvas
+    // hover label already honors). The form table must resolve the same entry
+    // instead of falling back to `Output {index}`.
+    __setSchemas({ "ctx-i18n-node": { outputs: 1 } });
+    await registerType({ type: "ctx-i18n-node", category: "function" });
+
+    const node = {
+      _: (k: string) => (k === "ctx-i18n-node.outputLabels.0" ? "Result" : k),
+    };
+    expect(featuresFor(spy.mock.calls[0][1], node).outputPorts).toEqual([
+      { index: 0, label: "Result" },
     ]);
   });
 
