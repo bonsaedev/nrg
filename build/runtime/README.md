@@ -1,5 +1,11 @@
 <p align="center">
+  <img alt="nrg-icon" src="https://gist.githubusercontent.com/AllanOricil/bad08acfef9f693e6cc28ec82b151672/raw/8118f6022bd5ccdce066abc398611b2a8aa93e81/nrg-icon-banner.svg"/>
+</p>
+<p align="center">
   <a href="https://www.npmjs.com/package/@bonsae/nrg-runtime"><img src="https://img.shields.io/npm/v/@bonsae/nrg-runtime.svg" alt="npm package"></a>
+  <a href="https://github.com/bonsaedev/nrg/actions/workflows/ci.yaml"><img src="https://github.com/bonsaedev/nrg/actions/workflows/ci.yaml/badge.svg?branch=main" alt="build status"></a>
+  <a href="https://codecov.io/gh/bonsaedev/nrg"><img src="https://codecov.io/gh/bonsaedev/nrg/graph/badge.svg" alt="codecov"/></a>
+  <a href="https://socket.dev/npm/package/@bonsae/nrg-runtime"><img src="https://badge.socket.dev/npm/package/@bonsae/nrg-runtime?v=1" alt="Socket Badge"></a>
 </p>
 
 # @bonsae/nrg-runtime
