@@ -83,6 +83,8 @@ TypeScript autocomplete is available for all `x-nrg-form` properties — no impo
 **Example — adding icons to labels:**
 
 ```typescript
+import type RemoteServer from "../nodes/remote-server";
+
 export const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "", "x-nrg-form": { icon: "tag" } }),
@@ -583,31 +585,31 @@ export default class MyNode extends IONode<
   any,
   Settings
 > {
-  static readonly type = "my-node";
-  static readonly category = "function";
-  static readonly color: `#${string}` = "#a6bbcf";
-  static readonly configSchema: Schema = ConfigsSchema;
-  static readonly credentialsSchema: Schema = CredentialsSchema;
-  static readonly settingsSchema: Schema = SettingsSchema;
-  static readonly inputSchema: Schema = SchemaType.Object({});
-  static readonly outputsSchema: Schema = SchemaType.Object({});
+  static override readonly type = "my-node";
+  static override readonly category = "function";
+  static override readonly color: `#${string}` = "#a6bbcf";
+  static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly credentialsSchema: Schema = CredentialsSchema;
+  static override readonly settingsSchema: Schema = SettingsSchema;
+  static override readonly inputSchema: Schema = SchemaType.Object({});
+  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  static async registered(RED: RED) {
+  static override async registered(RED: RED) {
     RED.log.info("my-node type registered");
   }
 
-  async created() {
+  override async created() {
     this.log(`Using endpoint: ${this.settings.apiEndpoint}`);
   }
 
-  async input(msg: Record<string, any>) {
+  override async input(msg: Record<string, any>) {
     const apiKey = this.credentials?.apiKey;
     // send the result value — the framework puts it at msg.output and keeps
     // the incoming message's fields at the top level (the default carry mode)
     this.send(`${this.config.prefix}: ${msg.output}`);
   }
 
-  async closed(removed?: boolean) {
+  override async closed(removed?: boolean) {
     this.log(`Node closed (removed: ${removed})`);
   }
 }
@@ -663,12 +665,12 @@ When `outputsSchema` is a **record** (an object with string keys mapping to sche
 
 ```typescript
 const SuccessSchema = defineSchema(
-  { payload: SchemaType.String() },
+  { ok: SchemaType.Literal(true), id: SchemaType.String() },
   { $id: "router:success" },
 );
 
 const FailureSchema = defineSchema(
-  { payload: SchemaType.Object({ reason: SchemaType.String() }) },
+  { reason: SchemaType.String() },
   { $id: "router:failure" },
 );
 
@@ -680,11 +682,11 @@ export default defineIONode({
   async input(msg) {
     try {
       const result = await process(msg);
-      // Type-safe: msg must match SuccessSchema
-      this.sendToPort("success", result);
+      // Type-safe: the value must match SuccessSchema
+      this.sendToPort("success", { ok: true, id: result.id });
       //              ^^^^^^^^^ autocompletes: "success" | "failure"
     } catch (err) {
-      // Type-safe: msg must match FailureSchema
+      // Type-safe: the value must match FailureSchema
       this.sendToPort("failure", { reason: String(err) });
     }
   },
@@ -698,12 +700,20 @@ this.sendToPort(0, msg); // same as sendToPort("success", msg)
 this.sendToPort(1, msg); // same as sendToPort("failure", msg)
 ```
 
-Positional `send()` still works with named ports, using a tuple where each element is any port's type or `null`:
+Positional `send()` with a tuple — each element is a port's value or `null` —
+**type-checks only with an array-based `outputsSchema`** (where `TOutput` is a
+tuple):
 
 ```typescript
-this.send([successMsg, null]); // send to port 0 (success)
-this.send([null, failureMsg]); // send to port 1 (failure)
+// outputsSchema: [SuccessSchema, FailureSchema]
+this.send([successMsg, null]); // send to port 0
+this.send([null, failureMsg]); // send to port 1
 ```
+
+With a **record/named** `outputsSchema`, `send()` expects the inferred object
+map (`{ success, failure }`), so the positional `[msg, null]` array form is a
+TypeScript error even though it still works at runtime. For named ports prefer
+`this.sendToPort("success", msg)`.
 
 ::: tip When to use named ports
 Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `sendToPort()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
@@ -828,8 +838,8 @@ When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `errorPort` | `this.error()` or uncaught exception in `input()` | `{ ...msg, error: { name, message, source: { id, type, name } } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)) |
-| `completePort` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } } }` — plus `output: <value>` when `input()` returns one ([see below](#returning-a-custom-completion-message)) |
+| `errorPort` | A thrown/uncaught error in `input()`, or `this.error(message, msg)` called with a message object — `this.error(message)` without the `msg` argument only logs and does **not** emit to the error port | `{ ...msg, error: { name, message, source: { id, type, name } }, input: <incoming msg> }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)) |
+| `completePort` | `input()` finishes successfully | `{ ...msg, complete: { source: { id, type, name } }, input: <incoming msg> }` — plus `output: <value>` when `input()` returns one ([see below](#returning-a-custom-completion-message)) |
 | `statusPort` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
 
 Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
@@ -943,7 +953,12 @@ NRG generates the node's edit dialog from your schema — you don't write any HT
 
 - **Ports Settings**
   - **Input** — a _Validate_ toggle when the node declares an `inputSchema`.
-  - **Outputs** — a per-port table (one row per base output port) with a **Validate** column plus optional **Return Property** and **Context Mode** columns. _Validate_ checks the sent value against that port's schema; _Return Property_ — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key) — sets each port's return key (default `output`); _Context Mode_ — shown only when the schema declares [`outputContextModes`](./schemas#context-modes) — picks how each configurable output carries the incoming message (ports without a declared default stay locked to `carry`). The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
+  - **Outputs** — a per-port table (one row per base output port) with the following columns:
+    - **Validate** — checks the sent value against that port's schema.
+    - **Return Property** — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key); sets each port's return key (default `output`).
+    - **Context Mode** — shown only when the schema declares [`outputContextModes`](./schemas#context-modes); picks how each configurable output carries the incoming message (ports without a declared default stay locked to `carry`).
+
+    The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
 - **Lifecycle Output Ports** — _Error_, _Complete_, and _Status_ toggles, shown for whichever [lifecycle output ports](#lifecycle-output-ports) the schema declares.
 
 Each help line links to the relevant docs. Sections only appear when there is something to configure — a node with no input/output schema and no built-in ports shows just its fields.
@@ -1320,15 +1335,14 @@ import { ConfigNode, type Schema } from "@bonsae/nrg/server";
 import { ConfigsSchema, type Config } from "../../shared/schemas/remote-server";
 
 export default class RemoteServer extends ConfigNode<Config> {
-  static readonly type = "remote-server";
-  static readonly category = "config";
-  static readonly configSchema: Schema = ConfigsSchema;
+  static override readonly type = "remote-server";
+  static override readonly configSchema: Schema = ConfigsSchema;
 
-  async created() {
+  override async created() {
     // Initialize connection
   }
 
-  async closed() {
+  override async closed() {
     // Cleanup connection
   }
 }
@@ -1506,12 +1520,12 @@ For nodes with multiple outputs, you have two options for type-safe per-port mes
 
 ```typescript
 const SuccessSchema = defineSchema(
-  { payload: SchemaType.Object({ ok: SchemaType.Literal(true), id: SchemaType.String() }) },
+  { ok: SchemaType.Literal(true), id: SchemaType.String() },
   { $id: "router:success" },
 );
 
 const FailedSchema = defineSchema(
-  { payload: SchemaType.Object({ ok: SchemaType.Literal(false), reason: SchemaType.String() }) },
+  { ok: SchemaType.Literal(false), reason: SchemaType.String() },
   { $id: "router:failed" },
 );
 

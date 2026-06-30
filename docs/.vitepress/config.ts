@@ -33,8 +33,8 @@ export default defineConfig({
           { text: "Why NRG?", link: "/guide/why-nrg" },
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Project Structure", link: "/guide/project-structure" },
-          { text: "Schema Validation", link: "/guide/schemas" },
           { text: "Creating a Node", link: "/guide/creating-a-node" },
+          { text: "Schema Validation", link: "/guide/schemas" },
           {
             text: "Building & Running",
             link: "/guide/building-and-running",

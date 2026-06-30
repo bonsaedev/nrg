@@ -21,7 +21,7 @@ Then start the dev server:
 pnpm dev
 ```
 
-Open the URL printed by Vite in the terminal and you'll see your custom node in the Node-RED palette.
+Scaffolded projects expose `pnpm dev` and `pnpm build`, which run `vite dev` and `vite build`. Open the URL printed by Vite in the terminal and you'll see your custom node in the Node-RED palette.
 
 ## Manual Setup
 
@@ -90,7 +90,7 @@ Create `tsconfig.json` files that extend the shared configs:
 {
   "extends": "@bonsae/nrg/tsconfig/core/server.json",
   "compilerOptions": {
-    "rootDir": "."
+    "rootDir": ".."
   },
   "include": ["**/*.ts"]
 }
@@ -102,11 +102,13 @@ Create `tsconfig.json` files that extend the shared configs:
 {
   "extends": "@bonsae/nrg/tsconfig/core/client.json",
   "compilerOptions": {
-    "rootDir": "."
+    "rootDir": ".."
   },
   "include": ["**/*.ts", "**/*.vue"]
 }
 ```
+
+Shared schemas live in `src/shared/schemas/`. The `rootDir: ".."` roots each plane at `src/`, so these `src/server` and `src/client` tsconfigs type-check the `src/shared` siblings they import.
 
 ::: tip
 The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your server schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.
@@ -129,16 +131,47 @@ export default defineModule({
 
 `defineModule` collects your node classes into a typed module manifest that NRG uses to register them with Node-RED.
 
-::: tip No client code needed
-NRG auto-generates all client-side code (editor forms, node registration, defaults) from your server schemas. You only need a `src/client/` directory if you want [custom editor behavior](./creating-a-node#client-side-files).
-:::
+### 5. Configure ESLint
 
-### 5. Start developing
+Create an `eslint.config.js` (flat config) at the project root and include NRG's shared conventions:
+
+```js
+import { nrgConventions } from "@bonsae/nrg/eslint";
+
+export default [
+  // ...your other config
+  nrgConventions,
+];
+```
+
+Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). `nrgConventions` surfaces the `@bonsae/nrg/schema-server-imports-type-only` boundary rule in-editor, which keeps client code from value-importing server runtime.
+
+### 6. Add package.json scripts
+
+Wire up the same scripts the scaffold provides so you can run the short commands:
+
+```json
+{
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "lint": "eslint .",
+    "validate": "pnpm validate:tsc && pnpm validate:lint && pnpm validate:format",
+    "validate:tsc": "tsc --build",
+    "validate:lint": "eslint .",
+    "validate:format": "prettier --check ."
+  }
+}
+```
+
+### 7. Start developing
 
 The entry above imports `./nodes/my-node`, so create at least one node first — otherwise the build fails on the unresolved import. See [Creating a Node](./creating-a-node) for a complete walkthrough, then start the dev server:
 
 ```bash
-pnpm vite dev
+pnpm dev
 ```
+
+With the scripts from step 6 in place, `pnpm dev` runs `vite dev` just like a scaffolded project — if you skip those scripts, run `pnpm vite dev` directly.
 
 This launches a local Node-RED instance with your nodes pre-installed. Any change to server or client code triggers an automatic rebuild and a full Node-RED restart; refresh the browser to see it. There's no hot module replacement yet, but your flows are preserved across restarts.

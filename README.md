@@ -14,9 +14,17 @@
 
 # NRG
 
-Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vitest.
+Build Node-RED nodes with Vue 3, TypeScript, JSON Schemas, Vite and Vitest.
 
 ## Quick Start
+
+Scaffold a new project with everything wired up:
+
+```bash
+pnpm create @bonsae/nrg
+```
+
+To add NRG to an existing project, install it alongside its build-time peers:
 
 ```bash
 pnpm add -D @bonsae/nrg node-red vue vite vitest
@@ -45,7 +53,7 @@ export default defineConfig({
 });
 ```
 
-**src/server/schemas/my-node.ts**
+**src/shared/schemas/my-node.ts**
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -56,6 +64,16 @@ export const ConfigsSchema = defineSchema(
     prefix: SchemaType.String({ default: "hello" }),
   },
   { $id: "my-node:configs" },
+);
+
+export const InputSchema = defineSchema(
+  { payload: SchemaType.String() },
+  { $id: "my-node:input" },
+);
+
+export const OutputSchema = defineSchema(
+  { payload: SchemaType.String() },
+  { $id: "my-node:output" },
 );
 ```
 
@@ -69,7 +87,7 @@ NRG supports two ways to define nodes:
 
 ```typescript
 import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
 
 export default defineIONode({
   type: "my-node",
@@ -89,7 +107,7 @@ export default defineIONode({
 
 ```typescript
 import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
-import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
@@ -127,14 +145,14 @@ export default defineModule({
 });
 ```
 
-See the [consumer template](https://github.com/AllanOricil/node-red-vue-template) for a complete example.
+See the [getting started guide](https://bonsaedev.github.io/nrg/guide/getting-started) for the full walkthrough, or the [node-red-vue-template](https://github.com/AllanOricil/node-red-vue-template) repo for a reference example.
 
 ### The generated editor form
 
-NRG builds the node's edit dialog from your schema — no HTML or jQuery. Your config fields render first, then a **Ports Settings** section (input/output validation, return key, and per-port [context modes](https://bonsaedev.github.io/nrg/guide/schemas#context-modes)) and a **Lifecycle Ports** section (error / complete / status):
+NRG builds the node's edit dialog from your schema — no HTML or jQuery. Your config fields render first, then a **Ports Settings** section (input/output validation, return key, and per-port [context modes](https://bonsaedev.github.io/nrg/guide/schemas#context-modes)) and a **Lifecycle Output Ports** section (error / complete / status):
 
 <p align="center">
-  <img alt="nrg generated editor form" src="docs/public/editor-form.png" width="360"/>
+  <img alt="NRG generated editor form" src="docs/public/editor-form.png" width="360"/>
 </p>
 
 ## Testing
@@ -189,19 +207,21 @@ import MyNode from "../../../src/server/nodes/my-node";
 describe("my-node", () => {
   it("should process messages", async () => {
     const { node } = await createNode(MyNode, {
-      config: { greeting: "hello" },
+      config: { prefix: "hello" },
     });
 
     await node.receive({ payload: "world" });
 
-    expect(node.sent(0)).toEqual([{ payload: "hello world" }]);
+    expect(node.sent(0)).toEqual([
+      { payload: "world", output: { payload: "hello: world" } },
+    ]);
   });
 });
 ```
 
 ### Server Integration Tests
 
-Boot a real, headless Node-RED runtime, deploy your nodes, and drive them with real messages — verifying config-node resolution, credentials, wiring, and context that unit mocks can't. Integration tests live in `tests/server/integration`, separate from `tests/server/unit`. Add `node-red` as a dev dependency, then:
+Boot a real, headless Node-RED runtime, deploy your nodes, and drive them with real messages — verifying config-node resolution, credentials, wiring, and context, none of which unit mocks can exercise. Integration tests live in `tests/server/integration`, separate from `tests/server/unit`. Add `node-red` as a dev dependency, then:
 
 ```typescript
 // vitest.server.integration.config.ts
@@ -240,13 +260,13 @@ describe("my-node (integration)", () => {
 
   it("processes input in a real runtime", async () => {
     const flow = runtime.flow();
-    const node = flow.addNode(MyNode, { greeting: "hello" });
+    const node = flow.addNode(MyNode, { prefix: "hello" });
     await flow.deploy();
 
     await node.receive({ payload: "world" });
 
     const out = (await node.read()) as { output: { payload: string } };
-    expect(out.output.payload).toBe("hello world");
+    expect(out.output.payload).toBe("hello: world");
   });
 });
 ```
@@ -273,7 +293,7 @@ export default mergeConfig(
 ```typescript
 // tests/client/unit/my-util.test.ts
 import { describe, it, expect } from "vitest";
-import { myUtil } from "../src/client/my-util";
+import { myUtil } from "../../../src/client/my-util";
 
 describe("myUtil", () => {
   it("works with RED globals", () => {
@@ -306,7 +326,7 @@ export default mergeConfig(
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { createNode } from "@bonsae/nrg/test/client/component";
-import MyForm from "../src/client/components/my-form.vue";
+import MyForm from "../../../src/client/components/my-form.vue";
 
 describe("MyForm", () => {
   test("renders fields from injected node", async () => {

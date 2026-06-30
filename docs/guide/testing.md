@@ -200,7 +200,7 @@ Every node returned by `createNode` has these helpers:
 | `node.sent(port)`      | The per-port message for a specific output port (numeric index) — one level out of the positional array, still wrapped under the return key (`output`)                                          |
 | `node.sent(name)`      | The per-port message for a named output port (resolved from `outputsSchema` keys), still wrapped under the return key (`output`)                                                                |
 | `node.statuses()`      | All `status()` calls                                                                                                                                                                            |
-| `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`, `"debug"`)                                                                                                           |
+| `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`)                                                                                                                       |
 | `node.warned()`        | Warning messages                                                                                                                                                                                |
 | `node.errored()`       | Error messages                                                                                                                                                                                  |
 | `node.context`         | Promise-based access to the node's `node` / `flow` / `global` context stores (`get`/`set`/`keys`, plus atomic `increment`/`update`) — preset values before `receive`, assert them after         |
@@ -212,10 +212,10 @@ import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
 import { defineIONode } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-import MyNode from "../src/server/nodes/my-node";
-import Splitter from "../src/server/nodes/splitter";
-import Router from "../src/server/nodes/router";
-import RemoteServer from "../src/server/nodes/remote-server";
+import MyNode from "../../../src/server/nodes/my-node";
+import Splitter from "../../../src/server/nodes/splitter";
+import Router from "../../../src/server/nodes/router";
+import RemoteServer from "../../../src/server/nodes/remote-server";
 
 describe("my-node", () => {
   it("should apply config defaults from schema", async () => {
@@ -532,18 +532,33 @@ describe("built-in emit ports", () => {
   });
 
   it("should carry a thrown custom error's fields under error", async () => {
-    // Given a node (with EmitConfig in its configSchema) that throws a custom
+    // A node (with EmitConfig in its configSchema) that throws a custom
     // Error subclass:
-    //
-    //   class RateLimitError extends Error {
-    //     retryAfterMs: number;
-    //     constructor(retryAfterMs: number) {
-    //       super("rate limited");
-    //       this.name = "RateLimitError";
-    //       this.retryAfterMs = retryAfterMs;
-    //     }
-    //   }
-    //   input() { throw new RateLimitError(2000); }
+    class RateLimitError extends Error {
+      retryAfterMs: number;
+      constructor(retryAfterMs: number) {
+        super("rate limited");
+        this.name = "RateLimitError";
+        this.retryAfterMs = retryAfterMs;
+      }
+    }
+    const RateLimitedNode = defineIONode({
+      type: "rate-limited",
+      configSchema: defineSchema(
+        {
+          errorPort: SchemaType.Boolean({ default: false }),
+          completePort: SchemaType.Boolean({ default: false }),
+          statusPort: SchemaType.Boolean({ default: false }),
+        },
+        { $id: "rate-limited:config" },
+      ),
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: SchemaType.Object({}),
+      input() {
+        throw new RateLimitError(2000);
+      },
+    });
+
     const { node } = await createNode(RateLimitedNode, {
       config: { errorPort: true },
     });
@@ -564,12 +579,24 @@ describe("built-in emit ports", () => {
   });
 
   it("should ride the value returned by input() on the complete port", async () => {
-    // Given a node (with EmitConfig in its configSchema) whose input() returns
-    // a value:
-    //
-    //   input(msg: Input) {
-    //     return { id: msg.payload, ok: true };
-    //   }
+    // A node (with EmitConfig in its configSchema) whose input() returns a value:
+    const ReturningNode = defineIONode({
+      type: "returning",
+      configSchema: defineSchema(
+        {
+          errorPort: SchemaType.Boolean({ default: false }),
+          completePort: SchemaType.Boolean({ default: false }),
+          statusPort: SchemaType.Boolean({ default: false }),
+        },
+        { $id: "returning:config" },
+      ),
+      inputSchema: SchemaType.Object({}),
+      outputsSchema: SchemaType.Object({}),
+      input(msg) {
+        return { id: msg.payload, ok: true };
+      },
+    });
+
     const { node } = await createNode(ReturningNode, {
       config: { completePort: true },
     });
@@ -773,7 +800,7 @@ class Greeting extends ConfigNode {
 const Greeter = defineIONode({
   type: "greeter",
   configSchema: defineSchema(
-    { source: SchemaType.NodeRef<Greeting>("greeting-config", {}) },
+    { source: SchemaType.NodeRef<Greeting>("greeting-config") },
     { $id: "greeter:config" },
   ),
   inputSchema: SchemaType.Object({}),
@@ -859,7 +886,7 @@ Need to mock a network boundary (an SDK, an HTTP client)? `vi.mock` it at the to
 
 ## Client Unit Testing
 
-Client unit tests cover pure TypeScript logic — validation functions, formatters, utility modules, etc. They run in a [happy-dom](https://github.com/nicedoc/happy-dom) environment with mocked `RED` and `$` globals, but without rendering Vue components.
+Client unit tests cover pure TypeScript logic — validation functions, formatters, utility modules, etc. They run in a [happy-dom](https://github.com/capricorn86/happy-dom) environment with mocked `RED` and `$` globals, but without rendering Vue components.
 
 ### Setup
 
@@ -1063,6 +1090,8 @@ A plain object without any of these keys is shorthand for `configs`:
 const { provide } = createNode({ name: "test", retries: 3 });
 render(MyForm, { global: { provide } });
 ```
+
+The shorthand discriminator only recognizes `type`, `configs`, `configSchema`, `credentialsSchema`, and `nodes`. `credentials` is **not** a standalone shorthand key — passing `{ credentials: {...} }` on its own is treated as config values. To set credentials, pass `credentials` alongside one of the recognized keys (for example `type` or `configSchema`).
 
 When you pass a node `type`, `errors` is populated immediately against that node's **real** production schema — the same JSON the vite plugin injects into the editor — and kept in sync as the node changes. No schema import, no server runtime in the browser:
 
@@ -1440,6 +1469,7 @@ const editor = new NodeRedEditor(page, port, {
 | `editor.clickDeploy()`            | Click Deploy (confirming the dialog if needed) and wait for a clean workspace                 |
 | `editor.getDeployedFlow()`        | Fetch the deployed flow from the runtime (`GET /flows`)                                       |
 | `editor.getNodePortCount(nodeId)` | Count the output ports rendered for a node on the canvas                                      |
+| `editor.toggleLifecyclePort(ariaLabel)` | Click an Error/Complete/Status lifecycle output-port toggle by its accessible name      |
 | `editor.getNodeLabel(nodeId)`     | The node's label text on the canvas                                                           |
 | `editor.getNodeStatus(nodeId)`    | The status text under the node (`""` when none)                                               |
 | `editor.deployFlow(flow)`         | Deploy a flow via the REST API and reload the page                                            |

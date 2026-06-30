@@ -289,7 +289,7 @@ export default class MyNode extends IONode<Config> {
 }
 ```
 
-Either way, the flow author can override any port from the node's **Outputs** table in the editor, and that per-instance choice takes precedence over the author default. Note that the editor's **Validate** toggles show only per-instance overrides, not the author default: a toggle renders unchecked even when the node sets `validateOutput` to `true` for that port. The port still validates at runtime — the author default applies until the flow author explicitly toggles validation off.
+Either way, the flow author can override any port from the node's **Outputs** table in the editor, and that per-instance choice takes precedence over the author default. The editor's **Validate** checkbox reflects only a per-instance override, not the author's default — so a box can show unchecked while the port still validates. The author's `validateOutput` default stays in effect until the flow author checks the box to turn it off.
 
 For **named output ports**, provide a record instead of an array — each key becomes a port, its name shows as the editor label, and `sendToPort()` gets per-port type safety and autocomplete:
 
