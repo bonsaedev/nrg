@@ -10,13 +10,13 @@ pnpm vite dev
 
 This will:
 
-1. Build your server and client code into `.nrg/` (a gitignored dev directory — **not** `dist/`, which is reserved for the publishable build from `pnpm build`)
+1. Build your server and client code into `.nrg/` (a gitignored dev directory — **not** `dist/`, which is reserved for the publishable build from `pnpm vite build`)
 2. Launch a local Node-RED instance (URL printed in the terminal)
 3. Watch for file changes and automatically rebuild + restart
 
 The dev build imports the `@bonsae/nrg` toolkit directly (never `@bonsae/nrg-runtime`), so it runs locally with nothing extra installed.
 
-Every change — server or client — triggers a full Node-RED restart; then refresh the browser to load the rebuilt editor and client forms. This is a full restart and reload, **not** hot module replacement (HMR): open edit-dialog state resets, but your flow definitions are preserved by Node-RED across restarts. Vite handles the restart; you do the browser refresh.
+Every change — server or client — triggers a full Node-RED restart, **not** hot module replacement (HMR). Vite handles the restart; you refresh the browser to load the rebuilt editor and client forms. Open edit-dialog state resets on restart, but Node-RED preserves your flow definitions.
 
 ### Node-RED Settings
 
@@ -82,12 +82,12 @@ not `@bonsae/nrg`. That's deliberate:
   classes, schemas, the AJV validator, the editor client runtime) — `ajv`/`typebox`/
   `vue`, no build tooling.
 
-At build time, nrg rewrites your `import … from "@bonsae/nrg/server"` to the runtime
-package in the emitted bundle and declares only it, so installing your node in
-Node-RED pulls the small runtime and none of the tooling. You never reference
-`@bonsae/nrg-runtime` yourself — `@bonsae/nrg` depends on it, so it's installed
-transitively when you add `@bonsae/nrg`, and the two are published together at the
-same version (so the pin always resolves).
+At build time, NRG rewrites your `import … from "@bonsae/nrg/server"` to the runtime
+package in the emitted bundle and declares only that dependency, so installing your
+node in Node-RED pulls the small runtime and none of the tooling. You never reference
+`@bonsae/nrg-runtime` yourself: it's installed transitively when you add `@bonsae/nrg`,
+and the two are published together at the same version, so the pinned dependency
+always resolves.
 
 ## Installing in Node-RED
 

@@ -349,7 +349,7 @@ In a custom form, pass the types via the `types` prop:
 </template>
 ```
 
-The `v-model` binds the whole `{ value, type }` object. The component emits the updated object whenever the user changes either the value or the type.
+The `v-model` binds the whole `{ value, type }` object; the component emits the updated object whenever the user changes the value or the type.
 
 At runtime, `this.config.target` is a `TypedInput` instance with `.type`, `.value`, and `.resolve()`:
 
@@ -385,8 +385,8 @@ export const ConfigsSchema = defineSchema(
 The generic is erased at compile time, so the schema **never value-imports the
 config class** — keep the import `import type` (as above). That keeps the schema
 safe to evaluate in the editor/browser bundle, where server node classes don't
-exist, while `this.config.server` still resolves to the referenced node
-*instance* on the server and to the node-id `string` on the client.
+exist. At runtime, `this.config.server` still resolves to the referenced node
+*instance* on the server, and to the node-id `string` on the client.
 
 In a custom form, use `<NodeRedConfigInput>`:
 
@@ -793,7 +793,7 @@ store, so there's nothing to serialize it against.
 
 ### Lifecycle Output Ports {#lifecycle-output-ports}
 
-By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure scoping separately, which breaks the visual data flow.
+By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure their scope separately — so these events never appear in the visual data flow.
 
 NRG lets you add explicit output ports for these events. When enabled, errors, completions, and status changes are sent through wires like any other message, keeping the flow visible and debuggable.
 
@@ -935,7 +935,7 @@ Built-in ports work alongside Node-RED's built-in `catch`, `complete`, and `stat
 
 ## The editor form
 
-nrg generates the node's edit dialog from your schema — you don't write any HTML or jQuery. Your config fields render first (with `name` always at the top), followed by two framework-managed sections:
+NRG generates the node's edit dialog from your schema — you don't write any HTML or jQuery. Your config fields render first (with `name` always at the top), followed by two framework-managed sections:
 
 ![The generated editor form](/editor-form.png)
 

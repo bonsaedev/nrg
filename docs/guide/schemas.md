@@ -4,7 +4,7 @@ NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime 
 
 ## Defining Schemas
 
-Use `defineSchema` to create a schema with a required `$id`. Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/shared/schemas/` never depends on `./server`:
+Use `defineSchema` to create a schema with an optional (but recommended) `$id`. Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/shared/schemas/` never depends on `./server`:
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -289,7 +289,7 @@ export default class MyNode extends IONode<Config> {
 }
 ```
 
-Either way, the flow author can override any port from the node's **Outputs** table in the editor, and that per-instance choice takes precedence over the author default. Note the editor's **Validate** toggles reflect only per-instance overrides — they render unchecked by default even when the node sets a `validateOutput` default, so a port with a `true` author default still validates at runtime until the flow author explicitly toggles it off.
+Either way, the flow author can override any port from the node's **Outputs** table in the editor, and that per-instance choice takes precedence over the author default. Note that the editor's **Validate** toggles show only per-instance overrides, not the author default: a toggle renders unchecked even when the node sets `validateOutput` to `true` for that port. The port still validates at runtime — the author default applies until the flow author explicitly toggles validation off.
 
 For **named output ports**, provide a record instead of an array — each key becomes a port, its name shows as the editor label, and `sendToPort()` gets per-port type safety and autocomplete:
 

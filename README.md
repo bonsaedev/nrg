@@ -10,9 +10,9 @@
 </p>
 
 > [!WARNING]
-> While **nrg** is at `v0`, breaking changes can land in any release and will **not** bump the major version. Pin an exact version and review the release notes before upgrading.
+> While **NRG** is at `v0`, breaking changes can land in any release and will **not** bump the major version. Pin an exact version and review the release notes before upgrading.
 
-# nrg
+# NRG
 
 Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and Vitest.
 
@@ -22,7 +22,7 @@ Build Node-RED nodes with Vue 3, TypeScript, JSON Schema validations, Vite and V
 pnpm add -D @bonsae/nrg node-red vue vite vitest
 ```
 
-> All of these are dev dependencies — they are only needed at build time. `@bonsae/nrg` is the authoring toolkit; a built node depends only on `@bonsae/nrg-runtime` (declared automatically in the generated `dist/package.json`), never the toolkit. Vue is included as a dependency of the runtime and served automatically to the editor.
+> All of these are dev dependencies, needed only at build time. `@bonsae/nrg` is the authoring toolkit; a built node depends only on `@bonsae/nrg-runtime` (declared automatically in the generated `dist/package.json`), never the toolkit. Vue is included as a dependency of the runtime and served automatically to the editor.
 
 ### Node-RED Resolution
 
@@ -131,7 +131,7 @@ See the [consumer template](https://github.com/AllanOricil/node-red-vue-template
 
 ### The generated editor form
 
-nrg builds the node's edit dialog from your schema — no HTML or jQuery. Your config fields render first, then a **Ports Settings** section (input/output validation, return key, and per-port [context modes](https://bonsaedev.github.io/nrg/guide/schemas#context-modes)) and a **Lifecycle Ports** section (error / complete / status):
+NRG builds the node's edit dialog from your schema — no HTML or jQuery. Your config fields render first, then a **Ports Settings** section (input/output validation, return key, and per-port [context modes](https://bonsaedev.github.io/nrg/guide/schemas#context-modes)) and a **Lifecycle Ports** section (error / complete / status):
 
 <p align="center">
   <img alt="nrg generated editor form" src="docs/public/editor-form.png" width="360"/>
@@ -139,7 +139,7 @@ nrg builds the node's edit dialog from your schema — no HTML or jQuery. Your c
 
 ## Testing
 
-NRG provides five test libraries and bundles most test infrastructure as direct dependencies. Install `vitest` plus any optional peer dependencies you need:
+NRG provides five test libraries and ships most test infrastructure as direct dependencies, so you only need to install `vitest` plus any optional peer dependencies:
 
 ```bash
 pnpm add -D vitest
@@ -345,7 +345,7 @@ Drive the real editor in a live Node-RED instance with Playwright — schema-dri
 ```typescript
 // vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/e2e";
+import { defaultConfig } from "@bonsae/nrg/test/client/e2e/config";
 
 export default defineConfig({
   test: {

@@ -1,6 +1,6 @@
 # Project Structure
 
-An NRG project follows a convention-based layout. The Vite plugin discovers files automatically based on this structure.
+An NRG project follows a convention-based layout. The Vite plugin discovers files automatically from these paths, so the directory and file names below are significant.
 
 ```
 my-node-red-nodes/
@@ -68,7 +68,7 @@ The entry file (`index.ts`) exports an object with a `nodes` array listing all n
 
 ### `src/client/`
 
-Contains the browser-side code that registers nodes with the Node-RED editor. Each file in `nodes/` calls `defineNode()` to configure a node's editor behavior — category, color, form component, etc.
+Contains the browser-side code that registers nodes with the Node-RED editor. Each file in `nodes/` calls `defineNode()` to set a node's editor behavior — category, color, form component, and so on.
 
 The entry file (`index.ts`) calls `registerTypes()` with all node definitions.
 
@@ -82,7 +82,7 @@ Cross-plane code referenced by both the server and the client (shared types, con
 
 ### `src/shared/schemas/`
 
-The TypeBox schemas (config, credentials, input, outputs) — the **shared contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). They live under `src/shared/` because both planes reference them, but unlike the rest of `src/shared/` they are **server-value / client-type-only**, not freely dual-plane.
+The TypeBox schemas (config, credentials, input, outputs) — the **shared contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). They sit under `src/shared/` because both planes reference them, but unlike the rest of `src/shared/` they are **server-value / client-type-only** rather than freely dual-plane.
 
 A schema file value-imports its builders from `@bonsae/nrg/schema` (a neutral entry — TypeBox and the builders only, **no** node runtime), which still pulls in TypeBox, so **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
 
@@ -130,4 +130,4 @@ dist/
 └── package.json          # Generated package.json for publishing
 ```
 
-The `index.d.ts` file contains auto-generated TypeScript declarations for the server side that consumers import when using your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.
+The `index.d.ts` file holds auto-generated server-side type declarations, which consumers import when they reference your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.

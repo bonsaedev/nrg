@@ -20,13 +20,13 @@ features:
   - title: No More jQuery
     details: Replace raw HTML templates and jQuery event handlers with auto-generated forms from JSON Schemas — or write Vue 3 components when you need custom UI.
   - title: TypeScript-First
-    details: Extend IONode or ConfigNode with full type safety. Config types are inferred from schemas, lifecycle hooks are typed, and errors are caught at compile time.
+    details: Extend IONode or ConfigNode with full type safety. Config types are inferred from your schemas, lifecycle hooks are typed, and errors surface at compile time.
   - title: Async by Default
-    details: "No more callback chains. Write async input(msg) and call this.send() — done() is handled automatically. Resolve TypedInputs with await this.config.target.resolve(msg)."
+    details: "No callback chains. Write async input(msg) and call this.send() — done() is handled for you. Resolve TypedInputs with await this.config.target.resolve(msg)."
   - title: Schema-Driven Validation
-    details: Define schemas once with TypeBox. Get inline form errors, the red error triangle on the workspace, server-side validation, and TypeScript types — all from one source.
+    details: Define a schema once with TypeBox and get inline form errors, the red error triangle on the workspace, server-side validation, and TypeScript types — all from one source.
   - title: Auto-Generated Editor Forms
-    details: Editor forms are generated from your schema automatically. Need more control? Override with Vue 3 components using built-in widgets for typed inputs, selects, code editors, and more.
+    details: Editor forms come straight from your schema. Need more control? Override them with Vue 3 components, using built-in widgets for typed inputs, selects, code editors, and more.
   - title: Vite-Powered Build
-    details: "One command: pnpm vite dev. Vite watches your files, auto-rebuilds server and client, and proxies to a live Node-RED instance. No more restart-refresh-redeploy loops."
+    details: "One command: pnpm vite dev. Vite watches your files, rebuilds server and client on the fly, and proxies to a live Node-RED instance — no more restart-refresh-redeploy loops."
 ---

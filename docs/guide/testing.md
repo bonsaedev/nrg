@@ -146,7 +146,7 @@ The `defaultConfig` provides:
 
 - `testTimeout: 30_000`
 - `@` alias pointing to `src/` in your project root
-- a default `include` of `tests/server/unit/**/*.test.ts` — passing it explicitly above keeps the config self-documenting and points it at the unit folder, separate from the integration tier in `tests/server/integration`
+- a default `include` of `tests/server/unit/**/*.test.ts` — passing it explicitly above keeps the config self-documenting and scoped to the unit folder, separate from the integration tier in `tests/server/integration`
 
 #### 4. Add a test script
 
@@ -177,7 +177,7 @@ Creates a fully initialized node instance with mocked RED and Node-RED internals
 
 #### `createRED(options?)`
 
-Creates a standalone mock RED runtime. Useful when you need to test utilities or modules that depend on the RED object without instantiating a full node.
+Creates a standalone mock RED runtime. Useful for testing utilities or modules that depend on the RED object without instantiating a full node.
 
 **Options:**
 
@@ -656,8 +656,8 @@ Unit and integration tests are separated by folder — `tests/server/unit` and `
 }
 ```
 
-::: warning Published vs. linked nrg
-The integration library ships with `@bonsae/nrg`. If your CI installs the published package, this works out of the box. The tests register your nodes against the **same** nrg copy your nodes import (`@bonsae/nrg/server`), so the runtime's `instanceof` checks pass — there is no second copy to clash with.
+::: warning Published vs. linked NRG
+The integration library ships with `@bonsae/nrg`. If your CI installs the published package, this works out of the box. The tests register your nodes against the **same** NRG copy your nodes import (`@bonsae/nrg/server`), so the runtime's `instanceof` checks pass — there is no second copy to clash with.
 :::
 
 ### API
@@ -1183,7 +1183,7 @@ await vi.waitFor(() => {
 delete errors["node.connection"]; // clear it
 ```
 
-Note that when a `configSchema` is provided, validation owns `errors` — manual entries are recomputed away on the next node mutation. Inject errors by hand only in schema-less setups.
+When a `configSchema` is provided, validation owns `errors` — manual entries are recomputed away on the next node mutation. Inject errors by hand only in schema-less setups.
 
 ### Examples
 

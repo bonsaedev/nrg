@@ -26,7 +26,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 
 ```json
 {
-  "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "$schema": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
   "label": "My Node",
   "paletteLabel": "Node",
   "description": "What this node does",
@@ -61,7 +61,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
 | `inputLabels` | No | Label for the input port (string). |
-| `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports are labeled automatically from the `outputsSchema` port names; built-in ports (error/complete/status) are labeled automatically. |
+| `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports (from `outputsSchema` port names) and built-in ports (error/complete/status) are labeled automatically. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
@@ -70,11 +70,11 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 
 ### Named Output Ports
 
-When your `outputsSchema` uses a record (named ports) instead of an array, the editor port labels come from the port **names** in the schema automatically — you don't set `outputLabels` for them. For the auto-generated help docs, provide `outputs` as an object keyed by port name:
+When your `outputsSchema` uses a record (named ports) instead of an array, the editor labels each port from its schema **name** automatically — you don't set `outputLabels`. For the auto-generated help docs, provide `outputs` as an object keyed by port name:
 
 ```json
 {
-  "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "$schema": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
   "label": "Router",
   "outputs": {
     "success": { "payload": "Result" },
@@ -107,7 +107,7 @@ export const OutputSchema = {
 
 ```json
 {
-  "$schema": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "$schema": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
   "label": "My Node"
 }
 ```
@@ -116,7 +116,7 @@ For local development or when using a linked package, use the local path instead
 
 ```json
 {
-  "$schema": "./node_modules/@bonsae/nrg/schemas/labels.schema.json",
+  "$schema": "./node_modules/@bonsae/nrg/json-schemas/labels.schema.json",
   "label": "My Node"
 }
 ```
@@ -127,7 +127,7 @@ For local development or when using a linked package, use the local path instead
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/@bonsae/nrg/schemas/labels.schema.json",
+  "$id": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
   "title": "NRG Node Labels",
   "description": "Label file for NRG Node-RED nodes.",
   "type": "object",

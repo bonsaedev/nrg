@@ -103,7 +103,7 @@ export default class MyNode extends IONode<Config, never, Input> {
 :::
 
 ::: tip
-`inputs` and `outputs` are set automatically — `1` input if `inputSchema` is defined, and the number of outputs matches the `outputsSchema` array length. You don't need to specify them manually.
+`inputs` and `outputs` are set automatically: `1` input when `inputSchema` is defined, and one output per entry in the `outputsSchema` array. No need to set them manually.
 :::
 
 ```typescript
@@ -212,7 +212,7 @@ dist/
   package.json       ← auto-generated with correct exports
 ```
 
-Both server and client are built as ESM. The server gets a thin CJS bridge for Node-RED compatibility. The client is served as a native ES module in the browser.
+Both server and client are built as ESM: the server gets a thin CJS bridge for Node-RED compatibility, while the client is served as a native ES module in the browser.
 
 All handled by one Vite plugin:
 
@@ -448,7 +448,7 @@ pnpm dev
 
 Vite watches your files, rebuilds the server and client on change, and proxies to a live Node-RED instance. Every change — server or client — triggers a full Node-RED restart; then refresh the browser to load the rebuilt editor and forms.
 
-This is a rebuild-and-restart loop, **not** hot module replacement (HMR): the page reloads fully and any open edit-dialog state resets, though your flow definitions are preserved by Node-RED across restarts. You don't restart Node-RED yourself — Vite does — but you do refresh the browser.
+This is a rebuild-and-restart loop, **not** hot module replacement (HMR): the page reloads fully, so any open edit-dialog state resets. Your flow definitions, however, survive the restart — Node-RED preserves them.
 
 Standard scripts work out of the box:
 

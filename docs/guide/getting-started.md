@@ -127,7 +127,7 @@ export default defineModule({
 });
 ```
 
-`defineModule` registers your node classes with the NRG build system. It creates a typed module manifest that NRG uses to register your nodes with Node-RED.
+`defineModule` collects your node classes into a typed module manifest that NRG uses to register them with Node-RED.
 
 ::: tip No client code needed
 NRG auto-generates all client-side code (editor forms, node registration, defaults) from your server schemas. You only need a `src/client/` directory if you want [custom editor behavior](./creating-a-node#client-side-files).
@@ -135,10 +135,10 @@ NRG auto-generates all client-side code (editor forms, node registration, defaul
 
 ### 5. Start developing
 
-The entry above imports `./nodes/my-node`, so create at least one node first or the build will fail on the unresolved import — see [Creating a Node](./creating-a-node) for a complete walkthrough. Then start the dev server:
+The entry above imports `./nodes/my-node`, so create at least one node first — otherwise the build fails on the unresolved import. See [Creating a Node](./creating-a-node) for a complete walkthrough, then start the dev server:
 
 ```bash
 pnpm vite dev
 ```
 
-This launches a local Node-RED instance with your nodes pre-installed. A change to server or client code triggers an automatic rebuild and a full Node-RED restart — then refresh the browser to see it. There's no hot module replacement yet, so the page reloads fully (your flows are preserved).
+This launches a local Node-RED instance with your nodes pre-installed. Any change to server or client code triggers an automatic rebuild and a full Node-RED restart; refresh the browser to see it. There's no hot module replacement yet, but your flows are preserved across restarts.
