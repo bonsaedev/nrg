@@ -1,5 +1,13 @@
 # Changelog
 
+# [0.31.0](https://github.com/bonsaedev/nrg/compare/v0.30.0...v0.31.0) (2026-06-30)
+
+
+### Features
+
+* **eslint:** make nrgConventions a complete drop-in flat config ([4a0b321](https://github.com/bonsaedev/nrg/commit/4a0b3216105cb1ab80839e289be27291539f941c))
+* **eslint:** rename the @bonsae/nrg/eslint export from nrgConventions to nrg ([2050ec2](https://github.com/bonsaedev/nrg/commit/2050ec26aaa04405b6839a65b32d5917908437e4))
+
 # [0.30.0](https://github.com/bonsaedev/nrg/compare/v0.29.0...v0.30.0) (2026-06-29)
 
 
