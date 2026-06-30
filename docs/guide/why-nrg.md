@@ -80,7 +80,8 @@ export default defineIONode({
 
 ```typescript [Class API]
 // server/nodes/my-node.ts
-import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { SchemaType } from "@bonsae/nrg/schema";
 import { ConfigsSchema, InputSchema } from "../../shared/schemas/my-node";
 
@@ -143,7 +144,8 @@ module.exports = function(RED) {
 Full TypeScript with types inferred from your schemas. Config, credentials, input, output, and settings are all typed. Catch errors at compile time.
 
 ```typescript
-import { IONode, type Infer, type Schema } from "@bonsae/nrg/server";
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;

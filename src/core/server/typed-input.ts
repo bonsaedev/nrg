@@ -1,4 +1,4 @@
-import type { RED, NodeRedNode } from "./nodered";
+import type { RED, NodeRedNode } from "./red";
 import type { TypedInputType } from "../shared/schemas/types";
 
 export default class TypedInput<T = unknown> {

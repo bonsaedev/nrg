@@ -47,7 +47,8 @@ export default {
 `;
 
 const TEST_NODE = `\
-import { IONode, SchemaType } from "@bonsae/nrg/server";
+import { IONode } from "@bonsae/nrg/server";
+import { SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = SchemaType.Object({
   name: SchemaType.String({ default: "smoke-test" }),

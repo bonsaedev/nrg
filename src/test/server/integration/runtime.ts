@@ -9,7 +9,7 @@ import { createRequire } from "module";
 // a relative import would make esbuild bundle a second, non-identical copy.
 import { registerTypes } from "@bonsae/nrg/server";
 import type { NodeConstructor } from "../../../core/server/nodes/types/node";
-import type { NodeRedContextStore } from "../../../core/server/nodered";
+import type { NodeRedContextStore } from "../../../core/server/red";
 import { Recorder } from "./recorder";
 import { Flow } from "./flow";
 

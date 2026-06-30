@@ -1,9 +1,5 @@
-import {
-  IONode,
-  type Schema,
-  SchemaType,
-  defineSchema,
-} from "@bonsae/nrg/server";
+import { IONode } from "@bonsae/nrg/server";
+import { type Schema, SchemaType, defineSchema } from "@bonsae/nrg/schema";
 
 // Named-ports output schema — exercises server-resolved outputPortNames in the
 // inliner (so the editor labels "success"/"failure" without guessing).

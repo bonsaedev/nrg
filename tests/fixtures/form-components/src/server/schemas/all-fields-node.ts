@@ -1,4 +1,4 @@
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 import type TestConfig from "../nodes/test-config";
 
 const ConfigsSchema = defineSchema(

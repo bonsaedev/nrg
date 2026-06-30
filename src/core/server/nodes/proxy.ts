@@ -1,5 +1,5 @@
 import type { ResolvedStatic, Schema } from "../schemas/types";
-import type { RED, NodeRedNode } from "../nodered";
+import type { RED, NodeRedNode } from "../red";
 import { NrgError } from "../../shared/errors";
 import TypedInput from "../typed-input";
 

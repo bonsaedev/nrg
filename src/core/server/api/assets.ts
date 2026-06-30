@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { createRequire } from "module";
-import type { NodeRedExpressApp, NodeRedRequestHandler } from "../nodered";
+import type { NodeRedExpressApp, NodeRedRequestHandler } from "../red";
 
 function serveFile(filePath: string): NodeRedRequestHandler {
   return (_req, res, next) => {

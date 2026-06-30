@@ -1,4 +1,4 @@
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 // A deliberately small node: just a name plus the framework-managed port
 // settings, so the editor form shows the Name field and the Ports Settings /

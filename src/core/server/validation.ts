@@ -1,5 +1,5 @@
 import { Validator } from "../shared/validator";
-import type { RED } from "./nodered";
+import type { RED } from "./red";
 
 function initValidator(RED: RED): void {
   if (RED.validator) return;

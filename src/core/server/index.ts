@@ -38,22 +38,12 @@ export type {
   IConfigNode,
 } from "./nodes/types";
 export { NrgError } from "../shared/errors";
-export type { RED, NodeRedRuntimeSettings } from "./nodered";
-export {
-  SchemaType,
-  defineSchema,
-  NodeSourceSchema,
-  ErrorPortSchema,
-  CompletePortSchema,
-  StatusPortSchema,
-} from "./schemas";
-export type {
-  Schema,
-  Infer,
-  TNodeRef,
-  TTypedInput,
-  NodeSource,
-  ErrorPortMessage,
-  CompletePortMessage,
-  StatusPortMessage,
-} from "./schemas/types";
+export type { RED, NodeRedRuntimeSettings } from "./red";
+// Schema builders (`SchemaType`, `defineSchema`, the `*PortSchema` values) and
+// the plane-neutral schema types (`Schema`, `TNodeRef`, `TTypedInput`,
+// `NodeSource`, `*PortMessage`) are NOT re-exported here — import them from
+// `@bonsae/nrg/schema`. Keeping them off `/server` makes the schema/server
+// boundary structural: you can't accidentally pull a builder through the node
+// runtime entry. Only `Infer` stays — it is the server-plane resolution type
+// (NodeRef → node instance, TypedInput → `TypedInput<T>` wrapper).
+export type { Infer } from "./schemas/types";

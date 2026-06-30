@@ -1,7 +1,7 @@
 import { defineSchema, SchemaType } from "@/core/server/schemas";
 import type { Infer as ServerInfer } from "@/core/server/schemas/types";
 import type { Infer as ClientInfer } from "@/core/client/types";
-import type { StatusPortMessage } from "@/core/server";
+import type { StatusPortMessage } from "@/core/server/schemas/types";
 import type TypedInput from "@/core/server/typed-input";
 
 // Never executed — `tsc` proves the per-plane brand wiring for TypedInput stays

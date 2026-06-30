@@ -1,4 +1,5 @@
-import { ConfigNode, type Schema } from "@bonsae/nrg/server";
+import { ConfigNode } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema } from "../schemas/config-server";
 
 export default class ConfigServer extends ConfigNode {

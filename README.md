@@ -106,7 +106,8 @@ export default defineIONode({
 </td><td>
 
 ```typescript
-import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;

@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
 import { initValidator } from "../../../core/server/validation";
-import type { NodeRedNode } from "../../../core/server/nodered";
+import type { NodeRedNode } from "../../../core/server/red";
 import type { NodeConstructor as NodeClass } from "../../../core/server/nodes/types/node";
 import type { MockRED } from "./mocks";
 import { WIRE_HANDLERS } from "../../../core/server/nodes/symbols";

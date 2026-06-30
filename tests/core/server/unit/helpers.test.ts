@@ -4,12 +4,10 @@ import {
   ConfigNode,
   defineIONode,
   defineConfigNode,
-  SchemaType,
-  type Schema,
   type Infer,
   type RED,
 } from "@/core/server";
-import { defineSchema } from "@/core/server/schemas";
+import { defineSchema, SchemaType, type Schema } from "@/core/server/schemas";
 import { createNode } from "@/test/server/unit";
 
 // --- Test fixtures ---

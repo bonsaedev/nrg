@@ -1,4 +1,4 @@
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 // Three output ports for the docs context-modes screenshot: ports 0 & 1 get a
 // context-mode default (so their Context Mode dropdowns are editable), port 2

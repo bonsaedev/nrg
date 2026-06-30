@@ -201,7 +201,8 @@ function writeToolkitManifest(): void {
  * no source package.json: it's derived from the root package.json (version,
  * author, etc.) plus the dependency NAMES listed in build/runtime/dependencies
  * (their ranges are read from the root's own dependencies — the single source
- * of truth). Ships only `./server` VALUES; no types, no internal surface.
+ * of truth). Ships `./server` + `./schema` VALUES plus a combined `.` entry;
+ * no types, no internal surface.
  */
 function writeRuntimeManifest(): void {
   const root = JSON.parse(
@@ -248,9 +249,17 @@ function writeRuntimeManifest(): void {
       "framework",
     ],
     exports: {
+      ".": {
+        require: "./index.cjs",
+        default: "./index.cjs",
+      },
       "./server": {
         require: "./server/index.cjs",
         default: "./server/index.cjs",
+      },
+      "./schema": {
+        require: "./schema/index.cjs",
+        default: "./schema/index.cjs",
       },
     },
     dependencies,
@@ -297,7 +306,7 @@ function buildSchemaEntry() {
   // runtime). Schema modules import the builders from here so the shared
   // contract never reaches into `./server`. Ships CJS VALUES like the server
   // entry — consumers `require` it in dev; the production build rewrites the
-  // import to @bonsae/nrg-runtime/server, which re-exports the same values.
+  // import to @bonsae/nrg-runtime/schema, the same bytes shipped by the runtime.
   esbuildBundle("src/core/shared/schemas/index.ts", {
     format: "cjs",
     outfile: "dist/toolkit/schema/index.cjs",
@@ -639,10 +648,10 @@ function copyAssets() {
 
 function emitRuntimeArtifact() {
   // The runtime is the light subset of the toolkit's core output: the server
-  // VALUES bundle and the editor client asset. The server.cjs is self-contained
-  // (external deps), so the same bytes are valid for both packages. It ships no
-  // types and nothing from internal/* — a deployed node needs values, not a
-  // type or test-support surface.
+  // VALUES bundle, the schema VALUES bundle, and the editor client asset. Both
+  // .cjs bundles are self-contained (external deps), so the same bytes are valid
+  // for the runtime package. It ships no types and nothing from internal/* — a
+  // deployed node needs values, not a type or test-support surface.
   mkdirSync(path.join(RUNTIME_DIST, "server"), { recursive: true });
   copyFileSync(
     path.join(DIST, "server/index.cjs"),
@@ -652,6 +661,20 @@ function emitRuntimeArtifact() {
     path.join(DIST, "server/resources"),
     path.join(RUNTIME_DIST, "server/resources"),
     { recursive: true },
+  );
+
+  // The schema kit ships as its own runtime bundle now that `./server` no longer
+  // re-exports the builders. Same bytes as the toolkit's schema entry.
+  mkdirSync(path.join(RUNTIME_DIST, "schema"), { recursive: true });
+  copyFileSync(
+    path.join(DIST, "schema/index.cjs"),
+    path.join(RUNTIME_DIST, "schema/index.cjs"),
+  );
+
+  // The combined `.` entry (static re-export of both sibling bundles).
+  copyFileSync(
+    path.join(RUNTIME_SRC, "index.cjs"),
+    path.join(RUNTIME_DIST, "index.cjs"),
   );
 
   writeRuntimeManifest();

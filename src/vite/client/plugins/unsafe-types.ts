@@ -28,7 +28,14 @@ import path from "path";
 /** Maps each schema's `$id` to `{ propertyName: typeArgumentText }`. */
 export type UnsafeTypeMap = Map<string, Record<string, string>>;
 
-const NRG_SERVER_MODULE = "@bonsae/nrg/server";
+// The schema builders ship from `@bonsae/nrg/schema` (the neutral kit a schema
+// module imports) and historically were re-exported from `@bonsae/nrg/server`.
+// Recognize both so `Unsafe<T>` recovery works regardless of which entry the
+// consumer authored against.
+const NRG_BUILDER_MODULES = new Set([
+  "@bonsae/nrg/schema",
+  "@bonsae/nrg/server",
+]);
 
 function normalizeType(text: string): string {
   return text.replace(/\s+/g, " ").trim();
@@ -45,7 +52,7 @@ function resolveImports(sf: ts.SourceFile): {
     if (
       !ts.isImportDeclaration(node) ||
       !ts.isStringLiteral(node.moduleSpecifier) ||
-      node.moduleSpecifier.text !== NRG_SERVER_MODULE ||
+      !NRG_BUILDER_MODULES.has(node.moduleSpecifier.text) ||
       !node.importClause?.namedBindings ||
       !ts.isNamedImports(node.importClause.namedBindings)
     ) {

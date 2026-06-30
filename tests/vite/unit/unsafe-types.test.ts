@@ -7,7 +7,7 @@ import {
   extractUnsafeTypes,
 } from "@/vite/client/plugins/unsafe-types";
 
-const IMPORT = `import { defineSchema, SchemaType } from "@bonsae/nrg/server";`;
+const IMPORT = `import { defineSchema, SchemaType } from "@bonsae/nrg/schema";`;
 
 describe("unsafe-types parser", () => {
   describe("extractUnsafeTypesFromSource", () => {
@@ -43,7 +43,7 @@ describe("unsafe-types parser", () => {
     });
 
     it("resolves aliased imports rather than guessing by name", () => {
-      const code = `import { defineSchema as ds, SchemaType as ST } from "@bonsae/nrg/server";
+      const code = `import { defineSchema as ds, SchemaType as ST } from "@bonsae/nrg/schema";
         const S = ds({ conn: ST.Unsafe<Connection>() }, { $id: "n:alias" });`;
       expect(extractUnsafeTypesFromSource("n.ts", code).get("n:alias")).toEqual(
         {

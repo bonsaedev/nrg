@@ -566,8 +566,8 @@ export type Settings = Infer<typeof SettingsSchema>;
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
 ```typescript
-import { IONode, type RED, type Schema, type Infer } from "@bonsae/nrg/server";
-import { SchemaType } from "@bonsae/nrg/schema";
+import { IONode, type RED, type Infer } from "@bonsae/nrg/server";
+import { SchemaType, type Schema } from "@bonsae/nrg/schema";
 import {
   ConfigsSchema,
   CredentialsSchema,
@@ -909,8 +909,8 @@ Discriminate on `error.name` (realm-safe) rather than `instanceof`. Requires
 #### Example: node with error and status ports
 
 ```typescript
-import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
-import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType, type Schema } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -1331,7 +1331,8 @@ Use the global `$i18n` helper to access Node-RED's translation system:
 To create a configuration node (e.g., a server connection), extend `ConfigNode`:
 
 ```typescript
-import { ConfigNode, type Schema } from "@bonsae/nrg/server";
+import { ConfigNode } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, type Config } from "../../shared/schemas/remote-server";
 
 export default class RemoteServer extends ConfigNode<Config> {

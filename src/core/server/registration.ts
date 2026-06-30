@@ -1,6 +1,6 @@
 import { Node } from "./nodes";
 import type { NodeConstructor } from "./nodes/types";
-import type { RED } from "./nodered";
+import type { RED } from "./red";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
 import { NrgError } from "../shared/errors";
