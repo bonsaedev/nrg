@@ -80,7 +80,8 @@ export default defineIONode({
 
 ```typescript [Class API]
 // server/nodes/my-node.ts
-import { IONode, SchemaType, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
+import { SchemaType } from "@bonsae/nrg/schema";
 import { ConfigsSchema, InputSchema } from "../../shared/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
@@ -272,7 +273,7 @@ RED.nodes.registerType('my-node', {
 Define a schema. The editor form is auto-generated with validation and inline error messages — all for free.
 
 ```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 import type RemoteServer from "./nodes/remote-server";
 
 const ConfigsSchema = defineSchema({

@@ -210,7 +210,8 @@ Every node returned by `createNode` has these helpers:
 ```typescript
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
-import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineIONode } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 import MyNode from "../src/server/nodes/my-node";
 import Splitter from "../src/server/nodes/splitter";
 import Router from "../src/server/nodes/router";
@@ -719,7 +720,7 @@ import {
   type Runtime,
 } from "@bonsae/nrg/test/server/integration";
 import { defineIONode, ConfigNode } from "@bonsae/nrg/server";
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const Doubler = defineIONode({
   type: "doubler",

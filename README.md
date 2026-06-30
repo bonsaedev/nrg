@@ -48,7 +48,7 @@ export default defineConfig({
 **src/server/schemas/my-node.ts**
 
 ```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 export const ConfigsSchema = defineSchema(
   {
@@ -68,7 +68,7 @@ NRG supports two ways to define nodes:
 <tr><td>
 
 ```typescript
-import { defineIONode, SchemaType } from "@bonsae/nrg/server";
+import { defineIONode } from "@bonsae/nrg/server";
 import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
 
 export default defineIONode({

@@ -413,7 +413,7 @@ You can also use [ajv-errors](https://github.com/ajv-validator/ajv-errors) `erro
 #### Single condition
 
 ```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -441,7 +441,7 @@ const ConfigsSchema = defineSchema(
 Use `allOf` to combine multiple independent `if`/`then` rules:
 
 ```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -564,7 +564,8 @@ export type Settings = Infer<typeof SettingsSchema>;
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
 ```typescript
-import { IONode, SchemaType, type RED, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, type RED, type Schema, type Infer } from "@bonsae/nrg/server";
+import { SchemaType } from "@bonsae/nrg/schema";
 import {
   ConfigsSchema,
   CredentialsSchema,
@@ -898,7 +899,8 @@ Discriminate on `error.name` (realm-safe) rather than `instanceof`. Requires
 #### Example: node with error and status ports
 
 ```typescript
-import { IONode, defineSchema, SchemaType, type Schema, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Schema, type Infer } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -1351,7 +1353,8 @@ As an alternative to extending classes, NRG provides a functional API for defini
 ### `defineIONode`
 
 ```typescript
-import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineIONode } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -1421,7 +1424,8 @@ export default defineIONode({
 ### `defineConfigNode`
 
 ```typescript
-import { defineConfigNode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineConfigNode } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -1465,7 +1469,8 @@ Config nodes created with `defineConfigNode` automatically have `category` set t
 Nodes created with `defineIONode` and `defineConfigNode` work with `NodeRef` the same way as class-based nodes. The referenced config node is fully typed:
 
 ```typescript
-import { defineIONode, defineSchema, SchemaType } from "@bonsae/nrg/server";
+import { defineIONode } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 import type MyBroker from "./my-broker";
 
 const ConfigsSchema = defineSchema(
