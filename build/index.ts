@@ -279,9 +279,12 @@ function buildVitePlugin() {
 }
 
 function buildEslintConfig() {
-  // The shared ESLint conventions (@bonsae/nrg/eslint), spread into a consumer's
-  // flat config. Self-contained (no eslint type-import in the bundle), so it
-  // emits like the test configs — values only, no .d.ts.
+  // The shared ESLint conventions (@bonsae/nrg/eslint) — a complete, drop-in
+  // flat-config array a consumer uses as `export default nrgConventions`. The
+  // eslint plugins it pulls in (@eslint/js, typescript-eslint, eslint-plugin-vue,
+  // eslint-config-prettier, globals) stay external via --packages=external and
+  // resolve from the consumer's install (they're runtime deps of @bonsae/nrg).
+  // Emits like the test configs — values only, no .d.ts.
   esbuildBundle("src/eslint/index.ts", {
     outfile: "dist/toolkit/eslint/index.js",
   });

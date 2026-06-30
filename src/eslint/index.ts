@@ -1,11 +1,33 @@
 /**
- * nrg ESLint conventions, importable from `@bonsae/nrg/eslint` so consumers (and
+ * NRG ESLint conventions, importable from `@bonsae/nrg/eslint` so consumers (and
  * the create-nrg scaffold) share ONE source of truth instead of an inline copy
- * that drifts per project. Spread `nrgConventions` into your flat eslint config:
+ * that drifts per project.
+ *
+ * `nrgConventions` is a COMPLETE flat-config array — the recommended JS/TS/Vue
+ * rules, the NRG plane boundaries, the node conventions, and a Prettier reset —
+ * so a consumer's entire `eslint.config.js` can be just:
  *
  *   import { nrgConventions } from "@bonsae/nrg/eslint";
- *   export default [ ...other, nrgConventions ];
+ *   export default nrgConventions;
+ *
+ * Because it's an array of flat-config blocks (and later blocks win), consumers
+ * override any default by appending their own block:
+ *
+ *   import { nrgConventions } from "@bonsae/nrg/eslint";
+ *   export default [
+ *     ...nrgConventions,
+ *     { rules: { "@typescript-eslint/no-explicit-any": "error" } },
+ *   ];
+ *
+ * Advanced consumers who want to assemble their own config can import the
+ * narrower `nodeConventions` (just the NRG custom rules) or the raw `plugin`.
  */
+
+import eslint from "@eslint/js";
+import eslintConfigPrettier from "eslint-config-prettier";
+import eslintPluginVue from "eslint-plugin-vue";
+import globals from "globals";
+import typescriptEslint from "typescript-eslint";
 
 interface EsTreeNode {
   type: string;
@@ -142,8 +164,8 @@ const plugin = {
   },
 };
 
-/** Flat-config block enforcing nrg's node conventions. */
-const nrgConventions = {
+/** Flat-config block enforcing NRG's node conventions (the two custom rules). */
+const nodeConventions = {
   plugins: { "@bonsae/nrg": plugin },
   rules: {
     "@bonsae/nrg/node-type-matches-filename": "error" as const,
@@ -151,10 +173,104 @@ const nrgConventions = {
   },
 };
 
+/**
+ * The complete, drop-in NRG flat config. Blocks are ordered so later ones win,
+ * which is also what lets a consumer override any default by appending a block
+ * after `...nrgConventions`.
+ */
+const nrgConventions = typescriptEslint.config(
+  {
+    ignores: ["**/*.d.ts", "**/coverage", "**/dist", "**/build"],
+  },
+  {
+    extends: [
+      eslint.configs.recommended,
+      ...typescriptEslint.configs.recommended,
+      ...eslintPluginVue.configs["flat/recommended"],
+    ],
+    files: ["src/**/*.{ts,vue}"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals["shared-node-browser"] },
+      parserOptions: {
+        parser: typescriptEslint.parser,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "vue/no-mutating-props": "off",
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        {
+          prefer: "type-imports",
+        },
+      ],
+    },
+  },
+  // Boundary: browser/client code must never VALUE-import the node runtime. The
+  // server (io-node, node:async_hooks, the node's SDKs) is server-only. Schemas
+  // reach the client as serialized data — the vite plugin in production, a node
+  // globalSetup in component tests — and as types via `import type` (enforced by
+  // consistent-type-imports above for .vue). The node-context globalSetup that
+  // does the serializing legitimately imports the server; it's exempted from
+  // THIS rule below (not from linting entirely).
+  {
+    files: ["src/client/**/*.ts", "tests/client/**/*.ts"],
+    plugins: { "@typescript-eslint": typescriptEslint.plugin },
+    languageOptions: { parser: typescriptEslint.parser },
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@bonsae/nrg/server",
+              allowTypeImports: true,
+              message:
+                "Browser/client code must not import the node runtime. Use `import type` for schema types; in tests, use serialized schema data (see tests/client/component/serialize-schemas.ts).",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/server/**"],
+              allowTypeImports: true,
+              message:
+                "Browser/client code must not value-import server modules — they pull in the node runtime. Use `import type`, or serialized schema data in tests.",
+            },
+            {
+              group: ["**/schemas/**"],
+              allowTypeImports: true,
+              message:
+                "Browser/client code must not value-import schema modules — they value-import @bonsae/nrg/server (TypeBox + node runtime). Use `import type`, or serialized schema data in tests.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // The node-context globalSetup serializes the real schemas for the browser
+  // component tests, so it alone may value-import them (in Node). Exempt ONLY
+  // the boundary rule — it still gets every other lint rule its siblings do.
+  {
+    files: ["tests/client/**/serialize-schemas.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": "off",
+    },
+  },
+  // NRG node conventions, shared from the toolkit so they can't drift: a node's
+  // static `type` must equal its filename in src/server/nodes, and schema
+  // modules may only type-import the consumer's server modules.
+  nodeConventions,
+  // Prettier last: turn off every stylistic rule that would fight the formatter.
+  eslintConfigPrettier,
+);
+
 export {
   nodeTypeMatchesFilename,
   schemaServerImportsTypeOnly,
   plugin,
+  nodeConventions,
   nrgConventions,
 };
 export default nrgConventions;

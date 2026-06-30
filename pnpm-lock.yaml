@@ -11,6 +11,9 @@ importers:
       '@clack/prompts':
         specifier: ^1.0.1
         version: 1.2.0
+      '@eslint/js':
+        specifier: ^9.27.0
+        version: 9.39.4
       '@sinclair/typebox':
         specifier: ^0.34.33
         version: 0.34.49
@@ -38,9 +41,18 @@ importers:
       esbuild:
         specifier: ^0.25.4
         version: 0.25.12
+      eslint-config-prettier:
+        specifier: ^10.1.8
+        version: 10.1.8(eslint@9.39.4(jiti@2.6.1))
+      eslint-plugin-vue:
+        specifier: ^10.1.0
+        version: 10.9.0(@typescript-eslint/parser@8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(vue-eslint-parser@10.4.0(eslint@9.39.4(jiti@2.6.1)))
       get-port:
         specifier: ^7.1.0
         version: 7.2.0
+      globals:
+        specifier: ^16.1.0
+        version: 16.5.0
       jsonpointer:
         specifier: ^5.0.1
         version: 5.0.1
@@ -53,6 +65,9 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.32.1
+        version: 8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       vite-plugin-dts:
         specifier: ^4.5.4
         version: 4.5.4(@types/node@22.19.17)(rollup@4.60.2)(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3))
@@ -66,9 +81,6 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^20.5.0
         version: 20.5.0
-      '@eslint/js':
-        specifier: ^9.27.0
-        version: 9.39.4
       '@semantic-release/changelog':
         specifier: ^6.0.3
         version: 6.0.3(semantic-release@24.2.9(typescript@5.9.3))
@@ -111,15 +123,6 @@ importers:
       eslint:
         specifier: ^9.27.0
         version: 9.39.4(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: ^10.1.8
-        version: 10.1.8(eslint@9.39.4(jiti@2.6.1))
-      eslint-plugin-vue:
-        specifier: ^10.1.0
-        version: 10.9.0(@typescript-eslint/parser@8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(vue-eslint-parser@10.4.0(eslint@9.39.4(jiti@2.6.1)))
-      globals:
-        specifier: ^16.1.0
-        version: 16.5.0
       happy-dom:
         specifier: ^20.10.2
         version: 20.10.2
@@ -144,9 +147,6 @@ importers:
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
-      typescript-eslint:
-        specifier: ^8.32.1
-        version: 8.59.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^6.3.4
         version: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.22.4)(yaml@2.8.3)
