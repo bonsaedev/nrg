@@ -369,7 +369,7 @@ the client type-resolver understand, and skipping them loses both:
   passed at runtime. This is also why the reference must stay a type: the server
   node value-imports this schema, so a schema that *value*-imported the node back
   would form an import cycle. The `@bonsae/nrg/schema-server-imports-type-only`
-  lint rule (in `nrgConventions`) enforces that schemas only `import type` from
+  lint rule (in `nrg`) enforces that schemas only `import type` from
   `server/`.
 - **Typed input** → `SchemaType.TypedInput()` — resolves to `{ value, type }`.
 :::

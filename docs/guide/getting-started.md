@@ -133,26 +133,26 @@ export default defineModule({
 
 ### 5. Configure ESLint
 
-`nrgConventions` is a complete, drop-in flat config — the recommended JS/TS/Vue rules, NRG's plane boundaries, and a Prettier reset, all included. Your entire `eslint.config.js` is one line of config:
+`nrg` is a complete, drop-in flat config — the recommended JS/TS/Vue rules, NRG's plane boundaries, and a Prettier reset, all included. Your entire `eslint.config.js` is one line of config:
 
 ```js
-import { nrgConventions } from "@bonsae/nrg/eslint";
+import { nrg } from "@bonsae/nrg/eslint";
 
-export default nrgConventions;
+export default nrg;
 ```
 
 Need to change a default? It's an array, and later flat-config blocks win, so append your own:
 
 ```js
-import { nrgConventions } from "@bonsae/nrg/eslint";
+import { nrg } from "@bonsae/nrg/eslint";
 
 export default [
-  ...nrgConventions,
+  ...nrg,
   { rules: { "@typescript-eslint/no-explicit-any": "error" } },
 ];
 ```
 
-Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). Among other things, `nrgConventions` surfaces the `@bonsae/nrg/schema-server-imports-type-only` boundary rule in-editor, which keeps client code from value-importing the server runtime.
+Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). Among other things, `nrg` surfaces the `@bonsae/nrg/schema-server-imports-type-only` boundary rule in-editor, which keeps client code from value-importing the server runtime.
 
 ### 6. Add package.json scripts
 

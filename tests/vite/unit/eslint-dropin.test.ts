@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { Linter } from "eslint";
-import { nrgConventions } from "../../../src/eslint";
+import { nrg } from "../../../src/eslint";
 
-// These tests exercise the ASSEMBLED `nrgConventions` flat-config array end to
+// These tests exercise the ASSEMBLED `nrg` flat-config array end to
 // end through ESLint's Linter — not the custom rules in isolation (that's
 // eslint-conventions.test.ts). They prove two things a consumer relies on:
-//   1. `export default nrgConventions` enforces the recommended rules, the NRG
+//   1. `export default nrg` enforces the recommended rules, the NRG
 //      node conventions, and the plane-import boundary out of the box.
 //   2. Because it's a flat-config ARRAY (last block wins), a consumer can
-//      override ANY default by appending their own block after `...nrgConventions`.
+//      override ANY default by appending their own block after `...nrg`.
 
 /** Lint `code` as `filename`, optionally appending consumer override blocks. */
 function lint(
@@ -17,20 +17,18 @@ function lint(
   overrides: unknown[] = [],
 ): Linter.LintMessage[] {
   const linter = new Linter({ configType: "flat" });
-  // Mirrors a consumer's `export default [...nrgConventions, ...overrides]`.
-  const config = [...nrgConventions, ...overrides] as Parameters<
-    typeof linter.verify
-  >[1];
+  // Mirrors a consumer's `export default [...nrg, ...overrides]`.
+  const config = [...nrg, ...overrides] as Parameters<typeof linter.verify>[1];
   return linter.verify(code, config, { filename });
 }
 
 const ruleIds = (messages: Linter.LintMessage[]) =>
   messages.map((m) => m.ruleId);
 
-describe("nrgConventions is a complete drop-in flat config", () => {
+describe("nrg is a complete drop-in flat config", () => {
   it("is a non-empty flat-config array (spreadable into a consumer config)", () => {
-    expect(Array.isArray(nrgConventions)).toBe(true);
-    expect(nrgConventions.length).toBeGreaterThan(0);
+    expect(Array.isArray(nrg)).toBe(true);
+    expect(nrg.length).toBeGreaterThan(0);
   });
 
   it("enforces the NRG node-type-matches-filename rule by default", () => {

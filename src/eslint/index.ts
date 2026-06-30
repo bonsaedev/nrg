@@ -3,19 +3,19 @@
  * the create-nrg scaffold) share ONE source of truth instead of an inline copy
  * that drifts per project.
  *
- * `nrgConventions` is a COMPLETE flat-config array — the recommended JS/TS/Vue
+ * `nrg` is a COMPLETE flat-config array — the recommended JS/TS/Vue
  * rules, the NRG plane boundaries, the node conventions, and a Prettier reset —
  * so a consumer's entire `eslint.config.js` can be just:
  *
- *   import { nrgConventions } from "@bonsae/nrg/eslint";
- *   export default nrgConventions;
+ *   import { nrg } from "@bonsae/nrg/eslint";
+ *   export default nrg;
  *
  * Because it's an array of flat-config blocks (and later blocks win), consumers
  * override any default by appending their own block:
  *
- *   import { nrgConventions } from "@bonsae/nrg/eslint";
+ *   import { nrg } from "@bonsae/nrg/eslint";
  *   export default [
- *     ...nrgConventions,
+ *     ...nrg,
  *     { rules: { "@typescript-eslint/no-explicit-any": "error" } },
  *   ];
  *
@@ -176,9 +176,9 @@ const nodeConventions = {
 /**
  * The complete, drop-in NRG flat config. Blocks are ordered so later ones win,
  * which is also what lets a consumer override any default by appending a block
- * after `...nrgConventions`.
+ * after `...nrg`.
  */
-const nrgConventions = typescriptEslint.config(
+const nrg = typescriptEslint.config(
   {
     ignores: ["**/*.d.ts", "**/coverage", "**/dist", "**/build"],
   },
@@ -271,6 +271,6 @@ export {
   schemaServerImportsTypeOnly,
   plugin,
   nodeConventions,
-  nrgConventions,
+  nrg,
 };
-export default nrgConventions;
+export default nrg;
