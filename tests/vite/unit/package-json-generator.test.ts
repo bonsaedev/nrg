@@ -205,28 +205,20 @@ describe("packageJsonGenerator plugin", () => {
     expect(result).toEqual({ id: "@scope/pkg/sub", external: true });
   });
 
-  it("rewrites @bonsae/nrg/server to the runtime package", () => {
-    const plugin = packageJsonGenerator({ outDir: tmpDir, bundled: [] });
-    const resolveId = (plugin.resolveId as any).handler;
-    const result = resolveId("@bonsae/nrg/server", "/some/importer.ts");
-    expect(result).toEqual({
-      id: "@bonsae/nrg-runtime/server",
-      external: true,
-    });
-  });
-
-  it("does NOT rewrite @bonsae/nrg/server to the runtime in dev mode", () => {
-    // Dev loads the bundle from the output dir with no install step, so it must
-    // keep the toolkit specifier (resolvable); the runtime would not resolve
-    // under pnpm. The rewrite is production-only.
-    const plugin = packageJsonGenerator({
-      outDir: tmpDir,
-      bundled: [],
-      isDev: true,
-    });
-    const resolveId = (plugin.resolveId as any).handler;
-    const result = resolveId("@bonsae/nrg/server", "/some/importer.ts");
-    expect(result).toEqual({ id: "@bonsae/nrg/server", external: true });
+  it("keeps the toolkit specifier for @bonsae/nrg/server (renamed to runtime later)", () => {
+    // The emitted JS keeps the toolkit specifier so it's loadable at build time
+    // (the node-defs extractor executes the bundle); the runtime rename is a
+    // separate final server-build step. Same in dev and prod.
+    for (const isDev of [false, true]) {
+      const plugin = packageJsonGenerator({
+        outDir: tmpDir,
+        bundled: [],
+        isDev,
+      });
+      const resolveId = (plugin.resolveId as any).handler;
+      const result = resolveId("@bonsae/nrg/server", "/some/importer.ts");
+      expect(result).toEqual({ id: "@bonsae/nrg/server", external: true });
+    }
   });
 
   it("buildStart clears tracked dependencies", () => {
@@ -326,6 +318,29 @@ describe("packageJsonGenerator closeBundle", () => {
       express: "^4.18.0",
       lodash: "^4.17.0",
     });
+  });
+
+  it("declares @bonsae/nrg-runtime as the dependency for a @bonsae/nrg/server import", () => {
+    // The emitted import stays as the toolkit specifier, but the shipped bundle
+    // is renamed to the runtime — so the generated package.json must pin
+    // @bonsae/nrg-runtime (tracked from the resolved runtime specifier, versioned
+    // in lockstep with the @bonsae/nrg devDependency).
+    writePackageJson({
+      name: "test",
+      version: "1.0.0",
+      devDependencies: { "@bonsae/nrg": "^0.31.0" },
+    });
+    const outDir = path.join(tmpDir, "dist");
+    const plugin = packageJsonGenerator({ outDir });
+    const resolveId = (plugin.resolveId as any).handler;
+    resolveId("@bonsae/nrg/server", "/importer.ts");
+    resolveId("@bonsae/nrg/schema", "/importer.ts");
+    (plugin as any).closeBundle();
+
+    const result = JSON.parse(
+      fs.readFileSync(path.join(outDir, "package.json"), "utf-8"),
+    );
+    expect(result.dependencies).toEqual({ "@bonsae/nrg-runtime": "^0.31.0" });
   });
 
   it("skips peer dependencies", () => {

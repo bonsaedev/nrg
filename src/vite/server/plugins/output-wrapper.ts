@@ -1,16 +1,12 @@
 import type { Plugin } from "vite";
 
-// In production the bundle imports the standalone runtime, which the built
-// node declares as its dependency. In dev there is no install step — Node-RED
-// loads the bundle straight from the output dir — so it must import
-// `@bonsae/nrg/server` (the toolkit, a direct dependency that resolves). The
-// toolkit ships its own `./server/index.cjs`, byte-identical to the runtime's
-// copy, so dev node + registration share one nrg identity. Importing the
-// runtime in dev would fail under pnpm, where the runtime is nested under the
-// toolkit, not hoisted.
-function nrgServerSpecifier(isDev: boolean): string {
-  return isDev ? "@bonsae/nrg/server" : "@bonsae/nrg-runtime/server";
-}
+// The injected `registerTypes` import uses the TOOLKIT specifier in both modes.
+// It resolves at build time (so the node-definitions extractor can execute the
+// bundle) and stays correct in dev (Node-RED loads the bundle from the output
+// dir with no install step). In production it's renamed to the runtime as the
+// final server-build step (rewriteEmittedRuntimeImports) — same as every other
+// nrg import in the bundle.
+const NRG_SERVER_SPECIFIER = "@bonsae/nrg/server";
 
 /**
  * Appends a CJS footer so Node-RED can load the package.
@@ -25,8 +21,8 @@ function nrgServerSpecifier(isDev: boolean): string {
  *
  * Must be added to the server build in both dev and production modes.
  */
-function cjsWrapper(isDev: boolean = false): Plugin {
-  const serverSpecifier = nrgServerSpecifier(isDev);
+function cjsWrapper(): Plugin {
+  const serverSpecifier = NRG_SERVER_SPECIFIER;
   return {
     name: "vite-plugin-node-red:server:cjs-wrapper",
     renderChunk(code, chunk, outputOptions) {
@@ -67,8 +63,8 @@ function cjsWrapper(isDev: boolean = false): Plugin {
  *
  * Must be added to the server build in both dev and production modes.
  */
-function esmWrapper(isDev: boolean = false): Plugin {
-  const serverSpecifier = nrgServerSpecifier(isDev);
+function esmWrapper(): Plugin {
+  const serverSpecifier = NRG_SERVER_SPECIFIER;
   return {
     name: "vite-plugin-node-red:server:esm-wrapper",
     renderChunk(code, chunk, outputOptions) {

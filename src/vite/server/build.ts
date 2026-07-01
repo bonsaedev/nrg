@@ -11,6 +11,8 @@ import {
   rewriteRuntimeTypeImports,
   cjsWrapper,
   esmWrapper,
+  extractNodeDefinitions,
+  rewriteEmittedRuntimeImports,
 } from "./plugins";
 
 async function build(
@@ -53,7 +55,7 @@ async function build(
       format,
       isDev: buildContext.isDev,
     }),
-    isEsm ? esmWrapper(buildContext.isDev) : cjsWrapper(buildContext.isDev),
+    isEsm ? esmWrapper() : cjsWrapper(),
   ];
 
   if (types && !buildContext.isDev) {
@@ -125,6 +127,18 @@ module.exports = function (RED) {
 };
 `;
       fs.writeFileSync(path.join(buildContext.outDir, "index.js"), bridgeCode);
+    }
+
+    // Read node statics from the just-built bundle (still importing the toolkit,
+    // so it loads directly — no re-bundle) and write them for the client build's
+    // inliner. Runs in dev and prod.
+    await extractNodeDefinitions(buildContext.outDir);
+
+    // Production only: rename the emitted server imports from the toolkit to the
+    // runtime package — the single, final rewrite, after the extractor has read
+    // the bundle. Dev keeps the toolkit import (loaded from the output dir).
+    if (!buildContext.isDev) {
+      rewriteEmittedRuntimeImports(buildContext.outDir);
     }
   } catch (error) {
     throw new BuildError("server", error as Error);

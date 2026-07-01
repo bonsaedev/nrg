@@ -4,23 +4,16 @@ import path from "path";
 import { builtinModules } from "node:module";
 import { logger } from "../../logger";
 import type { PackageJson } from "../../types";
+// The toolkit→runtime map lives with the rename it drives (runtime-imports); we
+// use it here only to compute which runtime package the generated package.json
+// must declare as a dependency. The emitted JS keeps the toolkit specifier.
+import { RUNTIME_REWRITES } from "./runtime-imports";
 
 // NOTE: don't want to recreate it every time resolveId runs
 const nodeBuiltins = new Set([
   ...builtinModules,
   ...builtinModules.map((m) => `node:${m}`),
 ]);
-
-// Built nodes import nrg's runtime entries from the dev package (@bonsae/nrg),
-// but in production they must depend on the standalone runtime package instead —
-// @bonsae/nrg carries build tooling that must never reach the Node-RED container.
-const RUNTIME_REWRITES: Record<string, string> = {
-  "@bonsae/nrg/server": "@bonsae/nrg-runtime/server",
-  // The neutral schema kit ships as its own runtime bundle now (the server entry
-  // no longer re-exports the builders), so the production rewrite stays
-  // plane-specific — a schema import resolves to the runtime's schema bundle.
-  "@bonsae/nrg/schema": "@bonsae/nrg-runtime/schema",
-};
 
 // Runtime package → the dev package whose version it tracks (lockstep), so a
 // consumer that only declares @bonsae/nrg still pins @bonsae/nrg-runtime right.
@@ -127,22 +120,26 @@ function packageJsonGenerator(options: {
           return { id: source, external: true };
         }
 
-        // Only rewrite to the runtime for production builds. In dev the bundle
-        // is loaded from the output dir by Node-RED with no install step, so it
-        // must keep importing @bonsae/nrg/server (a resolvable direct dep);
-        // the runtime would not resolve under pnpm. See nrgServerSpecifier in
-        // output-wrapper for the matching injected import.
-        const resolved = isDev ? source : (RUNTIME_REWRITES[source] ?? source);
-        const packageName = resolved.startsWith("@")
-          ? resolved.split("/").slice(0, 2).join("/")
-          : resolved.split("/")[0];
+        // The emitted JS keeps the TOOLKIT specifier (loadable at build time so
+        // the node-definitions extractor can execute the bundle). The generated
+        // package.json, however, must declare the *runtime* as the dependency
+        // (that's what the shipped, renamed bundle imports) — so compute the
+        // runtime package name for dependency tracking. The rename of the
+        // emitted JS happens later, in the build lifecycle via
+        // rewriteEmittedRuntimeImports. Dev never renames.
+        const runtimeSpecifier = isDev
+          ? source
+          : (RUNTIME_REWRITES[source] ?? source);
+        const packageName = runtimeSpecifier.startsWith("@")
+          ? runtimeSpecifier.split("/").slice(0, 2).join("/")
+          : runtimeSpecifier.split("/")[0];
 
         if (bundled.includes(packageName)) {
           return null;
         }
 
         trackedDependencies.add(packageName);
-        return { id: resolved, external: true };
+        return { id: source, external: true };
       },
     },
 

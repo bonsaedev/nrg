@@ -8,6 +8,9 @@ import {
   copyFiles,
   discoverResourceCopyTargets,
   getPackageName,
+  cacheKeyFor,
+  clientCacheDir,
+  nodeDefsPath,
 } from "@/vite/utils";
 
 describe("mergeOptions", () => {
@@ -264,5 +267,31 @@ describe("getPackageName", () => {
     } finally {
       process.chdir(originalCwd);
     }
+  });
+});
+
+describe("cacheKeyFor", () => {
+  it("is deterministic and hash-suffixed per absolute outDir", () => {
+    const key = cacheKeyFor("dist");
+    expect(key).toBe(cacheKeyFor("dist")); // stable across calls
+    expect(key).toMatch(/^dist-[0-9a-f]{8}$/); // basename + 8-char hash
+  });
+
+  it("gives distinct keys for distinct output dirs", () => {
+    expect(cacheKeyFor("dist")).not.toBe(cacheKeyFor("dist-dev"));
+  });
+});
+
+describe("clientCacheDir / nodeDefsPath", () => {
+  it("nest under node_modules/.nrg/client keyed by the output dir", () => {
+    const dir = clientCacheDir("dist");
+    expect(dir).toContain(path.join("node_modules", ".nrg", "client"));
+    expect(path.basename(dir)).toBe(cacheKeyFor("dist"));
+  });
+
+  it("puts the hand-off file inside the client cache dir", () => {
+    expect(nodeDefsPath("dist")).toBe(
+      path.join(clientCacheDir("dist"), "node-defs.json"),
+    );
   });
 });

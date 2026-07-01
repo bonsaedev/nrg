@@ -1,6 +1,32 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import type { CopyTarget, PackageJson } from "./types";
+
+/**
+ * Stable, filesystem-safe cache subdirectory name for an output dir. Keeps the
+ * basename for readability and appends a short hash of the absolute path so
+ * distinct outDirs (e.g. `build` vs `build:dev`) never share a cache directory.
+ */
+function cacheKeyFor(outDir: string): string {
+  const abs = path.resolve(outDir);
+  const hash = crypto.createHash("sha1").update(abs).digest("hex").slice(0, 8);
+  return `${path.basename(abs) || "client"}-${hash}`;
+}
+
+/** Per-output-dir cache directory for generated client entry/node files. */
+function clientCacheDir(outDir: string): string {
+  return path.resolve("node_modules", ".nrg", "client", cacheKeyFor(outDir));
+}
+
+/**
+ * The hand-off file the server build writes (extracted node definitions) and the
+ * client build's inliner reads. Colocated in the client cache dir, so it never
+ * ships in dist and is isolated per output dir.
+ */
+function nodeDefsPath(outDir: string): string {
+  return path.join(clientCacheDir(outDir), "node-defs.json");
+}
 
 function cleanDir(dir: string) {
   if (fs.existsSync(dir)) {
@@ -107,4 +133,7 @@ export {
   discoverResourceCopyTargets,
   getPackageName,
   mergeOptions,
+  cacheKeyFor,
+  clientCacheDir,
+  nodeDefsPath,
 };
