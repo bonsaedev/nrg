@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { createNode } from "@/test/server/unit";
-import { defineIONode } from "@/core/server/nodes";
-import { SchemaType } from "@/core/shared/schemas";
+import { createNode } from "@/sdk/test/server/unit";
+import { defineIONode } from "@/sdk/lib/server/nodes";
+import { SchemaType } from "@/sdk/lib/shared/schemas";
 
 /**
  * Guards the per-invocation context scope in io-node.ts (the `inputInvocation`

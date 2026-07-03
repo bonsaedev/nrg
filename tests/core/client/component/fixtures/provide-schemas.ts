@@ -1,4 +1,4 @@
-import { provideSchemas } from "@/test/client/component/schemas";
+import { provideSchemas } from "@/sdk/test/client/component/schemas";
 import registry from "./schema-registry";
 
 // Exercises the real schemas globalSetup: serialize a node registry in Node and

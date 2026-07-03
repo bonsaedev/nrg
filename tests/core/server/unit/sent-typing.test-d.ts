@@ -1,6 +1,6 @@
-import { createNode } from "@/test/server/unit";
-import { defineIONode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { createNode } from "@/sdk/test/server/unit";
+import { defineIONode } from "@/sdk/lib/server/nodes";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // These nodes + functions are never executed. They exist so `tsc` (run via
 // `pnpm validate:tsc`) verifies that `node.sent()` is typed positionally from

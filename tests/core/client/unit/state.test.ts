@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getNodeState, getChanges, applyState } from "@/core/client/state";
+import { getNodeState, getChanges, applyState } from "@/sdk/lib/client/state";
 
 describe("getNodeState", () => {
   it("extracts properties listed in _def.defaults", () => {

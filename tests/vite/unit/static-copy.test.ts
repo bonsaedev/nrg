@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { staticCopy } from "@/vite/client/plugins/static-copy";
+import { staticCopy } from "@/tools/vite/client/plugins/static-copy";
 
 describe("static-copy", () => {
   let tmpDir: string;

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { NrgError } from "@/core/shared/errors";
+import { NrgError } from "@/sdk/lib/shared/errors";
 import { createRED } from "@mocks/red";
 
 async function getModules() {
-  const { Node, IONode, ConfigNode } = await import("@/core/server/nodes");
-  const { registerType } = await import("@/core/server/index");
+  const { Node, IONode, ConfigNode } = await import("@/sdk/lib/server/nodes");
+  const { registerType } = await import("@/sdk/lib/server/index");
   return { Node, IONode, ConfigNode, registerType };
 }
 
@@ -73,7 +73,7 @@ describe("registerType validation", () => {
 
   it("should derive inputs from inputSchema presence", async () => {
     const { IONode } = await getModules();
-    const { SchemaType } = await import("@/core/shared/schemas");
+    const { SchemaType } = await import("@/sdk/lib/shared/schemas");
 
     class WithInput extends IONode {
       static override readonly type = "with-input";
@@ -92,7 +92,7 @@ describe("registerType validation", () => {
 
   it("should derive outputs from outputsSchema", async () => {
     const { IONode } = await getModules();
-    const { SchemaType } = await import("@/core/shared/schemas");
+    const { SchemaType } = await import("@/sdk/lib/shared/schemas");
 
     class SingleOutput extends IONode {
       static override readonly type = "single-output";

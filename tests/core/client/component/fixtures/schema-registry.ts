@@ -1,4 +1,4 @@
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A minimal node registry (the shape of `defineModule({ nodes })`) used to
 // exercise the schemas globalSetup: each node carries real TypeBox schemas that

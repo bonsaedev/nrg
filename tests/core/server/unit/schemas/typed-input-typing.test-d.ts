@@ -1,8 +1,8 @@
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
-import type { Infer as ServerInfer } from "@/core/server/schemas/types";
-import type { Infer as ClientInfer } from "@/core/client/types";
-import type { StatusPortOutput } from "@/core/server/schemas/types";
-import type TypedInput from "@/core/server/typed-input";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import type { Infer as ServerInfer } from "@/sdk/lib/server/schemas/types";
+import type { Infer as ClientInfer } from "@/sdk/lib/client/types";
+import type { StatusPortOutput } from "@/sdk/lib/server/schemas/types";
+import type TypedInput from "@/sdk/lib/server/typed-input";
 
 // Never executed — `tsc` proves the per-plane brand wiring for TypedInput stays
 // correct, and (statusProof) that the StatusPort message shape keeps the `"ring"`

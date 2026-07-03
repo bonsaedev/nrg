@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { withTimeout, retry } from "@/vite/async-utils";
+import { withTimeout, retry } from "@/tools/vite/async-utils";
 
 // `debounce` was removed from async-utils in favour of es-toolkit's `debounce`
 // (single implementation across the client + the vite plugin); es-toolkit tests

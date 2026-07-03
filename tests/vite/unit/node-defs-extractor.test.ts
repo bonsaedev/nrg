@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { extractNodeDefinitions } from "@/vite/server/plugins/node-defs-extractor";
-import { nodeDefsPath, clientCacheDir } from "@/vite/utils";
+import { extractNodeDefinitions } from "@/tools/vite/server/plugins/node-defs-extractor";
+import { nodeDefsPath, clientCacheDir } from "@/tools/vite/utils";
 
 describe("extractNodeDefinitions", () => {
   let outDir: string;

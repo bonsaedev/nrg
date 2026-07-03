@@ -3,7 +3,7 @@ import {
   composeValidationSchema,
   validateNode,
   validateForm,
-} from "@/core/client/validation";
+} from "@/sdk/lib/client/validation";
 
 const baseSchema = {
   type: "object",

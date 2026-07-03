@@ -1,6 +1,6 @@
 import { describe, it, test, expect, vi } from "vitest";
-import { createContextStore } from "@/test/server/unit/mocks";
-import { setupContext } from "@/core/server/nodes/context";
+import { createContextStore } from "@/sdk/test/server/unit/mocks";
+import { setupContext } from "@/sdk/lib/server/nodes/context";
 
 describe("setupContext — atomic increment/update", () => {
   test("increment returns the running total", async () => {

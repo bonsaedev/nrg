@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cjsWrapper, esmWrapper } from "@/vite/server/plugins/output-wrapper";
+import { cjsWrapper, esmWrapper } from "@/tools/vite/server/plugins/output-wrapper";
 
 describe("cjsWrapper", () => {
   const plugin = cjsWrapper();

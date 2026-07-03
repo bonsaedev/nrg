@@ -11,7 +11,7 @@ import {
   buildTypeArg,
   buildNodeReexports,
   rewriteRuntimeTypeImports,
-} from "@/vite/server/plugins/type-generator";
+} from "@/tools/vite/server/plugins/type-generator";
 
 const tmpDirs: string[] = [];
 

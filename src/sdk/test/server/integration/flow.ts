@@ -1,8 +1,8 @@
-import { setupContext } from "@/core/server/nodes/context";
+import { setupContext } from "@/sdk/lib/server/nodes/context";
 import type {
   NodeConstructor,
   NodeContextStore,
-} from "@/core/server/nodes/types/node";
+} from "@/sdk/lib/server/nodes/types/node";
 import type { Recorder } from "./recorder";
 import type { NodeRedApi, RuntimeNode } from "./runtime";
 

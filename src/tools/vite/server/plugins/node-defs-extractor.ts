@@ -6,7 +6,7 @@ import { nodeDefsPath } from "../../utils";
 import {
   getDefaultsFromSchema,
   getCredentialsFromSchema,
-} from "../../../core/shared/schemas/utils";
+} from "../../../../sdk/lib/shared/schemas/utils";
 
 /**
  * Loads the freshly built server bundle and returns its default export (the

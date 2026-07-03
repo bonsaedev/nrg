@@ -5,7 +5,7 @@ import os from "os";
 import {
   extractUnsafeTypesFromSource,
   extractUnsafeTypes,
-} from "@/vite/client/plugins/unsafe-types";
+} from "@/tools/vite/client/plugins/unsafe-types";
 
 const IMPORT = `import { defineSchema, SchemaType } from "@bonsae/nrg/schema";`;
 

@@ -1,13 +1,13 @@
 import fs from "fs";
 import path from "path";
-import { build as buildServer } from "@/vite/server/build";
-import { build as buildClient } from "@/vite/client/build";
-import { NodeRedLauncher } from "@/vite/node-red-launcher";
+import { build as buildServer } from "@/tools/vite/server/build";
+import { build as buildClient } from "@/tools/vite/client/build";
+import { NodeRedLauncher } from "@/tools/vite/node-red-launcher";
 import type {
   BuildContext,
   ServerBuildOptions,
   ClientBuildOptions,
-} from "@/vite/types";
+} from "@/tools/vite/types";
 
 interface NodeRedTestEnvironmentOptions {
   projectDir?: string;

@@ -4,17 +4,17 @@ import path from "path";
 import os from "os";
 import { EventEmitter } from "events";
 import * as clack from "@clack/prompts";
-import { NodeRedLauncher } from "@/vite/node-red-launcher";
-import { NodeRedStartError } from "@/vite/errors";
-import { resolveNodeRed } from "@/vite/node-red-launcher/entry-point";
-import { generateRuntimeSettings } from "@/vite/node-red-launcher/settings";
-import * as nodeRedProcess from "@/vite/node-red-launcher/process";
-import type { StartOptions } from "@/vite/node-red-launcher/types";
+import { NodeRedLauncher } from "@/tools/vite/node-red-launcher";
+import { NodeRedStartError } from "@/tools/vite/errors";
+import { resolveNodeRed } from "@/tools/vite/node-red-launcher/entry-point";
+import { generateRuntimeSettings } from "@/tools/vite/node-red-launcher/settings";
+import * as nodeRedProcess from "@/tools/vite/node-red-launcher/process";
+import type { StartOptions } from "@/tools/vite/node-red-launcher/types";
 
-vi.mock("@/vite/node-red-launcher/entry-point", async (importOriginal) => {
+vi.mock("@/tools/vite/node-red-launcher/entry-point", async (importOriginal) => {
   const actual =
     await importOriginal<
-      typeof import("@/vite/node-red-launcher/entry-point")
+      typeof import("@/tools/vite/node-red-launcher/entry-point")
     >();
   return {
     ...actual,
@@ -22,11 +22,11 @@ vi.mock("@/vite/node-red-launcher/entry-point", async (importOriginal) => {
   };
 });
 
-vi.mock("@/vite/node-red-launcher/settings", () => ({
+vi.mock("@/tools/vite/node-red-launcher/settings", () => ({
   generateRuntimeSettings: vi.fn(),
 }));
 
-vi.mock("@/vite/node-red-launcher/process", () => ({
+vi.mock("@/tools/vite/node-red-launcher/process", () => ({
   start: vi.fn(),
   stop: vi.fn(),
   kill: vi.fn(),

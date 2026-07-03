@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 
 // plugin.ts pulls in the build orchestrators transitively; stub them so the
 // module imports cheaply (we only exercise the pure resolveIsDev helper).
-vi.mock("@/vite/server", () => ({ build: vi.fn() }));
-vi.mock("@/vite/client", () => ({ build: vi.fn() }));
+vi.mock("@/tools/vite/server", () => ({ build: vi.fn() }));
+vi.mock("@/tools/vite/client", () => ({ build: vi.fn() }));
 
-import { resolveIsDev } from "@/vite/plugin";
+import { resolveIsDev } from "@/tools/vite/plugin";
 
 describe("resolveIsDev", () => {
   // `pnpm dev` is the only dev path: the dev server (serve) builds to .nrg and

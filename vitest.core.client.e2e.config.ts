@@ -1,18 +1,18 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { defaultConfig } from "./src/test/client/e2e/config";
+import { defaultConfig } from "./src/sdk/test/client/e2e/config";
 
 export default defineConfig({
   resolve: {
     alias: {
-      "@/core": path.resolve(__dirname, "src/core"),
-      "@/vite": path.resolve(__dirname, "src/vite"),
-      "@/test": path.resolve(__dirname, "src/test"),
+      "@/sdk/lib": path.resolve(__dirname, "src/sdk/lib"),
+      "@/tools/vite": path.resolve(__dirname, "src/tools/vite"),
+      "@/sdk/test": path.resolve(__dirname, "src/sdk/test"),
       "@bonsae/nrg-runtime": path.resolve(
         __dirname,
-        "src/core/runtime.ts",
+        "src/sdk/lib/runtime.ts",
       ),
-      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/sdk/lib/server/index.ts"),
     },
   },
   test: {

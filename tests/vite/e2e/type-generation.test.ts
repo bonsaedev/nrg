@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
-import { build } from "../../../src/vite/server/build";
-import type { ServerBuildOptions } from "../../../src/vite/types";
+import { build } from "../../../src/tools/vite/server/build";
+import type { ServerBuildOptions } from "../../../src/tools/vite/types";
 
 const BASIC_FIXTURE = path.resolve(__dirname, "../../fixtures/basic-node");
 const CUSTOM_FIXTURE = path.resolve(__dirname, "../../fixtures/custom-client");

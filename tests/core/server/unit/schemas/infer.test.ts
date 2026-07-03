@@ -1,12 +1,12 @@
 import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
-import type { Infer, NamedPortsBrand } from "@/core/server/schemas/types";
-import type TypedInput from "@/core/server/typed-input";
+import type { Infer, NamedPortsBrand } from "@/sdk/lib/server/schemas/types";
+import type TypedInput from "@/sdk/lib/server/typed-input";
 import type {
   TypedInputBrand,
   TNodeRef,
   TTypedInput,
-} from "@/core/shared/schemas/types";
+} from "@/sdk/lib/shared/schemas/types";
 
 function nodeRef<T>(): TNodeRef<T> {
   return { [Kind]: "NodeRef", type: "string", format: "node-id" } as any;

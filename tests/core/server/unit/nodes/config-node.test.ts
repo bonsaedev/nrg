@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { ConfigNode } from "@/core/server/nodes/config-node";
-import { initValidator } from "@/core/server/validation";
+import { ConfigNode } from "@/sdk/lib/server/nodes/config-node";
+import { initValidator } from "@/sdk/lib/server/validation";
 import { createRED, createNodeRedNode } from "@mocks/red";
 
 class TestConfigNode extends ConfigNode {

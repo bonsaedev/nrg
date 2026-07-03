@@ -12,11 +12,11 @@ export default defineConfig({
       // The e2e suite runs the real builds in-process — it is the only suite
       // exercising the build pipelines and the definitions inliner.
       include: [
-        "src/vite/index.ts",
-        "src/vite/client/build.ts",
-        "src/vite/server/build.ts",
-        "src/vite/client/plugins/**/*.ts",
-        "src/vite/server/plugins/**/*.ts",
+        "src/tools/vite/index.ts",
+        "src/tools/vite/client/build.ts",
+        "src/tools/vite/server/build.ts",
+        "src/tools/vite/client/plugins/**/*.ts",
+        "src/tools/vite/server/plugins/**/*.ts",
       ],
       exclude: ["**/types.ts", "**/*.d.ts"],
     },

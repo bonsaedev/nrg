@@ -1,9 +1,9 @@
-import type { EditorStatic } from "@/core/client/types";
+import type { EditorStatic } from "@/sdk/lib/client/types";
 import type {
   NodeRefBrand,
   TypedInputBrand,
   UnsafeBrand,
-} from "@/core/shared/schemas";
+} from "@/sdk/lib/shared/schemas";
 
 // Client-plane mirror of resolved-static.test-d.ts: proofs for EditorStatic's
 // loud-failure net (`T extends { readonly __payload: any } ? never`). Never

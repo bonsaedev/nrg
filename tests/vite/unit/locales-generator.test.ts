@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { localesGenerator } from "@/vite/client/plugins/locales-generator";
+import { localesGenerator } from "@/tools/vite/client/plugins/locales-generator";
 
 describe("locales-generator", () => {
   let tmpDir: string;

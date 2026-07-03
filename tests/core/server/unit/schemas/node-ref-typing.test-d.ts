@@ -1,7 +1,7 @@
-import { defineIONode, ConfigNode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
-import type { Infer as ServerInfer } from "@/core/server/schemas/types";
-import type { Infer as ClientInfer } from "@/core/client/types";
+import { defineIONode, ConfigNode } from "@/sdk/lib/server/nodes";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import type { Infer as ServerInfer } from "@/sdk/lib/server/schemas/types";
+import type { Infer as ClientInfer } from "@/sdk/lib/client/types";
 
 // These nodes + functions are never executed. They exist so `tsc` (run via
 // `pnpm validate:tsc`) proves the unified `SchemaType.NodeRef<T>("type")` form

@@ -6,7 +6,7 @@ import {
   type Browser,
   type BrowserType,
 } from "playwright";
-import { NodeRedEditor } from "@/test/client/e2e";
+import { NodeRedEditor } from "@/sdk/test/client/e2e";
 import { FIXTURE_FLOW } from "./global-setup";
 
 const BROWSERS: Array<{ name: string; type: BrowserType }> = [

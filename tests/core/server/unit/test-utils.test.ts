@@ -3,7 +3,7 @@ import {
   createRED,
   createNodeRedNode,
   createContextStore,
-} from "@/test/server/unit/mocks";
+} from "@/sdk/test/server/unit/mocks";
 
 function evaluate(
   red: ReturnType<typeof createRED>,

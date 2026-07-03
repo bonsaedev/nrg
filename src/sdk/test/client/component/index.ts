@@ -4,8 +4,8 @@ import { reactive, watch } from "vue";
 import {
   validateForm,
   composeValidationSchema,
-} from "@/core/client/validation";
-import type { JsonSchemaObject } from "@/core/client/types";
+} from "@/sdk/lib/client/validation";
+import type { JsonSchemaObject } from "@/sdk/lib/client/types";
 import type { MockRED } from "../mocks";
 import type {
   TestNode,
@@ -18,11 +18,11 @@ import type {
 // the SerializedNodeSchemas type and the vitest ProvidedContext augmentation.
 import type { SerializedNodeSchemas } from "./schemas";
 
-export { useFormNode } from "@/core/client/form/composables/use-form-node";
+export { useFormNode } from "@/sdk/lib/client/form/composables/use-form-node";
 // `defineNode` is a pure identity helper split out of the Vue-importing
 // registration module, so a module under test that imports it from the
 // harness-aliased `@bonsae/nrg/client` resolves it (previously: `undefined`).
-export { defineNode } from "@/core/client/define-node";
+export { defineNode } from "@/sdk/lib/client/define-node";
 
 // `registerType`/`registerTypes` belong to the Node-RED editor runtime, not
 // tests — stub them so importing one gives a clear error, not `undefined`.

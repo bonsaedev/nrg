@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { minifier } from "@/vite/client/plugins/minifier";
+import { minifier } from "@/tools/vite/client/plugins/minifier";
 
 describe("minifier", () => {
   function getPlugin() {

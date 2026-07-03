@@ -7,9 +7,9 @@ import {
   getNodeRedCommand,
   resolveNodeRedFromLocalNodeModules,
   resolveNodeRed,
-} from "@/vite/node-red-launcher/entry-point";
-import { NodeRedStartError } from "@/vite/errors";
-import { Logger } from "@/vite/logger";
+} from "@/tools/vite/node-red-launcher/entry-point";
+import { NodeRedStartError } from "@/tools/vite/errors";
+import { Logger } from "@/tools/vite/logger";
 
 vi.mock("child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("child_process")>();

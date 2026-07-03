@@ -5,8 +5,8 @@
     "paths": {
       "@/*": ["../src/*"],
       "@mocks/*": ["./core/server/mocks/*"],
-      "@bonsae/nrg/server": ["../src/core/server/index.ts"],
-      "@bonsae/nrg-runtime": ["../src/core/runtime.ts"]
+      "@bonsae/nrg/server": ["../src/sdk/lib/server/index.ts"],
+      "@bonsae/nrg-runtime": ["../src/sdk/lib/runtime.ts"]
     }
   },
   "include": ["**/*.ts"],

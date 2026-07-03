@@ -1,17 +1,17 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
-import { initValidator } from "@/core/server/validation";
-import type { NodeRedNode } from "@/core/server/red";
-import type { NodeConstructor as NodeClass } from "@/core/server/nodes";
+import { initValidator } from "@/sdk/lib/server/validation";
+import type { NodeRedNode } from "@/sdk/lib/server/red";
+import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
-import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
-import type { NodeContextStore } from "@/core/server/nodes/types/node";
+import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
+import type { NodeContextStore } from "@/sdk/lib/server/nodes/types/node";
 import type {
   ErrorPortOutput as CoreErrorPortOutput,
   CompletePortOutput as CoreCompletePortOutput,
   StatusPortOutput as CoreStatusPortOutput,
   NamedPortsBrand,
-} from "@/core/server/schemas/types";
+} from "@/sdk/lib/server/schemas/types";
 import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {

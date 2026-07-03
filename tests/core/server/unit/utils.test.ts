@@ -3,7 +3,7 @@ import { Type } from "@sinclair/typebox";
 import {
   getDefaultsFromSchema,
   getCredentialsFromSchema,
-} from "@/core/shared/schemas/utils";
+} from "@/sdk/lib/shared/schemas/utils";
 
 describe("getDefaultsFromSchema", () => {
   it("should extract default values from schema properties", () => {

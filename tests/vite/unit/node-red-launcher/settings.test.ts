@@ -7,8 +7,8 @@ import {
   findUserRuntimeSettingsFilepath,
   compileRuntimeSettingsFile,
   generateRuntimeSettings,
-} from "@/vite/node-red-launcher/settings";
-import { Logger } from "@/vite/logger";
+} from "@/tools/vite/node-red-launcher/settings";
+import { Logger } from "@/tools/vite/logger";
 
 vi.mock("esbuild", () => ({ build: vi.fn() }));
 

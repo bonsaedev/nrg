@@ -1,11 +1,11 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h } from "vue";
-import NodeRedVueApp from "@/core/client/form/app.vue";
-import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-schema-form.vue";
-import { mountApp, unmountApp } from "@/core/client/form";
-import { createNode } from "@/test/client/component";
-import type { NodeFeatures } from "@/core/client/types";
+import NodeRedVueApp from "@/sdk/lib/client/form/app.vue";
+import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/node-red-json-schema-form.vue";
+import { mountApp, unmountApp } from "@/sdk/lib/client/form";
+import { createNode } from "@/sdk/test/client/component";
+import type { NodeFeatures } from "@/sdk/lib/client/types";
 
 const NO_FEATURES: NodeFeatures = {
   hasInputSchema: false,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { htmlGenerator } from "@/vite/client/plugins/html-generator";
+import { htmlGenerator } from "@/tools/vite/client/plugins/html-generator";
 
 describe("html-generator", () => {
   let tmpDir: string;

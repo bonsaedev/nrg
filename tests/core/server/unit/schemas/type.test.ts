@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Kind } from "@sinclair/typebox";
-import { SchemaType, defineSchema } from "@/core/shared/schemas";
-import { initValidator } from "@/core/server/validation";
+import { SchemaType, defineSchema } from "@/sdk/lib/shared/schemas";
+import { initValidator } from "@/sdk/lib/server/validation";
 import { createRED } from "@mocks/red";
 
 describe("SchemaType", () => {

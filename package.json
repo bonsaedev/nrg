@@ -44,13 +44,13 @@
     },
     "./server": {
       "types": "./dist/toolkit/types/server.d.ts",
-      "require": "./dist/toolkit/core/server/index.cjs",
-      "default": "./dist/toolkit/core/server/index.cjs"
+      "require": "./dist/toolkit/lib/server/index.cjs",
+      "default": "./dist/toolkit/lib/server/index.cjs"
     },
     "./schema": {
       "types": "./dist/toolkit/types/schema.d.ts",
-      "require": "./dist/toolkit/core/schema/index.cjs",
-      "default": "./dist/toolkit/core/schema/index.cjs"
+      "require": "./dist/toolkit/lib/schema/index.cjs",
+      "default": "./dist/toolkit/lib/schema/index.cjs"
     },
     "./client": {
       "types": "./dist/toolkit/types/client.d.ts"
@@ -92,8 +92,8 @@
     },
     "./test/client/e2e/config": "./dist/toolkit/test/client/e2e/config.js",
     "./tsconfig/base.json": "./dist/toolkit/tsconfig/base.json",
-    "./tsconfig/core/server.json": "./dist/toolkit/tsconfig/core/server.json",
-    "./tsconfig/core/client.json": "./dist/toolkit/tsconfig/core/client.json",
+    "./tsconfig/lib/server.json": "./dist/toolkit/tsconfig/lib/server.json",
+    "./tsconfig/lib/client.json": "./dist/toolkit/tsconfig/lib/client.json",
     "./tsconfig/test/server/unit.json": "./dist/toolkit/tsconfig/test/server/unit.json",
     "./tsconfig/test/server/integration.json": "./dist/toolkit/tsconfig/test/server/integration.json",
     "./tsconfig/test/client/component.json": "./dist/toolkit/tsconfig/test/client/component.json",

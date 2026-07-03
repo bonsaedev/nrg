@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Express, Request, Response } from "express";
 import fs from "fs";
-import { serveFile } from "@/core/server/api/assets";
+import { serveFile } from "@/sdk/lib/server/api/assets";
 
 function createMockRes() {
   return { setHeader: vi.fn() } as unknown as Response & {
@@ -65,7 +65,7 @@ describe("initAssetsRoutes", () => {
   it("should register three explicit asset routes", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
-    const { initAssetsRoutes } = await import("@/core/server/api/assets");
+    const { initAssetsRoutes } = await import("@/sdk/lib/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
@@ -88,7 +88,7 @@ describe("initAssetsRoutes", () => {
   it("should not register routes when resources dir does not exist", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(false);
 
-    const { initAssetsRoutes } = await import("@/core/server/api/assets");
+    const { initAssetsRoutes } = await import("@/sdk/lib/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
@@ -106,7 +106,7 @@ describe("initAssetsRoutes", () => {
       mockStream as unknown as fs.ReadStream,
     );
 
-    const { initAssetsRoutes } = await import("@/core/server/api/assets");
+    const { initAssetsRoutes } = await import("@/sdk/lib/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
@@ -139,7 +139,7 @@ describe("initAssetsRoutes", () => {
       mockStream as unknown as fs.ReadStream,
     );
 
-    const { initAssetsRoutes } = await import("@/core/server/api/assets");
+    const { initAssetsRoutes } = await import("@/sdk/lib/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);

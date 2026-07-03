@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getHelpTranslations } from "@/vite/client/plugins/help-i18n";
+import { getHelpTranslations } from "@/tools/vite/client/plugins/help-i18n";
 
 const SUPPORTED_LANGUAGES = [
   "en-US",

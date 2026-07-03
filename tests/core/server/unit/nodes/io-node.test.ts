@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { IONode } from "@/core/server/nodes/io-node";
-import { initValidator } from "@/core/server/validation";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { IONode } from "@/sdk/lib/server/nodes/io-node";
+import { initValidator } from "@/sdk/lib/server/validation";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
 
 class TestIONode extends IONode {
   static override readonly type = "test-io-node";

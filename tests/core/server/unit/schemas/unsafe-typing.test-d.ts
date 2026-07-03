@@ -1,6 +1,6 @@
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
-import type { Infer as ServerInfer } from "@/core/server/schemas/types";
-import type { Infer as ClientInfer } from "@/core/client/types";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import type { Infer as ServerInfer } from "@/sdk/lib/server/schemas/types";
+import type { Infer as ClientInfer } from "@/sdk/lib/client/types";
 
 // Never executed — `tsc` (via `pnpm validate:tsc`) proves that a class instance
 // passed through `SchemaType.Unsafe<T>()` resolves back to `T` UNCHANGED on both

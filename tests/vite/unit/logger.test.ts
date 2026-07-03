@@ -15,7 +15,7 @@ vi.mock("@clack/prompts", () => ({
 }));
 
 import * as clackLogger from "@clack/prompts";
-import { Logger, logger } from "@/vite/logger";
+import { Logger, logger } from "@/tools/vite/logger";
 
 describe("Logger", () => {
   beforeEach(() => {

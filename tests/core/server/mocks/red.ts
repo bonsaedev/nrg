@@ -2,5 +2,5 @@ export {
   createRED,
   createNodeRedNode,
   createContextStore,
-} from "../../../../src/test/server/unit/mocks";
-export type { MockRED } from "../../../../src/test/server/unit/mocks";
+} from "../../../../src/sdk/test/server/unit/mocks";
+export type { MockRED } from "../../../../src/sdk/test/server/unit/mocks";

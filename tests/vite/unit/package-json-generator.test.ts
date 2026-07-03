@@ -10,7 +10,7 @@ import {
   buildEsmOutputPath,
   generateExports,
   patchExportsWithTypes,
-} from "@/vite/server/plugins/package-json-generator";
+} from "@/tools/vite/server/plugins/package-json-generator";
 
 describe("buildTypesPath", () => {
   it("returns ./name.d.ts", () => {

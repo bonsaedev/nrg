@@ -1,2 +1,2 @@
-export { createRED, createJQuery } from "@/test/client/mocks";
-export type { MockRED, MockEditor } from "@/test/client/mocks";
+export { createRED, createJQuery } from "@/sdk/test/client/mocks";
+export type { MockRED, MockEditor } from "@/sdk/test/client/mocks";

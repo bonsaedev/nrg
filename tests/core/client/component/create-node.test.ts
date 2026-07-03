@@ -1,8 +1,8 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h } from "vue";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
-import { createNode, useFormNode } from "@/test/client/component";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import { createNode, useFormNode } from "@/sdk/test/client/component";
 
 const NAME_SCHEMA = {
   type: "object",

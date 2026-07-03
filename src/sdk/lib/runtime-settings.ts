@@ -1,6 +1,6 @@
-import type { NodeRedRuntimeSettings } from "./core/server";
+import type { NodeRedRuntimeSettings } from "./server";
 
-export type { NodeRedRuntimeSettings } from "./core/server";
+export type { NodeRedRuntimeSettings } from "./server";
 
 /**
  * Type-safe helper for defining Node-RED runtime settings.

@@ -6,9 +6,9 @@ import {
   defineConfigNode,
   type Infer,
   type RED,
-} from "@/core/server";
-import { defineSchema, SchemaType, type Schema } from "@/core/shared/schemas";
-import { createNode } from "@/test/server/unit";
+} from "@/sdk/lib/server";
+import { defineSchema, SchemaType, type Schema } from "@/sdk/lib/shared/schemas";
+import { createNode } from "@/sdk/test/server/unit";
 
 // --- Test fixtures ---
 

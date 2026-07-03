@@ -13,7 +13,7 @@
 // In-repo tests run against source, where the client type shims resolve within
 // the monorepo. This is the only test that exercises the *published* package
 // from a consumer's point of view — the gap that let 0.22.0 ship a
-// tsconfig/core/client.json whose `files` referenced shims missing from the
+// tsconfig/lib/client.json whose `files` referenced shims missing from the
 // toolkit (TS6053 for every consumer).
 
 import type { ChildProcess } from "child_process";

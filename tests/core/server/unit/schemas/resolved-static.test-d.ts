@@ -1,9 +1,9 @@
-import type { ResolvedStatic } from "@/core/server/schemas/types";
+import type { ResolvedStatic } from "@/sdk/lib/server/schemas/types";
 import type {
   NodeRefBrand,
   TypedInputBrand,
   UnsafeBrand,
-} from "@/core/shared/schemas";
+} from "@/sdk/lib/shared/schemas";
 
 // Type-only proofs for ResolvedStatic's loud-failure net (the
 // `T extends { readonly __payload: any } ? never` arm). Never executed — tsc

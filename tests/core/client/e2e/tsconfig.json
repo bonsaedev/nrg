@@ -4,9 +4,9 @@
     "lib": ["ESNext", "DOM"],
     "paths": {
       "@/*": ["../../../../src/*"],
-      "@bonsae/nrg/server": ["../../../../src/core/server/index.ts"]
+      "@bonsae/nrg/server": ["../../../../src/sdk/lib/server/index.ts"]
     }
   },
-  "include": ["**/*.ts", "../../../../src/test/client/e2e/**/*.ts"],
+  "include": ["**/*.ts", "../../../../src/sdk/test/client/e2e/**/*.ts"],
   "exclude": ["node_modules"]
 }

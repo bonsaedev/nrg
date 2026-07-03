@@ -2,11 +2,11 @@ import { describe, it, expect, vi } from "vitest";
 
 // the build orchestrators are never exercised by config(); stub them so the
 // module imports cheaply and in isolation
-vi.mock("@/vite/server", () => ({ build: vi.fn() }));
-vi.mock("@/vite/client", () => ({ build: vi.fn() }));
+vi.mock("@/tools/vite/server", () => ({ build: vi.fn() }));
+vi.mock("@/tools/vite/client", () => ({ build: vi.fn() }));
 
-import { serverPlugin } from "@/vite/lifecycle/server";
-import type { NodeRedLauncher } from "@/vite/types";
+import { serverPlugin } from "@/tools/vite/lifecycle/server";
+import type { NodeRedLauncher } from "@/tools/vite/types";
 
 function fakeLauncher(over: Partial<NodeRedLauncher> = {}): NodeRedLauncher {
   return {

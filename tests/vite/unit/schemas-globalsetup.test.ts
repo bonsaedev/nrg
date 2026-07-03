@@ -1,10 +1,10 @@
 import { describe, test, expect } from "vitest";
 import path from "node:path";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import {
   serializeRegistry,
   loadRegistry,
-} from "@/test/client/component/schemas";
+} from "@/sdk/test/client/component/schemas";
 
 const CONVENTION_PKG = path.resolve(__dirname, "fixtures/convention-pkg");
 const RUNTIME_PKG = path.resolve(__dirname, "fixtures/runtime-pkg");

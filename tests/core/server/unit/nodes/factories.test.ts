@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { defineIONode, defineConfigNode } from "@/core/server/nodes/factories";
-import { defineModule } from "@/core/server/index";
-import { IONode } from "@/core/server/nodes/io-node";
-import { ConfigNode } from "@/core/server/nodes/config-node";
-import { Node } from "@/core/server/nodes/node";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
-import { initValidator } from "@/core/server/validation";
+import { defineIONode, defineConfigNode } from "@/sdk/lib/server/nodes/factories";
+import { defineModule } from "@/sdk/lib/server/index";
+import { IONode } from "@/sdk/lib/server/nodes/io-node";
+import { ConfigNode } from "@/sdk/lib/server/nodes/config-node";
+import { Node } from "@/sdk/lib/server/nodes/node";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import { initValidator } from "@/sdk/lib/server/validation";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
 
 describe("defineIONode", () => {
   it("should create a class with the correct static type", () => {

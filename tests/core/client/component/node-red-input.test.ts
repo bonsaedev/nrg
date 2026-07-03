@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h, ref, nextTick } from "vue";
-import NodeRedInput from "@/core/client/form/components/node-red-input.vue";
+import NodeRedInput from "@/sdk/lib/client/form/components/node-red-input.vue";
 
 describe("NodeRedInput", () => {
   test("renders a text input by default", async () => {

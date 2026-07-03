@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { startRuntime, type Runtime } from "@/test/server/integration";
-import { defineIONode, ConfigNode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { startRuntime, type Runtime } from "@/sdk/test/server/integration";
+import { defineIONode, ConfigNode } from "@/sdk/lib/server/nodes";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 const Doubler = defineIONode({
   type: "int-doubler",

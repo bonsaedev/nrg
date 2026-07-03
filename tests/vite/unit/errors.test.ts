@@ -4,7 +4,7 @@ import {
   NodeRedStartError,
   BuildError,
   ConfigError,
-} from "@/vite/errors";
+} from "@/tools/vite/errors";
 
 describe("PluginError", () => {
   it("should be an instance of Error", () => {

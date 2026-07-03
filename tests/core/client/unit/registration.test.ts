@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/core/client/form", () => ({
+vi.mock("@/sdk/lib/client/form", () => ({
   mountApp: vi.fn(),
   unmountApp: vi.fn(),
 }));
@@ -9,9 +9,9 @@ import {
   defineNode,
   registerType,
   registerTypes,
-} from "@/core/client/registration";
-import type { RuntimeNodeDefinition } from "@/core/client/types";
-import { mountApp, unmountApp } from "@/core/client/form";
+} from "@/sdk/lib/client/registration";
+import type { RuntimeNodeDefinition } from "@/sdk/lib/client/types";
+import { mountApp, unmountApp } from "@/sdk/lib/client/form";
 
 const RED = window.RED;
 

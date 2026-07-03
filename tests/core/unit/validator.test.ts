@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Validator, ValidationError } from "@/core/shared/validator";
+import { Validator, ValidationError } from "@/sdk/lib/shared/validator";
 
 describe("Validator", () => {
   describe("validate", () => {

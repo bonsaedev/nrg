@@ -3,8 +3,8 @@
 // the kind of import that CRASHED in the browser. loadRegistry must import it
 // safely in the Node globalSetup context. Also exercises alias resolution
 // inside the dynamic import.
-import { IONode } from "@/core/server";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { IONode } from "@/sdk/lib/server";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Reference the barrel so the import is not elided, proving the runtime module
 // (and its module-load AsyncLocalStorage) actually loads.

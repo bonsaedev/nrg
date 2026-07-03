@@ -11,7 +11,7 @@ describe("initRoutes", () => {
   it("should register the /nrg/assets/* GET route on httpAdmin", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
-    const { initRoutes } = await import("@/core/server/api/routes");
+    const { initRoutes } = await import("@/sdk/lib/server/api/routes");
 
     const RED = createRED();
     initRoutes(RED);
@@ -29,7 +29,7 @@ describe("initRoutes", () => {
   it("should register routes only once", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
-    const { initRoutes } = await import("@/core/server/api/routes");
+    const { initRoutes } = await import("@/sdk/lib/server/api/routes");
 
     const RED = createRED();
     initRoutes(RED);

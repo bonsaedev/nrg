@@ -1,6 +1,6 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedToggle from "@/core/client/form/components/node-red-toggle.vue";
+import NodeRedToggle from "@/sdk/lib/client/form/components/node-red-toggle.vue";
 
 describe("NodeRedToggle", () => {
   test("renders unchecked by default", async () => {

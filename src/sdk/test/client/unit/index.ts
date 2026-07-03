@@ -1,9 +1,9 @@
 export type { MockRED, MockEditor } from "../mocks";
 export { createRED, createJQuery } from "../mocks";
-export { useFormNode } from "@/core/client/form/composables/use-form-node";
+export { useFormNode } from "@/sdk/lib/client/form/composables/use-form-node";
 // Pure identity helper (split from the Vue-importing registration module) so a
 // module under test can import it from the harness-aliased `@bonsae/nrg/client`.
-export { defineNode } from "@/core/client/define-node";
+export { defineNode } from "@/sdk/lib/client/define-node";
 
 // The editor-runtime registration functions are unavailable in tests — stub so
 // an accidental import gives a clear error, not `undefined is not a function`.

@@ -6,18 +6,18 @@
     "paths": {
       "@/*": ["../../../../src/*"],
       "@mocks/*": ["../mocks/*"],
-      "@bonsae/nrg/client": ["../../../../src/test/client/component"],
-      "@bonsae/nrg/server": ["../../../../src/core/server/index.ts"],
-      "@bonsae/nrg-runtime": ["../../../../src/core/runtime.ts"]
+      "@bonsae/nrg/client": ["../../../../src/sdk/test/client/component"],
+      "@bonsae/nrg/server": ["../../../../src/sdk/lib/server/index.ts"],
+      "@bonsae/nrg-runtime": ["../../../../src/sdk/lib/runtime.ts"]
     }
   },
   "include": [
     "**/*.ts",
-    "../../../../src/core/client/shims/vue.d.ts",
-    "../../../../src/core/client/shims/globals.d.ts",
-    "../../../../src/test/client/globals.ts",
-    "../../../../src/core/client/form/**/*.ts",
-    "../../../../src/core/client/form/**/*.vue"
+    "../../../../src/sdk/lib/client/shims/vue.d.ts",
+    "../../../../src/sdk/lib/client/shims/globals.d.ts",
+    "../../../../src/sdk/test/client/globals.ts",
+    "../../../../src/sdk/lib/client/form/**/*.ts",
+    "../../../../src/sdk/lib/client/form/**/*.vue"
   ],
   "exclude": ["node_modules"]
 }

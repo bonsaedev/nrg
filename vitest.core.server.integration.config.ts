@@ -4,17 +4,17 @@ import path from "path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@/core": path.resolve(__dirname, "src/core"),
-      "@/vite": path.resolve(__dirname, "src/vite"),
-      "@/test": path.resolve(__dirname, "src/test"),
+      "@/sdk/lib": path.resolve(__dirname, "src/sdk/lib"),
+      "@/tools/vite": path.resolve(__dirname, "src/tools/vite"),
+      "@/sdk/test": path.resolve(__dirname, "src/sdk/test"),
       "@bonsae/nrg-runtime": path.resolve(
         __dirname,
-        "src/core/runtime.ts",
+        "src/sdk/lib/runtime.ts",
       ),
       // the integration lib imports the package entry so it binds to the host's
       // nrg copy; in-repo, that's the source server barrel (same identity as the
       // test nodes, so registerType's instanceof check passes)
-      "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
+      "@bonsae/nrg/server": path.resolve(__dirname, "src/sdk/lib/server/index.ts"),
     },
   },
   test: {
@@ -29,9 +29,9 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       // the integration tier owns the integration harness; core server code is
       // measured by the server unit tier
-      include: ["src/test/server/integration/**/*.ts"],
+      include: ["src/sdk/test/server/integration/**/*.ts"],
       exclude: [
-        "src/test/server/integration/config.ts",
+        "src/sdk/test/server/integration/config.ts",
         "**/types/**",
         "**/types.ts",
         "**/*.d.ts",

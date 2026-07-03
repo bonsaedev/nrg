@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { Node } from "@/core/server/nodes/node";
-import { initValidator } from "@/core/server/validation";
-import { defineSchema, SchemaType } from "@/core/shared/schemas";
+import { Node } from "@/sdk/lib/server/nodes/node";
+import { initValidator } from "@/sdk/lib/server/validation";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
 
 class ConcreteNode extends Node {
   static override readonly type = "test-node";

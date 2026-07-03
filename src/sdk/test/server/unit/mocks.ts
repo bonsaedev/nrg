@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import type { RED, NodeRedNode } from "@/core/server/red";
-import type { INode } from "@/core/server/nodes";
+import type { RED, NodeRedNode } from "@/sdk/lib/server/red";
+import type { INode } from "@/sdk/lib/server/nodes";
 
 interface MockRED extends RED {
   registerNode(id: string, nodeRedNode: Partial<NodeRedNode>): void;

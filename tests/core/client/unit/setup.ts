@@ -1,1 +1,1 @@
-import "@/test/client/unit/setup";
+import "@/sdk/test/client/unit/setup";

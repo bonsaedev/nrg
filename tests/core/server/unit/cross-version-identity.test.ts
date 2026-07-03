@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defineModule, defineIONode } from "@/core/server";
+import { defineModule, defineIONode } from "@/sdk/lib/server";
 
 // Two nrg-authored packages can run in one Node-RED. If they pin the SAME nrg
 // version, the runtime is hoisted to a single instance (shared classes/ALS). If

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { NodeRedTestEnvironment } from "@/test/client/e2e";
+import { NodeRedTestEnvironment } from "@/sdk/test/client/e2e";
 import {
   setupFixtureNodeModules,
   cleanFixtureNodeModules,
@@ -89,7 +89,7 @@ export async function setup() {
   // `@bonsae/nrg/client` URL 404s and the editor forms never load.
   const runtimeResDir = path.join(
     FIXTURE_DIR,
-    "node_modules/@bonsae/nrg-runtime/server/resources",
+    "node_modules/@bonsae/nrg-runtime/resources",
   );
   const clientAsset = fs
     .readdirSync(runtimeResDir)

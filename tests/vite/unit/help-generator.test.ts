@@ -9,10 +9,10 @@ import {
   loadNodeLabels,
   discoverLanguages,
   helpGenerator,
-} from "@/vite/client/plugins/help-generator";
-import { getHelpTranslations } from "@/vite/client/plugins/help-i18n";
-import { nodeDefsPath } from "@/vite/utils";
-import { logger } from "@/vite/logger";
+} from "@/tools/vite/client/plugins/help-generator";
+import { getHelpTranslations } from "@/tools/vite/client/plugins/help-i18n";
+import { nodeDefsPath } from "@/tools/vite/utils";
+import { logger } from "@/tools/vite/logger";
 
 const enUS = getHelpTranslations("en-US");
 const ptBR = getHelpTranslations("pt-BR");

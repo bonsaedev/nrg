@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import type { NodeRedNode } from "@/core/client/types";
+import type { NodeRedNode } from "@/sdk/lib/client/types";
 import {
   resolveI18n,
   createDefaultLabel,
   createDefaultPaletteLabel,
   createDefaultInputLabels,
   createDefaultOutputLabels,
-} from "@/core/client/labels";
+} from "@/sdk/lib/client/labels";
 
 function mockNode(
   i18n: Record<string, string> = {},

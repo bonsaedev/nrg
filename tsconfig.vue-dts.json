@@ -8,15 +8,15 @@
     "skipLibCheck": true,
     "noImplicitAny": false,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "rootDir": "src",
+    "rootDir": "src/sdk/lib",
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "dist/toolkit/types/shims"
+    "outDir": "dist/toolkit/types/shims/lib"
   },
   "files": [
-    "src/core/client/shims/globals.d.ts",
-    "src/core/client/shims/components.d.ts"
+    "src/sdk/lib/client/shims/globals.d.ts",
+    "src/sdk/lib/client/shims/components.d.ts"
   ],
-  "include": ["src/core/client/form/components/*.vue"],
+  "include": ["src/sdk/lib/client/form/components/*.vue"],
   "exclude": ["node_modules"]
 }

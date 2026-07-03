@@ -1,8 +1,8 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-schema-form.vue";
-import { createNode } from "@/test/client/component";
-import { getJQueryState } from "@/test/client/mocks/jquery";
+import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/node-red-json-schema-form.vue";
+import { createNode } from "@/sdk/test/client/component";
+import { getJQueryState } from "@/sdk/test/client/mocks/jquery";
 
 describe("NodeRedJsonSchemaForm", () => {
   test("skips the built-in per-port output fields (rendered by the app shell)", () => {

@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h, ref, onMounted } from "vue";
-import { createNode } from "@/test/client/component";
+import { createNode } from "@/sdk/test/client/component";
 
 describe("RED.settings", () => {
   test("supports get/set/remove and direct property access", () => {

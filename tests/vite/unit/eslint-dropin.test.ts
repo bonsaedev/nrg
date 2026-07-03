@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Linter } from "eslint";
-import { nrg } from "../../../src/eslint";
+import { nrg } from "../../../src/tools/eslint";
 
 // These tests exercise the ASSEMBLED `nrg` flat-config array end to
 // end through ESLint's Linter — not the custom rules in isolation (that's

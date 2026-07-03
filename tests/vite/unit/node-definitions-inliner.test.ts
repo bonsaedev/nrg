@@ -3,9 +3,9 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { parseAst } from "vite";
-import { nodeDefinitionsInliner } from "@/vite/client/plugins/node-definitions-inliner";
-import { nodeDefsPath } from "@/vite/utils";
-import { logger } from "@/vite/logger";
+import { nodeDefinitionsInliner } from "@/tools/vite/client/plugins/node-definitions-inliner";
+import { nodeDefsPath } from "@/tools/vite/utils";
+import { logger } from "@/tools/vite/logger";
 
 // The wrap transform bakes each node's server-extracted schema (and convention
 // form) onto its own `defineNode({ type })` call at build time — keyed by the

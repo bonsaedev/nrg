@@ -4,7 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import {
   nodeTypeMatchesFilename,
   schemaServerImportsTypeOnly,
-} from "../../../src/eslint";
+} from "../../../src/tools/eslint";
 
 // Wire ESLint's RuleTester into vitest's runner so each valid/invalid case
 // surfaces as its own assertion (the documented vitest integration). `afterAll`

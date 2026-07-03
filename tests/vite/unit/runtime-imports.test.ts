@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { rewriteEmittedRuntimeImports } from "@/vite/server/plugins/runtime-imports";
+import { rewriteEmittedRuntimeImports } from "@/tools/vite/server/plugins/runtime-imports";
 
 describe("rewriteEmittedRuntimeImports", () => {
   let dir: string;

@@ -11,7 +11,7 @@ import {
   cacheKeyFor,
   clientCacheDir,
   nodeDefsPath,
-} from "@/vite/utils";
+} from "@/tools/vite/utils";
 
 describe("mergeOptions", () => {
   it("should return a copy of defaults when no overrides", () => {

@@ -2,8 +2,8 @@ import {
   defineNode,
   registerType,
   registerTypes,
-} from "@/core/client/registration";
-import type { NodeDefinition } from "@/core/client/types";
+} from "@/sdk/lib/client/registration";
+import type { NodeDefinition } from "@/sdk/lib/client/types";
 
 // The published `@bonsae/nrg/client` d.ts is generated from client/public.ts,
 // but three editor-runtime functions can't be generated there without dragging
