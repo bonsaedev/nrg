@@ -90,13 +90,28 @@ function buildRegistryAugmentation(nodes: NodeTypeInfo[]): string {
 /** The full flat `index.d.ts` for a package (classes + registry + default). */
 function buildPackageDts(nodes: NodeTypeInfo[]): string {
   const classNodes = nodes.filter((n) => n.className);
+  // Only message-processing (IONode) nodes are wired, so only they get a
+  // connection-registry entry; config nodes get their class decl only.
+  const ioNodes = nodes.filter((n) => n.kind === "io");
 
-  const parts: string[] = [
-    `import { IONode, ConfigNode } from "@bonsae/nrg/server";`,
-    `import type { ErrorPort, StatusPort } from "@bonsae/nrg/server";`,
-    ...classNodes.map(buildClassDecl),
-    buildRegistryAugmentation(nodes),
-  ];
+  const baseImports = [
+    classNodes.some((n) => n.kind === "io") && "IONode",
+    classNodes.some((n) => n.kind === "config") && "ConfigNode",
+  ].filter((x): x is string => Boolean(x));
+
+  const parts: string[] = [];
+  if (baseImports.length) {
+    parts.push(
+      `import { ${baseImports.join(", ")} } from "@bonsae/nrg/server";`,
+    );
+  }
+  if (ioNodes.length) {
+    parts.push(
+      `import type { ErrorPort, StatusPort } from "@bonsae/nrg/server";`,
+    );
+  }
+  parts.push(...classNodes.map(buildClassDecl));
+  if (ioNodes.length) parts.push(buildRegistryAugmentation(ioNodes));
 
   if (classNodes.length) {
     const nodesTuple = classNodes

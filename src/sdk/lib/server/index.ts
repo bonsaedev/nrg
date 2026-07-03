@@ -15,9 +15,28 @@ export type { RED, NodeRedRuntimeSettings } from "./red";
 // The schema builders (`SchemaType`, `defineSchema`) and plane-neutral schema
 // types (`Schema`, `TNodeRef`, `TTypedInput`) come from `@bonsae/nrg/schema` —
 // not re-exported here, so the schema/server boundary stays structural (you
-// can't pull a builder through the node runtime entry). The built-in port
-// output schemas (`*PortOutputSchema`) and their message types (`NodeSource`,
-// `*PortOutput`) are server-internal (sdk/lib/server/schemas) and likewise off this
-// public entry. Only `Infer` stays — the server-plane resolution type
-// (NodeRef → node instance, TypedInput → `TypedInput<T>` wrapper).
+// can't pull a builder through the node runtime entry). Only `Infer` stays —
+// the server-plane resolution type (NodeRef → node instance, TypedInput →
+// `TypedInput<T>` wrapper).
 export type { Infer } from "./schemas/types";
+
+// The built-in lifecycle port message shapes, public so a generated package
+// `index.d.ts` can reference them in its `NodeTypes` registry.
+export type {
+  NodeSource,
+  ErrorPortOutput as ErrorPort,
+  CompletePortOutput as CompletePort,
+  StatusPortOutput as StatusPort,
+} from "./schemas/types";
+
+/**
+ * The editor connection registry, keyed by node-type string. A package's build
+ * AUGMENTS this interface (`declare module "@bonsae/nrg/server"`) with one entry
+ * per node — `{ input, outputs, complete, error, status }` — so the editor can
+ * look a node's port types up and type-check a wire by synthesizing
+ * `NodeTypes[target]["input"] = x as NodeTypes[source]["outputs"][port]`.
+ * Empty here; every installed package merges its nodes in. See
+ * tools/vite/server/plugins/node-types-dts.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- base interface, augmented per package
+export interface NodeTypes {}

@@ -47,21 +47,11 @@ function extractPkg(files: Record<string, string>) {
   return extractNodeTypes(program, dir);
 }
 
-const MOCK_SERVER = `
-  export declare class IONode<C = any, Cr = any, I = any, O = any, S = any> {
-    readonly config: C;
-    input(msg: I): unknown;
-  }
-  export declare class ConfigNode<C = any, Cr = any, S = any> {
-    readonly config: C;
-  }
-  export interface NodeSource { id: string; type: string; name: string; }
-  export interface ErrorPort { error: { name: string; message: string; source: NodeSource } }
-  export interface StatusPort { status: { fill?: string; text?: string } | string; source: NodeSource }
-  export interface NodeTypes {}
-`;
-
-/** Compile the generated package .d.ts + a consumer file against mock nrg. */
+/**
+ * Compile the generated package .d.ts + a consumer file against the REAL
+ * @bonsae/nrg/server (via paths), proving the framework's NodeTypes / ErrorPort
+ * / StatusPort exports and the augmentation resolve for real.
+ */
 function compilePackage(
   dts: string,
   consumer: string,
@@ -72,19 +62,7 @@ function compilePackage(
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, content);
   };
-  write(
-    "node_modules/@bonsae/nrg/package.json",
-    JSON.stringify({
-      name: "@bonsae/nrg",
-      exports: { "./server": { types: "./server.d.ts" } },
-    }),
-  );
-  write("node_modules/@bonsae/nrg/server.d.ts", MOCK_SERVER);
-  write(
-    "node_modules/acme-nodes/package.json",
-    JSON.stringify({ name: "acme-nodes", types: "index.d.ts" }),
-  );
-  write("node_modules/acme-nodes/index.d.ts", dts);
+  write("index.d.ts", dts);
   write("consumer.ts", consumer);
 
   const program = ts.createProgram({
@@ -97,9 +75,21 @@ function compilePackage(
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
       baseUrl: dir,
+      paths: {
+        "acme-nodes": [path.join(dir, "index.d.ts")],
+        "@bonsae/nrg/server": [path.join(REPO, "src/sdk/lib/server/index.ts")],
+        "@bonsae/nrg/schema": [
+          path.join(REPO, "src/sdk/lib/shared/schemas/index.ts"),
+        ],
+      },
     },
   });
-  return ts.getPreEmitDiagnostics(program);
+  // Only diagnostics in the generated .d.ts / consumer count — the real nrg
+  // source is pulled in for resolution but is type-checked under a stricter
+  // program than the repo's tsconfig (noImplicitAny), so ignore its own noise.
+  return ts
+    .getPreEmitDiagnostics(program)
+    .filter((d) => d.file && path.resolve(d.file.fileName).startsWith(dir));
 }
 
 const PKG = {
