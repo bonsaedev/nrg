@@ -11,23 +11,17 @@ describe("initRoutes", () => {
   it("should register the /nrg/assets/* GET route on httpAdmin", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
-    const { initRoutes } = await import(
-      "@/core/server/api/routes"
-    );
+    const { initRoutes } = await import("@/core/server/api/routes");
 
     const RED = createRED();
     initRoutes(RED);
 
     expect(RED.httpAdmin.get).toHaveBeenCalledWith(
-      "/nrg/assets/nrg-client.js",
+      "/nrg/assets/nrg.js",
       expect.any(Function),
     );
     expect(RED.httpAdmin.get).toHaveBeenCalledWith(
       "/nrg/assets/vue.esm-browser.prod.js",
-      expect.any(Function),
-    );
-    expect(RED.httpAdmin.get).toHaveBeenCalledWith(
-      "/nrg/assets/vue.esm-browser.js",
       expect.any(Function),
     );
   });
@@ -35,14 +29,12 @@ describe("initRoutes", () => {
   it("should register routes only once", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
-    const { initRoutes } = await import(
-      "@/core/server/api/routes"
-    );
+    const { initRoutes } = await import("@/core/server/api/routes");
 
     const RED = createRED();
     initRoutes(RED);
     initRoutes(RED);
 
-    expect(RED.httpAdmin.get).toHaveBeenCalledTimes(3);
+    expect(RED.httpAdmin.get).toHaveBeenCalledTimes(2);
   });
 });

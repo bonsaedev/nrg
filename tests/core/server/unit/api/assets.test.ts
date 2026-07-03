@@ -65,24 +65,22 @@ describe("initAssetsRoutes", () => {
   it("should register three explicit asset routes", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
 
-    const { initAssetsRoutes } = await import(
-      "@/core/server/api/assets"
-    );
+    const { initAssetsRoutes } = await import("@/core/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
 
-    expect(router.get).toHaveBeenCalledTimes(3);
+    // The client asset route + a SINGLE vue route (no dead second variant).
+    expect(router.get).toHaveBeenCalledTimes(2);
+    // Un-bundled (this source runs from src, not the built bundle), so the
+    // __NRG_CLIENT_ASSET__ define is absent and the route uses the unhashed dev
+    // fallback. The build injects the content-hashed "nrg.<hash>.js" filename.
     expect(router.get).toHaveBeenCalledWith(
-      "/nrg/assets/nrg-client.js",
+      "/nrg/assets/nrg.js",
       expect.any(Function),
     );
     expect(router.get).toHaveBeenCalledWith(
       "/nrg/assets/vue.esm-browser.prod.js",
-      expect.any(Function),
-    );
-    expect(router.get).toHaveBeenCalledWith(
-      "/nrg/assets/vue.esm-browser.js",
       expect.any(Function),
     );
   });
@@ -90,9 +88,7 @@ describe("initAssetsRoutes", () => {
   it("should not register routes when resources dir does not exist", async () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(false);
 
-    const { initAssetsRoutes } = await import(
-      "@/core/server/api/assets"
-    );
+    const { initAssetsRoutes } = await import("@/core/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
@@ -110,9 +106,7 @@ describe("initAssetsRoutes", () => {
       mockStream as unknown as fs.ReadStream,
     );
 
-    const { initAssetsRoutes } = await import(
-      "@/core/server/api/assets"
-    );
+    const { initAssetsRoutes } = await import("@/core/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
@@ -145,9 +139,7 @@ describe("initAssetsRoutes", () => {
       mockStream as unknown as fs.ReadStream,
     );
 
-    const { initAssetsRoutes } = await import(
-      "@/core/server/api/assets"
-    );
+    const { initAssetsRoutes } = await import("@/core/server/api/assets");
 
     const router = createMockRouter();
     initAssetsRoutes(router);
