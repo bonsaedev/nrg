@@ -12,6 +12,8 @@ my-node-red-nodes/
 │   ├── server/
 │   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/lib/server.json
 │   │   ├── index.ts               # Server entry — export default defineModule({ nodes: [...] })
+│   │   ├── schemas/
+│   │   │   └── {type-id}.ts       # TypeBox schema — server-value, client-type-only
 │   │   └── nodes/
 │   │       └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
 │   ├── client/
@@ -22,9 +24,6 @@ my-node-red-nodes/
 │   │   │   └── {type-id}.ts       # Client node definition (defineNode)
 │   │   └── components/
 │   │       └── {type-id}.vue      # Vue 3 SFC for the editor form (optional)
-│   ├── shared/                    # Cross-plane code (server + client)
-│   │   └── schemas/               # Shared contract — server-value, client-type-only
-│   │       └── {type-id}.ts       # TypeBox schema definition
 │   └── resources/
 │       ├── icons/
 │       │   └── {type-id}.{svg|png}    # Palette icon (inlined + copied to dist/icons)
@@ -76,15 +75,11 @@ The entry file (`index.ts`) calls `registerTypes()` with all node definitions.
 
 Optional Vue 3 single-file components (`.vue`) used as custom editor forms. When a file named `{type}.vue` exists here, it replaces the auto-generated JSON schema form for that node. NRG provides built-in components like `<NodeRedInput>`, `<NodeRedTypedInput>`, and `<NodeRedConfigInput>` for building forms.
 
-### `src/shared/`
+### `src/server/schemas/`
 
-Cross-plane code referenced by both the server and the client (shared types, constants, helpers, and the schemas). Most of `src/shared/` is **dual-plane** — browser-safe and freely value-importable by either plane. `src/shared/schemas/` is the one exception, with its own boundary rules described next.
+The TypeBox schemas (config, credentials, input, outputs) — the **contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). They live under `src/server/` because the server owns runtime validation and a schema value-imports its builders from `@bonsae/nrg/schema` (which pulls in TypeBox, so schemas are **not** browser-safe). A node co-locates with its schema — `src/server/nodes/{type}.ts` value-imports `../schemas/{type}`.
 
-### `src/shared/schemas/`
-
-The TypeBox schemas (config, credentials, input, outputs) — the **shared contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). They sit under `src/shared/` because both planes reference them, but unlike the rest of `src/shared/` they are **server-value / client-type-only** rather than freely dual-plane.
-
-A schema file value-imports its builders from `@bonsae/nrg/schema` (a neutral entry — TypeBox and the builders only, **no** node runtime), which still pulls in TypeBox, so **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
+Because TypeBox ships in that value import, **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
 
 The reverse direction is guarded too: a schema may only **`import type`** from `**/server/**`. Each server node *value*-imports its own schema, so a schema that value-imported a server module would close a runtime import cycle (server node ⇄ schema) and pull the node runtime into the editor bundle. Config-node references therefore go through `SchemaType.NodeRef<T>("type")`, which takes the node `type` string at runtime and the class only as a type-only generic. This is enforced by the `@bonsae/nrg/schema-server-imports-type-only` rule shipped in `nrg` (`@bonsae/nrg/eslint`). Both rules match by path (`**/schemas/**`), so they apply wherever the schemas live.
 

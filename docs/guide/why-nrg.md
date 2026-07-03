@@ -64,7 +64,7 @@ One TypeScript file for the node. Schema drives the editor form, validation, and
 ```typescript [Functional API]
 // server/nodes/my-node.ts
 import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../../shared/schemas/my-node";
+import { ConfigsSchema } from "../schemas/my-node";
 
 export default defineIONode({
   type: "my-node",
@@ -83,7 +83,7 @@ export default defineIONode({
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
 import { SchemaType } from "@bonsae/nrg/schema";
-import { ConfigsSchema, InputSchema } from "../../shared/schemas/my-node";
+import { ConfigsSchema, InputSchema } from "../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
@@ -146,7 +146,7 @@ Full TypeScript with types inferred from your schemas. Config, credentials, inpu
 ```typescript
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
-import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
@@ -291,7 +291,7 @@ Need a custom form? Create a Vue component at `client/components/{type}.vue` —
 <!-- client/components/my-node.vue -->
 <script setup lang="ts">
 import { useFormNode } from "@bonsae/nrg/client";
-import type { ConfigsSchema } from "../../shared/schemas/my-node";
+import type { ConfigsSchema } from "../../server/schemas/my-node";
 
 const { node, errors } = useFormNode<typeof ConfigsSchema>();
 </script>
