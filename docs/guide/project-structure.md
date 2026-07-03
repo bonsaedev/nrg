@@ -10,12 +10,12 @@ my-node-red-nodes/
 ├── node-red.settings.ts           # Optional Node-RED runtime settings
 ├── src/
 │   ├── server/
-│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/server.json
+│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/lib/server.json
 │   │   ├── index.ts               # Server entry — export default defineModule({ nodes: [...] })
 │   │   └── nodes/
 │   │       └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
 │   ├── client/
-│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/client.json
+│   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/lib/client.json
 │   │   ├── index.ts               # Client entry — registerTypes([...])
 │   │   ├── public/                # Static files copied to dist/resources/
 │   │   ├── nodes/
