@@ -4,8 +4,8 @@ import { reactive, watch } from "vue";
 import {
   validateForm,
   composeValidationSchema,
-} from "../../../core/client/validation";
-import type { JsonSchemaObject } from "../../../core/client/types";
+} from "@/core/client/validation";
+import type { JsonSchemaObject } from "@/core/client/types";
 import type { MockRED } from "../mocks";
 import type {
   TestNode,
@@ -18,7 +18,26 @@ import type {
 // the SerializedNodeSchemas type and the vitest ProvidedContext augmentation.
 import type { SerializedNodeSchemas } from "./schemas";
 
-export { useFormNode } from "../../../core/client/use-form-node";
+export { useFormNode } from "@/core/client/form/composables/use-form-node";
+// `defineNode` is a pure identity helper split out of the Vue-importing
+// registration module, so a module under test that imports it from the
+// harness-aliased `@bonsae/nrg/client` resolves it (previously: `undefined`).
+export { defineNode } from "@/core/client/define-node";
+
+// `registerType`/`registerTypes` belong to the Node-RED editor runtime, not
+// tests — stub them so importing one gives a clear error, not `undefined`.
+export function registerType(): never {
+  throw new Error(
+    "registerType is not available in the test harness — node registration " +
+      "happens in the Node-RED editor runtime.",
+  );
+}
+export function registerTypes(): never {
+  throw new Error(
+    "registerTypes is not available in the test harness — node registration " +
+      "happens in the Node-RED editor runtime.",
+  );
+}
 // ./types is the single source of truth for the harness types (it's also the
 // published declaration entry for this subpath); re-export them here so the
 // runtime entry keeps the same public surface.

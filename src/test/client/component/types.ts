@@ -1,7 +1,7 @@
-import type { JsonSchemaObject } from "../../../core/client/types";
+import type { JsonSchemaObject } from "@/core/client/types";
 import type { MockRED } from "../mocks";
 
-export { useFormNode } from "../../../core/client/use-form-node";
+export { useFormNode } from "@/core/client/form/composables/use-form-node";
 
 export type {
   MockRED,

@@ -16,6 +16,27 @@ import {
   staticCopy,
 } from "./plugins";
 
+// The content-hashed editor client filename (e.g. "nrg.a1b2c3d4.js"), inlined at
+// build time by esbuild (build/index.ts injects __NRG_CLIENT_ASSET__ into the
+// vite plugin bundle). A consumer's `@bonsae/nrg/client` import is rewritten to
+// this exact hashed URL, which the runtime serves from the same release — so the
+// editor loads a fresh client on every version.
+declare const __NRG_CLIENT_ASSET__: string | undefined;
+
+/**
+ * The hashed client filename to rewrite `@bonsae/nrg/client` to. Resolved at
+ * build time (not module load) so the env fallback is read after the caller
+ * sets it. In the shipped plugin `__NRG_CLIENT_ASSET__` is inlined and wins.
+ * When this runs un-bundled (nrg's own e2e builds the fixture client with the
+ * SOURCE plugin), the paired runtime serves a hashed name the source plugin
+ * can't inject — the harness passes it via `NRG_CLIENT_ASSET` so the rewritten
+ * URL matches. Bare `nrg.js` is the last-resort dev default.
+ */
+function resolveClientAsset(): string {
+  if (typeof __NRG_CLIENT_ASSET__ !== "undefined") return __NRG_CLIENT_ASSET__;
+  return process.env.NRG_CLIENT_ASSET || "nrg.js";
+}
+
 async function build(
   clientBuildOptions: ClientBuildOptions,
   buildContext: BuildContext,
@@ -62,7 +83,10 @@ async function build(
 
   const plugins: Plugin[] = [
     vue(),
-    nodeDefinitionsInliner(
+    // Returns a [setup(pre), wrap(post)] pair: setup reads node defs + serves
+    // per-type schema virtual modules; wrap bakes each node's schema/form onto
+    // its defineNode() call after esbuild strips TypeScript.
+    ...nodeDefinitionsInliner(
       buildContext.outDir,
       entryPath,
       fs.existsSync(iconsDir) ? iconsDir : undefined,
@@ -144,6 +168,11 @@ async function build(
   } as Plugin);
 
   const defaultManualChunks = (id: string): string | undefined => {
+    // nrg's generated cache (node stubs + per-type schema files) lives under
+    // node_modules/.nrg but is this project's own build output, not a
+    // third-party dep — keep it in the entry chunk instead of splitting it into
+    // vendor.js (so the inlined schemas ship alongside the nodes that use them).
+    if (id.includes("/.nrg/")) return undefined;
     if (!id.includes("node_modules")) return undefined;
 
     const parts = id
@@ -197,7 +226,7 @@ async function build(
           globals,
           paths: {
             vue: "/nrg/assets/vue.esm-browser.prod.js",
-            "@bonsae/nrg/client": "/nrg/assets/nrg-client.js",
+            "@bonsae/nrg/client": `/nrg/assets/${resolveClientAsset()}`,
           },
           sourcemapPathTransform: (relativeSourcePath) => {
             return relativeSourcePath.replace(/\/client\//g, "/");

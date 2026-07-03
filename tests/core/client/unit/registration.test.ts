@@ -9,14 +9,23 @@ import {
   defineNode,
   registerType,
   registerTypes,
-  __setSchemas,
 } from "@/core/client/registration";
+import type { RuntimeNodeDefinition } from "@/core/client/types";
 import { mountApp, unmountApp } from "@/core/client/form";
 
 const RED = window.RED;
 
 function spyOnRegisterType() {
   return vi.spyOn(RED.nodes, "registerType");
+}
+
+// The vite build bakes each node's server-extracted schema (defaults,
+// configSchema, outputPortNames, …) onto its definition before registerType
+// ever runs — so these tests pass an already-merged RuntimeNodeDefinition.
+// registerType's public param is the author-facing NodeDefinition; this typed
+// forwarder lets the tests supply the runtime fields without casts.
+function register(def: RuntimeNodeDefinition) {
+  return registerType(def);
 }
 
 const MINIMAL_DEFINITION = {
@@ -41,14 +50,14 @@ describe("registerType", () => {
   });
 
   it("calls RED.nodes.registerType with the correct type", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toBe("test-node");
   });
 
   it("passes category and color", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     const registered = spy.mock.calls[0][1];
     expect(registered.category).toBe("function");
@@ -56,14 +65,14 @@ describe("registerType", () => {
   });
 
   it("defaults color to white when not provided", async () => {
-    await registerType({ type: "no-color", category: "function" });
+    await register({ type: "no-color", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.color).toBe("#FFFFFF");
   });
 
   it("defaults inputs and outputs to 0", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     const registered = spy.mock.calls[0][1];
     expect(registered.inputs).toBe(0);
@@ -71,7 +80,7 @@ describe("registerType", () => {
   });
 
   it("passes custom inputs and outputs", async () => {
-    await registerType({
+    await register({
       ...MINIMAL_DEFINITION,
       inputs: 1,
       outputs: 2,
@@ -83,30 +92,28 @@ describe("registerType", () => {
   });
 
   it("passes icon", async () => {
-    await registerType({ ...MINIMAL_DEFINITION, icon: "cog" });
+    await register({ ...MINIMAL_DEFINITION, icon: "cog" });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.icon).toBe("cog");
   });
 
   it("passes align defaulting to left", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     const registered = spy.mock.calls[0][1];
     expect(registered.align).toBe("left");
   });
 
-  it("merges defaults from __setSchemas", async () => {
-    __setSchemas({
-      "schema-node": {
-        defaults: {
-          name: { value: "" },
-          count: { value: 0 },
-        },
+  it("registers defaults carried on the definition", async () => {
+    await register({
+      type: "schema-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        count: { value: 0 },
       },
     });
-
-    await registerType({ type: "schema-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.defaults).toEqual({
@@ -115,43 +122,22 @@ describe("registerType", () => {
     });
   });
 
-  it("definition properties override schema properties", async () => {
-    __setSchemas({
-      "override-node": {
-        category: "input",
-        color: "#000000",
-      },
-    });
-
-    await registerType({
-      type: "override-node",
-      category: "output",
-      color: "#FFFFFF",
-    });
-
-    const registered = spy.mock.calls[0][1];
-    expect(registered.category).toBe("output");
-    expect(registered.color).toBe("#FFFFFF");
-  });
-
   it("attaches validate function to first default when configSchema exists", async () => {
-    __setSchemas({
-      "validated-node": {
-        defaults: {
-          name: { value: "" },
-          count: { value: 0 },
-        },
-        configSchema: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            count: { type: "number" },
-          },
+    await register({
+      type: "validated-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        count: { value: 0 },
+      },
+      configSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          count: { type: "number" },
         },
       },
     });
-
-    await registerType({ type: "validated-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.defaults.name.validate).toBeTypeOf("function");
@@ -160,20 +146,19 @@ describe("registerType", () => {
   });
 
   it("merges credentialsSchema into configSchema for validation", async () => {
-    __setSchemas({
-      "cred-node": {
-        defaults: { name: { value: "" } },
-        configSchema: {
-          type: "object",
-          properties: { name: { type: "string" } },
-        },
-        credentialsSchema: {
-          properties: { apiKey: { type: "string", format: "password" } },
-        },
+    await register({
+      type: "cred-node",
+      category: "function",
+      defaults: { name: { value: "" } },
+      configSchema: {
+        type: "object",
+        properties: { name: { type: "string" } },
+      },
+      credentialsSchema: {
+        type: "object",
+        properties: { apiKey: { type: "string", format: "password" } },
       },
     });
-
-    await registerType({ type: "cred-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const validateFn = registered.defaults.name.validate;
@@ -182,7 +167,7 @@ describe("registerType", () => {
 
   it("converts button onClick to onclick", async () => {
     const onClick = vi.fn();
-    await registerType({
+    await register({
       ...MINIMAL_DEFINITION,
       type: "button-node",
       button: { toggle: "active", onClick },
@@ -198,7 +183,7 @@ describe("registerType", () => {
     const onPaletteAdd = vi.fn();
     const onPaletteRemove = vi.fn();
 
-    await registerType({
+    await register({
       ...MINIMAL_DEFINITION,
       type: "lifecycle-node",
       onEditResize,
@@ -213,7 +198,7 @@ describe("registerType", () => {
   });
 
   it("sets up oneditprepare, oneditsave, oneditcancel, oneditdelete", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     const registered = spy.mock.calls[0][1];
     expect(registered.oneditprepare).toBeTypeOf("function");
@@ -226,7 +211,7 @@ describe("registerType", () => {
     const labelFn = function () {
       return "Custom";
     };
-    await registerType({ ...MINIMAL_DEFINITION, label: labelFn });
+    await register({ ...MINIMAL_DEFINITION, label: labelFn });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.label).toBe(labelFn);
@@ -236,7 +221,7 @@ describe("registerType", () => {
     const outputLabelsFn = function () {
       return "Custom";
     };
-    await registerType({
+    await register({
       ...MINIMAL_DEFINITION,
       type: "custom-outlabel-node",
       outputLabels: outputLabelsFn,
@@ -247,13 +232,11 @@ describe("registerType", () => {
   });
 
   it("labels output ports from server-resolved outputPortNames", async () => {
-    __setSchemas({
-      "record-output-node": {
-        outputPortNames: ["success", "failure"],
-      },
+    await register({
+      type: "record-output-node",
+      category: "function",
+      outputPortNames: ["success", "failure"],
     });
-
-    await registerType({ type: "record-output-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const node = { _: (k: string) => k };
@@ -284,53 +267,47 @@ describe("registerType — builtin ports", () => {
   });
 
   it("increments outputs for enabled builtin ports", async () => {
-    __setSchemas({
-      "ports-node": {
-        defaults: {
-          name: { value: "" },
-          errorPort: { value: true },
-          completePort: { value: false },
-          statusPort: { value: true },
-        },
-        outputs: 1,
+    await register({
+      type: "ports-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        errorPort: { value: true },
+        completePort: { value: false },
+        statusPort: { value: true },
       },
+      outputs: 1,
     });
-
-    await registerType({ type: "ports-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.defaults.outputs.value).toBe(3);
   });
 
   it("does not add outputs entry when no builtin ports exist", async () => {
-    __setSchemas({
-      "no-ports-node": {
-        defaults: {
-          name: { value: "" },
-        },
+    await register({
+      type: "no-ports-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
       },
     });
-
-    await registerType({ type: "no-ports-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     expect(registered.defaults.outputs).toBeUndefined();
   });
 
   it("labels builtin ports by name", async () => {
-    __setSchemas({
-      "labeled-ports-node": {
-        defaults: {
-          name: { value: "" },
-          errorPort: { value: true },
-          completePort: { value: true },
-          statusPort: { value: true },
-        },
-        outputs: 1,
+    await register({
+      type: "labeled-ports-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        errorPort: { value: true },
+        completePort: { value: true },
+        statusPort: { value: true },
       },
+      outputs: 1,
     });
-
-    await registerType({ type: "labeled-ports-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const node = {
@@ -368,13 +345,12 @@ describe("registerType — output ports (context modes)", () => {
   }
 
   it("labels base output ports from server-resolved outputPortNames", async () => {
-    __setSchemas({
-      "ctx-named-node": {
-        outputPortNames: ["success", "failure"],
-        outputs: 2,
-      },
+    await register({
+      type: "ctx-named-node",
+      category: "function",
+      outputPortNames: ["success", "failure"],
+      outputs: 2,
     });
-    await registerType({ type: "ctx-named-node", category: "function" });
 
     expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
       { index: 0, label: "success" },
@@ -383,10 +359,12 @@ describe("registerType — output ports (context modes)", () => {
   });
 
   it("labels positional ports Output N when unnamed", async () => {
-    __setSchemas({
-      "ctx-array-node": { outputsSchema: [{}, {}], outputs: 2 },
+    await register({
+      type: "ctx-array-node",
+      category: "function",
+      outputsSchema: [{}, {}],
+      outputs: 2,
     });
-    await registerType({ type: "ctx-array-node", category: "function" });
 
     expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
       { index: 0, label: "Output 0" },
@@ -399,8 +377,11 @@ describe("registerType — output ports (context modes)", () => {
     // node may still define `<type>.outputLabels` in its locale (as the canvas
     // hover label already honors). The form table must resolve the same entry
     // instead of falling back to `Output {index}`.
-    __setSchemas({ "ctx-i18n-node": { outputs: 1 } });
-    await registerType({ type: "ctx-i18n-node", category: "function" });
+    await register({
+      type: "ctx-i18n-node",
+      category: "function",
+      outputs: 1,
+    });
 
     const node = {
       _: (k: string) => (k === "ctx-i18n-node.outputLabels.0" ? "Result" : k),
@@ -411,8 +392,11 @@ describe("registerType — output ports (context modes)", () => {
   });
 
   it("yields no output ports when the node has no outputs", async () => {
-    __setSchemas({ "ctx-none-node": { defaults: { name: { value: "" } } } });
-    await registerType({ type: "ctx-none-node", category: "function" });
+    await register({
+      type: "ctx-none-node",
+      category: "function",
+      defaults: { name: { value: "" } },
+    });
 
     expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([]);
   });
@@ -427,12 +411,11 @@ describe("registerType — oneditsave", () => {
   });
 
   it("unmounts and returns false when state is unchanged", async () => {
-    __setSchemas({
-      "save-nochange-node": {
-        defaults: { name: { value: "" }, count: { value: 0 } },
-      },
+    await register({
+      type: "save-nochange-node",
+      category: "function",
+      defaults: { name: { value: "" }, count: { value: 0 } },
     });
-    await registerType({ type: "save-nochange-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const def = { defaults: registered.defaults };
@@ -450,12 +433,11 @@ describe("registerType — oneditsave", () => {
   });
 
   it("applies state and returns changes when values differ", async () => {
-    __setSchemas({
-      "save-changed-node": {
-        defaults: { name: { value: "" }, count: { value: 0 } },
-      },
+    await register({
+      type: "save-changed-node",
+      category: "function",
+      defaults: { name: { value: "" }, count: { value: 0 } },
     });
-    await registerType({ type: "save-changed-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const def = { defaults: registered.defaults };
@@ -481,16 +463,15 @@ describe("registerType — oneditsave", () => {
   });
 
   it("detects credential changes", async () => {
-    __setSchemas({
-      "save-cred-node": {
-        defaults: { name: { value: "" } },
-        credentials: {
-          apiKey: { type: "password" },
-          username: { type: "text" },
-        },
+    await register({
+      type: "save-cred-node",
+      category: "function",
+      defaults: { name: { value: "" } },
+      credentials: {
+        apiKey: { type: "password" },
+        username: { type: "text" },
       },
     });
-    await registerType({ type: "save-cred-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const def = {
@@ -528,15 +509,14 @@ describe("registerType — oneditsave", () => {
   });
 
   it("manages config node users on reference change", async () => {
-    __setSchemas({
-      "save-cfgref-node": {
-        defaults: {
-          name: { value: "" },
-          server: { value: "", type: "my-server" },
-        },
+    await register({
+      type: "save-cfgref-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        server: { value: "", type: "my-server" },
       },
     });
-    await registerType({ type: "save-cfgref-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const def = { defaults: registered.defaults };
@@ -579,15 +559,14 @@ describe("registerType — oneditsave", () => {
   });
 
   it("does not duplicate node in config node users when reference is unchanged", async () => {
-    __setSchemas({
-      "save-samecfg-node": {
-        defaults: {
-          name: { value: "" },
-          server: { value: "", type: "my-server" },
-        },
+    await register({
+      type: "save-samecfg-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        server: { value: "", type: "my-server" },
       },
     });
-    await registerType({ type: "save-samecfg-node", category: "function" });
 
     const registered = spy.mock.calls[0][1];
     const def = { defaults: registered.defaults };
@@ -619,12 +598,11 @@ describe("registerType — oneditsave", () => {
   });
 
   it("returns undefined for config category nodes", async () => {
-    __setSchemas({
-      "save-config-cat-node": {
-        defaults: { name: { value: "" } },
-      },
+    await register({
+      type: "save-config-cat-node",
+      category: "config",
+      defaults: { name: { value: "" } },
     });
-    await registerType({ type: "save-config-cat-node", category: "config" });
 
     const registered = spy.mock.calls[0][1];
     const def = { defaults: registered.defaults };
@@ -651,7 +629,7 @@ describe("registerType — oneditcancel / oneditdelete", () => {
   });
 
   it("oneditcancel calls unmountApp", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     const registered = spy.mock.calls[0][1];
     const node: any = {};
@@ -660,7 +638,7 @@ describe("registerType — oneditcancel / oneditdelete", () => {
   });
 
   it("oneditdelete calls unmountApp", async () => {
-    await registerType(MINIMAL_DEFINITION);
+    await register(MINIMAL_DEFINITION);
 
     const registered = spy.mock.calls[0][1];
     const node: any = {};

@@ -1,4 +1,4 @@
-import type { Component } from "vue";
+import { defineNode } from "./define-node";
 import { validateNode, composeValidationSchema } from "./validation";
 import { mountApp, unmountApp } from "./form";
 import { getNodeState, getChanges, applyState } from "./state";
@@ -10,28 +10,13 @@ import {
   createDefaultOutputLabels,
 } from "./labels";
 import type {
-  NodeRedNode,
   NodeFormDefinition,
   NodeDefinition,
   RuntimeNodeDefinition,
   NodeFeatures,
   NodeDefaults,
+  NodeRedNode,
 } from "./types";
-
-const _schemas: Record<string, any> = {};
-const _forms: Record<string, Component> = {};
-
-function __setSchemas(schemas: Record<string, any>): void {
-  Object.assign(_schemas, schemas);
-}
-
-function __setForms(forms: Record<string, Component>): void {
-  Object.assign(_forms, forms);
-}
-
-function defineNode<T extends NodeDefinition>(options: T): T {
-  return options;
-}
 
 function updateConfigNodeUsers(node: NodeRedNode): void {
   Object.keys(node._def.defaults ?? {}).forEach((prop) => {
@@ -133,10 +118,13 @@ function computeOutputPorts(
 async function registerType(definition: NodeDefinition): Promise<void> {
   const { type } = definition;
   try {
-    const nodeDefinition: RuntimeNodeDefinition = {
-      ...(_schemas[type] ?? {}),
-      ...definition,
-    };
+    // The build bakes each node's server-extracted schema (defaults, configSchema,
+    // credentialsSchema, outputPortNames, …) and its convention form onto the
+    // definition object itself — the vite inliner wraps every `defineNode({type})`
+    // call as `{ ...schema, [form,] ...defineNode({...}) }`, keyed by the literal
+    // `type`. So the definition arriving here is already the merged
+    // RuntimeNodeDefinition; there is no runtime schema/form registry to look up.
+    const nodeDefinition = definition as RuntimeNodeDefinition;
 
     const defaults = nodeDefinition.defaults
       ? { ...nodeDefinition.defaults }
@@ -178,9 +166,9 @@ async function registerType(definition: NodeDefinition): Promise<void> {
     }
 
     function oneditprepare(this: NodeRedNode) {
-      const form: NodeFormDefinition | undefined =
-        definition.form ??
-        (_forms[type] ? { component: _forms[type] } : undefined);
+      // Form is already resolved on the definition (author-declared `form:` wins,
+      // else the build folded in the convention `{componentsDir}/{type}.vue`).
+      const form: NodeFormDefinition | undefined = nodeDefinition.form;
       // Resolve output-port labels here (not at registration) so the node's i18n
       // catalog is available via `this._` for the `<type>.outputLabels.<index>`
       // fallback, matching the canvas port labels.
@@ -289,4 +277,4 @@ async function registerTypes(nodes: NodeDefinition[]): Promise<void> {
   }
 }
 
-export { __setSchemas, __setForms, defineNode, registerType, registerTypes };
+export { defineNode, registerType, registerTypes };

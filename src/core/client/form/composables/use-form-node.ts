@@ -1,6 +1,6 @@
 import { inject } from "vue";
-import type { TSchema, Static } from "@sinclair/typebox";
-import type { NodeRedNode, EditorStatic } from "./types";
+import type { TSchema, Static } from "../../../shared/schemas";
+import type { EditorStatic, NodeRedNode } from "../../types";
 
 interface FormNode<
   TConfig extends TSchema = TSchema,
@@ -30,7 +30,7 @@ interface FormNode<
  * </script>
  * ```
  */
-export function useFormNode<
+function useFormNode<
   TConfig extends TSchema = TSchema,
   TCredentials extends TSchema = TSchema,
 >(): FormNode<TConfig, TCredentials> {
@@ -50,3 +50,5 @@ export function useFormNode<
     errors,
   } as FormNode<TConfig, TCredentials>;
 }
+
+export { useFormNode };

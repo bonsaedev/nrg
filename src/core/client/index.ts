@@ -1,20 +1,13 @@
-export {
-  __setSchemas,
-  __setForms,
-  defineNode,
-  registerType,
-  registerTypes,
-} from "./registration";
+export { defineNode, registerType, registerTypes } from "./registration";
 
-export { useFormNode } from "./use-form-node";
+export { useFormNode } from "./form/composables/use-form-node";
 
 export type {
   NodeRedNode,
+  NodeRedNodeButtonDefinition,
   NodeDefinition,
   NodeButtonDefinition,
-  NodeRedNodeButtonDefinition,
   NodeFormDefinition,
-  NodeFeatures,
-  TypedInputValue,
+  TypedInput,
   Infer,
 } from "./types";
