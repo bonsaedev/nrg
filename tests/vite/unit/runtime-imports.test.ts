@@ -26,8 +26,8 @@ describe("rewriteEmittedRuntimeImports", () => {
     rewriteEmittedRuntimeImports(dir);
 
     const out = fs.readFileSync(path.join(dir, "index.mjs"), "utf-8");
-    expect(out).toContain('from "@bonsae/nrg-runtime/server"');
-    expect(out).toContain("from '@bonsae/nrg-runtime/schema'");
+    expect(out).toContain('from "@bonsae/nrg-runtime"');
+    expect(out).toContain("from '@bonsae/nrg-runtime'");
     expect(out).toContain('from "@bonsae/nrg/client"'); // untouched
     expect(out).toContain('from "jsforce"'); // untouched
     expect(out).not.toContain('"@bonsae/nrg/server"');
@@ -48,7 +48,7 @@ describe("rewriteEmittedRuntimeImports", () => {
 
     // Root entry renamed…
     expect(fs.readFileSync(path.join(dir, "index.mjs"), "utf-8")).toContain(
-      "@bonsae/nrg-runtime/server",
+      "@bonsae/nrg-runtime",
     );
     // …nested resources file left alone.
     expect(fs.readFileSync(path.join(resources, "client.js"), "utf-8")).toBe(

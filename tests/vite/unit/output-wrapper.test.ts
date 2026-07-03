@@ -63,7 +63,7 @@ describe("cjsWrapper", () => {
     // the production runtime rename is a separate final step.
     expect(result.code).toContain("registerTypes");
     expect(result.code).toContain('require("@bonsae/nrg/server")');
-    expect(result.code).not.toContain("@bonsae/nrg-runtime/server");
+    expect(result.code).not.toContain("@bonsae/nrg-runtime");
   });
 });
 
@@ -186,6 +186,6 @@ describe("esmWrapper", () => {
     expect(result.code).toContain(
       'import { registerTypes as __nrgRegisterTypes } from "@bonsae/nrg/server";',
     );
-    expect(result.code).not.toContain("@bonsae/nrg-runtime/server");
+    expect(result.code).not.toContain("@bonsae/nrg-runtime");
   });
 });

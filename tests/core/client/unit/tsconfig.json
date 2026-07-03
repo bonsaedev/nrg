@@ -3,20 +3,18 @@
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../../../../src/core/*"],
-      "@/test/*": ["../../../../src/test/*"],
+      "@/*": ["../../../../src/*"],
       "@mocks/*": ["../mocks/*"],
       "@bonsae/nrg/client": ["../../../../src/test/client/unit"],
       "@bonsae/nrg/server": ["../../../../src/core/server/index.ts"],
-      "@bonsae/nrg-runtime/server": ["../../../../src/core/server/index.ts"]
+      "@bonsae/nrg-runtime": ["../../../../src/core/runtime.ts"]
     }
   },
   "include": [
     "**/*.ts",
-    "../../../../src/core/client/shims-vue.d.ts",
-    "../../../../src/core/client/globals.d.ts",
+    "../../../../src/core/client/shims/vue.d.ts",
+    "../../../../src/core/client/shims/globals.d.ts",
     "../../../../src/test/client/globals.ts",
     "../../../../src/core/client/form/**/*.ts",
     "../../../../src/core/client/form/**/*.vue"

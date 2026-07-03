@@ -7,9 +7,9 @@ export default defineConfig({
       "@/core": path.resolve(__dirname, "src/core"),
       "@/vite": path.resolve(__dirname, "src/vite"),
       "@/test": path.resolve(__dirname, "src/test"),
-      "@bonsae/nrg-runtime/server": path.resolve(
+      "@bonsae/nrg-runtime": path.resolve(
         __dirname,
-        "src/core/server/index.ts",
+        "src/core/runtime.ts",
       ),
       // the integration lib imports the package entry so it binds to the host's
       // nrg copy; in-repo, that's the source server barrel (same identity as the

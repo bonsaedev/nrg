@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import {
   mkdirSync,
   copyFileSync,
@@ -8,8 +8,11 @@ import {
   writeFileSync,
   appendFileSync,
   existsSync,
+  renameSync,
   rmSync,
 } from "fs";
+import { createHash } from "crypto";
+import { builtinModules } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as viteBuild } from "vite";
@@ -51,6 +54,7 @@ function esbuildBundle(
     outfile,
     outdir,
     external = [],
+    define = {},
   }: {
     format?: string;
     outfile?: string;
@@ -62,18 +66,31 @@ function esbuildBundle(
     // the consumer's `instanceof Node` at registration. assertEsmTestBundles()
     // re-checks this invariant on every build.
     external?: string[];
+    // Compile-time string constants to inline (esbuild --define). Values are the
+    // raw strings; they are JSON-encoded (not shell-quoted — execFileSync passes
+    // args literally) so esbuild substitutes them as string literals (e.g.
+    // __NRG_CLIENT_ASSET__).
+    define?: Record<string, string>;
   },
 ): void {
   const out = outfile ? `--outfile=${outfile}` : `--outdir=${outdir}`;
-  const flags = [
+  // execFileSync (no shell) — args are passed literally, so `--define` values
+  // are JSON-encoded but NOT shell-quoted. Shell-quoting them (the single-quote
+  // wrapping this used to do) is a Unix-ism cmd.exe wouldn't strip, and the
+  // whole point of skipping the shell is to sidestep that class of breakage.
+  const args = [
+    entry,
     "--bundle",
     "--packages=external",
     `--format=${format}`,
     "--platform=node",
     ...external.map((e) => `--external:${e}`),
+    ...Object.entries(define).map(
+      ([k, v]) => `--define:${k}=${JSON.stringify(v)}`,
+    ),
     out,
   ];
-  execSync(`esbuild ${entry} ${flags.join(" ")}`, { stdio: "inherit" });
+  execFileSync("esbuild", args, { stdio: "inherit" });
 }
 
 /**
@@ -95,20 +112,15 @@ function assertEsmTestBundles(): void {
     "test/server/integration/config.js",
   ];
   const problems: string[] = [];
-  const deepImport =
-    /\bfrom\s+"([a-z@][^"]*\/(?:dist|lib|build|cjs|esm|src)\/[^"]*)"/g;
   for (const rel of entries) {
     const code = readFileSync(path.join(DIST, rel), "utf-8");
     // (1) No CJS globals in an ESM bundle (the inlined-assets.ts __dirname bug).
+    //     Scoped to these four entries only — the client e2e bundle legitimately
+    //     carries `__dirname` inside launcher template strings. (The
+    //     extensionless-deep-import check — formerly (2) here — is now
+    //     assertNoExtensionlessDeepImports() over the whole shipped surface.)
     if (/\b__dirname\b/.test(code) || /\b__filename\b/.test(code)) {
       problems.push(`${rel}: references __dirname/__filename in an ESM bundle`);
-    }
-    // (2) Deep package imports must carry a file extension — Node's native ESM
-    //     resolver won't resolve a bare "pkg/dist/x" not in the package exports.
-    for (const m of code.matchAll(deepImport)) {
-      if (!/\.(js|cjs|mjs|json)$/.test(m[1])) {
-        problems.push(`${rel}: extensionless deep import "${m[1]}"`);
-      }
     }
   }
   // (3) The integration entry must keep @bonsae/nrg/server external and inline
@@ -138,12 +150,109 @@ function assertEsmTestBundles(): void {
 }
 
 /**
+ * Extensionless deep imports (`from "pkg/dist/x"` with no file extension) are
+ * the one *silent* shipped-bundle failure class: Node's native ESM resolver
+ * rejects them, but they run fine in-repo (bundler resolution is lenient). This
+ * globs EVERY shipped test + vite bundle — not just the four server test entries
+ * assertEsmTestBundles guards — so the class can't slip in through the vite
+ * plugin or a client test bundle. No allow-list needed: a bare `pkg/dir/file`
+ * always needs an extension.
+ */
+function assertNoExtensionlessDeepImports(): void {
+  const deepImport =
+    /\bfrom\s+"([a-z@][^"]*\/(?:dist|lib|build|cjs|esm|src)\/[^"]*)"/g;
+  const problems: string[] = [];
+  for (const root of ["test", "vite"]) {
+    const dir = path.join(DIST, root);
+    if (!existsSync(dir)) continue;
+    const files = readdirSync(dir, { recursive: true }) as string[];
+    for (const rel of files) {
+      if (!rel.endsWith(".js")) continue;
+      const code = readFileSync(path.join(dir, rel), "utf-8");
+      for (const m of code.matchAll(deepImport)) {
+        if (!/\.(js|cjs|mjs|json)$/.test(m[1])) {
+          problems.push(`${root}/${rel}: extensionless deep import "${m[1]}"`);
+        }
+      }
+    }
+  }
+  if (problems.length) {
+    throw new Error(
+      "Extensionless deep-import invariant violated (Node's ESM resolver rejects these):\n  - " +
+        problems.join("\n  - "),
+    );
+  }
+  console.log(
+    "✓ Verified shipped test/vite bundles carry no extensionless deep imports",
+  );
+}
+
+/**
+ * Post-emit guard: every bare package the runtime `.cjs` bundles `require()` at
+ * runtime must be declared in @bonsae/nrg-runtime's dependencies — otherwise the
+ * published runtime throws MODULE_NOT_FOUND on a real install while staying green
+ * in-repo (deps resolve through the toolkit's own node_modules). The dependency
+ * list is hand-maintained (build/runtime/dependencies), and the existing check
+ * only verifies each listed name exists — nothing checked the reverse. Direction
+ * here is bundle→deps. `vue` is resolved dynamically (createRequire in assets.ts)
+ * so a require-scan can't see it — it's listed explicitly.
+ */
+function assertRuntimeDepsCovered(deps: Record<string, string>): void {
+  const DYNAMIC_RUNTIME_DEPS = ["vue"];
+  const builtins = new Set(builtinModules);
+  const requireCall = /\brequire\(\s*["']([^"']+)["']\s*\)/g;
+  const found = new Set<string>();
+  for (const rel of ["index.cjs"]) {
+    const file = path.join(RUNTIME_DIST, rel);
+    if (!existsSync(file)) continue;
+    const code = readFileSync(file, "utf-8");
+    for (const m of code.matchAll(requireCall)) {
+      const spec = m[1];
+      if (spec.startsWith(".") || spec.startsWith("/")) continue;
+      if (spec.startsWith("node:")) continue;
+      const name = spec.startsWith("@")
+        ? spec.split("/").slice(0, 2).join("/")
+        : spec.split("/")[0];
+      if (!builtins.has(name)) found.add(name);
+    }
+  }
+  const problems = [
+    ...[...found]
+      .filter((n) => !(n in deps))
+      .map(
+        (n) =>
+          `runtime bundle require()s "${n}", not declared in @bonsae/nrg-runtime dependencies`,
+      ),
+    ...DYNAMIC_RUNTIME_DEPS.filter((n) => !(n in deps)).map(
+      (n) =>
+        `dynamically-resolved "${n}" missing from @bonsae/nrg-runtime dependencies`,
+    ),
+  ];
+  if (problems.length) {
+    throw new Error(
+      "Runtime dependency-closure invariant violated:\n  - " +
+        problems.join("\n  - "),
+    );
+  }
+  console.log(
+    "✓ Verified @bonsae/nrg-runtime declares every required dependency",
+  );
+}
+
+/**
  * Collapse an already-built bundle with a final esbuild minify pass, in place.
  * No `--bundle`, so external imports (e.g. a URL-pathed `vue`) are untouched.
  */
 function minifyFile(file: string, format = "esm"): void {
-  execSync(
-    `esbuild ${file} --minify --format=${format} --allow-overwrite --outfile=${file}`,
+  execFileSync(
+    "esbuild",
+    [
+      file,
+      "--minify",
+      `--format=${format}`,
+      "--allow-overwrite",
+      `--outfile=${file}`,
+    ],
     { stdio: "inherit" },
   );
 }
@@ -201,8 +310,9 @@ function writeToolkitManifest(): void {
  * no source package.json: it's derived from the root package.json (version,
  * author, etc.) plus the dependency NAMES listed in build/runtime/dependencies
  * (their ranges are read from the root's own dependencies — the single source
- * of truth). Ships `./server` + `./schema` VALUES plus a combined `.` entry;
- * no types, no internal surface.
+ * of truth). Ships a SINGLE `.` entry (server + schema VALUES in one bundle) —
+ * the production import rewrite maps both `@bonsae/nrg/server` and
+ * `@bonsae/nrg/schema` to bare `@bonsae/nrg-runtime`. No types, no internal surface.
  */
 function writeRuntimeManifest(): void {
   const root = JSON.parse(
@@ -253,14 +363,6 @@ function writeRuntimeManifest(): void {
         require: "./index.cjs",
         default: "./index.cjs",
       },
-      "./server": {
-        require: "./server/index.cjs",
-        default: "./server/index.cjs",
-      },
-      "./schema": {
-        require: "./schema/index.cjs",
-        default: "./schema/index.cjs",
-      },
     },
     dependencies,
   };
@@ -282,8 +384,14 @@ function buildRootEntry() {
   console.log("✓ Built root entry → dist/toolkit/index.js");
 }
 
-function buildVitePlugin() {
-  esbuildBundle("src/vite/index.ts", { outdir: "dist/toolkit/vite" });
+function buildVitePlugin(clientAsset: string) {
+  // Inject the content-hashed client filename so the plugin rewrites a
+  // consumer's `@bonsae/nrg/client` import to the exact hashed URL the runtime
+  // serves (src/vite/client/build.ts reads __NRG_CLIENT_ASSET__).
+  esbuildBundle("src/vite/index.ts", {
+    outdir: "dist/toolkit/vite",
+    define: { __NRG_CLIENT_ASSET__: clientAsset },
+  });
   console.log("✓ Built vite plugin → dist/toolkit/vite/");
 }
 
@@ -306,12 +414,12 @@ function buildSchemaEntry() {
   // runtime). Schema modules import the builders from here so the shared
   // contract never reaches into `./server`. Ships CJS VALUES like the server
   // entry — consumers `require` it in dev; the production build rewrites the
-  // import to @bonsae/nrg-runtime/schema, the same bytes shipped by the runtime.
+  // import to @bonsae/nrg-runtime, the same bytes shipped by the runtime.
   esbuildBundle("src/core/shared/schemas/index.ts", {
     format: "cjs",
-    outfile: "dist/toolkit/schema/index.cjs",
+    outfile: "dist/toolkit/core/schema/index.cjs",
   });
-  console.log("✓ Built schema kit → dist/toolkit/schema/index.cjs");
+  console.log("✓ Built schema kit → dist/toolkit/core/schema/index.cjs");
 }
 
 async function buildTestUtils() {
@@ -339,6 +447,11 @@ async function buildTestUtils() {
     configFile: false,
     logLevel: "warn",
     plugins: [vue()],
+    // Mirror the `@/*` → `src/*` alias the tsconfigs declare so the test
+    // libraries can import core internals by alias instead of `../../../core`.
+    resolve: {
+      alias: [{ find: /^@\//, replacement: path.resolve(ROOT, "src") + "/" }],
+    },
     build: {
       outDir: path.join(DIST, "test/client/component"),
       emptyOutDir: false,
@@ -350,7 +463,10 @@ async function buildTestUtils() {
         formats: ["es"],
       },
       rollupOptions: {
-        external: (id) => !id.startsWith(".") && !path.isAbsolute(id),
+        // `@/…` is an internal alias (resolved above) — bundle it; only real
+        // bare/absolute specifiers stay external.
+        external: (id) =>
+          !id.startsWith(".") && !path.isAbsolute(id) && !id.startsWith("@/"),
       },
     },
   });
@@ -384,19 +500,24 @@ async function buildTestUtils() {
 // Core build (shared by both packages: server VALUES + editor client asset)
 // ---------------------------------------------------------------------------
 
-function buildCoreServer() {
+function buildCoreServer(clientAsset: string) {
   // The core server, as a self-contained CJS bundle with external deps. This is
   // the runtime VALUES served at ./server. The toolkit owns this bundle, and
   // the runtime artifact ships the very same bytes (deps are external, so the
   // bundle is identical for both packages).
+  //
+  // Inject the content-hashed client filename so the assets route serves the
+  // editor client at the exact hashed URL (src/core/server/api/assets.ts reads
+  // __NRG_CLIENT_ASSET__). The hash busts the editor cache across releases.
   esbuildBundle("src/core/server/index.ts", {
     format: "cjs",
-    outfile: "dist/toolkit/server/index.cjs",
+    outfile: "dist/toolkit/core/server/index.cjs",
+    define: { __NRG_CLIENT_ASSET__: clientAsset },
   });
-  console.log("✓ Built core server → dist/toolkit/server/index.cjs");
+  console.log("✓ Built core server → dist/toolkit/core/server/index.cjs");
 }
 
-async function buildClientAsset() {
+async function buildClientAsset(): Promise<string> {
   // ESM-only plugin — dynamic import resolves it under tsx in this package.
   const { default: cssInjectedByJsPlugin } =
     await import("vite-plugin-css-injected-by-js");
@@ -407,7 +528,7 @@ async function buildClientAsset() {
     logLevel: "warn",
     plugins: [vue(), cssInjectedByJsPlugin()],
     build: {
-      outDir: path.join(DIST, "server/resources"),
+      outDir: path.join(DIST, "core/server/resources"),
       emptyOutDir: false,
       lib: {
         entry: path.resolve(ROOT, "src/core/client/index.ts"),
@@ -415,7 +536,7 @@ async function buildClientAsset() {
         // Force .js (not .mjs) — this is a static asset the editor loads from a
         // URL; the toolkit being type:module would otherwise make vite emit
         // .mjs for the ES bundle.
-        fileName: () => "nrg-client.js",
+        fileName: () => "nrg.js",
         formats: ["es"],
       },
       rollupOptions: {
@@ -427,9 +548,63 @@ async function buildClientAsset() {
   // Vite leaves a newline between every concatenated module (~270KB over
   // thousands of lines); a final esbuild pass collapses the whitespace to
   // ~190KB without disturbing the externalized `vue` import.
-  minifyFile(path.join(DIST, "server/resources/nrg-client.js"));
+  const clientPath = path.join(DIST, "core/server/resources/nrg.js");
+  minifyFile(clientPath);
+  // Content-hash the filename so the editor never serves a stale cached client
+  // across releases. The hash is injected into the server bundle (assets route)
+  // and the vite plugin, which is why the client builds before both — they emit
+  // the exact hashed URL this asset ships under.
+  const clientHash = createHash("sha256")
+    .update(readFileSync(clientPath))
+    .digest("hex")
+    .slice(0, 8);
+  const hashedClient = `nrg.${clientHash}.js`;
+  renameSync(
+    clientPath,
+    path.join(DIST, "core/server/resources", hashedClient),
+  );
   console.log(
-    "✓ Built client asset → dist/toolkit/server/resources/nrg-client.js",
+    `✓ Built client asset → dist/toolkit/core/server/resources/${hashedClient}`,
+  );
+  return hashedClient;
+}
+
+/**
+ * Post-build guard: the content-hashed client filename must be wired into every
+ * place that references it — the shipped asset, the server bundle's assets route
+ * (__NRG_CLIENT_ASSET__ inlined), and the vite plugin (same inline). A silent
+ * miss here ships an editor that requests a URL the runtime never serves, or a
+ * runtime that serves a URL no consumer references. Cheap, deterministic, fails
+ * the build the instant injection breaks.
+ */
+function assertClientAssetWired(clientAsset: string): void {
+  const problems: string[] = [];
+  const asset = path.join(DIST, "core/server/resources", clientAsset);
+  if (!existsSync(asset)) {
+    problems.push(`missing hashed client asset: ${clientAsset}`);
+  }
+  const server = readFileSync(
+    path.join(DIST, "core/server/index.cjs"),
+    "utf-8",
+  );
+  if (!server.includes(clientAsset)) {
+    problems.push(
+      `core/server/index.cjs does not reference the hashed client "${clientAsset}" (assets route __NRG_CLIENT_ASSET__ not injected)`,
+    );
+  }
+  const vite = readFileSync(path.join(DIST, "vite/index.js"), "utf-8");
+  if (!vite.includes(clientAsset)) {
+    problems.push(
+      `vite/index.js does not reference the hashed client "${clientAsset}" (client-build __NRG_CLIENT_ASSET__ not injected)`,
+    );
+  }
+  if (problems.length) {
+    throw new Error(
+      "Client-asset wiring invariant violated:\n  - " + problems.join("\n  - "),
+    );
+  }
+  console.log(
+    `✓ Verified hashed client asset wired everywhere: ${clientAsset}`,
   );
 }
 
@@ -499,7 +674,7 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
   const serverDts = readFileSync("dist/toolkit/types/server.d.ts", "utf-8");
   writeFileSync(
     "dist/toolkit/types/server.d.ts",
-    `/// <reference path="./shims/typebox.d.ts" />\n${serverDts}`,
+    `/// <reference path="./shims/core/shared/typebox.d.ts" />\n${serverDts}`,
   );
 
   // The neutral schema kit (@bonsae/nrg/schema) — defineSchema/SchemaType and
@@ -512,7 +687,7 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
   const schemaDts = readFileSync("dist/toolkit/types/schema.d.ts", "utf-8");
   writeFileSync(
     "dist/toolkit/types/schema.d.ts",
-    `/// <reference path="./shims/typebox.d.ts" />\n${schemaDts}`,
+    `/// <reference path="./shims/core/shared/typebox.d.ts" />\n${schemaDts}`,
   );
 
   // Generated from the curated client/public.ts (not the raw ./types) so the
@@ -521,17 +696,17 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
     `npx dts-bundle-generator -o dist/toolkit/types/client.d.ts src/core/client/public.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },
   );
+  // useFormNode is generated from public.ts (value-re-export) — its signature is
+  // internals-free. defineNode/registerType/registerTypes stay hand-written:
+  // generating them from source would drag the .vue editor runtime into the
+  // public surface. tests/core/client/unit/client-dts-guard.test-d.ts pins these
+  // three to the real runtime so tsc fails the moment a signature drifts.
   appendFileSync(
     "dist/toolkit/types/client.d.ts",
     `
 export declare function defineNode<T extends NodeDefinition>(options: T): T;
 export declare function registerType(definition: NodeDefinition): Promise<void>;
 export declare function registerTypes(nodes: NodeDefinition[]): Promise<void>;
-export declare function useFormNode<TConfig extends TSchema = TSchema, TCredentials extends TSchema = TSchema>(): {
-  node: NodeRedNode & Infer<TConfig> & { credentials: Infer<TCredentials> & Record<string, any> };
-  schema: Record<string, any>;
-  errors: Record<string, string>;
-};
 `,
   );
 
@@ -539,24 +714,37 @@ export declare function useFormNode<TConfig extends TSchema = TSchema, TCredenti
 }
 
 function copyShims() {
-  mkdirSync("dist/toolkit/types/shims/client", { recursive: true });
+  // Shim .d.ts land under dist shims/core/{client,shared}/, matching the
+  // published tsconfigs' `include` paths (src/tsconfig/core/client.json, …). In
+  // source they live in a `shims/` subfolder (src/core/client/shims/) but are
+  // flattened here alongside vue-tsc's emitted component/type .d.ts.
+  mkdirSync("dist/toolkit/types/shims/core/client", { recursive: true });
+  mkdirSync("dist/toolkit/types/shims/core/shared", { recursive: true });
+
+  // Client shims.
   copyFileSync(
-    "src/core/client/shims-vue.d.ts",
-    "dist/toolkit/types/shims/shims-vue.d.ts",
+    "src/core/client/shims/vue.d.ts",
+    "dist/toolkit/types/shims/core/client/vue.d.ts",
   );
   copyFileSync(
-    "src/core/client/globals.d.ts",
-    "dist/toolkit/types/shims/client/globals.d.ts",
+    "src/core/client/shims/globals.d.ts",
+    "dist/toolkit/types/shims/core/client/globals.d.ts",
   );
+
+  // Shared shims: the @sinclair/typebox `SchemaOptions` augmentation and the
+  // canonical NRG JSON-Schema vocabulary it pulls in (`./schema-options`). Both
+  // live on the shared plane — the server tree never names TypeBox — and the
+  // server.d.ts / schema.d.ts bundles reference the augmentation from here.
   copyFileSync(
-    "src/core/server/typebox.d.ts",
-    "dist/toolkit/types/shims/typebox.d.ts",
+    "src/core/shared/typebox.d.ts",
+    "dist/toolkit/types/shims/core/shared/typebox.d.ts",
   );
   copyFileSync(
     "src/core/shared/schema-options.ts",
-    "dist/toolkit/types/shims/schema-options.d.ts",
+    "dist/toolkit/types/shims/core/shared/schema-options.d.ts",
   );
-  console.log("✓ Copied core shims → dist/toolkit/types/shims/");
+
+  console.log("✓ Copied core shims → dist/toolkit/types/shims/core/");
 }
 
 function generateComponentTypes() {
@@ -594,11 +782,11 @@ function generateComponentTypes() {
       .split("-")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join("");
-    return `    ${componentName}: (typeof import("./core/client/form/components/${baseName}.vue"))["default"];`;
+    return `    ${componentName}: (typeof import("./form/components/${baseName}.vue"))["default"];`;
   });
 
   writeFileSync(
-    "dist/toolkit/types/shims/components.d.ts",
+    "dist/toolkit/types/shims/core/client/components.d.ts",
     `/**
  * Global component type declarations for Volar / Vue Language Server.
  * Auto-generated during build — do not edit manually.
@@ -646,38 +834,45 @@ function copyAssets() {
 // Runtime artifact (the @bonsae/nrg-runtime publishable package)
 // ---------------------------------------------------------------------------
 
-function emitRuntimeArtifact() {
-  // The runtime is the light subset of the toolkit's core output: the server
-  // VALUES bundle, the schema VALUES bundle, and the editor client asset. Both
-  // .cjs bundles are self-contained (external deps), so the same bytes are valid
-  // for the runtime package. It ships no types and nothing from internal/* — a
-  // deployed node needs values, not a type or test-support surface.
-  mkdirSync(path.join(RUNTIME_DIST, "server"), { recursive: true });
-  copyFileSync(
-    path.join(DIST, "server/index.cjs"),
-    path.join(RUNTIME_DIST, "server/index.cjs"),
-  );
+function emitRuntimeArtifact(clientAsset: string) {
+  // The runtime is a single self-contained CJS bundle: server + schema VALUES in
+  // ONE artifact (src/core/runtime.ts re-exports both). At server runtime both
+  // planes are server-side, so there is no reason to ship two bundles — and
+  // bundling once emits the shared schema layer a single time instead of
+  // duplicating it across separate server/schema bundles. It ships no types and
+  // nothing from internal/* — a deployed node needs values, not a type or
+  // test-support surface. Built here (not copied from the toolkit's split core/
+  // bundles) so the schema code is deduped.
+  mkdirSync(RUNTIME_DIST, { recursive: true });
+  esbuildBundle("src/core/runtime.ts", {
+    format: "cjs",
+    outfile: path.join(RUNTIME_DIST, "index.cjs"),
+    define: { __NRG_CLIENT_ASSET__: clientAsset },
+  });
+  // The editor client asset the server's assets route serves. It resolves
+  // `__dirname/resources` (src/core/server/api/assets.ts); __dirname is the
+  // bundle's dir, so resources sit next to index.cjs at the runtime root.
   cpSync(
-    path.join(DIST, "server/resources"),
-    path.join(RUNTIME_DIST, "server/resources"),
+    path.join(DIST, "core/server/resources"),
+    path.join(RUNTIME_DIST, "resources"),
     { recursive: true },
   );
 
-  // The schema kit ships as its own runtime bundle now that `./server` no longer
-  // re-exports the builders. Same bytes as the toolkit's schema entry.
-  mkdirSync(path.join(RUNTIME_DIST, "schema"), { recursive: true });
-  copyFileSync(
-    path.join(DIST, "schema/index.cjs"),
-    path.join(RUNTIME_DIST, "schema/index.cjs"),
-  );
-
-  // The combined `.` entry (static re-export of both sibling bundles).
-  copyFileSync(
-    path.join(RUNTIME_SRC, "index.cjs"),
+  const runtimeBundle = readFileSync(
     path.join(RUNTIME_DIST, "index.cjs"),
+    "utf-8",
   );
+  if (!runtimeBundle.includes(clientAsset)) {
+    throw new Error(
+      `dist/runtime/index.cjs does not reference the hashed client "${clientAsset}" (assets route __NRG_CLIENT_ASSET__ not injected)`,
+    );
+  }
 
   writeRuntimeManifest();
+  const runtimePkg = JSON.parse(
+    readFileSync(path.join(RUNTIME_DIST, "package.json"), "utf-8"),
+  );
+  assertRuntimeDepsCovered(runtimePkg.dependencies ?? {});
   copyFileSync(
     path.join(RUNTIME_SRC, "README.md"),
     path.join(RUNTIME_DIST, "README.md"),
@@ -695,13 +890,18 @@ async function main() {
   clean(path.resolve(ROOT, "dist")); // wipe both dist/toolkit and dist/runtime
   // Toolkit surface.
   buildRootEntry();
-  buildVitePlugin();
   buildEslintConfig();
   buildSchemaEntry();
   await buildTestUtils();
-  // Core (shared) values: server CJS + editor client asset.
-  buildCoreServer();
-  await buildClientAsset();
+  // Core (shared) values: editor client asset + server CJS. Build the client
+  // FIRST so its content hash can be injected into the server bundle (assets
+  // route) and the vite plugin — both emit the exact hashed URL it ships under.
+  const clientAsset = await buildClientAsset();
+  buildCoreServer(clientAsset);
+  buildVitePlugin(clientAsset);
+  assertClientAssetWired(clientAsset);
+  // Now that every shipped test + vite bundle exists, guard the whole surface.
+  assertNoExtensionlessDeepImports();
   // Types (toolkit surface + natively-owned core surface) + shims + components.
   generateTypes();
   copyShims();
@@ -711,7 +911,7 @@ async function main() {
   writeToolkitManifest();
   console.log("✓ @bonsae/nrg (toolkit) built → dist/toolkit");
   // Emit the second published package from the core subset.
-  emitRuntimeArtifact();
+  emitRuntimeArtifact(clientAsset);
   console.log("✓ @bonsae/nrg-runtime artifact emitted → dist/runtime");
 }
 

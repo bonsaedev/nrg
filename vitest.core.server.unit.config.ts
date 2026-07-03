@@ -7,9 +7,9 @@ export default defineConfig({
       "@/core": path.resolve(__dirname, "src/core"),
       "@/vite": path.resolve(__dirname, "src/vite"),
       "@/test": path.resolve(__dirname, "src/test"),
-      "@bonsae/nrg-runtime/server": path.resolve(
+      "@bonsae/nrg-runtime": path.resolve(
         __dirname,
-        "src/core/server/index.ts",
+        "src/core/runtime.ts",
       ),
       "@bonsae/nrg/server": path.resolve(__dirname, "src/core/server/index.ts"),
       "@mocks": path.resolve(__dirname, "tests/core/server/mocks"),

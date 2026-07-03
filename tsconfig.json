@@ -3,10 +3,10 @@
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "types": ["node", "jquery"],
-    "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
       "@bonsae/nrg/server": ["./src/core/server/index.ts"],
-      "@bonsae/nrg-runtime/server": ["./src/core/server/index.ts"]
+      "@bonsae/nrg-runtime": ["./src/core/runtime.ts"]
     }
   },
   "include": ["src/**/*.ts"],

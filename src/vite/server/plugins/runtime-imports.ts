@@ -8,10 +8,12 @@ import path from "path";
 // the node-definitions extractor can load it), then renames them to the runtime
 // as the final step via rewriteEmittedRuntimeImports.
 const RUNTIME_REWRITES: Record<string, string> = {
-  "@bonsae/nrg/server": "@bonsae/nrg-runtime/server",
-  // The neutral schema kit ships as its own runtime bundle (the server entry
-  // no longer re-exports the builders), so the rewrite stays plane-specific.
-  "@bonsae/nrg/schema": "@bonsae/nrg-runtime/schema",
+  // Both authoring specifiers collapse to the single runtime bundle. At server
+  // runtime the schema kit and the server are all server-side, so
+  // @bonsae/nrg-runtime ships them in one artifact (its sole `.` export) — the
+  // toolkit keeps @bonsae/nrg/server and @bonsae/nrg/schema separate for authoring.
+  "@bonsae/nrg/server": "@bonsae/nrg-runtime",
+  "@bonsae/nrg/schema": "@bonsae/nrg-runtime",
 };
 
 /**

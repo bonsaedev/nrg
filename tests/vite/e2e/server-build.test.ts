@@ -105,7 +105,7 @@ describe("server build", () => {
     });
 
     it("rewrites @bonsae/nrg/server to the runtime package", () => {
-      expect(bundleContent).toContain("@bonsae/nrg-runtime/server");
+      expect(bundleContent).toContain("@bonsae/nrg-runtime");
       expect(bundleContent).not.toContain("@bonsae/nrg/server");
     });
 
@@ -153,7 +153,7 @@ describe("server build", () => {
       // import the installed toolkit — @bonsae/nrg-runtime is only resolvable
       // once the package is published, so rewriting to it would break locally.
       expect(bundleContent).toContain("@bonsae/nrg/server");
-      expect(bundleContent).not.toContain("@bonsae/nrg-runtime/server");
+      expect(bundleContent).not.toContain("@bonsae/nrg-runtime");
     });
   });
 

@@ -63,7 +63,7 @@ describe("dev mode build", () => {
       // runtime is nested under the toolkit in pnpm and would fail to resolve.
       // The runtime rewrite is a production-only concern.
       expect(serverContent).toContain("@bonsae/nrg/server");
-      expect(serverContent).not.toContain("@bonsae/nrg-runtime/server");
+      expect(serverContent).not.toContain("@bonsae/nrg-runtime");
     });
 
     it("should produce inline sourcemaps in dev mode", () => {

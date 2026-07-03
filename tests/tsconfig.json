@@ -2,14 +2,11 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ESNext"],
-    "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../src/core/*"],
-      "@/vite/*": ["../src/vite/*"],
-      "@/test/*": ["../src/test/*"],
-      "@mocks/*": ["core/server/mocks/*"],
+      "@/*": ["../src/*"],
+      "@mocks/*": ["./core/server/mocks/*"],
       "@bonsae/nrg/server": ["../src/core/server/index.ts"],
-      "@bonsae/nrg-runtime/server": ["../src/core/server/index.ts"]
+      "@bonsae/nrg-runtime": ["../src/core/runtime.ts"]
     }
   },
   "include": ["**/*.ts"],

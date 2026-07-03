@@ -20,7 +20,7 @@ function copyPackage(pkgDir: string, destDir: string): void {
  * @bonsae/nrg.
  *
  * Both are copied because a built node's server bundle imports
- * `@bonsae/nrg-runtime/server` (loaded at build time by the client build) while
+ * `@bonsae/nrg-runtime` (loaded at build time by the client build) while
  * the author-time surface resolves from @bonsae/nrg.
  */
 export function setupFixtureNodeModules(fixtureDir: string): void {

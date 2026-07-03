@@ -167,8 +167,8 @@ async function testBuild(tmpDir: string, viteEntry: string): Promise<void> {
   const realServerBundle = fs.existsSync(esmBundle) ? esmBundle : serverBundle;
   const serverBundleSrc = fs.readFileSync(realServerBundle, "utf-8");
   assert(
-    serverBundleSrc.includes("@bonsae/nrg-runtime/server"),
-    "server bundle must import @bonsae/nrg-runtime/server",
+    serverBundleSrc.includes("@bonsae/nrg-runtime"),
+    "server bundle must import @bonsae/nrg-runtime",
   );
 
   const indexHtml = path.join(buildOutDir, "index.html");
