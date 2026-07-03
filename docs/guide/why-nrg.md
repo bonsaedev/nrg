@@ -82,19 +82,19 @@ export default defineIONode({
 // server/nodes/my-node.ts
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
-import { SchemaType } from "@bonsae/nrg/schema";
-import { ConfigsSchema, InputSchema } from "../schemas/my-node";
+import { ConfigsSchema, InputSchema, OutputSchema } from "../schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
+type Output = Infer<typeof OutputSchema>;
 
-export default class MyNode extends IONode<Config, never, Input> {
+export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly type = "my-node";
   static readonly category = "my-category";
   static readonly color: `#${string}` = "#FFFFFF";
   static readonly configSchema: Schema = ConfigsSchema;
   static readonly inputSchema: Schema = InputSchema;
-  static readonly outputsSchema: Schema = SchemaType.Object({});
+  static readonly outputsSchema: Schema = OutputSchema;
 
   async input(msg: Input) {
     this.send({ payload: msg.payload.toUpperCase() });
