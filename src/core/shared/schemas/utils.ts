@@ -1,14 +1,20 @@
-import type { TObject, SchemaOptions } from "@sinclair/typebox";
+import type { TObject } from "@sinclair/typebox";
+import type { NrgSchemaOptions } from "./types";
 
-interface NodeSchemaOptions extends SchemaOptions {
-  "x-nrg-node-type"?: string;
-  default?: any;
-  format?: string;
-}
-
+/**
+ * Derives a Node-RED node-definition `defaults` map from a config schema: one
+ * entry per property, with `type` carrying the referenced config-node type for
+ * NodeRef fields (`x-nrg-node-type`). Editor-managed keys (`x`/`y`/`z`/…) are
+ * skipped. Browser-safe (pure schema → plain data), so both the server runtime
+ * and the build inliner can share it.
+ */
 function getDefaultsFromSchema(
-  schema: TObject,
-): Record<string, { type?: string; required: boolean; value: any }> {
+  schema: TObject | null | undefined,
+):
+  | Record<string, { type?: string; required: boolean; value: any }>
+  | undefined {
+  if (!schema?.properties) return undefined;
+
   const result: Record<
     string,
     { type?: string; required: boolean; value: any }
@@ -18,7 +24,7 @@ function getDefaultsFromSchema(
     // NOTE: these are excluded from defaults because they must be set by the editor
     if (["x", "y", "z", "g", "wires", "type", "id"].includes(key)) continue;
 
-    const property = value as NodeSchemaOptions;
+    const property = value as NrgSchemaOptions;
 
     result[key] = {
       // NOTE: required is always false because it is controlled by the JSON Schema and AJV validation instead of using node-red client core
@@ -32,16 +38,23 @@ function getDefaultsFromSchema(
   return result;
 }
 
+/**
+ * Derives a Node-RED `credentials` map from a credentials schema: `password`
+ * for fields with `format: "password"`, `text` otherwise (warning on the
+ * latter, since a `text` credential is returned to the editor in cleartext).
+ */
 function getCredentialsFromSchema(
-  schema: TObject,
-): Record<string, { type: string; required: boolean; value: any }> {
+  schema: TObject | null | undefined,
+): Record<string, { type: string; required: boolean; value: any }> | undefined {
+  if (!schema?.properties) return undefined;
+
   const result: Record<
     string,
     { type: string; required: boolean; value: any }
   > = {};
 
   for (const [key, value] of Object.entries(schema.properties)) {
-    const property = value as NodeSchemaOptions;
+    const property = value as NrgSchemaOptions;
     const isPassword = property.format === "password";
     if (!isPassword) {
       // A credential without format:"password" is registered as a `text`

@@ -1,10 +1,10 @@
 import type { Plugin } from "vite";
 import fs from "fs";
 import path from "path";
-import { pathToFileURL } from "url";
-import { createRequire } from "module";
 import { getHelpTranslations, type HelpTranslations } from "./help-i18n";
 import { extractUnsafeTypes, type UnsafeTypeMap } from "./unsafe-types";
+import { nodeDefsPath } from "../../utils";
+import { logger } from "../../logger";
 
 interface HelpGeneratorOptions {
   outDir: string;
@@ -305,31 +305,32 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
     enforce: "post",
 
     async closeBundle() {
-      const esmPath = path.resolve(outDir, "index.mjs");
-      const cjsPath = path.resolve(outDir, "index.js");
-
-      let packageFn: any;
+      // Generate help from the node definitions the server build already
+      // extracted (node-defs.json) — NOT by re-importing the built server
+      // bundle. A production build rewrites that bundle's imports to
+      // @bonsae/nrg-runtime (a publish-only package absent at author build
+      // time), so importing it throws MODULE_NOT_FOUND and would silently drop
+      // every node's help. The JSON carries `type` + all four schemas — the only
+      // fields generateHelpDoc reads. (Server and client share this outDir.)
+      const defsFile = nodeDefsPath(outDir);
+      let nodeDefs: any[];
       try {
-        if (fs.existsSync(esmPath)) {
-          const fileUrl = pathToFileURL(esmPath).href + `?t=${Date.now()}`;
-          const mod = await import(fileUrl);
-          packageFn = mod?.default ?? mod;
-        } else if (fs.existsSync(cjsPath)) {
-          const require = createRequire(import.meta.url);
-          delete require.cache[cjsPath];
-          const rawMod = require(cjsPath);
-          packageFn = rawMod?.default ?? rawMod;
-        }
-      } catch {
+        const payload = JSON.parse(fs.readFileSync(defsFile, "utf-8"));
+        nodeDefs = Object.values(payload?.definitions ?? {});
+      } catch (error) {
+        logger.warn(
+          `help generation skipped: could not read node definitions at ${defsFile} ` +
+            `(${error instanceof Error ? error.message : String(error)}). ` +
+            `Node help docs will be empty.`,
+        );
         return;
       }
 
-      const nodeClasses: any[] = packageFn?.nodes ?? [];
       const unsafeTypes = srcDir ? extractUnsafeTypes(srcDir) : undefined;
       const helpByLang = new Map<string, string[]>();
 
-      for (const NodeClass of nodeClasses) {
-        const type = NodeClass.type;
+      for (const def of nodeDefs) {
+        const type = def.type;
         if (!type) continue;
 
         const languages = discoverLanguages(labelsDir, type);
@@ -343,7 +344,7 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
           const labelPath = path.join(labelsDir, type, `${lang}.json`);
           const labels = loadNodeLabels(labelPath);
           const t = getHelpTranslations(lang);
-          const content = generateHelpDoc(NodeClass, labels, t, unsafeTypes);
+          const content = generateHelpDoc(def, labels, t, unsafeTypes);
           if (!content) continue;
 
           if (!helpByLang.has(lang)) helpByLang.set(lang, []);

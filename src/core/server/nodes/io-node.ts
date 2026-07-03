@@ -1,5 +1,4 @@
-import { Kind, type TSchema } from "@sinclair/typebox";
-import type { Schema } from "../schemas/types";
+import { Kind, type TSchema, type Schema } from "../../shared/schemas";
 import type { RED, NodeRedNode } from "../red";
 import { Node } from "./node";
 import { NrgError } from "../../shared/errors";
@@ -13,7 +12,8 @@ import type {
   IONodeCredentials,
 } from "./types";
 import { setupContext } from "./context";
-import { WIRE_HANDLERS } from "./symbols";
+import { NRG_WIRE_HANDLERS } from "./symbols";
+import type { OutputPortNames } from "../schemas/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Per-`input()`-invocation context — see `IONode.#invocation`. */
@@ -92,6 +92,18 @@ export type ContextMode = "carry" | "trace" | "reset";
  *   }
  * }
  * ```
+ *
+ * @typeParam TConfig - config shape (position 1)
+ * @typeParam TCredentials - credentials shape (position 2)
+ * @typeParam TInput - incoming message shape (position 3)
+ * @typeParam TOutput - outgoing result / named-port map (position 4)
+ * @typeParam TSettings - settings shape (position 5)
+ *
+ * NOTE: the positional generics all default to `any`, so a transposed order
+ * (e.g. swapping `TInput`/`TOutput`) is silently accepted and mis-types
+ * `input()`/`send()`. Settings sits at position **5** here but position **3** on
+ * {@link Node}/{@link ConfigNode}. Prefer `defineIONode`, which infers these by
+ * name from your schemas and avoids ordering entirely.
  */
 abstract class IONode<
   TConfig = any,
@@ -220,11 +232,11 @@ abstract class IONode<
     }
   }
 
-  override [WIRE_HANDLERS](
+  override [NRG_WIRE_HANDLERS](
     nodeRedNode: NodeRedNode,
     createdPromise: Promise<void>,
   ) {
-    super[WIRE_HANDLERS](nodeRedNode, createdPromise);
+    super[NRG_WIRE_HANDLERS](nodeRedNode, createdPromise);
 
     const NC = this.constructor as typeof IONode;
 
@@ -340,7 +352,9 @@ abstract class IONode<
     if (shouldValidateInput && NodeClass.inputSchema) {
       this.log("Validating input");
       this.RED.validator.validate(msg, NodeClass.inputSchema, {
-        cacheKey: NodeClass.inputSchema.$id || `${NodeClass.type}:input-schema`,
+        // Pure predicate: never coerce or inject defaults into the live msg that
+        // continues downstream.
+        mutate: false,
         throwOnError: true,
       });
       this.log("Input is valid");
@@ -408,7 +422,8 @@ abstract class IONode<
     if (!schema) return;
     this.log("Validating output");
     this.RED.validator.validate(value, schema, {
-      cacheKey: schema.$id || `${NodeClass.type}:output-schema:${port}`,
+      // Pure predicate: don't coerce or default the outgoing value.
+      mutate: false,
       throwOnError: true,
     });
     this.log("Output is valid");
@@ -501,13 +516,10 @@ abstract class IONode<
    * throw an error or call `this.error()` for the error port, and the complete
    * port is sent automatically on successful input processing.
    */
-  public sendToPort<
-    P extends
-      | (TOutput extends Record<string, Record<string, any>>
-          ? keyof TOutput & string
-          : never)
-      | number,
-  >(port: P, msg: P extends keyof TOutput ? TOutput[P] : unknown) {
+  public sendToPort<P extends OutputPortNames<TOutput> | number>(
+    port: P,
+    msg: P extends keyof TOutput ? TOutput[P] : unknown,
+  ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
         `sendToPort("${port}") is not allowed. Built-in ports are managed by the framework.`,
@@ -515,6 +527,19 @@ abstract class IONode<
     }
     const portIndex =
       typeof port === "number" ? port : this.#getNamedPortIndex(port);
+    // Loud failure for an unknown named port: an unresolved name would otherwise
+    // be silently dropped by #sendToPort. This is the only guard a JS author gets
+    // (the OutputPortNames type is compile-time only).
+    if (typeof port === "string" && portIndex === null) {
+      const keys = this.#namedPortKeys();
+      throw new NrgError(
+        keys && keys.length
+          ? `sendToPort("${port}") — unknown output port. Valid named ports: ${keys
+              .map((n) => `"${n}"`)
+              .join(", ")}.`
+          : `sendToPort("${port}") — this node has no named output ports. Make outputsSchema a record of named schemas, or send to a numeric port index.`,
+      );
+    }
     const mode = this.#resolveContextMode(portIndex ?? 0);
     this.#sendToPort(
       port,
@@ -531,17 +556,29 @@ abstract class IONode<
       if (portIndex === null) return;
     } else {
       portIndex = this.#getNamedPortIndex(port);
-      if (portIndex === null) return;
+      // Defensive: the public sendToPort already threw on an unknown named port,
+      // so this is unreachable from there — but never silently drop.
+      if (portIndex === null) {
+        throw new NrgError(`Unknown output port "${port}".`);
+      }
     }
     const out = new Array(this.totalOutputs);
     out[portIndex] = msg;
     this.node.send(out);
   }
 
-  #getNamedPortIndex(name: string): number | null {
+  /** The declared named output ports (record `outputsSchema`), or null when the
+   * node has none (no schema, a tuple schema, or a single schema). */
+  #namedPortKeys(): string[] | null {
     const schema = (this.constructor as typeof IONode).outputsSchema;
     if (!schema || Array.isArray(schema) || isSchemaLike(schema)) return null;
-    const idx = Object.keys(schema).indexOf(name);
+    return Object.keys(schema);
+  }
+
+  #getNamedPortIndex(name: string): number | null {
+    const keys = this.#namedPortKeys();
+    if (!keys) return null;
+    const idx = keys.indexOf(name);
     return idx === -1 ? null : idx;
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
-import type { TNodeRef, TTypedInput } from "@/core/server/schemas/types";
-import type { Infer, TypedInputValue } from "@/core/client/types";
+import type { TNodeRef, TTypedInput } from "@/core/shared/schemas/types";
+import type { Infer, TypedInput } from "@/core/client/types";
 
 function nodeRef<T>(): TNodeRef<T> {
   return { [Kind]: "NodeRef", type: "string", format: "node-id" } as any;
@@ -36,10 +36,10 @@ describe("Infer", () => {
     expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{ server: string }>();
   });
 
-  it("infers TypedInputValue from TypedInput", () => {
+  it("infers TypedInput from TypedInput", () => {
     const s = schema({ target: typedInput() });
     expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{
-      target: TypedInputValue;
+      target: TypedInput;
     }>();
   });
 
@@ -74,7 +74,7 @@ describe("Infer", () => {
       name: string;
       count: number;
       server: string;
-      target: TypedInputValue;
+      target: TypedInput;
       enabled?: boolean | undefined;
     }>();
   });
@@ -88,7 +88,7 @@ describe("Infer", () => {
     expectTypeOf<Infer<ReturnType<typeof nodeRef>>>().toEqualTypeOf<string>();
     expectTypeOf<
       Infer<ReturnType<typeof typedInput>>
-    >().toEqualTypeOf<TypedInputValue>();
+    >().toEqualTypeOf<TypedInput>();
   });
 
   it("infers nested objects with NodeRef recursively", () => {
@@ -109,11 +109,10 @@ describe("Infer", () => {
     expectTypeOf<Infer<typeof s>>().not.toBeAny();
   });
 
-  it("NodeRef does not resolve to NodeRefResolved on client", () => {
+  it("NodeRef does not resolve to NodeRefBrand on client", () => {
     const s = schema({ server: nodeRef<{ id: string }>() });
     type Result = Infer<typeof s>;
     expectTypeOf<Result["server"]>().toBeString();
     expectTypeOf<Result["server"]>().not.toEqualTypeOf<{ id: string }>();
   });
 });
-

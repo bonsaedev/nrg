@@ -70,6 +70,22 @@ dist/
     └── ...                         # Other configured languages
 ```
 
+### Debugging a production build
+
+The **server bundle (`index.mjs`) is intentionally not minified**. It's `require`d
+locally by Node-RED — never shipped over the wire — so readability wins over size: a
+production stack trace points at real function names and line numbers in `index.mjs`,
+so you can trace an error without a source map. (No server source map is emitted for
+that reason.)
+
+For step-through debugging against your original TypeScript, use **dev mode**
+(`pnpm vite dev`): it builds unminified with accurate inline source maps and a live
+Node-RED — reproduce the issue there.
+
+The **client bundle** (`resources/*.[hash].js`) _is_ minified — the editor downloads
+it, so size matters — and content-hashed so browsers never serve a stale copy across
+releases.
+
 ### Why your built node depends on `@bonsae/nrg-runtime`
 
 The generated `dist/package.json` declares a dependency on **`@bonsae/nrg-runtime`**,

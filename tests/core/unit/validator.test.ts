@@ -77,20 +77,7 @@ describe("Validator", () => {
       expect(data.name).toBe("hello");
     });
 
-    it("should cache validators by cacheKey", () => {
-      const validator = new Validator();
-      const schema = {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-        },
-      };
-      const v1 = validator.createValidator(schema, "test-cache");
-      const v2 = validator.createValidator(schema, "test-cache");
-      expect(v1).toBe(v2);
-    });
-
-    it("should cache validators by $id", () => {
+    it("caches validators by $id (same $id → same compiled fn)", () => {
       const validator = new Validator();
       const schema = {
         $id: "test-schema-id",
@@ -102,6 +89,60 @@ describe("Validator", () => {
       const v1 = validator.createValidator(schema);
       const v2 = validator.createValidator(schema);
       expect(v1).toBe(v2);
+    });
+
+    it("reuses the registered validator for a re-used $id without throwing", () => {
+      const validator = new Validator();
+      const a = {
+        $id: "dup-id",
+        type: "object",
+        properties: { name: { type: "string" } },
+      };
+      const b = {
+        $id: "dup-id",
+        type: "object",
+        properties: { other: { type: "number" } },
+      };
+      const va = validator.createValidator(a);
+      // A DIFFERENT object with the same $id must not throw AJV's "already
+      // exists" — the registry returns the first-compiled validator for that $id.
+      const vb = validator.createValidator(b);
+      expect(vb).toBe(va);
+    });
+
+    it("never writes a $id onto the validated schema", () => {
+      const validator = new Validator();
+      const schema: Record<string, unknown> = {
+        type: "object",
+        properties: { name: { type: "string" } },
+      };
+      validator.validate({ name: "x" }, schema);
+      expect(schema.$id).toBeUndefined();
+    });
+
+    it("mutate:false is a pure predicate; the default coerces + defaults in place", () => {
+      const validator = new Validator();
+      const schema = {
+        $id: "coerce-test",
+        type: "object",
+        properties: { count: { type: "number", default: 7 } },
+      };
+
+      // Pure (mutate:false): a string stays a string (fails `type: number`) and
+      // no default is injected — the data is untouched.
+      const pureData: Record<string, unknown> = { count: "5" };
+      const pure = validator.validate(pureData, schema, { mutate: false });
+      expect(pure.valid).toBe(false);
+      expect(pureData.count).toBe("5");
+
+      // Coercing (default): "5" → 5 and the missing default is filled, in place.
+      const coerceData: Record<string, unknown> = { count: "5" };
+      expect(validator.validate(coerceData, schema).valid).toBe(true);
+      expect(coerceData.count).toBe(5);
+
+      const defaulted: Record<string, unknown> = {};
+      validator.validate(defaulted, schema);
+      expect(defaulted.count).toBe(7);
     });
   });
 

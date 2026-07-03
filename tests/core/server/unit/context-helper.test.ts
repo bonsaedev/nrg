@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createNode } from "@/test/server/unit";
 import { defineIONode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 
 const Counter = defineIONode({
   type: "ctx-counter",

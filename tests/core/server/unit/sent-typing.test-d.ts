@@ -1,6 +1,6 @@
 import { createNode } from "@/test/server/unit";
 import { defineIONode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 
 // These nodes + functions are never executed. They exist so `tsc` (run via
 // `pnpm validate:tsc`) verifies that `node.sent()` is typed positionally from
@@ -9,8 +9,14 @@ import { defineSchema, SchemaType } from "@/core/server/schemas";
 // --- single output ---------------------------------------------------------
 const SingleNode = defineIONode({
   type: "td-single",
-  inputSchema: defineSchema({ in: SchemaType.String() }),
-  outputsSchema: defineSchema({ id: SchemaType.String() }),
+  inputSchema: defineSchema(
+    { in: SchemaType.String() },
+    { $id: "sent-typing.test-d:1" },
+  ),
+  outputsSchema: defineSchema(
+    { id: SchemaType.String() },
+    { $id: "sent-typing.test-d:2" },
+  ),
   async input() {
     this.send({ id: "x" });
   },
@@ -33,8 +39,8 @@ const TupleNode = defineIONode({
   // no `as const` — the `const` type parameter on defineIONode makes this
   // inline array infer as a tuple, so positional output typing stays precise.
   outputsSchema: [
-    defineSchema({ a: SchemaType.String() }),
-    defineSchema({ b: SchemaType.Number() }),
+    defineSchema({ a: SchemaType.String() }, { $id: "sent-typing.test-d:3" }),
+    defineSchema({ b: SchemaType.Number() }, { $id: "sent-typing.test-d:4" }),
   ],
   async input() {
     this.send([{ a: "x" }, { b: 1 }]);
@@ -57,8 +63,14 @@ void tupleProof;
 const RecordNode = defineIONode({
   type: "td-record",
   outputsSchema: {
-    success: defineSchema({ ok: SchemaType.String() }),
-    failure: defineSchema({ err: SchemaType.Number() }),
+    success: defineSchema(
+      { ok: SchemaType.String() },
+      { $id: "sent-typing.test-d:5" },
+    ),
+    failure: defineSchema(
+      { err: SchemaType.Number() },
+      { $id: "sent-typing.test-d:6" },
+    ),
   },
   async input() {
     this.sendToPort("success", { ok: "y" });
@@ -81,5 +93,73 @@ async function recordProof() {
   void badOk;
   // @ts-expect-error "missing" is not a declared port
   node.sent("missing");
+  // @ts-expect-error named-port nodes emit via sendToPort; send(map) is unsound
+  node.send({ success: { ok: "y" }, failure: { err: 1 } });
 }
 void recordProof;
+
+// --- M1(a): a record with PRIMITIVE-valued ports stays fully addressable -----
+// (the old structural gate `Record<string, Record<string, any>>` let one
+// primitive port de-type the whole record → names became unaddressable).
+const PrimitivePortsNode = defineIONode({
+  type: "td-primitive-ports",
+  outputsSchema: {
+    success: SchemaType.String(),
+    failure: SchemaType.Number(),
+  },
+  async input() {
+    this.sendToPort("success", "ok");
+    this.sendToPort("failure", 1);
+  },
+});
+
+async function primitivePortsProof() {
+  const { node } = await createNode(PrimitivePortsNode);
+  const ok: string = node.sent("success")[0].output;
+  const err: number = node.sent("failure")[0].output;
+  void ok;
+  void err;
+  // @ts-expect-error "success" carries a string message, not a number
+  node.sendToPort("success", 1);
+  // @ts-expect-error "missing" is not a declared port
+  node.sendToPort("missing", "x");
+}
+void primitivePortsProof;
+
+// --- M1(b): a single object-of-objects output must NOT expose its fields as
+//     ports (the old gate matched it as a record → fake, silently-dropped ports).
+const SingleObjectOfObjects = defineIONode({
+  type: "td-single-obj-of-obj",
+  outputsSchema: defineSchema(
+    {
+      meta: SchemaType.Object({ v: SchemaType.Number() }),
+      data: SchemaType.Object({ n: SchemaType.String() }),
+    },
+    { $id: "sent-typing.test-d:7" },
+  ),
+  async input() {
+    this.send({ meta: { v: 1 }, data: { n: "x" } });
+  },
+});
+
+async function singleObjectProof() {
+  const { node } = await createNode(SingleObjectOfObjects);
+  // it is ONE output port (port 0), addressed by send()/index — not by field.
+  const v: number = node.sent()[0][0].output.meta.v;
+  void v;
+  // @ts-expect-error "meta" is a field of the single output, not an output port
+  node.sendToPort("meta", { v: 1 });
+}
+void singleObjectProof;
+
+// --- M1(d): an untyped output (no outputsSchema → TOutput = any) stays
+//     permissive: any port name/index and any message.
+const AnyOutputNode = defineIONode({
+  type: "td-any-output",
+  async input() {
+    this.sendToPort("whatever", { anything: true });
+    this.sendToPort(3, 123);
+    this.send({ free: "form" });
+  },
+});
+void AnyOutputNode;

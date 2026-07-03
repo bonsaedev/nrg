@@ -11,7 +11,7 @@ my-node-red-nodes/
 ├── src/
 │   ├── server/
 │   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/core/server.json
-│   │   ├── index.ts               # Server entry — exports { nodes: [...] }
+│   │   ├── index.ts               # Server entry — export default defineModule({ nodes: [...] })
 │   │   └── nodes/
 │   │       └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
 │   ├── client/
@@ -64,7 +64,7 @@ my-node-red-nodes/
 
 Contains the Node.js runtime code. Each node is a TypeScript class extending `IONode` (for message-processing nodes) or `ConfigNode` (for configuration nodes).
 
-The entry file (`index.ts`) exports an object with a `nodes` array listing all node classes.
+The entry file (`index.ts`) default-exports `defineModule({ nodes: [...] })`, listing all node classes.
 
 ### `src/client/`
 

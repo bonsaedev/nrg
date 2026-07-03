@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
+import { defineComponent, h, ref, nextTick } from "vue";
 import NodeRedInput from "@/core/client/form/components/node-red-input.vue";
 
 describe("NodeRedInput", () => {
@@ -150,5 +151,49 @@ describe("NodeRedInput", () => {
     });
     const icon = screen.container.querySelector("i.fa.fa-tag");
     expect(icon).not.toBeNull();
+  });
+
+  // --- 5.3: prop→widget sync + focus guard (each test fails without its half) ---
+
+  test("syncs an EXTERNAL value change into the input (proves the watcher)", async () => {
+    // A reactive parent stands in for a custom form driving the field's value.
+    const external = ref("old");
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(NodeRedInput, { value: external.value, label: "Name" }),
+    });
+    const screen = render(Parent);
+    const input = screen.container.querySelector("input") as HTMLInputElement;
+    expect(input.value).toBe("old");
+
+    // Programmatic (external) change — e.g. picking a Region resets City via
+    // useFormNode. WITHOUT the watcher the input keeps showing "old" (the widget
+    // is seed-once), so this line is the proof the sync is needed.
+    external.value = "new";
+    await vi.waitFor(() => expect(input.value).toBe("new"));
+  });
+
+  test("does NOT clobber a focused input on an external change (proves the focus guard)", async () => {
+    const external = ref("old");
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(NodeRedInput, { value: external.value, label: "Name" }),
+    });
+    const screen = render(Parent);
+    const input = screen.container.querySelector("input") as HTMLInputElement;
+
+    // The user is mid-edit (focused + typed, not yet blurred).
+    input.focus();
+    input.dispatchEvent(new Event("focus"));
+    input.value = "user-typing";
+    input.dispatchEvent(new Event("input"));
+
+    // An external change lands WHILE focused. The guard must ignore it so the
+    // user's in-progress text (and caret) survive. WITHOUT the focus guard the
+    // watcher overwrites it with "external" and this assertion fails.
+    external.value = "external";
+    await nextTick();
+    await nextTick();
+    expect(input.value).toBe("user-typing");
   });
 });

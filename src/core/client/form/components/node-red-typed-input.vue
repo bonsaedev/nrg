@@ -6,10 +6,12 @@
         :label="label"
         :icon="icon"
         :required="required"
+        :label-id="labelId || undefined"
       />
     </slot>
     <input
       ref="typedInput"
+      :aria-labelledby="labelId || undefined"
       type="text"
       class="node-red-typed-input"
       style="flex: 1; width: 100%"
@@ -94,6 +96,12 @@ export default defineComponent({
       type: String,
       default: "",
     },
+    /** id of the label; the jQuery typedInput widget references it via
+     *  `aria-labelledby` (its own id doesn't survive the widget transform). */
+    labelId: {
+      type: String,
+      default: "",
+    },
   },
   emits: ["update:modelValue", "update:value"],
   setup() {
@@ -139,6 +147,25 @@ export default defineComponent({
           targetDiv.classList.remove("input-error");
         }
       });
+    },
+    // Push an EXTERNAL value/type change into the jQuery widget (e.g. a custom
+    // form updating an interdependent sibling via useFormNode). Two guards keep
+    // it safe: skip while focus is inside this widget (don't fight the user), and
+    // only write when the widget doesn't already match — so the user's own edit
+    // (which round-trips back through onChange) never re-triggers a write, which
+    // would otherwise form a feedback loop with the value MutationObserver.
+    effectiveValue: {
+      handler(newVal: { value: string; type: string }) {
+        if (!this.inputWidget) return;
+        if (this.$el.contains(document.activeElement)) return;
+        if (newVal.value !== this.inputWidget.typedInput("value")) {
+          this.inputWidget.typedInput("value", newVal.value ?? "");
+        }
+        if (newVal.type !== this.inputWidget.typedInput("type")) {
+          this.inputWidget.typedInput("type", newVal.type ?? this.types[0]);
+        }
+      },
+      deep: true,
     },
   },
   mounted() {

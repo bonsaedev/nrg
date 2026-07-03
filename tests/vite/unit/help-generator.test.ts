@@ -11,6 +11,8 @@ import {
   helpGenerator,
 } from "@/vite/client/plugins/help-generator";
 import { getHelpTranslations } from "@/vite/client/plugins/help-i18n";
+import { nodeDefsPath } from "@/vite/utils";
+import { logger } from "@/vite/logger";
 
 const enUS = getHelpTranslations("en-US");
 const ptBR = getHelpTranslations("pt-BR");
@@ -713,6 +715,24 @@ describe("help-generator", () => {
     let docsDir: string;
     let labelsDir: string;
 
+    // Write the node-defs.json the server build produces — the hand-off file the
+    // help generator reads. It NO LONGER re-imports the built server bundle
+    // (which, in a prod build, has its imports rewritten to @bonsae/nrg-runtime
+    // and can't resolve at author build time — the M2 bug).
+    function writeNodeDefs(defs: Record<string, any>[]) {
+      const file = nodeDefsPath(outDir);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const definitions: Record<string, any> = {};
+      for (const d of defs) if (d.type) definitions[d.type] = d;
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          nodeTypes: Object.keys(definitions),
+          definitions,
+        }),
+      );
+    }
+
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nrg-test-helpgen-"));
       outDir = path.join(tmpDir, "out");
@@ -744,7 +764,8 @@ describe("help-generator", () => {
       expect(plugin.closeBundle).toBeTypeOf("function");
     });
 
-    it("does nothing when no built output exists", async () => {
+    it("warns and does nothing when node-defs.json is absent", async () => {
+      const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const plugin = helpGenerator({
         outDir,
         localesOutDir,
@@ -754,31 +775,30 @@ describe("help-generator", () => {
 
       await (plugin.closeBundle as Function).call({});
 
+      expect(warn).toHaveBeenCalledTimes(1);
       expect(fs.readdirSync(localesOutDir)).toEqual([]);
     });
 
-    it("generates help files from CJS module", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "test-node",
-            configSchema: {
-              properties: {
-                host: { type: "string", default: "localhost" },
-              },
-            },
+    it("generates help from node-defs.json WITHOUT importing any bundle (M2)", async () => {
+      // Regression guard for M2: deliberately write NO index.js/index.mjs. A
+      // prod build's bundle imports @bonsae/nrg-runtime (absent at author build
+      // time); if help-gen ever re-imports the bundle again this fails.
+      writeNodeDefs([
+        {
+          type: "test-node",
+          configSchema: {
+            properties: { host: { type: "string", default: "localhost" } },
           },
-        ] } };`,
-      );
-
+        },
+      ]);
       const nodeLabelsDir = path.join(labelsDir, "test-node");
       fs.mkdirSync(nodeLabelsDir);
       fs.writeFileSync(
         path.join(nodeLabelsDir, "en-US.json"),
         JSON.stringify({ configs: { host: "Host" } }),
       );
+      expect(fs.existsSync(path.join(outDir, "index.js"))).toBe(false);
+      expect(fs.existsSync(path.join(outDir, "index.mjs"))).toBe(false);
 
       const plugin = helpGenerator({
         outDir,
@@ -797,18 +817,12 @@ describe("help-generator", () => {
     });
 
     it("skips node when manual .md docs exist", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "manual-node",
-            configSchema: {
-              properties: { host: { type: "string" } },
-            },
-          },
-        ] } };`,
-      );
+      writeNodeDefs([
+        {
+          type: "manual-node",
+          configSchema: { properties: { host: { type: "string" } } },
+        },
+      ]);
 
       const manualDir = path.join(docsDir, "manual-node");
       fs.mkdirSync(manualDir);
@@ -827,18 +841,12 @@ describe("help-generator", () => {
     });
 
     it("skips node when manual .html docs exist", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "html-node",
-            configSchema: {
-              properties: { host: { type: "string" } },
-            },
-          },
-        ] } };`,
-      );
+      writeNodeDefs([
+        {
+          type: "html-node",
+          configSchema: { properties: { host: { type: "string" } } },
+        },
+      ]);
 
       const manualDir = path.join(docsDir, "html-node");
       fs.mkdirSync(manualDir);
@@ -856,14 +864,10 @@ describe("help-generator", () => {
       expect(fs.existsSync(path.join(localesOutDir, "en-US"))).toBe(false);
     });
 
-    it("skips nodes without type", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          { configSchema: { properties: { host: { type: "string" } } } },
-        ] } };`,
-      );
+    it("skips defs without type", async () => {
+      writeNodeDefs([
+        { configSchema: { properties: { host: { type: "string" } } } },
+      ]);
 
       const plugin = helpGenerator({
         outDir,
@@ -878,18 +882,14 @@ describe("help-generator", () => {
     });
 
     it("auto-adds en-US when not in discovered languages", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "no-labels-node",
-            configSchema: {
-              properties: { port: { type: "number", default: 8080 } },
-            },
+      writeNodeDefs([
+        {
+          type: "no-labels-node",
+          configSchema: {
+            properties: { port: { type: "number", default: 8080 } },
           },
-        ] } };`,
-      );
+        },
+      ]);
 
       const plugin = helpGenerator({
         outDir,
@@ -906,18 +906,14 @@ describe("help-generator", () => {
     });
 
     it("generates for multiple languages", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "multi-lang",
-            configSchema: {
-              properties: { host: { type: "string", default: "localhost" } },
-            },
+      writeNodeDefs([
+        {
+          type: "multi-lang",
+          configSchema: {
+            properties: { host: { type: "string", default: "localhost" } },
           },
-        ] } };`,
-      );
+        },
+      ]);
 
       const nodeLabelsDir = path.join(labelsDir, "multi-lang");
       fs.mkdirSync(nodeLabelsDir);
@@ -948,18 +944,14 @@ describe("help-generator", () => {
     });
 
     it("appends to existing index.html", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "append-node",
-            configSchema: {
-              properties: { val: { type: "string", default: "x" } },
-            },
+      writeNodeDefs([
+        {
+          type: "append-node",
+          configSchema: {
+            properties: { val: { type: "string", default: "x" } },
           },
-        ] } };`,
-      );
+        },
+      ]);
 
       const langDir = path.join(localesOutDir, "en-US");
       fs.mkdirSync(langDir, { recursive: true });
@@ -985,9 +977,11 @@ describe("help-generator", () => {
       expect(content).toContain("append-node");
     });
 
-    it("handles import failure gracefully", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(cjsPath, "throw new Error('bad module');");
+    it("warns and does not throw on malformed node-defs.json", async () => {
+      const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+      const file = nodeDefsPath(outDir);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, "not valid json{{{");
 
       const plugin = helpGenerator({
         outDir,
@@ -999,18 +993,12 @@ describe("help-generator", () => {
       await expect(
         (plugin.closeBundle as Function).call({}),
       ).resolves.not.toThrow();
-
+      expect(warn).toHaveBeenCalledTimes(1);
       expect(fs.readdirSync(localesOutDir)).toEqual([]);
     });
 
     it("skips node when generateHelpDoc produces no content", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          { type: "empty-node" },
-        ] } };`,
-      );
+      writeNodeDefs([{ type: "empty-node" }]);
 
       const plugin = helpGenerator({
         outDir,
@@ -1024,123 +1012,21 @@ describe("help-generator", () => {
       expect(fs.readdirSync(localesOutDir)).toEqual([]);
     });
 
-    it("generates help files from ESM module", async () => {
-      const esmPath = path.join(outDir, "index.mjs");
-      fs.writeFileSync(
-        esmPath,
-        `export default { nodes: [
-          {
-            type: "esm-node",
-            configSchema: {
-              properties: { host: { type: "string", default: "localhost" } },
-            },
-          },
-        ] };`,
-      );
-
-      const plugin = helpGenerator({
-        outDir,
-        localesOutDir,
-        docsDir,
-        labelsDir,
-      });
-
-      await (plugin.closeBundle as Function).call({});
-
-      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
-      expect(fs.existsSync(htmlPath)).toBe(true);
-      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("esm-node");
-    });
-
-    it("prefers ESM over CJS when both exist", async () => {
-      const esmPath = path.join(outDir, "index.mjs");
-      fs.writeFileSync(
-        esmPath,
-        `export default { nodes: [
-          {
-            type: "esm-priority",
-            configSchema: {
-              properties: { val: { type: "string", default: "esm" } },
-            },
-          },
-        ] };`,
-      );
-
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "cjs-priority",
-            configSchema: {
-              properties: { val: { type: "string", default: "cjs" } },
-            },
-          },
-        ] } };`,
-      );
-
-      const plugin = helpGenerator({
-        outDir,
-        localesOutDir,
-        docsDir,
-        labelsDir,
-      });
-
-      await (plugin.closeBundle as Function).call({});
-
-      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
-      const content = fs.readFileSync(htmlPath, "utf-8");
-      expect(content).toContain("esm-priority");
-      expect(content).not.toContain("cjs-priority");
-    });
-
-    it("handles module with nodes on top-level export (no default)", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { nodes: [
-          {
-            type: "top-level-node",
-            configSchema: {
-              properties: { url: { type: "string", default: "http://x" } },
-            },
-          },
-        ] };`,
-      );
-
-      const plugin = helpGenerator({
-        outDir,
-        localesOutDir,
-        docsDir,
-        labelsDir,
-      });
-
-      await (plugin.closeBundle as Function).call({});
-
-      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
-      expect(fs.existsSync(htmlPath)).toBe(true);
-      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("top-level-node");
-    });
-
     it("aggregates multiple nodes into the same language file", async () => {
-      const cjsPath = path.join(outDir, "index.js");
-      fs.writeFileSync(
-        cjsPath,
-        `module.exports = { default: { nodes: [
-          {
-            type: "node-a",
-            configSchema: {
-              properties: { host: { type: "string", default: "a" } },
-            },
+      writeNodeDefs([
+        {
+          type: "node-a",
+          configSchema: {
+            properties: { host: { type: "string", default: "a" } },
           },
-          {
-            type: "node-b",
-            configSchema: {
-              properties: { port: { type: "number", default: 80 } },
-            },
+        },
+        {
+          type: "node-b",
+          configSchema: {
+            properties: { port: { type: "number", default: 80 } },
           },
-        ] } };`,
-      );
+        },
+      ]);
 
       const plugin = helpGenerator({
         outDir,
@@ -1155,35 +1041,6 @@ describe("help-generator", () => {
       const content = fs.readFileSync(htmlPath, "utf-8");
       expect(content).toContain('data-help-name="node-a"');
       expect(content).toContain('data-help-name="node-b"');
-    });
-
-    it("loads ESM module without default export", async () => {
-      const esmPath = path.join(outDir, "index.mjs");
-      fs.writeFileSync(
-        esmPath,
-        `const nodes = [
-          {
-            type: "named-export-node",
-            configSchema: {
-              properties: { val: { type: "string", default: "x" } },
-            },
-          },
-        ];
-        export { nodes };`,
-      );
-
-      const plugin = helpGenerator({
-        outDir,
-        localesOutDir,
-        docsDir,
-        labelsDir,
-      });
-
-      await (plugin.closeBundle as Function).call({});
-
-      const htmlPath = path.join(localesOutDir, "en-US", "index.html");
-      expect(fs.existsSync(htmlPath)).toBe(true);
-      expect(fs.readFileSync(htmlPath, "utf-8")).toContain("named-export-node");
     });
   });
 });

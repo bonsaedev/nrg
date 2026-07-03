@@ -1,8 +1,12 @@
 import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
-import type { TNodeRef, TTypedInput, Infer } from "@/core/server/schemas/types";
+import type { Infer, NamedPortsBrand } from "@/core/server/schemas/types";
 import type TypedInput from "@/core/server/typed-input";
-import type { TypedInputResolved } from "@/core/shared/types";
+import type {
+  TypedInputBrand,
+  TNodeRef,
+  TTypedInput,
+} from "@/core/shared/schemas/types";
 
 function nodeRef<T>(): TNodeRef<T> {
   return { [Kind]: "NodeRef", type: "string", format: "node-id" } as any;
@@ -50,14 +54,14 @@ describe("Server Infer", () => {
     }>();
   });
 
-  it("TypedInput schema carries the shared TypedInputResolved brand", () => {
-    // The schema's `static` carrier is the nominal TypedInputResolved<T> brand
+  it("TypedInput schema carries the shared TypedInputBrand brand", () => {
+    // The schema's `static` carrier is the nominal TypedInputBrand<T> brand
     // (server-class-free). Each plane maps it: server ResolvedStatic →
-    // TypedInput<T>, client EditorStatic → TypedInputValue. If the carrier
+    // TypedInput<T>, client EditorStatic → TypedInput. If the carrier
     // stops being the brand, both planes' inference would silently degrade, so
     // this must stay a compile-time guarantee.
     expectTypeOf<TTypedInput<string>["static"]>().toEqualTypeOf<
-      TypedInputResolved<string>
+      TypedInputBrand<string>
     >();
   });
 
@@ -108,16 +112,20 @@ describe("Server Infer", () => {
     expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{ nodes: Node[] }>();
   });
 
-  it("infers record of schemas as port map", () => {
+  it("infers record of schemas as a NamedPortsBrand-tagged port map", () => {
     const success = schema({ payload: Type.String() });
     const failure = schema({ error: Type.String() });
     const outputs = { success, failure } as const;
 
+    // The record form of Infer carries NamedPortsBrand so named-port routing is
+    // sound; the per-port message types are unbranded.
     type Ports = Infer<typeof outputs>;
-    expectTypeOf<Ports>().toEqualTypeOf<{
-      success: { payload: string };
-      failure: { error: string };
-    }>();
+    expectTypeOf<Ports>().toEqualTypeOf<
+      {
+        success: { payload: string };
+        failure: { error: string };
+      } & NamedPortsBrand
+    >();
   });
 
   it("resolves NodeRef inside record of schemas", () => {
@@ -128,9 +136,11 @@ describe("Server Infer", () => {
     const outputs = { data: portSchema } as const;
 
     type Ports = Infer<typeof outputs>;
-    expectTypeOf<Ports>().toEqualTypeOf<{
-      data: { conn: Conn };
-    }>();
+    expectTypeOf<Ports>().toEqualTypeOf<
+      {
+        data: { conn: Conn };
+      } & NamedPortsBrand
+    >();
   });
 
   it("does not collapse to any", () => {

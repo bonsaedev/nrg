@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { setupConfigProxy } from "@/core/server/nodes/proxy";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import { defineConfigNode } from "@/core/server/nodes/factories";
 import type TypedInput from "@/core/server/typed-input";
 import { NrgError } from "@/core/shared/errors";
+import { NRG_NODE, NRG_CONFIG_NODE } from "@/core/server/nodes/symbols";
 import { createRED, createNodeRedNode } from "@mocks/red";
 
 const RemoteServer = defineConfigNode({ type: "remote-server" });
@@ -25,10 +26,13 @@ describe("setupConfigProxy", () => {
       });
 
       const config = { server: "server-1", name: "test" };
-      const schema = defineSchema({
-        server: SchemaType.NodeRef(RemoteServer.type),
-        name: SchemaType.String(),
-      });
+      const schema = defineSchema(
+        {
+          server: SchemaType.NodeRef(RemoteServer.type),
+          name: SchemaType.String(),
+        },
+        { $id: "proxy.test:1" },
+      );
 
       const proxy = setupConfigProxy({
         RED,
@@ -42,10 +46,13 @@ describe("setupConfigProxy", () => {
     it("should NOT resolve plain strings as node references", () => {
       const RED = createRED();
       const config = { server: "some-string", name: "my-node" };
-      const schema = defineSchema({
-        server: SchemaType.String(),
-        name: SchemaType.String(),
-      });
+      const schema = defineSchema(
+        {
+          server: SchemaType.String(),
+          name: SchemaType.String(),
+        },
+        { $id: "proxy.test:2" },
+      );
 
       const proxy = setupConfigProxy({
         RED,
@@ -61,9 +68,12 @@ describe("setupConfigProxy", () => {
     it("should return the raw ID when node is not found", () => {
       const RED = createRED();
       const config = { server: "missing-id" };
-      const schema = defineSchema({
-        server: SchemaType.NodeRef(RemoteServer.type),
-      });
+      const schema = defineSchema(
+        {
+          server: SchemaType.NodeRef(RemoteServer.type),
+        },
+        { $id: "proxy.test:3" },
+      );
 
       const proxy = setupConfigProxy({
         RED,
@@ -77,9 +87,12 @@ describe("setupConfigProxy", () => {
     it("resolves an unset (empty) reference to undefined, not the raw string", () => {
       const RED = createRED();
       const config = { server: "" };
-      const schema = defineSchema({
-        server: SchemaType.NodeRef(RemoteServer.type),
-      });
+      const schema = defineSchema(
+        {
+          server: SchemaType.NodeRef(RemoteServer.type),
+        },
+        { $id: "proxy.test:4" },
+      );
 
       const proxy = setupConfigProxy({
         RED,
@@ -91,6 +104,65 @@ describe("setupConfigProxy", () => {
       // `this.config.server.method()` fails clearly instead of `"".method`.
       expect(proxy.server).toBeUndefined();
       expect(RED.nodes.getNode).not.toHaveBeenCalled();
+    });
+
+    it("throws when a NodeRef resolves to a branded nrg node that is NOT a config node", () => {
+      // The misconfiguration a JS author gets no compile-time help catching:
+      // a config field pointing at an nrg node that isn't a config node. The
+      // resolved target's class carries NRG_NODE but not the NRG_CONFIG_NODE
+      // instance brand.
+      class NrgIoNode {}
+      (NrgIoNode as unknown as Record<symbol, unknown>)[NRG_NODE] = true;
+      const ioInstance = new NrgIoNode() as Record<string, unknown>;
+      ioInstance.id = "server-1";
+      ioInstance.type = "remote-server";
+
+      const RED = createRED();
+      RED.registerNrgNode("server-1", ioInstance);
+      const schema = defineSchema(
+        {
+          server: SchemaType.NodeRef(RemoteServer.type),
+        },
+        { $id: "proxy.test:5" },
+      );
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode({ id: "server-1", type: "remote-server" }),
+        config: { server: "server-1" },
+        schema,
+      });
+
+      expect(() => proxy.server).toThrow(NrgError);
+      expect(() => proxy.server).toThrow(/not an nrg config node/);
+    });
+
+    it("resolves a NodeRef to a branded config node without throwing", () => {
+      class NrgConfigNode {}
+      (NrgConfigNode as unknown as Record<symbol, unknown>)[NRG_NODE] = true;
+      const cfgInstance = new NrgConfigNode() as Record<
+        string | symbol,
+        unknown
+      >;
+      cfgInstance.id = "server-1";
+      cfgInstance.type = "remote-server";
+      cfgInstance[NRG_CONFIG_NODE] = true; // the runtime config-node brand
+
+      const RED = createRED();
+      RED.registerNrgNode("server-1", cfgInstance);
+      const schema = defineSchema(
+        {
+          server: SchemaType.NodeRef(RemoteServer.type),
+        },
+        { $id: "proxy.test:6" },
+      );
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode({ id: "server-1", type: "remote-server" }),
+        config: { server: "server-1" },
+        schema,
+      });
+
+      expect(proxy.server).toBe(cfgInstance);
     });
   });
 
@@ -155,9 +227,12 @@ describe("setupConfigProxy", () => {
     it("should return raw value for id", () => {
       const RED = createRED();
       const config = { id: "node-123", name: "test" };
-      const schema = defineSchema({
-        id: SchemaType.NodeRef(SomeNode.type),
-      });
+      const schema = defineSchema(
+        {
+          id: SchemaType.NodeRef(SomeNode.type),
+        },
+        { $id: "proxy.test:7" },
+      );
 
       const proxy = setupConfigProxy({
         RED,
@@ -254,10 +329,13 @@ describe("setupConfigProxy", () => {
 
   describe("TypedInput resolution", () => {
     function makeTypedInputSchema() {
-      return defineSchema({
-        target: SchemaType.TypedInput(),
-        name: SchemaType.String(),
-      });
+      return defineSchema(
+        {
+          target: SchemaType.TypedInput(),
+          name: SchemaType.String(),
+        },
+        { $id: "proxy.test:8" },
+      );
     }
 
     it("should return a TypedInputRef for TypedInput-marked props", () => {
@@ -404,10 +482,13 @@ describe("setupConfigProxy", () => {
     it("should not wrap non-TypedInput objects as refs", () => {
       const RED = createRED();
       const config = { settings: { value: "x", type: "str" }, name: "test" };
-      const schema = defineSchema({
-        settings: SchemaType.Object({}),
-        name: SchemaType.String(),
-      });
+      const schema = defineSchema(
+        {
+          settings: SchemaType.Object({}),
+          name: SchemaType.String(),
+        },
+        { $id: "proxy.test:9" },
+      );
 
       const proxy = setupConfigProxy({
         RED,
@@ -417,6 +498,128 @@ describe("setupConfigProxy", () => {
       });
       expect(proxy.settings.value).toBe("x");
       expect(typeof (proxy.settings as any).resolve).toBe("undefined");
+    });
+  });
+
+  describe("path-aware resolution & read-only arrays", () => {
+    it("does not resolve a nested field that shares a name with a top-level NodeRef", () => {
+      const RED = createRED();
+      const config = {
+        server: "server-1", // a real top-level NodeRef
+        nested: { server: "just-a-string" }, // same name, NOT a ref here
+      };
+      const schema = defineSchema(
+        {
+          server: SchemaType.NodeRef(RemoteServer.type),
+          nested: SchemaType.Object({ server: SchemaType.String() }),
+        },
+        { $id: "proxy.test:nested-collision" },
+      );
+
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      }) as any;
+
+      // Resolved by bare NAME (the old bug), `nested.server` would call
+      // getNode("just-a-string"); path-aware resolution leaves it a raw string.
+      expect(proxy.nested.server).toBe("just-a-string");
+      expect(RED.nodes.getNode).not.toHaveBeenCalledWith("just-a-string");
+    });
+
+    it("resolves a NodeRef nested inside an object", () => {
+      const nrgInstance = { id: "srv", type: "remote-server" } as any;
+      const RED = createRED();
+      RED.registerNrgNode("srv", nrgInstance);
+      const config = { conn: { server: "srv" } };
+      const schema = defineSchema(
+        {
+          conn: SchemaType.Object({
+            server: SchemaType.NodeRef(RemoteServer.type),
+          }),
+        },
+        { $id: "proxy.test:nested-ref" },
+      );
+
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      }) as any;
+
+      // The type (ResolvedStatic) says nested refs resolve — now the runtime agrees.
+      expect(proxy.conn.server).toBe(nrgInstance);
+    });
+
+    it("resolves NodeRefs inside array elements", () => {
+      const a = { id: "a", type: "remote-server" } as any;
+      const RED = createRED();
+      RED.registerNrgNode("a", a);
+      const config = { servers: [{ ref: "a" }] };
+      const schema = defineSchema(
+        {
+          servers: SchemaType.Array(
+            SchemaType.Object({ ref: SchemaType.NodeRef(RemoteServer.type) }),
+          ),
+        },
+        { $id: "proxy.test:array-ref" },
+      );
+
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      }) as any;
+
+      expect(proxy.servers[0].ref).toBe(a);
+    });
+
+    it("rejects writes to array fields, like objects", () => {
+      const RED = createRED();
+      const config = { tags: ["a", "b"] };
+      const schema = defineSchema(
+        { tags: SchemaType.Array(SchemaType.String()) },
+        { $id: "proxy.test:array-write" },
+      );
+
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      }) as any;
+
+      expect(proxy.tags[0]).toBe("a"); // reads still work
+      expect(() => {
+        proxy.tags[0] = "z";
+      }).toThrow(NrgError);
+      expect(() => proxy.tags.push("c")).toThrow(NrgError);
+      // the raw config never diverges from a mutable copy
+      expect(config.tags).toEqual(["a", "b"]);
+    });
+
+    it("rejects deleting a config property", () => {
+      const RED = createRED();
+      const config = { name: "x" };
+      const schema = defineSchema(
+        { name: SchemaType.String() },
+        { $id: "proxy.test:delete" },
+      );
+
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config,
+        schema,
+      }) as any;
+
+      expect(() => {
+        delete proxy.name;
+      }).toThrow(NrgError);
     });
   });
 });

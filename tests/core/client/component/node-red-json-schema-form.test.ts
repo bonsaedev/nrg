@@ -2,6 +2,7 @@ import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-schema-form.vue";
 import { createNode } from "@/test/client/component";
+import { getJQueryState } from "@/test/client/mocks/jquery";
 
 describe("NodeRedJsonSchemaForm", () => {
   test("skips the built-in per-port output fields (rendered by the app shell)", () => {
@@ -400,6 +401,85 @@ describe("NodeRedJsonSchemaForm", () => {
     });
     const formRows = screen.container.querySelectorAll(".form-row");
     expect(formRows.length).toBe(0);
+  });
+
+  test("marks x-nrg-form.required fields with an asterisk", async () => {
+    const { node } = createNode({ apiKey: "", note: "" });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          // TypeBox lists every non-Optional prop here — the form must NOT use
+          // it for the asterisk, only genuine constraints.
+          required: ["apiKey", "note"],
+          properties: {
+            apiKey: {
+              type: "string",
+              title: "API Key",
+              "x-nrg-form": { required: true },
+            },
+            note: { type: "string", title: "Note" },
+          },
+        },
+      },
+    });
+    // Exactly one asterisk — the required field, not the plain one.
+    const asterisks = screen.container.querySelectorAll(".nrg-required");
+    expect(asterisks.length).toBe(1);
+  });
+
+  test("marks minLength>=1 string fields as required", async () => {
+    const { node } = createNode({ code: "" });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: {
+            code: { type: "string", title: "Code", minLength: 1 },
+          },
+        },
+      },
+    });
+    await expect.element(screen.getByText("*")).toBeInTheDocument();
+  });
+
+  test("resolves per-option labels from i18n, falling back to the raw value", async () => {
+    const { node } = createNode({ mode: "bypassPermissions" });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: {
+            mode: {
+              title: "Permission mode",
+              anyOf: [{ const: "default" }, { const: "bypassPermissions" }],
+            },
+          },
+        },
+      },
+      global: {
+        mocks: {
+          // Resolve one option; leave the other unset so we exercise the
+          // raw-value fallback. `$i18n` echoes the key when unmapped.
+          $i18n: (key: string) =>
+            key === "options.mode.bypassPermissions"
+              ? "Full autonomy (no prompts)"
+              : key,
+        },
+      },
+    });
+    const select = screen.container.querySelector("input.node-input-select")!;
+    const options = getJQueryState(select).typedInput?.types?.[0]?.options as {
+      value: string;
+      label: string;
+    }[];
+    expect(options).toEqual([
+      { value: "default", label: "default" },
+      { value: "bypassPermissions", label: "Full autonomy (no prompts)" },
+    ]);
   });
 
   test("object field: renders a Monaco JSON editor and parses to a real object", async () => {

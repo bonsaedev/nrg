@@ -141,9 +141,7 @@ describe("Logger", () => {
       const log = new Logger({ name: "test", prefix: "pfx" });
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       log.raw("raw message");
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("pfx"),
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("pfx"));
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining("raw message"),
       );
@@ -216,9 +214,7 @@ describe("Logger", () => {
       const log = new Logger({ name: "test" });
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       log.endGroup();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Done"),
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Done"));
       consoleSpy.mockRestore();
     });
   });

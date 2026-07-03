@@ -106,9 +106,9 @@ describe("static-copy", () => {
       (plugin as any).closeBundle();
 
       expect(fs.existsSync(path.join(deepDest, "file.txt"))).toBe(true);
-      expect(
-        fs.readFileSync(path.join(deepDest, "file.txt"), "utf-8"),
-      ).toBe("content");
+      expect(fs.readFileSync(path.join(deepDest, "file.txt"), "utf-8")).toBe(
+        "content",
+      );
     });
 
     it("copies multiple targets independently", () => {

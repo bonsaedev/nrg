@@ -1,5 +1,5 @@
 import type { RED, NodeRedNode } from "./red";
-import type { TypedInputType } from "../shared/schemas/types";
+import type { TypedInputType } from "../shared/constants";
 
 export default class TypedInput<T = unknown> {
   private readonly resolvers: Partial<

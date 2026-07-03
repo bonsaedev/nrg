@@ -1,4 +1,4 @@
-import type { Static, TSchema } from "@sinclair/typebox";
+import type { Static, TSchema } from "../../../shared/schemas";
 import type { IONodeConfigSchema } from "../../schemas";
 import type { BUILTIN_PORT_KEYS } from "../../../shared/constants";
 import type { RED } from "../../red";
@@ -10,7 +10,11 @@ import type {
   NodeContextStore,
   NodeContextScope,
 } from "./node";
-import type { InferOr, InferOutputs } from "../../schemas/types";
+import type {
+  InferOr,
+  InferOutputs,
+  OutputPortNames,
+} from "../../schemas/types";
 
 type IONodeContextScope = NodeContextScope;
 
@@ -48,6 +52,12 @@ type IONodeContext = {
   global: NodeContextStore;
 };
 
+/**
+ * Node palette color. The template-literal type only enforces a leading `#`
+ * (an exact 6-hex-digit template type is infeasible — it explodes to `TS2590`),
+ * so shorthand (`#abc`) and invalid hex type-check but are rejected at runtime.
+ * The real gate is the `/^#[0-9A-Fa-f]{6}$/` check in `Node.register`.
+ */
 type HexColor = `#${string}`;
 
 type BoundIONode<
@@ -93,13 +103,7 @@ interface IIONode<
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
-  sendToPort<
-    P extends
-      | (TOutput extends Record<string, Record<string, any>>
-          ? keyof TOutput & string
-          : never)
-      | number,
-  >(
+  sendToPort<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput ? TOutput[P] : unknown,
   ): void;

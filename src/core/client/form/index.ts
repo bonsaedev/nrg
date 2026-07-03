@@ -11,7 +11,7 @@ import NodeRedEditorInput from "./components/node-red-editor-input.vue";
 import NodeRedInputLabel from "./components/node-red-input-label.vue";
 import NodeRedToggle from "./components/node-red-toggle.vue";
 import NodeRedJsonSchemaForm from "./components/node-red-json-schema-form.vue";
-import type { NodeRedNode, NodeFormDefinition, NodeFeatures } from "../types";
+import type { NodeFormDefinition, NodeFeatures, NodeRedNode } from "../types";
 
 function createNodeRedVueApp(
   node: NodeRedNode,
@@ -48,8 +48,16 @@ export function mountApp(
   containerId: string,
 ) {
   $(`#${containerId}`).empty();
-  node._newState = cloneDeep(node);
-  node._app = createNodeRedVueApp(node._newState, form, schema, features);
+  // Clone real node state only — exclude a prior working copy (`_newState`) and
+  // the mounted Vue app (`_app`). Both are own-enumerable props, so cloning the
+  // raw `node` would nest the previous `_newState` one level deeper on every
+  // re-open (O(N) retained memory + clone cost across an editor session).
+  const { _newState: _prevState, _app: _prevApp, ...state } = node as any;
+  void _prevState;
+  void _prevApp;
+  const working = cloneDeep(state) as NodeRedNode;
+  node._newState = working;
+  node._app = createNodeRedVueApp(working, form, schema, features);
   node._app.mount(`#${containerId}`);
 }
 

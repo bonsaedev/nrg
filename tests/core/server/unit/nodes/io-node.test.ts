@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { IONode } from "@/core/server/nodes/io-node";
 import { initValidator } from "@/core/server/validation";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 class TestIONode extends IONode {
   static override readonly type = "test-io-node";
@@ -116,7 +116,7 @@ describe("IONode", () => {
 
       // Wire up event handlers
       const createdPromise = Promise.resolve();
-      instance[WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_WIRE_HANDLERS](node, createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();
@@ -147,7 +147,7 @@ describe("IONode", () => {
       const instance = new ValidatedIONode(RED, node, {}, {});
 
       const createdPromise = Promise.resolve();
-      instance[WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_WIRE_HANDLERS](node, createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();
@@ -179,7 +179,7 @@ describe("IONode", () => {
       const instance = new NoValidateIONode(RED, node, {}, {});
 
       const createdPromise = Promise.resolve();
-      instance[WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_WIRE_HANDLERS](node, createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();
@@ -207,7 +207,7 @@ describe("IONode", () => {
 
       const instance = new SendingNode(RED, node, {}, {});
       const createdPromise = Promise.resolve();
-      instance[WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_WIRE_HANDLERS](node, createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();

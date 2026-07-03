@@ -1,4 +1,4 @@
-import type { Static, TSchema } from "@sinclair/typebox";
+import type { Static, TSchema } from "../../../shared/schemas";
 import type { RED } from "../../red";
 import type { ConfigNode } from "../config-node";
 import type {
@@ -10,7 +10,7 @@ import type {
 } from "./node";
 import type { InferOr } from "../../schemas/types";
 import type { ConfigNodeConfigSchema } from "../../schemas";
-import type { ConfigNodeBrand } from "../../../shared/types";
+import type { ConfigNodeBrand } from "../../../shared/schemas/types";
 
 type ConfigNodeContextScope = Exclude<NodeContextScope, "flow">;
 

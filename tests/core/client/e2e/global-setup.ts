@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 import { NodeRedTestEnvironment } from "@/test/client/e2e";
 import {
@@ -80,6 +81,29 @@ export const FIXTURE_FLOW: Record<string, unknown>[] = [
 
 export async function setup() {
   setupFixtureNodeModules(FIXTURE_DIR);
+
+  // The launched runtime (a copy of the BUILT @bonsae/nrg-runtime) serves the
+  // editor client under its content-hashed name (nrg.<hash>.js). Here the client
+  // fixture is built with the un-injected SOURCE vite plugin, so hand it the
+  // exact hashed name the runtime will serve — otherwise the rewritten
+  // `@bonsae/nrg/client` URL 404s and the editor forms never load.
+  const runtimeResDir = path.join(
+    FIXTURE_DIR,
+    "node_modules/@bonsae/nrg-runtime/server/resources",
+  );
+  const clientAsset = fs
+    .readdirSync(runtimeResDir)
+    .find((f) => /^nrg\.[0-9a-f]+\.js$/.test(f));
+  // Fail loudly rather than fall back to the un-hashed dev name — a missing
+  // hashed asset means the runtime build is missing/stale, and a silent
+  // fallback would 404 every form and reproduce an inscrutable e2e timeout.
+  if (!clientAsset) {
+    throw new Error(
+      `No hashed client asset (nrg.<hash>.js) found in ${runtimeResDir} — ` +
+        "the @bonsae/nrg-runtime build is missing or stale; run `pnpm build` first.",
+    );
+  }
+  process.env.NRG_CLIENT_ASSET = clientAsset;
 
   env = new NodeRedTestEnvironment({
     projectDir: FIXTURE_DIR,

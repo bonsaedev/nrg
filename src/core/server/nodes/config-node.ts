@@ -1,5 +1,6 @@
 import type { RED, NodeRedNode } from "../red";
 import { Node } from "./node";
+import { NRG_CONFIG_NODE } from "./symbols";
 import type {
   ConfigNodeConfig,
   ConfigNodeContext,
@@ -19,6 +20,11 @@ import { setupContext } from "./context";
  *   static readonly type = "my-server";
  * }
  * ```
+ *
+ * @typeParam TConfig - config shape (position 1)
+ * @typeParam TCredentials - credentials shape (position 2)
+ * @typeParam TSettings - settings shape (position 3) — same order as
+ *   {@link Node}; {@link IONode} differs (settings is at position 5 there).
  */
 abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
   extends Node<TConfig, TCredentials, TSettings>
@@ -27,9 +33,14 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
   public static override readonly category: string = "config";
   declare public readonly config: ConfigNodeConfig<TConfig>;
 
-  // Phantom marker (type-only, no runtime field) so `SchemaType.NodeRef<T>` can
-  // require T to be a config node. See ConfigNodeBrand in core/types.
+  // Compile-time brand (type-only phantom) so `SchemaType.NodeRef<T>` can require
+  // T to be a config node. See ConfigNodeBrand in shared/schemas/types.
   declare public readonly __nrg_config_node: true;
+
+  // Runtime counterpart: a real property so runtime code (the config proxy's
+  // NodeRef resolution) can verify a referenced node is a config node — the only
+  // guard a JS author gets. See NRG_CONFIG_NODE in ./symbols.
+  public readonly [NRG_CONFIG_NODE] = true;
 
   protected override readonly context: ConfigNodeContext;
 

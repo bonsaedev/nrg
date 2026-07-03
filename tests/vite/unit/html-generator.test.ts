@@ -50,7 +50,7 @@ describe("html-generator", () => {
       );
     });
 
-    it("generates <link rel=\"stylesheet\"> for .css files", () => {
+    it('generates <link rel="stylesheet"> for .css files', () => {
       const plugin = getPlugin({ packageName: "my-package" });
       const emitFile = vi.fn();
       const bundle = {
@@ -65,7 +65,7 @@ describe("html-generator", () => {
       );
     });
 
-    it("generates <link rel=\"preload\" as=\"font\"> for font files", () => {
+    it('generates <link rel="preload" as="font"> for font files', () => {
       const plugin = getPlugin({ packageName: "my-package" });
       const emitFile = vi.fn();
       const bundle = {

@@ -1,9 +1,14 @@
 <template>
-  <span class="nrg-label">
+  <component
+    :is="htmlFor ? 'label' : 'span'"
+    :id="labelId || undefined"
+    class="nrg-label"
+    :for="htmlFor || undefined"
+  >
     <i v-if="icon" :class="iconClass"></i>
     <slot>{{ label }}</slot>
     <span v-if="required" class="nrg-required">*</span>
-  </span>
+  </component>
 </template>
 
 <script lang="ts">
@@ -23,6 +28,18 @@ export default defineComponent({
     required: {
       type: Boolean,
       default: false,
+    },
+    /** When set, render a real `<label for>` bound to a native control's id.
+     *  Otherwise a plain `<span>` (unchanged default). */
+    htmlFor: {
+      type: String,
+      default: "",
+    },
+    /** Puts an `id` on the label so a rehomed widget (jQuery typedInput, ACE
+     *  editor) can reference it via `aria-labelledby`, where `for` can't work. */
+    labelId: {
+      type: String,
+      default: "",
     },
   },
   computed: {

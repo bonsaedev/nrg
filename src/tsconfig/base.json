@@ -5,6 +5,7 @@
     "checkJs": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmit": true,
@@ -17,7 +18,8 @@
     "skipLibCheck": true,
     "strict": true,
     "stripInternal": true,
-    "target": "ES2022"
+    "target": "ES2022",
+    "verbatimModuleSyntax": true
   },
   "exclude": ["node_modules", "dist"]
 }

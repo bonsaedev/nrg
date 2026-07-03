@@ -1,5 +1,5 @@
-import { Node } from "./nodes";
-import type { NodeConstructor } from "./nodes/types";
+import type { NodeConstructor } from "./nodes";
+import { NRG_NODE } from "./nodes/symbols";
 import type { RED } from "./red";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
@@ -16,7 +16,9 @@ import { NrgError } from "../shared/errors";
 async function registerType(RED: RED, NodeClass: NodeConstructor) {
   RED.log.debug(`Registering Type: ${NodeClass.type}`);
 
-  if (!(NodeClass.prototype instanceof Node)) {
+  // Symbol brand check (not `instanceof Node`): robust across the toolkit/runtime
+  // bundle split, where a duplicate `Node` class identity would break instanceof.
+  if (!(NodeClass as unknown as Record<symbol, unknown>)[NRG_NODE]) {
     throw new NrgError(
       `${NodeClass.name} must extend IONode or ConfigNode classes`,
     );

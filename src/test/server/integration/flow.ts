@@ -1,8 +1,8 @@
-import { setupContext } from "../../../core/server/nodes/context";
+import { setupContext } from "@/core/server/nodes/context";
 import type {
   NodeConstructor,
   NodeContextStore,
-} from "../../../core/server/nodes/types/node";
+} from "@/core/server/nodes/types/node";
 import type { Recorder } from "./recorder";
 import type { NodeRedApi, RuntimeNode } from "./runtime";
 
@@ -76,7 +76,15 @@ class NodeRef {
     return this;
   }
 
-  /** Deliver a message to this node's input (Node-RED's upstream path). */
+  /**
+   * Deliver a message to this node's input (Node-RED's upstream path) and settle
+   * once the node has FINISHED processing it — i.e. called `done()` — so that
+   * `await ref.receive(m); expect(ref.sent())…` is reliable even when `input()`
+   * awaits async work. (The prior single-tick settle raced such handlers.)
+   *
+   * NOTE: this waits for *this node's* completion. Emissions a node makes AFTER
+   * `done()` (e.g. a later timer/stream tick) still need `read()`.
+   */
   async receive(msg: unknown): Promise<void> {
     const node = this.#flow.runtimeNode(this.id);
     if (!node) {
@@ -84,7 +92,18 @@ class NodeRef {
         `Node "${this.id}" (${this.type}) is not deployed — call flow.deploy() first`,
       );
     }
+    // Tag the message so onComplete can be correlated back to this delivery.
+    let msgid: string | undefined;
+    if (msg && typeof msg === "object") {
+      const m = msg as Record<string, unknown>;
+      if (typeof m._msgid !== "string") m._msgid = genId("msg");
+      msgid = m._msgid as string;
+    }
     node.receive(msg);
+    if (msgid) {
+      await this.#flow.recorder.waitForComplete(this.id, msgid, 5000);
+    }
+    // A final microtask drain so any synchronous post-done() emissions land.
     await tick();
   }
 

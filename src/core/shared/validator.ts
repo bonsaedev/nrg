@@ -31,26 +31,55 @@ interface DetailedError {
 }
 
 interface ValidateOption {
-  cacheKey?: string;
   throwOnError?: boolean;
+  /**
+   * When `false`, validate against a NON-coercing AJV: the data is treated as
+   * read-only — no type coercion, no default injection (a pure predicate). Use
+   * for message/form validation so a validated object is never silently
+   * rewritten. Default `true` (config-plane behavior: coerce + inject defaults so
+   * `this.config.<field>` reads as its typed value via the proxy).
+   */
+  mutate?: boolean;
 }
 
 class Validator {
+  // Coercing instance (coerceTypes + useDefaults): mutates the validated object.
+  // Used for the config plane, where `this.config.<field>` must read as its typed
+  // value (the proxy returns whatever coercion left on the raw config).
   private readonly ajv: Ajv;
+  // Non-mutating instance (no coercion, no defaults): a pure predicate. Used for
+  // message/form validation so a validated msg/form is never silently rewritten.
+  private readonly pureAjv: Ajv;
 
   public constructor(options?: ValidatorOptions) {
     const { customKeywords, customFormats, ...ajvOptions } = options || {};
+    this.ajv = this.buildAjv(ajvOptions, true, customKeywords, customFormats);
+    this.pureAjv = this.buildAjv(
+      ajvOptions,
+      false,
+      customKeywords,
+      customFormats,
+    );
+  }
 
-    this.ajv = new Ajv({
+  private buildAjv(
+    ajvOptions: Options,
+    mutate: boolean,
+    customKeywords?: string[] | KeywordDefinition[],
+    customFormats?: Record<string, RegExp | ((data: string) => boolean)>,
+  ): Ajv {
+    const ajv = new Ajv({
       allErrors: true,
       code: {
         source: false,
       },
-      coerceTypes: true,
+      // coerceTypes + useDefaults both WRITE into the validated object; gate them
+      // on `mutate` so the pure instance leaves data untouched.
+      coerceTypes: mutate,
       removeAdditional: false,
       strict: false,
       strictSchema: false,
-      useDefaults: true,
+      useDefaults: mutate,
       validateFormats: true,
       // NOTE: typebox handles validation via typescript
       // NOTE: if true, types that are not serializable JSON, like Function, would not work
@@ -59,61 +88,68 @@ class Validator {
       ...ajvOptions,
     });
 
-    addFormats(this.ajv);
-    addErrors(this.ajv);
+    addFormats(ajv);
+    addErrors(ajv);
 
-    this.addCustomKeywords(customKeywords || []);
-    this.addCustomFormats(customFormats || {});
+    this.addCustomKeywords(ajv, customKeywords || []);
+    this.addCustomFormats(ajv, customFormats || {});
+
+    return ajv;
   }
 
   /**
-   * Add custom keywords to the validator
+   * Add custom keywords to the given ajv instance
    */
-  private addCustomKeywords(keywords?: string[] | KeywordDefinition[]): void {
+  private addCustomKeywords(
+    ajv: Ajv,
+    keywords?: string[] | KeywordDefinition[],
+  ): void {
     if (!keywords) return;
     keywords.forEach((keyword) => {
-      this.ajv.addKeyword(keyword);
+      ajv.addKeyword(keyword);
     });
   }
 
   /**
-   * Add custom formats to the validator
+   * Add custom formats to the given ajv instance
    */
   private addCustomFormats(
+    ajv: Ajv,
     formats?: Record<string, RegExp | ((data: string) => boolean)>,
   ): void {
     if (!formats) return;
 
     Object.entries(formats).forEach(([name, validator]) => {
       if (validator instanceof RegExp) {
-        this.ajv.addFormat(name, validator);
+        ajv.addFormat(name, validator);
       } else {
-        this.ajv.addFormat(name, { validate: validator });
+        ajv.addFormat(name, { validate: validator });
       }
     });
   }
 
   /**
-   * Create a validator function with caching
+   * Compile (and cache) a validator for a schema, using AJV's own registry as the
+   * cache — keyed by the schema's `$id`. `defineSchema` requires a unique `$id`,
+   * so `getSchema($id)` returns the previously compiled validator and `compile`
+   * registers it on first use. We never write `$id` (no mutation of the caller's
+   * schema). A schema without `$id` (rare — an ad-hoc `SchemaType.Object`) simply
+   * compiles fresh each call.
+   *
    * @param schema - JSON Schema to validate against
-   * @param cacheKey - Optional cache key for reusing validators
+   * @param mutate - `true` (default) uses the coercing instance; `false` uses the
+   *   non-mutating (pure-predicate) instance. Each AJV keeps its own registry.
    */
   public createValidator(
     schema: AnySchemaObject,
-    cacheKey?: string,
+    mutate = true,
   ): ValidateFunction {
-    if (cacheKey && !schema.$id) {
-      schema.$id = cacheKey;
-    }
-
+    const ajv = mutate ? this.ajv : this.pureAjv;
     if (schema.$id) {
-      const cached = this.ajv.getSchema(schema.$id);
-      if (cached) return cached;
+      const cached = ajv.getSchema(schema.$id);
+      if (cached) return cached as ValidateFunction;
     }
-
-    const validator = this.ajv.compile(schema);
-
-    return validator;
+    return ajv.compile(schema);
   }
 
   /**
@@ -124,7 +160,7 @@ class Validator {
     schema: AnySchemaObject,
     options?: ValidateOption,
   ): ValidationResult<T> {
-    const validator = this.createValidator(schema, options?.cacheKey);
+    const validator = this.createValidator(schema, options?.mutate ?? true);
     const valid = validator(data);
 
     if (!valid) {
@@ -181,18 +217,20 @@ class Validator {
   }
 
   /**
-   * Add a schema to the validator for reference
+   * Add a schema to both validator instances for cross-schema `$ref` reference.
    */
   public addSchema(schema: AnySchemaObject, key?: string): this {
     this.ajv.addSchema(schema, key);
+    this.pureAjv.addSchema(schema, key);
     return this;
   }
 
   /**
-   * Remove a schema from the validator
+   * Remove a schema from both validator instances.
    */
   public removeSchema(key: string): this {
     this.ajv.removeSchema(key);
+    this.pureAjv.removeSchema(key);
     return this;
   }
 }

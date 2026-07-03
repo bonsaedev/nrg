@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Kind } from "@sinclair/typebox";
-import { SchemaType, defineSchema } from "@/core/server/schemas";
+import { SchemaType, defineSchema } from "@/core/shared/schemas";
 import { initValidator } from "@/core/server/validation";
 import { createRED } from "@mocks/red";
 
@@ -259,17 +259,20 @@ describe("defineSchema", () => {
     });
   });
 
-  describe("defineSchema without $id", () => {
-    it("should create a valid schema without $id", () => {
-      const schema = defineSchema({
-        name: SchemaType.String({ default: "test" }),
-      });
+  describe("defineSchema", () => {
+    it("sets the required $id on the schema", () => {
+      const schema = defineSchema(
+        {
+          name: SchemaType.String({ default: "test" }),
+        },
+        { $id: "type.test:1" },
+      );
       expect(schema.type).toBe("object");
-      expect(schema.$id).toBeUndefined();
+      expect(schema.$id).toBe("type.test:1");
       expect(schema.properties.name).toBeDefined();
     });
 
-    it("should still accept $id when provided", () => {
+    it("keeps the provided $id", () => {
       const schema = defineSchema(
         { name: SchemaType.String({ default: "" }) },
         { $id: "explicit-id" },
@@ -277,22 +280,21 @@ describe("defineSchema", () => {
       expect(schema.$id).toBe("explicit-id");
     });
 
-    it("should work with the validator without $id", () => {
+    it("works with the validator", () => {
       const RED = createRED();
       initValidator(RED);
 
-      const schema = defineSchema({
-        payload: SchemaType.String({ minLength: 1 }),
-      });
+      const schema = defineSchema(
+        {
+          payload: SchemaType.String({ minLength: 1 }),
+        },
+        { $id: "type.test:2" },
+      );
 
-      const result = RED.validator.validate({ payload: "hello" }, schema, {
-        cacheKey: "test-no-id:input",
-      });
+      const result = RED.validator.validate({ payload: "hello" }, schema);
       expect(result.valid).toBe(true);
 
-      const invalid = RED.validator.validate({ payload: "" }, schema, {
-        cacheKey: "test-no-id:input",
-      });
+      const invalid = RED.validator.validate({ payload: "" }, schema);
       expect(invalid.valid).toBe(false);
     });
   });

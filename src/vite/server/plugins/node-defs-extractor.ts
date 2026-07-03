@@ -3,53 +3,10 @@ import { pathToFileURL } from "url";
 import path from "path";
 import fs from "fs";
 import { nodeDefsPath } from "../../utils";
-
-const SKIP_DEFAULTS = new Set(["x", "y", "z", "g", "wires", "type", "id"]);
-
-function getDefaultsFromSchema(
-  schema: any,
-):
-  | Record<string, { type?: string; required: boolean; value: any }>
-  | undefined {
-  if (!schema?.properties) return undefined;
-  const result: Record<
-    string,
-    { type?: string; required: boolean; value: any }
-  > = {};
-  for (const [key, prop] of Object.entries(schema.properties) as [
-    string,
-    any,
-  ][]) {
-    if (SKIP_DEFAULTS.has(key)) continue;
-    result[key] = {
-      required: false,
-      value: prop.default ?? undefined,
-      type: prop["x-nrg-node-type"],
-    };
-  }
-  return result;
-}
-
-function getCredentialsFromSchema(
-  schema: any,
-): Record<string, { type: string; required: boolean; value: any }> | undefined {
-  if (!schema?.properties) return undefined;
-  const result: Record<
-    string,
-    { type: string; required: boolean; value: any }
-  > = {};
-  for (const [key, prop] of Object.entries(schema.properties) as [
-    string,
-    any,
-  ][]) {
-    result[key] = {
-      required: false,
-      type: prop.format === "password" ? "password" : "text",
-      value: prop.default ?? undefined,
-    };
-  }
-  return result;
-}
+import {
+  getDefaultsFromSchema,
+  getCredentialsFromSchema,
+} from "../../../core/shared/schemas/utils";
 
 /**
  * Loads the freshly built server bundle and returns its default export (the

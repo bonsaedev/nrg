@@ -6,6 +6,7 @@
         :label="label"
         :icon="icon"
         :required="required"
+        :label-id="labelId || undefined"
       />
     </slot>
     <div class="editor-wrapper">
@@ -16,7 +17,12 @@
       >
         <i class="fa fa-expand"></i>
       </button>
-      <div :id="editorId" ref="editor"></div>
+      <div
+        :id="editorId"
+        ref="editor"
+        role="textbox"
+        :aria-labelledby="labelId || undefined"
+      ></div>
     </div>
     <div v-show="error" class="node-red-vue-input-error-message">
       {{ error }}
@@ -152,6 +158,12 @@ export default defineComponent({
       default: false,
     },
     error: {
+      type: String,
+      default: "",
+    },
+    /** id of the label; the ACE editor region references it via
+     *  `aria-labelledby` (it's a `<div>`, not a labelable control). */
+    labelId: {
       type: String,
       default: "",
     },

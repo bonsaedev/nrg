@@ -1,4 +1,4 @@
-import type { Schema } from "../schemas/types";
+import type { Schema } from "../../shared/schemas";
 import { type RED, type NodeRedNode } from "../red";
 import type {
   ConfigNodeContext,
@@ -10,8 +10,8 @@ import type {
   NodeSettings,
 } from "./types";
 import { setupConfigProxy } from "./proxy";
-import { getCredentialsFromSchema } from "../utils";
-import { WIRE_HANDLERS } from "./symbols";
+import { getCredentialsFromSchema } from "../../shared/schemas/utils";
+import { NRG_WIRE_HANDLERS, NRG_NODE } from "./symbols";
 import { NrgError } from "../../shared/errors";
 
 /** Module-scoped cache for validated settings, keyed by constructor. */
@@ -23,12 +23,24 @@ const cachedSettingsMap = new WeakMap<typeof Node, unknown>();
  *
  * Extend {@link IONode} for message-processing nodes or {@link ConfigNode}
  * for shared configuration nodes.
+ *
+ * @typeParam TConfig - config shape (position 1)
+ * @typeParam TCredentials - credentials shape (position 2)
+ * @typeParam TSettings - settings shape (position 3) — note this is position
+ *   **5** on {@link IONode} (which inserts `TInput`/`TOutput` at 3/4).
  */
 abstract class Node<
   TConfig = any,
   TCredentials = any,
   TSettings = any,
 > implements INode<TConfig, TCredentials, TSettings> {
+  /**
+   * Runtime NRG-node brand — inherited by every subclass (IONode/ConfigNode and
+   * factory-built classes) and checked by `defineModule` at runtime. See
+   * symbols.ts for why it's a `Symbol.for()` runtime key, not a compile-time brand.
+   */
+  static readonly [NRG_NODE] = true;
+
   public static readonly type: string;
   public static readonly category: "config" | string;
   public static readonly configSchema?: Schema;
@@ -69,7 +81,6 @@ abstract class Node<
     }
 
     RED.validator.validate(settings, this.settingsSchema, {
-      cacheKey: this.settingsSchema.$id || `${this.type}:settings`,
       throwOnError: true,
     });
 
@@ -102,7 +113,7 @@ abstract class Node<
 
     if (NodeClass.color && !/^#[0-9A-Fa-f]{6}$/.test(NodeClass.color)) {
       throw new NrgError(
-        `Invalid color for ${NodeClass.type}: ${NodeClass.color} color must be in hex format`,
+        `Invalid color "${NodeClass.color}" for ${NodeClass.type}: must be a 6-digit hex color like "#a6bbcf" (shorthand "#abc" is not accepted).`,
       );
     }
 
@@ -138,7 +149,7 @@ abstract class Node<
           this.status({ fill: "red", shape: "ring", text: "created() failed" });
         });
 
-        node[WIRE_HANDLERS](this, createdPromise);
+        node[NRG_WIRE_HANDLERS](this, createdPromise);
       },
       {
         credentials: NodeClass.credentialsSchema
@@ -149,6 +160,11 @@ abstract class Node<
     );
 
     NodeClass.validateSettings(RED);
+    // Isolation contract: a failing `registered()` hook is logged at error level
+    // and swallowed, NOT rethrown. Registration runs one shared loop over every
+    // node class in the package (see registerTypes), so rethrowing here would
+    // abort registration of all *other* node types in the same package. The hook
+    // is for optional one-time setup; a node whose hook fails still registers.
     try {
       await Promise.resolve(NodeClass.registered?.(RED));
     } catch (error: unknown) {
@@ -183,9 +199,8 @@ abstract class Node<
         config,
         constructor.configSchema,
         {
-          cacheKey:
-            constructor.configSchema.$id ||
-            `${constructor.type}:configs-schema`,
+          // Coercing (default): the proxy at (this).config wraps this same object,
+          // so `this.config.<field>` must read as its coerced/typed value.
           throwOnError: false,
         },
       );
@@ -208,9 +223,6 @@ abstract class Node<
         credentials,
         constructor.credentialsSchema,
         {
-          cacheKey:
-            constructor.credentialsSchema.$id ||
-            `${constructor.type}:credentials-schema`,
           throwOnError: false,
         },
       );
@@ -222,7 +234,7 @@ abstract class Node<
     }
   }
 
-  [WIRE_HANDLERS](nodeRedNode: NodeRedNode, createdPromise: Promise<void>) {
+  [NRG_WIRE_HANDLERS](nodeRedNode: NodeRedNode, createdPromise: Promise<void>) {
     nodeRedNode.on(
       "close",
       async (removed: boolean, done: (err?: Error) => void) => {

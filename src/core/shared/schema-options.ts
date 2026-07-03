@@ -20,5 +20,12 @@ export interface JsonSchemaObjectExtensions {
     typedInputTypes?: string[];
     editorLanguage?: string;
     toggle?: boolean;
+    /**
+     * Mark the field required: shows the `*` and rejects an empty value.
+     * Every nrg field carries a default, so a value is never structurally
+     * "missing" — this expands to a non-empty constraint (`minLength`/`minItems`
+     * of 1) at validation time so the error triangle and inline error fire.
+     */
+    required?: boolean;
   };
 }

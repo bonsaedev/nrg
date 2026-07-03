@@ -153,7 +153,18 @@ export class NodeRedEditor {
       } else {
         await this.page.keyboard.press("Escape");
       }
-      await this.page.waitForTimeout(400);
+      // Wait for the tray count to actually drop instead of a fixed sleep — fast
+      // when it closes; best-effort (.catch) so a lingering tray just retries the
+      // loop. (edit/config-open keep their short settle after the real
+      // waitForSelector: a "form ready" signal would hang for a consumer node
+      // that has no typedInput/ACE widget.)
+      await this.page
+        .waitForFunction(
+          (c) => document.querySelectorAll(".red-ui-tray").length < c,
+          count,
+          { timeout: 2_000 },
+        )
+        .catch(() => {});
     }
   }
 

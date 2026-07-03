@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h } from "vue";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import { createNode, useFormNode } from "@/test/client/component";
 
 const NAME_SCHEMA = {
@@ -32,6 +32,23 @@ describe("createNode", () => {
     expect(node.custom).toBe(1);
     expect(errors).toEqual({});
     expect(provide.__nrg_form_node).toBe(node);
+  });
+
+  test("validation does not coerce the reactive node (no phantom dirty)", () => {
+    const ConfigSchema = defineSchema(
+      { count: SchemaType.Number({ default: 0 }) },
+      { $id: "create-node-test:no-coerce" },
+    );
+    // A number field arriving as a string (as HTML inputs emit it): validation
+    // must NOT rewrite the reactive node's `count` to the number 5 — that
+    // in-place coercion is what marked the flow dirty on open and reported a
+    // phantom change on Done. It validates a throwaway clone instead.
+    const { node, errors } = createNode({
+      configs: { count: "5" as unknown as number },
+      configSchema: ConfigSchema,
+    });
+    expect(node.count).toBe("5"); // untouched string, NOT coerced to 5
+    expect(errors["node.count"]).toBeUndefined(); // still valid (clone coerced)
   });
 
   test("node mutations re-render dependent components", async () => {
@@ -208,12 +225,18 @@ describe("createNode", () => {
   });
 
   test("accepts TypeBox schemas straight from server schema modules", async () => {
-    const ConfigsSchema = defineSchema({
-      name: SchemaType.String({ minLength: 1 }),
-    });
-    const CredentialsSchema = defineSchema({
-      token: SchemaType.String({ minLength: 1 }),
-    });
+    const ConfigsSchema = defineSchema(
+      {
+        name: SchemaType.String({ minLength: 1 }),
+      },
+      { $id: "create-node-test:configs" },
+    );
+    const CredentialsSchema = defineSchema(
+      {
+        token: SchemaType.String({ minLength: 1 }),
+      },
+      { $id: "create-node-test:credentials" },
+    );
 
     const { node, errors } = createNode({
       configs: { name: "" },

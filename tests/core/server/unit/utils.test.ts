@@ -3,7 +3,7 @@ import { Type } from "@sinclair/typebox";
 import {
   getDefaultsFromSchema,
   getCredentialsFromSchema,
-} from "@/core/server/utils";
+} from "@/core/shared/schemas/utils";
 
 describe("getDefaultsFromSchema", () => {
   it("should extract default values from schema properties", () => {
@@ -13,7 +13,7 @@ describe("getDefaultsFromSchema", () => {
       enabled: Type.Boolean({ default: true }),
     });
 
-    const defaults = getDefaultsFromSchema(schema);
+    const defaults = getDefaultsFromSchema(schema)!;
 
     expect(defaults.name).toEqual({
       required: false,
@@ -44,7 +44,7 @@ describe("getDefaultsFromSchema", () => {
       name: Type.String({ default: "test" }),
     });
 
-    const defaults = getDefaultsFromSchema(schema);
+    const defaults = getDefaultsFromSchema(schema)!;
 
     expect(defaults.id).toBeUndefined();
     expect(defaults.type).toBeUndefined();
@@ -61,7 +61,7 @@ describe("getDefaultsFromSchema", () => {
       name: Type.String(),
     });
 
-    const defaults = getDefaultsFromSchema(schema);
+    const defaults = getDefaultsFromSchema(schema)!;
     expect(defaults.name.value).toBeUndefined();
   });
 
@@ -72,7 +72,7 @@ describe("getDefaultsFromSchema", () => {
       label: Type.String({ default: "" }),
     });
 
-    const defaults = getDefaultsFromSchema(schema);
+    const defaults = getDefaultsFromSchema(schema)!;
     expect(defaults.count.value).toBe(0);
     expect(defaults.enabled.value).toBe(false);
     expect(defaults.label.value).toBe("");
@@ -85,7 +85,7 @@ describe("getDefaultsFromSchema", () => {
       } as Record<string, unknown>),
     });
 
-    const defaults = getDefaultsFromSchema(schema);
+    const defaults = getDefaultsFromSchema(schema)!;
     expect(defaults.server.type).toBe("remote-server");
   });
 
@@ -94,8 +94,13 @@ describe("getDefaultsFromSchema", () => {
       name: Type.String({ default: "test" }),
     });
 
-    const defaults = getDefaultsFromSchema(schema);
+    const defaults = getDefaultsFromSchema(schema)!;
     expect(defaults.name.required).toBe(false);
+  });
+
+  it("returns undefined for a null/undefined schema", () => {
+    expect(getDefaultsFromSchema(null)).toBeUndefined();
+    expect(getDefaultsFromSchema(undefined)).toBeUndefined();
   });
 });
 
@@ -106,7 +111,7 @@ describe("getCredentialsFromSchema", () => {
       password: Type.String({ default: "", format: "password" }),
     });
 
-    const creds = getCredentialsFromSchema(schema);
+    const creds = getCredentialsFromSchema(schema)!;
 
     expect(creds.username).toEqual({
       required: false,
@@ -125,7 +130,7 @@ describe("getCredentialsFromSchema", () => {
       apiKey: Type.String({ default: "key123" }),
     });
 
-    const creds = getCredentialsFromSchema(schema);
+    const creds = getCredentialsFromSchema(schema)!;
     expect(creds.apiKey.type).toBe("text");
   });
 
@@ -134,7 +139,7 @@ describe("getCredentialsFromSchema", () => {
       token: Type.String(),
     });
 
-    const creds = getCredentialsFromSchema(schema);
+    const creds = getCredentialsFromSchema(schema)!;
     expect(creds.token.value).toBeUndefined();
   });
 
@@ -143,7 +148,12 @@ describe("getCredentialsFromSchema", () => {
       secret: Type.String({ format: "password" }),
     });
 
-    const creds = getCredentialsFromSchema(schema);
+    const creds = getCredentialsFromSchema(schema)!;
     expect(creds.secret.required).toBe(false);
+  });
+
+  it("returns undefined for a null/undefined schema", () => {
+    expect(getCredentialsFromSchema(null)).toBeUndefined();
+    expect(getCredentialsFromSchema(undefined)).toBeUndefined();
   });
 });

@@ -109,6 +109,14 @@ export default defineComponent({
   transition: transform 0.2s ease;
 }
 
+/* The real checkbox is visually hidden (opacity/size 0), so the slider stands
+   in for it — surface keyboard focus there. `:focus-visible` avoids a ring on
+   pointer clicks. The slider is a general sibling of the input in the label. */
+.nrg-toggle__input:focus-visible ~ .nrg-toggle__slider {
+  outline: 2px solid var(--red-ui-form-input-focus-color, #2b6ec9);
+  outline-offset: 2px;
+}
+
 .nrg-toggle--checked .nrg-toggle__slider {
   background-color: var(--red-ui-text-color-link, #0070d2);
 }

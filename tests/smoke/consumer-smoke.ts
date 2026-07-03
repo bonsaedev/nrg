@@ -299,6 +299,91 @@ function testEsmBoot(consumerDir: string): void {
   );
 }
 
+// --- Test: server-unit vitest tier (runs the published toolkit) -----------
+
+// The other checks cover tsc/build/dev + the integration ESM boot. This runs an
+// actual `createNode` unit test through the packed toolkit's vitest defaultConfig
+// — exercising the shipped `@bonsae/nrg/test/server/unit` bytes, the config
+// subpath, and the include glob, in a plain Node env (no browser, no flake).
+function testServerUnitTier(consumerDir: string): void {
+  log("--- Test: server-unit vitest tier (packed toolkit) ---");
+  const vitestBin = path.join(
+    consumerDir,
+    "node_modules",
+    "vitest",
+    "vitest.mjs",
+  );
+  try {
+    const out = execSync(
+      `"${process.execPath}" "${vitestBin}" run --config vitest.server.unit.config.ts`,
+      {
+        cwd: consumerDir,
+        encoding: "utf-8",
+        timeout: 120_000,
+        env: { ...process.env, CI: "true", NO_COLOR: "1" },
+      },
+    );
+    assert(/\b1 passed\b/.test(out), "server-unit smoke test did not pass");
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string };
+    console.log((err.stdout ?? "") + (err.stderr ?? ""));
+    throw new Error("server-unit vitest tier failed");
+  }
+  log(
+    "PASS: a real createNode test ran through the packed server-unit toolkit.",
+  );
+}
+
+// --- Test: every published subpath resolves (no browser) ------------------
+
+// `import.meta.resolve` validates the package `exports` map WITHOUT executing
+// the target — so we can confirm the client + test subpaths ship (the ones we
+// can't import in Node because they pull in Vue / a browser provider) without a
+// browser at all. Covers the "shipped exports map is complete" class.
+function testSubpathsResolvable(consumerDir: string): void {
+  log("--- Test: published subpaths resolve under Node ESM ---");
+  // NOTE: `@bonsae/nrg/client` is deliberately TYPES-ONLY in exports (the client
+  // runtime is browser-served, and consumers only `import type` from it). So it's
+  // covered by the tsc check, not this runtime-resolution probe.
+  const subpaths = [
+    "@bonsae/nrg",
+    "@bonsae/nrg/server",
+    "@bonsae/nrg/schema",
+    "@bonsae/nrg/vite",
+    "@bonsae/nrg/eslint",
+    "@bonsae/nrg/test/server/unit",
+    "@bonsae/nrg/test/server/unit/config",
+    "@bonsae/nrg/test/server/integration",
+    "@bonsae/nrg/test/client/unit/config",
+    "@bonsae/nrg/test/client/component/config",
+  ];
+  const probe = path.join(consumerDir, "__nrg_subpath_probe.mjs");
+  fs.writeFileSync(
+    probe,
+    `const subpaths = ${JSON.stringify(subpaths)};\n` +
+      `for (const s of subpaths) {\n` +
+      `  try { import.meta.resolve(s); }\n` +
+      `  catch (e) { throw new Error("subpath did not resolve: " + s + " — " + e.message); }\n` +
+      `}\n` +
+      `console.log("SUBPATHS_OK");\n`,
+  );
+  try {
+    const out = execSync(`"${process.execPath}" "${probe}"`, {
+      cwd: consumerDir,
+      encoding: "utf-8",
+      timeout: 60_000,
+    });
+    assert(out.includes("SUBPATHS_OK"), "a published subpath did not resolve");
+  } finally {
+    try {
+      fs.rmSync(probe, { force: true });
+    } catch {
+      /* best-effort cleanup */
+    }
+  }
+  log("PASS: all published subpaths resolve via the exports map.");
+}
+
 async function main(): Promise<void> {
   log("=== NRG Consumer Smoke Test ===");
   log(`Platform: ${process.platform}`);
@@ -347,7 +432,7 @@ async function main(): Promise<void> {
     execSync(
       `npm install --no-audit --no-fund "${toolkitForInstall}" "${runtimeForInstall}" ` +
         `"typescript@${tsRange}" "vue@${vueRange}" "@types/node@${nodeTypes}" ` +
-        `vite@^6.0.0 node-red@latest`,
+        `vite@^6.0.0 vitest@^4.0.0 node-red@latest`,
       // node-red@latest is a large tree; Windows runners (slow I/O + Defender)
       // routinely need >6min for a cold install, so allow generous headroom.
       { cwd: consumerDir, stdio: "inherit", timeout: 900_000 },
@@ -364,6 +449,8 @@ async function main(): Promise<void> {
     const failures: string[] = [];
     const checks: Array<[string, () => void | Promise<void>]> = [
       ["tsc", () => testTypecheck(consumerDir)],
+      ["subpaths", () => testSubpathsResolvable(consumerDir)],
+      ["server-unit", () => testServerUnitTier(consumerDir)],
       ["esm-boot", () => testEsmBoot(consumerDir)],
       ["build", () => testBuild(consumerDir, viteEntry)],
       ["dev", () => testDevServer(consumerDir, viteEntry)],
@@ -381,7 +468,9 @@ async function main(): Promise<void> {
       log(`\n${failures.length} check(s) failed: ${failures.join(", ")}`);
       process.exit(1);
     }
-    log("\nAll consumer smoke checks passed (tsc + build + dev).");
+    log(
+      "\nAll consumer smoke checks passed (tsc + subpaths + server-unit + esm-boot + build + dev).",
+    );
     process.exit(0);
   } finally {
     for (const p of [consumerDir, runtimeTgz, toolkitTgz]) {

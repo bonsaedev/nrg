@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { Node } from "@/core/server/nodes/node";
 import { initValidator } from "@/core/server/validation";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 class ConcreteNode extends Node {
   static override readonly type = "test-node";
@@ -162,7 +162,7 @@ describe("Node", () => {
 
       // Wire up close handler via the template method
       const createdPromise = Promise.resolve();
-      instance[WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_WIRE_HANDLERS](node, createdPromise);
 
       instance.setTimeout(fn, 1000);
       instance.setInterval(fn, 1000);

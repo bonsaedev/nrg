@@ -7,11 +7,16 @@ import type {
   StringOptions,
   StringFormatOption,
 } from "@sinclair/typebox";
-import type { Schema, NrgSchemaOptions } from "./types";
-import type { UnsafeResolved, ConfigNodeBrand } from "../types";
 import { Type as BaseType, Kind } from "@sinclair/typebox";
+import type {
+  Schema,
+  NrgSchemaOptions,
+  UnsafeBrand,
+  ConfigNodeBrand,
+  TNodeRef,
+  TTypedInput,
+} from "./types";
 import { TypedInputSchema } from "./base";
-import type { TNodeRef, TTypedInput } from "./types";
 
 // The seven JSON Schema primitive type names. Reimplemented locally rather than
 // importing AJV's private `ajv/dist/compile/rules.js` — that deep path resolves
@@ -31,42 +36,32 @@ function isJSONType(value: unknown): boolean {
   return typeof value === "string" && JSON_TYPES.has(value);
 }
 
-/** A constructor type — used to detect when the NodeRef generic is a class. */
-type AnyConstructor = abstract new (...args: any[]) => any;
-
-/** Resolves the NodeRef generic: a class → its instance, anything else → itself. */
-type NodeRefInstance<T> = T extends AnyConstructor ? InstanceType<T> : T;
-
-/**
- * What the `NodeRef<T>` generic accepts: a config node instance type, or its
- * constructor. Both carry {@link ConfigNodeBrand} (declared by `ConfigNode` /
- * `IConfigNode`), so `NodeRef<string>` or `NodeRef<{ host: string }>` is a
- * compile error while any real config class passes. Constrained via the shared
- * brand so this browser-safe module never imports the server `ConfigNode` type.
- */
-type ConfigNodeRef =
-  | ConfigNodeBrand
-  | (abstract new (...args: any[]) => ConfigNodeBrand);
-
 /**
  * Creates a schema for a reference to a config node by its registered `type`.
  *
  * Pass the node `type` string at runtime and the config class as a *type-only*
- * generic: `SchemaType.NodeRef<BrokerConfig>("broker-config")`. The generic is
- * erased at compile time, so this never value-imports the config class and the
- * call stays safe to evaluate in the browser/editor bundle (where server node
- * classes don't exist). The runtime payload is identical on both planes.
+ * generic: `SchemaType.NodeRef<BrokerConfig>("broker-config")`. In type position
+ * a class name is its **instance type**, which is what `T` binds to — so `T` is
+ * constrained to {@link ConfigNodeBrand} (declared on every `ConfigNode`
+ * instance): `NodeRef<string>` or `NodeRef<{ host: string }>` is a compile error
+ * while any real config class passes. Constraining via the shared brand keeps
+ * this browser-safe module from importing the server `ConfigNode` type. The
+ * generic is erased at compile time, so this never value-imports the config class
+ * and stays safe to evaluate in the browser/editor bundle. The runtime payload is
+ * identical on both planes.
  *
  * Type resolution is per-plane and unchanged: on the server `this.config.<ref>`
- * still resolves to the referenced node *instance* (`BrokerConfig`, with all its
+ * resolves to the referenced node *instance* (`BrokerConfig`, with all its
  * props/methods); on the client the same field resolves to the node id `string`.
- * The generic accepts either the class (`NodeRef<BrokerConfig>`) or an instance
- * type (`NodeRef<BrokerConfigInstance>`); omit it for an untyped (`unknown`) ref.
+ * Omitting the generic leaves the ref typed as the opaque {@link ConfigNodeBrand}
+ * (the default), NOT `unknown` — annotate the field yourself if you need a
+ * concrete type on an untyped ref. (Pass the class name, not `typeof Class` — the
+ * constructor form is not accepted.)
  */
-function NodeRef<T extends ConfigNodeRef = ConfigNodeBrand>(
+function NodeRef<T extends ConfigNodeBrand = ConfigNodeBrand>(
   type: string,
   options?: NrgSchemaOptions,
-): TNodeRef<NodeRefInstance<T>> {
+): TNodeRef<T> {
   return {
     ...BaseType.String({
       description: options?.description || `Reference to ${type}`,
@@ -78,7 +73,7 @@ function NodeRef<T extends ConfigNodeRef = ConfigNodeBrand>(
     format: "node-id",
     "x-nrg-node-type": type,
     [Kind]: "NodeRef",
-  } as unknown as TNodeRef<NodeRefInstance<T>>;
+  } as unknown as TNodeRef<T>;
 }
 
 /**
@@ -242,14 +237,14 @@ function OutputContextModes(
 
 /**
  * Identical to TypeBox's `Type.Unsafe` at runtime (no validation), but brands
- * the static type as {@link UnsafeResolved} so the per-plane resolvers pass `T`
+ * the static type as {@link UnsafeBrand} so the per-plane resolvers pass `T`
  * through unchanged. Without the brand a class instance (`Unsafe<Connection>`)
  * is deep-mapped into a structural object and loses its private/`#` members,
  * making it unassignable to `Connection`. The brand is phantom — runtime output
  * is exactly TypeBox's empty/`options` schema.
  */
-function NrgUnsafe<T = unknown>(options?: object): TUnsafe<UnsafeResolved<T>> {
-  return BaseType.Unsafe(options) as unknown as TUnsafe<UnsafeResolved<T>>;
+function NrgUnsafe<T = unknown>(options?: object): TUnsafe<UnsafeBrand<T>> {
+  return BaseType.Unsafe(options) as unknown as TUnsafe<UnsafeBrand<T>>;
 }
 
 /**
@@ -266,9 +261,9 @@ function NrgUnsafe<T = unknown>(options?: object): TUnsafe<UnsafeResolved<T>> {
 // The NRG-specific builders. Some (String, Unsafe) shadow a TypeBox builder of
 // the same name: `Object.assign` would otherwise INTERSECT the two function
 // types into an overload and the call could resolve to TypeBox's version — which
-// for `Unsafe` loses the `UnsafeResolved` brand. The explicit type below omits
+// for `Unsafe` loses the `UnsafeBrand` brand. The explicit type below omits
 // the shadowed keys from TypeBox so the NRG versions are the only ones visible.
-const NrgBuilders = {
+const NRG_SCHEMA_TYPES_FACTORIES = {
   String: NrgString,
   Unsafe: NrgUnsafe,
   NodeRef,
@@ -277,9 +272,26 @@ const NrgBuilders = {
   OutputContextModes,
 };
 
-const SchemaType: Omit<typeof BaseType, keyof typeof NrgBuilders> &
-  typeof NrgBuilders = Object.assign({}, BaseType, NrgBuilders);
+const SchemaType: Omit<
+  typeof BaseType,
+  keyof typeof NRG_SCHEMA_TYPES_FACTORIES
+> &
+  typeof NRG_SCHEMA_TYPES_FACTORIES = Object.assign(
+  {},
+  BaseType,
+  NRG_SCHEMA_TYPES_FACTORIES,
+);
 
+/**
+ * Recursively tag a schema's non-JSON-typed nodes (Function, Constructor, …) so
+ * AJV skips them: it sets `x-nrg-skip-validation`, moves any `default` aside to
+ * `_default`, and deletes the offending `type` (AJV throws `type must be
+ * JSONType` otherwise). `defineSchema` calls this on the schemas it builds; the
+ * node factories (`defineIONode`/`defineConfigNode`) call it again on every
+ * declared schema so a raw `SchemaType.Object` (built without `defineSchema`)
+ * gets the identical treatment. Mutates in place and is idempotent — a schema
+ * already normalized has no non-JSON `type` left to strip.
+ */
 function markNonValidatable<T extends TSchema>(schema: T): T {
   const type = (schema as any).type;
 
@@ -342,8 +354,14 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
 }
 
 /**
- * Creates a validated object schema from a set of properties. Automatically
- * marks non-JSON types (e.g., Function) as non-validatable.
+ * Creates a validated object schema from a set of properties, tagged with a
+ * required, unique `$id`. Automatically marks non-JSON types (e.g., Function) as
+ * non-validatable.
+ *
+ * The `$id` is **required**: it's the AJV compile-cache key (validators are
+ * reused per `$id`, so it must be unique across all your schemas), and it makes
+ * the schema addressable for cross-schema `$ref`. Convention: `"<node-type>:<role>"`
+ * (e.g. `"my-node:configs"`, `"my-node:credentials"`, `"my-node:input"`).
  *
  * @example
  * ```ts
@@ -355,10 +373,10 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
  */
 function defineSchema<T extends TProperties>(
   properties: T,
-  options?: ObjectOptions & { $id?: string },
+  options: ObjectOptions & { $id: string },
 ): Schema<T> {
   const schema = SchemaType.Object(properties, options);
   return markNonValidatable(schema) as Schema<T>;
 }
 
-export { SchemaType, defineSchema };
+export { SchemaType, defineSchema, markNonValidatable };

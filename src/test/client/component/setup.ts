@@ -1,12 +1,12 @@
 import { config } from "vitest-browser-vue";
-import NodeRedInput from "../../../core/client/form/components/node-red-input.vue";
-import NodeRedTypedInput from "../../../core/client/form/components/node-red-typed-input.vue";
-import NodeRedConfigInput from "../../../core/client/form/components/node-red-config-input.vue";
-import NodeRedSelectInput from "../../../core/client/form/components/node-red-select-input.vue";
-import NodeRedEditorInput from "../../../core/client/form/components/node-red-editor-input.vue";
-import NodeRedInputLabel from "../../../core/client/form/components/node-red-input-label.vue";
-import NodeRedToggle from "../../../core/client/form/components/node-red-toggle.vue";
-import NodeRedJsonSchemaForm from "../../../core/client/form/components/node-red-json-schema-form.vue";
+import NodeRedInput from "@/core/client/form/components/node-red-input.vue";
+import NodeRedTypedInput from "@/core/client/form/components/node-red-typed-input.vue";
+import NodeRedConfigInput from "@/core/client/form/components/node-red-config-input.vue";
+import NodeRedSelectInput from "@/core/client/form/components/node-red-select-input.vue";
+import NodeRedEditorInput from "@/core/client/form/components/node-red-editor-input.vue";
+import NodeRedInputLabel from "@/core/client/form/components/node-red-input-label.vue";
+import NodeRedToggle from "@/core/client/form/components/node-red-toggle.vue";
+import NodeRedJsonSchemaForm from "@/core/client/form/components/node-red-json-schema-form.vue";
 import { installEditorMocks } from "../install-mocks";
 
 config.global.mocks.$i18n = (key: string) => key;

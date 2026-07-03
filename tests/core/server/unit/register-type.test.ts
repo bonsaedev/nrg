@@ -49,7 +49,7 @@ describe("registerType validation", () => {
 
     await expect(registerType(RED, BadColor as any)).rejects.toThrow(NrgError);
     await expect(registerType(RED, BadColor as any)).rejects.toThrow(
-      "color must be in hex format",
+      "must be a 6-digit hex color",
     );
   });
 
@@ -73,7 +73,7 @@ describe("registerType validation", () => {
 
   it("should derive inputs from inputSchema presence", async () => {
     const { IONode } = await getModules();
-    const { SchemaType } = await import("@/core/server/schemas");
+    const { SchemaType } = await import("@/core/shared/schemas");
 
     class WithInput extends IONode {
       static override readonly type = "with-input";
@@ -92,7 +92,7 @@ describe("registerType validation", () => {
 
   it("should derive outputs from outputsSchema", async () => {
     const { IONode } = await getModules();
-    const { SchemaType } = await import("@/core/server/schemas");
+    const { SchemaType } = await import("@/core/shared/schemas");
 
     class SingleOutput extends IONode {
       static override readonly type = "single-output";

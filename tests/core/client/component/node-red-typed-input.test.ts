@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
+import { defineComponent, h, ref, nextTick } from "vue";
 import NodeRedTypedInput from "@/core/client/form/components/node-red-typed-input.vue";
 import { getJQueryState } from "@/test/client/mocks";
 
@@ -120,6 +121,59 @@ describe("NodeRedTypedInput", () => {
     });
     const input = screen.container.querySelector("input.node-red-typed-input");
     expect(input).not.toBeNull();
+  });
+
+  // --- 5.3: prop→widget sync + focus guard (each fails without its half) ---
+
+  test("syncs an EXTERNAL value/type change into the widget (proves the watcher)", async () => {
+    const external = ref({ value: "hello", type: "str" });
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(NodeRedTypedInput, {
+          value: external.value,
+          types: ["str", "num"] as any[],
+        }),
+    });
+    const screen = render(Parent);
+    const input = screen.container.querySelector(
+      "input.node-red-typed-input",
+    ) as HTMLInputElement;
+    await new Promise((r) => setTimeout(r, 0)); // let mounted() init the widget
+    expect(getJQueryState(input).typedInput.value).toBe("hello");
+
+    // External change (custom form driving the field). WITHOUT the watcher the
+    // widget keeps showing "hello" — it's seed-once.
+    external.value = { value: "world", type: "num" };
+    await vi.waitFor(() => {
+      const state = getJQueryState(input);
+      expect(state.typedInput.value).toBe("world");
+      expect(state.typedInput.type).toBe("num");
+    });
+  });
+
+  test("does NOT clobber a focused widget on an external change (proves the focus guard)", async () => {
+    const external = ref({ value: "hello", type: "str" });
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(NodeRedTypedInput, {
+          value: external.value,
+          types: ["str", "num"] as any[],
+        }),
+    });
+    const screen = render(Parent);
+    const input = screen.container.querySelector(
+      "input.node-red-typed-input",
+    ) as HTMLInputElement;
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Focus moves inside the widget → document.activeElement is inside $el.
+    input.focus();
+    // External change arrives WHILE focused; the guard must skip the sync so the
+    // user's in-progress edit survives. WITHOUT the guard it becomes "world".
+    external.value = { value: "world", type: "num" };
+    await nextTick();
+    await nextTick();
+    expect(getJQueryState(input).typedInput.value).toBe("hello");
   });
 });
 

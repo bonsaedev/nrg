@@ -7,7 +7,7 @@ import {
   type Infer,
   type RED,
 } from "@/core/server";
-import { defineSchema, SchemaType, type Schema } from "@/core/server/schemas";
+import { defineSchema, SchemaType, type Schema } from "@/core/shared/schemas";
 import { createNode } from "@/test/server/unit";
 
 // --- Test fixtures ---
@@ -35,7 +35,7 @@ class TestConfigNode extends ConfigNode<TestConfig> {
 const TestIOSchema = defineSchema(
   {
     name: SchemaType.String({ default: "test-io" }),
-    server: SchemaType.NodeRef<typeof TestConfigNode>("test-config"),
+    server: SchemaType.NodeRef<TestConfigNode>("test-config"),
     greeting: SchemaType.String({ default: "hello" }),
   },
   { $id: "test-helpers:io-config" },
@@ -640,5 +640,33 @@ describe("settings", () => {
 
     await node.receive({});
     expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 5000 }]);
+  });
+
+  describe("created() failure semantics", () => {
+    it("does NOT reject when created() throws; exposes it via createdError()", async () => {
+      const boom = new Error("created boom");
+      const Failing = defineIONode({
+        type: "created-fails",
+        async created() {
+          throw boom;
+        },
+      });
+
+      // Production constructs the node regardless (it surfaces the error on the
+      // first input via done); createNode mirrors that — it resolves, not rejects.
+      const { node } = await createNode(Failing);
+      expect(node.createdError()).toBe(boom);
+    });
+
+    it("createdError() is undefined when created() succeeds", async () => {
+      const Ok = defineIONode({
+        type: "created-ok",
+        async created() {
+          /* no-op */
+        },
+      });
+      const { node } = await createNode(Ok);
+      expect(node.createdError()).toBeUndefined();
+    });
   });
 });

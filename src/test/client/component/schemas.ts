@@ -76,7 +76,7 @@ export function serializeRegistry(
  * ```ts
  * // tests/client/component/schemas.ts
  * import { provideSchemas } from "@bonsae/nrg/test/client/component/schemas";
- * import registry from "../../../src/server";
+ * import registry from "@/src/server";
  * export default provideSchemas(registry);
  * ```
  */

@@ -6,9 +6,15 @@
         :label="label"
         :icon="icon"
         :required="required"
+        :label-id="labelId || undefined"
       />
     </slot>
-    <input :id="inputId" type="text" style="width: 100%" />
+    <input
+      :id="inputId"
+      :aria-labelledby="labelId || undefined"
+      type="text"
+      style="width: 100%"
+    />
     <div v-if="error" class="node-red-vue-input-error-message">
       {{ error }}
     </div>
@@ -54,6 +60,11 @@ export default defineComponent({
       default: false,
     },
     error: {
+      type: String,
+      default: "",
+    },
+    /** id of the label; the config select references it via `aria-labelledby`. */
+    labelId: {
       type: String,
       default: "",
     },

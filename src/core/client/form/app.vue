@@ -303,7 +303,7 @@ import type { PropType } from "vue";
 import { defineComponent, shallowRef } from "vue";
 import { debounce } from "es-toolkit";
 import { validateForm } from "../validation";
-import type { NodeRedNode, NodeFeatures } from "../types";
+import type { NodeFeatures, NodeRedNode } from "../types";
 
 export default defineComponent({
   name: "NodeRedVueApp",

@@ -10,6 +10,30 @@ describe("NodeRedInputLabel", () => {
     await expect.element(screen.getByText("Username")).toBeInTheDocument();
   });
 
+  test("renders a plain <span> by default (no htmlFor)", async () => {
+    const screen = render(NodeRedInputLabel, { props: { label: "Name" } });
+    expect(screen.container.querySelector("span.nrg-label")).not.toBeNull();
+    expect(screen.container.querySelector("label.nrg-label")).toBeNull();
+  });
+
+  test("renders a real <label for> when htmlFor is set (a11y)", async () => {
+    const screen = render(NodeRedInputLabel, {
+      props: { label: "Name", htmlFor: "nrg-n1-name" },
+    });
+    const label = screen.container.querySelector("label.nrg-label");
+    expect(label).not.toBeNull();
+    expect(label!.getAttribute("for")).toBe("nrg-n1-name");
+  });
+
+  test("exposes an id via labelId (aria-labelledby target)", async () => {
+    const screen = render(NodeRedInputLabel, {
+      props: { label: "Name", labelId: "nrg-n1-name-label" },
+    });
+    expect(
+      screen.container.querySelector(".nrg-label")!.getAttribute("id"),
+    ).toBe("nrg-n1-name-label");
+  });
+
   test("renders icon with auto fa- prefix", async () => {
     const screen = render(NodeRedInputLabel, {
       props: { label: "Name", icon: "tag" },

@@ -14,7 +14,9 @@ describe("withTimeout", () => {
 
   it("should reject when promise exceeds timeout", async () => {
     const promise = new Promise((resolve) => setTimeout(resolve, 500));
-    await expect(withTimeout(promise, 10)).rejects.toThrow("Timeout after 10ms");
+    await expect(withTimeout(promise, 10)).rejects.toThrow(
+      "Timeout after 10ms",
+    );
   });
 
   it("should resolve with fallback when timeout and fallback provided", async () => {

@@ -1,11 +1,17 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
-import { initValidator } from "../../../core/server/validation";
-import type { NodeRedNode } from "../../../core/server/red";
-import type { NodeConstructor as NodeClass } from "../../../core/server/nodes/types/node";
+import { initValidator } from "@/core/server/validation";
+import type { NodeRedNode } from "@/core/server/red";
+import type { NodeConstructor as NodeClass } from "@/core/server/nodes";
 import type { MockRED } from "./mocks";
-import { WIRE_HANDLERS } from "../../../core/server/nodes/symbols";
-import type { NodeContextStore } from "../../../core/server/nodes/types/node";
+import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import type { NodeContextStore } from "@/core/server/nodes/types/node";
+import type {
+  ErrorPortOutput as CoreErrorPortOutput,
+  CompletePortOutput as CoreCompletePortOutput,
+  StatusPortOutput as CoreStatusPortOutput,
+  NamedPortsBrand,
+} from "@/core/server/schemas/types";
 import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {
@@ -18,11 +24,15 @@ interface CreateNodeOptions {
 type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
 type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
 
-type PortNames<T> = [T] extends [Record<string, Record<string, any>>]
-  ? string extends keyof T
+// Named-port access is driven by the NamedPortsBrand the core stamps on a
+// record `outputsSchema` (see schemas/types.ts) — not a structural guess. `any`
+// keeps the historical "no named access" behavior (fall back to numeric slots).
+type PortNames<T> =
+  IsAny<T> extends true
     ? never
-    : keyof T & string
-  : never;
+    : [T] extends [NamedPortsBrand]
+      ? Exclude<keyof T, keyof NamedPortsBrand> & string
+      : never;
 
 type PortMessage<T, P extends string> =
   T extends Record<string, any> ? (P extends keyof T ? T[P] : never) : never;
@@ -57,33 +67,24 @@ type PortTuple<TOutput, TInput> =
     ? any[]
     : TOutput extends readonly [any, ...any[]]
       ? { [K in keyof TOutput]: WrappedPort<TOutput[K], TInput> }
-      : [TOutput] extends [Record<string, Record<string, any>>]
-        ? keyof TOutput extends never
-          ? [WrappedPort<TOutput, TInput>]
-          : string extends keyof TOutput
-            ? WrappedPort<unknown, TInput>[]
-            : WrappedPort<TOutput[keyof TOutput], TInput>[]
+      : [TOutput] extends [NamedPortsBrand]
+        ? [Exclude<keyof TOutput, keyof NamedPortsBrand>] extends [never]
+          ? [WrappedPort<Omit<TOutput, keyof NamedPortsBrand>, TInput>]
+          : WrappedPort<
+              TOutput[Exclude<keyof TOutput, keyof NamedPortsBrand>],
+              TInput
+            >[]
         : [WrappedPort<TOutput, TInput>];
 
-type NodeSource = { id: string; type: string; name: string };
-
-/** Message delivered on the built-in **error** port (`sent("error")`). A thrown
- * error's own enumerable fields ride alongside the canonical `name`/`message`/
- * `source`. */
-type ErrorPortMessage = {
-  error: { name: string; message: string; source: NodeSource };
-} & Record<string, unknown>;
-
-/** Message delivered on the built-in **complete** port (`sent("complete")`).
- * Carries `output` when `input()` returned a value. */
-type CompletePortMessage = {
-  complete: { source: NodeSource };
-} & Record<string, unknown>;
-
-/** Message delivered on the built-in **status** port (`sent("status")`). */
-type StatusPortMessage = {
-  status: { fill?: string; shape?: string; text?: string };
-  source: NodeSource;
+// Built-in port output shapes come from core (single source of truth) — the
+// mock only layers on the test-delivery semantics: real emissions also spread
+// the input message and custom props (`& Record<string, unknown>`), and the
+// status port is narrowed to the object form the assertions read (the core
+// union also allows a bare string, which these helpers never surface).
+type ErrorPortOutput = CoreErrorPortOutput & Record<string, unknown>;
+type CompletePortOutput = CoreCompletePortOutput & Record<string, unknown>;
+type StatusPortOutput = Omit<CoreStatusPortOutput, "status"> & {
+  status: Extract<CoreStatusPortOutput["status"], object>;
 } & Record<string, unknown>;
 
 /**
@@ -124,9 +125,9 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
    * with `sent(name)` / `sent(port)`, including the built-in lifecycle ports by
    * name: `sent("error")`, `sent("complete")`, `sent("status")`. */
   sent(): PortTuple<TOutput, TInput>[];
-  sent(port: "error"): ErrorPortMessage[];
-  sent(port: "complete"): CompletePortMessage[];
-  sent(port: "status"): StatusPortMessage[];
+  sent(port: "error"): ErrorPortOutput[];
+  sent(port: "complete"): CompletePortOutput[];
+  sent(port: "status"): StatusPortOutput[];
   sent<P extends PortNames<TOutput>>(
     port: P,
   ): WrappedPort<PortMessage<TOutput, P>, TInput>[];
@@ -135,6 +136,11 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
   logged(level?: "info" | "warn" | "error" | "debug"): string[];
   warned(): string[];
   errored(): string[];
+  /** The error thrown by `created()`, if any — `undefined` when it succeeded.
+   * `createNode` never rejects on a failing `created()` (production constructs
+   * the node regardless and surfaces the error on the first input via `done`);
+   * assert it here instead. */
+  createdError(): unknown;
   /** Promise-based access to the node's context stores (node / flow / global). */
   context: TestNodeContext;
 }
@@ -257,6 +263,9 @@ function attachHelpers<T>(
     errored() {
       return nodeRedNode.error.mock.calls.map((c: any[]) => c[0]);
     },
+    // Default: no created() error. createNode overrides this after awaiting
+    // created() with the captured rejection (if any).
+    createdError: () => undefined,
     // expose the node's own (already promise-wrapped) context stores; the
     // node keeps using the same object internally, callable form included
     context: (node as unknown as { context: TestNodeContext }).context,
@@ -354,10 +363,19 @@ async function createNode<T extends NodeClass>(
     NodeClass,
   );
 
-  // Wire up event handlers (same path as production)
+  // Wire up event handlers (same path as production). `created()` is awaited so
+  // a test can assert post-created state — but, like production, a rejection does
+  // NOT abort construction: the node is still returned and the failure is
+  // captured for assertion via `node.createdError()` (production defers it to the
+  // first input, where the wire handler surfaces it through `done(err)`).
   const createdPromise = Promise.resolve(node.created?.());
-  node[WIRE_HANDLERS](nodeRedNode, createdPromise);
-  await createdPromise;
+  node[NRG_WIRE_HANDLERS](nodeRedNode, createdPromise);
+  let createdError: unknown;
+  await createdPromise.catch((err) => {
+    createdError = err;
+  });
+  (augmented as unknown as { createdError: () => unknown }).createdError = () =>
+    createdError;
 
   return { node: augmented, RED };
 }

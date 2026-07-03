@@ -147,7 +147,19 @@ describe("client build", () => {
   });
 
   it("should import from @bonsae/nrg/client", () => {
-    expect(bundleContent).toContain("nrg-client.js");
+    // Un-bundled build (src, not the built plugin), so the __NRG_CLIENT_ASSET__
+    // define is absent and the rewrite uses the unhashed dev fallback. A real
+    // consumer build rewrites to the content-hashed "nrg.<hash>.js" URL.
+    expect(bundleContent).toContain("/nrg/assets/nrg.js");
+  });
+
+  it("should not emit any sourcemaps in a production build", () => {
+    // Prod server maps were misaligned (wrappers return `map: null`, the runtime
+    // import rewrite shifts bytes) so they're disabled; client prod maps are off
+    // too. A stray `.map` anywhere in the prod output is a regression.
+    const files = fs.readdirSync(outDir, { recursive: true }) as string[];
+    const maps = files.filter((f) => String(f).endsWith(".map"));
+    expect(maps).toEqual([]);
   });
 
   // --- Auto-generated entry cleanup ---

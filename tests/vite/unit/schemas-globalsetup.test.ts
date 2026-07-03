@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import path from "node:path";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import {
   serializeRegistry,
   loadRegistry,
@@ -11,12 +11,18 @@ const RUNTIME_PKG = path.resolve(__dirname, "fixtures/runtime-pkg");
 
 describe("serializeRegistry", () => {
   test("serializes each node's TypeBox schemas to plain JSON keyed by type", () => {
-    const configSchema = defineSchema({
-      name: SchemaType.String({ minLength: 1 }),
-    });
-    const credentialsSchema = defineSchema({
-      token: SchemaType.String({ minLength: 1 }),
-    });
+    const configSchema = defineSchema(
+      {
+        name: SchemaType.String({ minLength: 1 }),
+      },
+      { $id: "schemas-globalsetup.test:1" },
+    );
+    const credentialsSchema = defineSchema(
+      {
+        token: SchemaType.String({ minLength: 1 }),
+      },
+      { $id: "schemas-globalsetup.test:2" },
+    );
 
     const map = serializeRegistry({
       nodes: [{ type: "widget", configSchema, credentialsSchema }],

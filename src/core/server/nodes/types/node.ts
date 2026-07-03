@@ -1,5 +1,5 @@
-import type { Static, TSchema } from "@sinclair/typebox";
-import type { Schema } from "../../schemas/types";
+import type { Static, TSchema } from "../../../shared/schemas";
+import type { Schema } from "../../../shared/schemas";
 import type { NodeConfigSchema } from "../../schemas";
 import type { RED, NodeRedNode } from "../../red";
 

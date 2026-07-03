@@ -1,10 +1,10 @@
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import type { Infer as ServerInfer } from "@/core/server/schemas/types";
 import type { Infer as ClientInfer } from "@/core/client/types";
 
 // Never executed — `tsc` (via `pnpm validate:tsc`) proves that a class instance
 // passed through `SchemaType.Unsafe<T>()` resolves back to `T` UNCHANGED on both
-// planes. Before the `UnsafeResolved` brand, the per-plane resolvers deep-mapped
+// planes. Before the `UnsafeBrand` brand, the per-plane resolvers deep-mapped
 // the class into a structural object and dropped its private/`#` members, so the
 // result was no longer assignable to the class (TS2741) — silently breaking the
 // documented connection/stream/Buffer use case.

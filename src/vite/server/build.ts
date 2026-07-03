@@ -75,8 +75,18 @@ async function build(
     build: {
       outDir: buildContext.outDir,
       emptyOutDir: false,
-      sourcemap: buildContext.isDev ? "inline" : true,
-      minify: !buildContext.isDev,
+      // The server bundle is require()d locally by Node-RED, never shipped over
+      // the wire — so we never minify it. Readable code means production stack
+      // traces carry real function names and line numbers, debuggable without a
+      // source map. (Minification only pays off for the browser client bundle,
+      // which stays minified + content-hashed.)
+      minify: false,
+      // Dev: accurate inline maps. Prod: no map — unminified code is already
+      // debuggable, and a prod map would be misaligned anyway (the ESM/CJS
+      // output wrappers prepend/append and return `map: null`, and the post-emit
+      // @bonsae/nrg → @bonsae/nrg-runtime rewrite shifts bytes without updating
+      // the sibling .map).
+      sourcemap: buildContext.isDev ? "inline" : false,
       lib: {
         entry: entryPoints,
         formats: [isEsm ? "es" : "cjs"],

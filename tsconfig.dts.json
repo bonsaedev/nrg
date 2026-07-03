@@ -12,7 +12,9 @@
     "stripInternal": true,
     "esModuleInterop": true,
     "types": ["node", "jquery"],
-    "baseUrl": "."
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.vue", "dist"]

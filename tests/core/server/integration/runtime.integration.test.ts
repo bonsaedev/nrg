@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { startRuntime, type Runtime } from "@/test/server/integration";
 import { defineIONode, ConfigNode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 
 const Doubler = defineIONode({
   type: "int-doubler",
@@ -35,7 +35,7 @@ const Greeter = defineIONode({
   configSchema: defineSchema(
     {
       name: SchemaType.String({ default: "" }),
-      source: SchemaType.NodeRef<typeof Greeting>("greeting-config", {}),
+      source: SchemaType.NodeRef<Greeting>("greeting-config", {}),
     },
     { $id: "greeter:config" },
   ),
@@ -110,12 +110,37 @@ const Counter = defineIONode({
   },
 });
 
+// Emits only AFTER an awaited macrotask (20ms). A single event-loop tick can't
+// see the emission — receive() must settle on the node's done().
+const Deferred = defineIONode({
+  type: "deferred-emit",
+  configSchema: defineSchema(
+    { name: SchemaType.String({ default: "" }) },
+    { $id: "deferred-emit:config" },
+  ),
+  inputSchema: SchemaType.Object({}),
+  outputsSchema: SchemaType.Object({}),
+  async input(msg) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    this.send({ echoed: (msg as Record<string, unknown>).value });
+  },
+});
+
 describe("server integration runtime", () => {
   let runtime: Runtime;
 
   beforeAll(async () => {
     runtime = await startRuntime({
-      nodes: [Doubler, Greeting, Greeter, Repeater, Relay, Counter, Secured],
+      nodes: [
+        Doubler,
+        Greeting,
+        Greeter,
+        Repeater,
+        Relay,
+        Counter,
+        Secured,
+        Deferred,
+      ],
     });
   });
 
@@ -152,6 +177,21 @@ describe("server integration runtime", () => {
     const out = (await node.read()) as { output: { doubled: number } };
     expect(out.output.doubled).toBe(42);
     expect(node.sent()).toHaveLength(1);
+  });
+
+  it("receive() settles after an awaited async input() — no read() needed", async () => {
+    const flow = runtime.flow();
+    const node = flow.addNode(Deferred);
+    await flow.deploy();
+
+    // NO read() — the point of the settle-on-done fix is that receive() itself
+    // waits for the node to finish. The emission is behind a 20ms awaited
+    // macrotask, which the old single-setImmediate settle would have missed.
+    await node.receive({ value: "hi" });
+
+    const sent = node.sent(0) as Array<{ output: { echoed: string } }>;
+    expect(sent).toHaveLength(1);
+    expect(sent[0].output.echoed).toBe("hi");
   });
 
   it("resolves a config node through a real NodeRef", async () => {

@@ -24,9 +24,57 @@ class Recorder {
   readonly #sent = new Map<string, Captured[]>();
   readonly #received = new Map<string, Captured[]>();
   #waiters: Waiter[] = [];
+  // Message completions (a node called `done()`), keyed by `${nodeId}\0${msgid}`.
+  // Backs `receive()` settling after the node actually finishes — even if its
+  // `input()` awaited async work — rather than after a single event-loop tick.
+  #completed = new Set<string>();
+  #completionWaiters: Array<{ key: string; settle: () => void }> = [];
 
   recordSent(id: string, port: number, msg: unknown): void {
     this.#push("sent", id, { port, msg });
+  }
+
+  /** Record that node `nodeId` completed (called `done()` on) message `msgid`. */
+  recordComplete(nodeId: string | undefined, msgid: string | undefined): void {
+    if (!nodeId || !msgid) return;
+    const key = `${nodeId}\0${msgid}`;
+    this.#completed.add(key);
+    for (let i = this.#completionWaiters.length - 1; i >= 0; i--) {
+      if (this.#completionWaiters[i].key === key) {
+        const [w] = this.#completionWaiters.splice(i, 1);
+        w.settle();
+      }
+    }
+  }
+
+  /**
+   * Resolve once node `nodeId` has completed message `msgid`. Resolves — never
+   * rejects — on timeout, so callers can fall through to a plain tick when the
+   * completion signal isn't available (e.g. a non-object message).
+   */
+  waitForComplete(
+    nodeId: string,
+    msgid: string,
+    timeoutMs: number,
+  ): Promise<void> {
+    const key = `${nodeId}\0${msgid}`;
+    if (this.#completed.has(key)) return Promise.resolve();
+    return new Promise((resolve) => {
+      const waiter = {
+        key,
+        settle: () => {
+          clearTimeout(timer);
+          resolve();
+        },
+      };
+      const timer = setTimeout(() => {
+        this.#completionWaiters = this.#completionWaiters.filter(
+          (w) => w !== waiter,
+        );
+        resolve();
+      }, timeoutMs);
+      this.#completionWaiters.push(waiter);
+    });
   }
 
   recordReceived(id: string | undefined, msg: unknown): void {
@@ -78,6 +126,8 @@ class Recorder {
     this.#sent.clear();
     this.#received.clear();
     this.#waiters = [];
+    this.#completed.clear();
+    this.#completionWaiters = [];
   }
 
   #map(channel: Channel): Map<string, Captured[]> {

@@ -1,4 +1,5 @@
 import jsonpointer from "jsonpointer";
+import { cloneDeep } from "es-toolkit";
 import { Validator } from "../shared/validator";
 import type { ErrorObject } from "ajv";
 import type { JsonSchemaObject } from "./types";
@@ -26,17 +27,65 @@ const validator = new Validator({
 });
 
 /**
+ * Expands `x-nrg-form.required` into a real non-empty constraint. Every nrg
+ * field carries a default, so a required value is never structurally "missing"
+ * — a JSON-schema `required` array is satisfied by the empty string AJV sees.
+ * A non-empty constraint (`minLength`/`minItems` of 1) is what actually makes
+ * an empty required field fail validation, so the inline error and the
+ * workspace error triangle fire. Strings cover text, passwords, and NodeRefs
+ * (node-id strings); arrays cover multi-selects and list fields.
+ *
+ * Returns a new property object only for the fields it touches (the source
+ * schema is a shared, embedded artifact and must not be mutated).
+ */
+function withRequiredConstraints(
+  props?: Record<string, any>,
+): Record<string, any> | undefined {
+  if (!props) return props;
+  let changed = false;
+  const out: Record<string, any> = {};
+  for (const [key, schema] of Object.entries(props)) {
+    const required = schema?.["x-nrg-form"]?.required;
+    // Skip when not required, or non-validatable (functions carry no constraint).
+    if (!required || schema?.["x-nrg-skip-validation"]) {
+      out[key] = schema;
+      continue;
+    }
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    if (types.includes("string") && schema.minLength === undefined) {
+      out[key] = { ...schema, minLength: 1 };
+      changed = true;
+    } else if (types.includes("array") && schema.minItems === undefined) {
+      out[key] = { ...schema, minItems: 1 };
+      changed = true;
+    } else {
+      out[key] = schema;
+    }
+  }
+  return changed ? out : props;
+}
+
+/**
  * Merges a config schema and a credentials schema into the single validation
  * schema used by both the error triangle and inline form errors. Credentials
  * are nested under a `credentials` object property, mirroring the node shape.
+ * Required fields (`x-nrg-form.required`) are expanded to non-empty constraints
+ * on both planes.
  */
 function composeValidationSchema(
   configSchema?: JsonSchemaObject,
   credentialsSchema?: JsonSchemaObject,
 ): JsonSchemaObject | undefined {
-  const credsProps = credentialsSchema?.properties;
-  // No credentials → the config schema as-is (possibly undefined).
-  if (!credsProps) return configSchema;
+  const configProps = withRequiredConstraints(configSchema?.properties);
+  const credsProps = withRequiredConstraints(credentialsSchema?.properties);
+
+  const normalizedConfig =
+    configSchema && configProps !== configSchema.properties
+      ? { ...configSchema, properties: configProps }
+      : configSchema;
+
+  // No credentials → the (normalized) config schema as-is (possibly undefined).
+  if (!credsProps) return normalizedConfig;
 
   const credentialsObject: JsonSchemaObject = {
     type: "object",
@@ -48,11 +97,11 @@ function composeValidationSchema(
       : {}),
   };
 
-  if (configSchema) {
+  if (normalizedConfig) {
     return {
-      ...configSchema,
+      ...normalizedConfig,
       properties: {
-        ...configSchema.properties,
+        ...normalizedConfig.properties,
         credentials: credentialsObject,
       },
     };
@@ -72,9 +121,16 @@ function composeValidationSchema(
  * Runs AJV validation and returns the raw error array — empty when valid.
  */
 function runValidation(subject: any, schema: any): ErrorObject[] {
-  const result = validator.validate(subject, schema, {
-    cacheKey: `node-schema-${subject.type}`,
-  });
+  // Validate a deep clone, NEVER the live subject. The (coercing) validator
+  // rewrites string inputs to their typed values and injects schema defaults;
+  // `subject` here is the reactive editor node, so mutating it would mark the
+  // flow dirty on open and report phantom changes on Done. Coercion stays ON
+  // (HTML inputs emit strings that must coerce to pass numeric/boolean fields) —
+  // it just runs on the throwaway clone. The returned errors' instancePaths
+  // still line up with `subject` (same shape), which the callers read back for
+  // password filtering. The compiled validator is still cached (by the schema's
+  // $id), so only the small subject is cloned per keystroke, not recompiled.
+  const result = validator.validate(cloneDeep(subject), schema);
   return result.valid ? [] : (result.errors ?? []);
 }
 

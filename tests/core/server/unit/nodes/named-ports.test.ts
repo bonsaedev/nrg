@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createNode } from "@/test/server/unit";
 import { defineIONode } from "@/core/server/nodes";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 
 const SuccessSchema = defineSchema(
   { payload: SchemaType.String() },
@@ -131,24 +131,48 @@ describe("named output ports", () => {
       expect(node.sent("success")).toEqual([{ output: { payload: "ok" } }]);
     });
 
-    it("silently drops message for unknown named port", async () => {
+    it("throws for an unknown named port instead of silently dropping", async () => {
       const Node = defineIONode({
         type: "named-unknown-test",
         configSchema: ConfigSchema,
         outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input() {
-          this.sendToPort("nonexistent" as any, { payload: "test" });
-        },
+        async input() {},
       });
 
       const { node } = await createNode(Node, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
-      await node.receive({});
+      // The type gate (OutputPortNames) is compile-time only; a JS author
+      // reaching a stale name (here via an `as any` bypass) must fail loudly,
+      // not vanish.
+      expect(() =>
+        (node as { sendToPort: (p: string, m: unknown) => void }).sendToPort(
+          "nonexistent",
+          { payload: "test" },
+        ),
+      ).toThrow(/unknown output port/i);
+      expect(node.sent()).toHaveLength(0);
+    });
 
-      const sent = node.sent();
-      expect(sent).toHaveLength(0);
+    it("throws when the node has no named ports (single/absent schema)", async () => {
+      const Node = defineIONode({
+        type: "named-none-test",
+        configSchema: ConfigSchema,
+        outputsSchema: SuccessSchema,
+        async input() {},
+      });
+
+      const { node } = await createNode(Node, {
+        config: { errorPort: false, completePort: false, statusPort: false },
+      });
+
+      expect(() =>
+        (node as { sendToPort: (p: string, m: unknown) => void }).sendToPort(
+          "success",
+          { payload: "x" },
+        ),
+      ).toThrow(/no named output ports/i);
     });
 
     it("numeric index beyond baseOutputs creates sparse send", async () => {

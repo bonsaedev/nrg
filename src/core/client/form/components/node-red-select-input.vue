@@ -6,10 +6,12 @@
         :label="label"
         :icon="icon"
         :required="required"
+        :label-id="labelId || undefined"
       />
     </slot>
     <input
       ref="selectInput"
+      :aria-labelledby="labelId || undefined"
       type="text"
       class="node-input-select"
       style="width: 100%"
@@ -80,6 +82,12 @@ export default defineComponent({
       default: false,
     },
     error: {
+      type: String,
+      default: "",
+    },
+    /** id of the label; the jQuery-rehomed input references it via
+     *  `aria-labelledby` (its own id doesn't survive the widget transform). */
+    labelId: {
       type: String,
       default: "",
     },

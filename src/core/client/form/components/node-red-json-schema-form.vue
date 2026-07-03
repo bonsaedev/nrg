@@ -9,6 +9,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
+        :input-id="fieldId(field.key)"
       />
 
       <div v-else-if="field.inputType === 'boolean' && field.toggle">
@@ -25,8 +26,10 @@
           :label="field.label"
           :icon="field.icon"
           :required="field.required"
+          :html-for="fieldId(field.key)"
         />
         <input
+          :id="fieldId(field.key)"
           type="checkbox"
           :checked="node[field.key]"
           style="width: auto; margin: 0"
@@ -47,6 +50,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
+        :label-id="fieldId(field.key)"
       />
 
       <NodeRedTypedInput
@@ -57,6 +61,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
+        :label-id="fieldId(field.key)"
       />
 
       <NodeRedConfigInput
@@ -69,6 +74,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
+        :label-id="fieldId(field.key)"
       />
 
       <div v-else-if="field.inputType === 'array-text'">
@@ -76,6 +82,7 @@
           :label="field.label"
           :icon="field.icon"
           :required="field.required"
+          :html-for="fieldId(field.key)"
         />
         <span
           style="
@@ -88,6 +95,7 @@
           One entry per line
         </span>
         <textarea
+          :id="fieldId(field.key)"
           :value="
             Array.isArray(node[field.key])
               ? node[field.key].join('\n')
@@ -126,6 +134,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
+        :label-id="fieldId(field.key)"
         @update:value="setObjectField(field.key, $event)"
       />
 
@@ -137,6 +146,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.${field.key}`]"
+        :label-id="fieldId(field.key)"
       />
     </div>
 
@@ -152,6 +162,7 @@
         :icon="field.icon"
         :required="field.required"
         :error="errors[`node.credentials.${field.key}`]"
+        :input-id="fieldId(`credentials.${field.key}`)"
       />
     </div>
   </div>
@@ -232,15 +243,36 @@ function isTypedInput(schema: FieldSchema): boolean {
   );
 }
 
+/**
+ * A field is required when it declares a genuine non-empty constraint —
+ * `x-nrg-form.required` (expanded to `minLength`/`minItems` for validation) or
+ * an explicit `minLength`/`minItems` of 1. The JSON-schema `required` array is
+ * NOT used: TypeBox lists every non-`Optional` property there, so it would flag
+ * essentially every field. This keeps the `*` meaningful and aligned with what
+ * actually errors.
+ */
+function isFieldRequired(schema: FieldSchema): boolean {
+  if (schema["x-nrg-form"]?.required) return true;
+  if (typeof schema.minLength === "number" && schema.minLength >= 1)
+    return true;
+  if (typeof schema.minItems === "number" && schema.minItems >= 1) return true;
+  return false;
+}
+
 function buildField(
   key: string,
   schema: FieldSchema,
   required: boolean,
   i18nLabel?: string,
+  resolveOptionLabel?: (value: string) => string | undefined,
 ): FormField {
   const label = i18nLabel || schema.title || formatLabel(key);
   const form = schema["x-nrg-form"] ?? {};
   const icon = form.icon || "";
+  // Resolve a user-facing label per option, falling back to the raw value so a
+  // picklist never shows a bare enum literal (e.g. "bypassPermissions").
+  const optionLabel = (value: unknown): string =>
+    resolveOptionLabel?.(String(value)) ?? String(value);
 
   // NodeRef → config input
   if (schema["x-nrg-node-type"]) {
@@ -278,7 +310,7 @@ function buildField(
       multiple: true,
       options: schema.items.enum.map((v: any) => ({
         value: String(v),
-        label: String(v),
+        label: optionLabel(v),
       })),
     };
   }
@@ -294,7 +326,7 @@ function buildField(
       multiple: false,
       options: schema.enum.map((v: any) => ({
         value: String(v),
-        label: String(v),
+        label: optionLabel(v),
       })),
     };
   }
@@ -310,7 +342,7 @@ function buildField(
       multiple: false,
       options: schema.anyOf.map((s: any) => ({
         value: String(s.const),
-        label: String(s.const),
+        label: optionLabel(s.const),
       })),
     };
   }
@@ -427,15 +459,15 @@ export default defineComponent({
   computed: {
     configFields(): FormField[] {
       if (!this.schema?.properties) return [];
-      const required = new Set(this.schema.required ?? []);
       return Object.entries(this.schema.properties)
         .filter(([key]) => !SKIP_FIELDS.has(key))
         .map(([key, propSchema]) =>
           buildField(
             key,
             propSchema as FieldSchema,
-            required.has(key),
+            isFieldRequired(propSchema as FieldSchema),
             this.resolveI18n("configs", key),
+            (value) => this.resolveOptionLabel(key, value),
           ),
         );
     },
@@ -444,12 +476,11 @@ export default defineComponent({
         | FieldSchema
         | undefined;
       if (!credSchema?.properties) return [];
-      const required = new Set(credSchema.required ?? []);
       return Object.entries(credSchema.properties).map(([key, propSchema]) => {
         const f = buildField(
           key,
           propSchema as FieldSchema,
-          required.has(key),
+          isFieldRequired(propSchema as FieldSchema),
           this.resolveI18n("credentials", key),
         );
         // Force credential fields to be text/password inputs
@@ -468,6 +499,14 @@ export default defineComponent({
     },
   },
   methods: {
+    // Deterministic, unique DOM id for a field's control — used to bind a real
+    // `<label for>` (native inputs) or an `aria-labelledby` (rehomed jQuery/ACE
+    // widgets) for accessible naming. Namespaced by node id so two trays can't
+    // collide.
+    fieldId(key: string): string {
+      const nodeId = (this.node as { id?: string })?.id ?? "node";
+      return `nrg-${nodeId}-${key}`;
+    },
     // Parse a JSON-object field's textarea into a real object so AJV's
     // `type: "object"` validates and the saved value is an object. On invalid
     // JSON, keep the raw string so the type error surfaces instead of being
@@ -485,6 +524,18 @@ export default defineComponent({
       const fullKey = `${this.node.type}.${prefix}.${key}`;
       // RED._() returns the key itself when not found
       if (resolved && resolved !== fullKey && resolved !== `${prefix}.${key}`) {
+        return resolved;
+      }
+      return undefined;
+    },
+    // Per-option label lookup: `options.<field>.<value>` in the node's locale
+    // catalog. Returns undefined when unset so the caller falls back to the raw
+    // enum value.
+    resolveOptionLabel(field: string, value: string): string | undefined {
+      const subKey = `options.${field}.${value}`;
+      const resolved = this.$i18n(subKey);
+      const fullKey = `${this.node.type}.${subKey}`;
+      if (resolved && resolved !== fullKey && resolved !== subKey) {
         return resolved;
       }
       return undefined;

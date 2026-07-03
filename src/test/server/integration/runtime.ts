@@ -8,8 +8,8 @@ import { createRequire } from "module";
 // package's public server entry (resolved to the host project's installed nrg);
 // a relative import would make esbuild bundle a second, non-identical copy.
 import { registerTypes } from "@bonsae/nrg/server";
-import type { NodeConstructor } from "../../../core/server/nodes/types/node";
-import type { NodeRedContextStore } from "../../../core/server/red";
+import type { NodeConstructor } from "@/core/server/nodes";
+import type { NodeRedContextStore } from "@/core/server/red";
 import { Recorder } from "./recorder";
 import { Flow } from "./flow";
 
@@ -75,6 +75,13 @@ async function startRuntime(options: StartRuntimeOptions): Promise<Runtime> {
   RED.hooks.add("onReceive", (event) =>
     recorder.recordReceived(event.destination?.id, event.msg),
   );
+  // Node-RED fires onComplete when a node calls `done()`. We correlate it (node
+  // id + msg._msgid) so `receive()` can settle after the node truly finishes,
+  // async work included. Node shape varies across versions — probe a few fields.
+  RED.hooks.add("onComplete", (event) => {
+    const nodeId = event.node?.id ?? event.source?.id ?? event.destination?.id;
+    recorder.recordComplete(nodeId, event.msg?._msgid);
+  });
 
   // register node types through the same path production uses. The cast tracks
   // whatever `registerTypes` resolves to: `@bonsae/nrg/server` can land on the
@@ -145,6 +152,15 @@ interface NodeRedApi {
     add(
       name: "onReceive",
       fn: (event: { destination?: { id?: string }; msg: unknown }) => void,
+    ): void;
+    add(
+      name: "onComplete",
+      fn: (event: {
+        node?: { id?: string };
+        source?: { id?: string };
+        destination?: { id?: string };
+        msg?: { _msgid?: string } & Record<string, unknown>;
+      }) => void,
     ): void;
   };
   nodes: { getNode(id: string): RuntimeNode | null };

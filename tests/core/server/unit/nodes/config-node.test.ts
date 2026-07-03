@@ -17,12 +17,7 @@ describe("ConfigNode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new TestConfigNode(
-        RED,
-        node,
-        { _users: [] },
-        {},
-      );
+      const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
       const ctx = (instance as any).context;
       expect(ctx).toBeDefined();
@@ -34,12 +29,7 @@ describe("ConfigNode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new TestConfigNode(
-        RED,
-        node,
-        { _users: [] },
-        {},
-      );
+      const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
       const globalCtx = (instance as any).context("global");
       expect(globalCtx).toBeDefined();
@@ -125,12 +115,7 @@ describe("ConfigNode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();
-      const instance = new TestConfigNode(
-        RED,
-        node,
-        { _users: [] },
-        {},
-      );
+      const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
       expect(instance.getUser(0)).toBeUndefined();
     });
@@ -155,12 +140,7 @@ describe("ConfigNode", () => {
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode({ credentials: { secret: "abc" } });
-      const instance = new TestConfigNode(
-        RED,
-        node,
-        { _users: [] },
-        {},
-      );
+      const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
       expect(instance.credentials).toEqual({ secret: "abc" });
     });

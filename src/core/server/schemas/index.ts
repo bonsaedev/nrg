@@ -1,15 +1,26 @@
-// Schema authoring (SchemaType, defineSchema, and the base value schemas) is
-// browser-safe and now lives in core/shared/schemas. It is re-exported here so
-// the long-standing server-tree import path `server/schemas` stays stable.
-export * from "../../shared/schemas";
-// Framework-internal node config-shape schemas: not part of the public
-// @bonsae/nrg/schema surface, but the node base classes resolve their config
-// types (`Static<typeof …>`) from these, so the server tree re-exports them.
+// Server-owned schemas and resolution types. The schema builders (`SchemaType`,
+// `defineSchema`) and the plane-neutral schema types (`Schema`, `TNodeRef`,
+// TypeBox aliases, …) come from `@bonsae/nrg/schema` (core/shared/schemas) and
+// are intentionally NOT re-exported here — keeping the schema/server boundary
+// structural. These base schemas are authored with the shared builder but stay
+// server-only: node authors never reference them directly.
 export {
   NodeConfigSchema,
   IONodeConfigSchema,
   ConfigNodeConfigSchema,
-} from "../../shared/schemas/base";
-// Server-side resolution types (Infer, ResolvedStatic, …) plus a re-export of
-// the shared schema types.
-export type * from "./types";
+  NodeSourceSchema,
+  ErrorPortOutputSchema,
+  CompletePortOutputSchema,
+  StatusPortOutputSchema,
+} from "./base";
+// Server-side resolution types + built-in port message types.
+export type {
+  Infer,
+  InferOr,
+  InferOutputs,
+  ResolvedStatic,
+  NodeSource,
+  ErrorPortOutput,
+  CompletePortOutput,
+  StatusPortOutput,
+} from "./types";

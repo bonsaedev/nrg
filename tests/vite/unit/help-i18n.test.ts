@@ -16,32 +16,29 @@ const SUPPORTED_LANGUAGES = [
 
 describe("help-i18n", () => {
   describe("getHelpTranslations", () => {
-    it.each(SUPPORTED_LANGUAGES)(
-      "returns translations for %s",
-      (lang) => {
-        const t = getHelpTranslations(lang);
+    it.each(SUPPORTED_LANGUAGES)("returns translations for %s", (lang) => {
+      const t = getHelpTranslations(lang);
 
-        expect(t.sections).toBeDefined();
-        expect(t.sections.properties).toBeTruthy();
-        expect(t.sections.credentials).toBeTruthy();
-        expect(t.sections.input).toBeTruthy();
-        expect(t.sections.output).toBeTruthy();
-        expect(t.sections.outputs).toBeTruthy();
-        expect(t.sections.port).toBeTruthy();
+      expect(t.sections).toBeDefined();
+      expect(t.sections.properties).toBeTruthy();
+      expect(t.sections.credentials).toBeTruthy();
+      expect(t.sections.input).toBeTruthy();
+      expect(t.sections.output).toBeTruthy();
+      expect(t.sections.outputs).toBeTruthy();
+      expect(t.sections.port).toBeTruthy();
 
-        expect(t.columns).toBeDefined();
-        expect(t.columns.property).toBeTruthy();
-        expect(t.columns.label).toBeTruthy();
-        expect(t.columns.type).toBeTruthy();
-        expect(t.columns.required).toBeTruthy();
-        expect(t.columns.default).toBeTruthy();
-        expect(t.columns.description).toBeTruthy();
+      expect(t.columns).toBeDefined();
+      expect(t.columns.property).toBeTruthy();
+      expect(t.columns.label).toBeTruthy();
+      expect(t.columns.type).toBeTruthy();
+      expect(t.columns.required).toBeTruthy();
+      expect(t.columns.default).toBeTruthy();
+      expect(t.columns.description).toBeTruthy();
 
-        expect(t.values).toBeDefined();
-        expect(t.values.yes).toBeTruthy();
-        expect(t.values.no).toBeTruthy();
-      },
-    );
+      expect(t.values).toBeDefined();
+      expect(t.values.yes).toBeTruthy();
+      expect(t.values.no).toBeTruthy();
+    });
 
     it("falls back to en-US for unknown languages", () => {
       const t = getHelpTranslations("xx-XX");

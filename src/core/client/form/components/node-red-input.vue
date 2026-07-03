@@ -6,9 +6,11 @@
         :label="label"
         :icon="icon"
         :required="required"
+        :html-for="inputId || undefined"
       />
     </slot>
     <input
+      :id="inputId || undefined"
       ref="inputField"
       :type="type"
       :value="internalValue"
@@ -65,11 +67,17 @@ export default defineComponent({
       type: String,
       default: "",
     },
+    /** id for the <input>, bound to the label's `for` for accessible naming. */
+    inputId: {
+      type: String,
+      default: "",
+    },
   },
   emits: ["update:modelValue", "update:value", "input"],
   data() {
     return {
       internalValue: "",
+      isFocused: false,
     };
   },
   computed: {
@@ -77,6 +85,16 @@ export default defineComponent({
       return (
         this.modelValue !== undefined ? this.modelValue : this.value
       ) as string;
+    },
+  },
+  watch: {
+    // Sync an EXTERNAL value change into the widget (e.g. a custom form updating
+    // an interdependent sibling field via useFormNode). Guarded: never while the
+    // user is typing (focused) — that would clobber the caret — and never for
+    // password fields, which run their own SECRET_PATTERN/__PWD__ focus dance.
+    effectiveValue(newVal: string) {
+      if (this.isFocused || this.type === "password") return;
+      if (this.internalValue !== newVal) this.internalValue = newVal;
     },
   },
   beforeMount() {
@@ -91,11 +109,13 @@ export default defineComponent({
       this.$emit("input", this.internalValue);
     },
     onFocus() {
+      this.isFocused = true;
       if (this.type === "password" && this.internalValue === SECRET_PATTERN) {
         this.internalValue = "";
       }
     },
     onBlur() {
+      this.isFocused = false;
       if (this.type === "password" && this.effectiveValue === "__PWD__") {
         this.internalValue = SECRET_PATTERN;
       }

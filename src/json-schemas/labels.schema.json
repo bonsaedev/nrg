@@ -35,6 +35,10 @@
       "$ref": "#/$defs/labelMap",
       "description": "Labels for config properties"
     },
+    "options": {
+      "$ref": "#/$defs/portLabelMap",
+      "description": "User-facing labels for enum/union option values, keyed by config field then option value (e.g. \"provider\": { \"anthropic\": \"Anthropic API\" }). Unset values fall back to the raw option value."
+    },
     "credentials": {
       "$ref": "#/$defs/labelMap",
       "description": "Labels for credential properties"

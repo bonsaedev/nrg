@@ -2,10 +2,8 @@
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
-    "baseUrl": ".",
     "paths": {
-      "@/core/*": ["../../../../src/core/*"],
-      "@/test/*": ["../../../../src/test/*"],
+      "@/*": ["../../../../src/*"],
       "@bonsae/nrg/server": ["../../../../src/core/server/index.ts"]
     }
   },

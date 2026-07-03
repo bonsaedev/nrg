@@ -13,7 +13,10 @@
     "emitDeclarationOnly": true,
     "outDir": "dist/toolkit/types/shims"
   },
-  "files": ["src/core/client/globals.d.ts", "src/core/client/components.d.ts"],
+  "files": [
+    "src/core/client/shims/globals.d.ts",
+    "src/core/client/shims/components.d.ts"
+  ],
   "include": ["src/core/client/form/components/*.vue"],
   "exclude": ["node_modules"]
 }

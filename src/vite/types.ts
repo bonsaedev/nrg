@@ -172,7 +172,7 @@ interface ServerPluginOptions {
   buildContext: BuildContext;
 }
 
-export {
+export type {
   BuildContext,
   BuildOptions,
   BuildPluginOptions,

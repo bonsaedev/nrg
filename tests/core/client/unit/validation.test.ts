@@ -355,4 +355,119 @@ describe("composeValidationSchema", () => {
     expect(errors["node.name"]).toBeDefined();
     expect(errors["node.credentials.token"]).toBeDefined();
   });
+
+  describe("x-nrg-form.required expansion", () => {
+    it("makes an empty required string field fail (config)", () => {
+      const schema = composeValidationSchema(
+        {
+          type: "object",
+          properties: {
+            apiKey: { type: "string", "x-nrg-form": { required: true } },
+          },
+        } as any,
+        undefined,
+      )!;
+      // empty → error
+      expect(
+        validateForm({ type: "req", apiKey: "" }, schema)["node.apiKey"],
+      ).toBeDefined();
+      // present → no error
+      expect(
+        validateForm({ type: "req", apiKey: "sk-1" }, schema)["node.apiKey"],
+      ).toBeUndefined();
+    });
+
+    it("makes an empty required NodeRef (node-id string) fail", () => {
+      const schema = composeValidationSchema(
+        {
+          type: "object",
+          properties: {
+            config: {
+              type: "string",
+              format: "node-id",
+              "x-nrg-node-type": "some-config",
+              "x-nrg-form": { required: true },
+            },
+          },
+        } as any,
+        undefined,
+      )!;
+      expect(
+        validateForm({ type: "ref", config: "" }, schema)["node.config"],
+      ).toBeDefined();
+      const result = validateNode({ type: "ref", config: "" }, schema);
+      expect(result).not.toBe(true); // error triangle fires
+    });
+
+    it("makes an empty required array field fail (minItems)", () => {
+      const schema = composeValidationSchema(
+        {
+          type: "object",
+          properties: {
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              "x-nrg-form": { required: true },
+            },
+          },
+        } as any,
+        undefined,
+      )!;
+      expect(
+        validateForm({ type: "arr", tags: [] }, schema)["node.tags"],
+      ).toBeDefined();
+      expect(
+        validateForm({ type: "arr", tags: ["a"] }, schema)["node.tags"],
+      ).toBeUndefined();
+    });
+
+    it("expands required credentials too", () => {
+      const schema = composeValidationSchema(undefined, {
+        type: "object",
+        properties: {
+          apiKey: {
+            type: "string",
+            format: "password",
+            "x-nrg-form": { required: true },
+          },
+        },
+      } as any)!;
+      // A genuinely-empty password (no server value) errors.
+      expect(
+        validateForm({ type: "credreq", credentials: { apiKey: "" } }, schema)[
+          "node.credentials.apiKey"
+        ],
+      ).toBeDefined();
+    });
+
+    it("leaves non-required fields untouched (empty is valid)", () => {
+      const schema = composeValidationSchema(
+        {
+          type: "object",
+          properties: { note: { type: "string" } },
+        } as any,
+        undefined,
+      )!;
+      expect(
+        validateForm({ type: "opt", note: "" }, schema)["node.note"],
+      ).toBeUndefined();
+    });
+
+    it("does not override an explicit minLength", () => {
+      const composed = composeValidationSchema(
+        {
+          type: "object",
+          properties: {
+            code: {
+              type: "string",
+              minLength: 3,
+              "x-nrg-form": { required: true },
+            },
+          },
+        } as any,
+        undefined,
+      )!;
+      expect((composed.properties!.code as any).minLength).toBe(3);
+    });
+  });
 });
