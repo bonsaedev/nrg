@@ -28,6 +28,15 @@ function nodeDefsPath(outDir: string): string {
   return path.join(clientCacheDir(outDir), "node-defs.json");
 }
 
+/**
+ * The hand-off file the server build writes with each node's TypeScript type
+ * info (the source of truth for help docs) and the client build's help
+ * generator reads. Colocated with node-defs.json in the client cache dir.
+ */
+function nodeTypesPath(outDir: string): string {
+  return path.join(clientCacheDir(outDir), "node-types.json");
+}
+
 function cleanDir(dir: string) {
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true });
@@ -136,4 +145,5 @@ export {
   cacheKeyFor,
   clientCacheDir,
   nodeDefsPath,
+  nodeTypesPath,
 };

@@ -1043,4 +1043,77 @@ describe("help-generator", () => {
       expect(content).toContain('data-help-name="node-b"');
     });
   });
+
+  // The Node class's TypeScript types are the source of truth for docs; the
+  // schema (when present) only enriches with default/description/constraints.
+  describe("type-driven rendering", () => {
+    it("renders rows and Type column from TS fields with no schema at all", () => {
+      const section = generateSchemaSection({
+        title: "Properties",
+        schema: undefined,
+        t: enUS,
+        typeFields: [
+          { name: "prefix", type: "string", optional: false },
+          { name: "retries", type: "number", optional: true },
+        ],
+      });
+      // required (non-optional) field
+      expect(section).toContain("<td>prefix</td><td>string</td><td>Yes</td>");
+      // optional TS field → not required
+      expect(section).toContain("<td>retries</td><td>number</td><td>No</td>");
+    });
+
+    it("shows a union of string literals verbatim (the delimiter case)", () => {
+      const section = generateSchemaSection({
+        title: "Properties",
+        schema: undefined,
+        t: enUS,
+        typeFields: [
+          {
+            name: "delimiter",
+            type: '"COMMA" | "TAB" | "PIPE"',
+            optional: false,
+          },
+        ],
+      });
+      expect(section).toContain(
+        '<td>delimiter</td><td>"COMMA" | "TAB" | "PIPE"</td>',
+      );
+    });
+
+    it("takes the Type from TS but enriches default/description from schema", () => {
+      const section = generateSchemaSection({
+        title: "Properties",
+        schema: {
+          properties: {
+            timeout: {
+              type: "number",
+              default: 5000,
+              description: "Request timeout",
+              minimum: 0,
+            },
+          },
+        },
+        t: enUS,
+        typeFields: [{ name: "timeout", type: "number", optional: false }],
+      });
+      // Type from TS + schema constraint appended
+      expect(section).toContain("<td>number [min: 0]</td>");
+      expect(section).toContain("<code>5000</code>");
+      expect(section).toContain("Request timeout");
+    });
+
+    it("generateHelpDoc drives the config section from nodeTypes", () => {
+      const doc = generateHelpDoc({ type: "my-node" }, {}, enUS, undefined, {
+        type: "my-node",
+        kind: "io",
+        config: {
+          text: '{ mode: "a" | "b" }',
+          fields: [{ name: "mode", type: '"a" | "b"', optional: false }],
+        },
+      });
+      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain('<td>mode</td><td>"a" | "b"</td>');
+    });
+  });
 });

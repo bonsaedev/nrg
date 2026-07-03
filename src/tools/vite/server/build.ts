@@ -12,6 +12,7 @@ import {
   cjsWrapper,
   esmWrapper,
   extractNodeDefinitions,
+  writeNodeTypes,
   rewriteEmittedRuntimeImports,
 } from "./plugins";
 
@@ -143,6 +144,21 @@ module.exports = function (RED) {
     // so it loads directly — no re-bundle) and write them for the client build's
     // inliner. Runs in dev and prod.
     await extractNodeDefinitions(buildContext.outDir);
+
+    // Extract each node's TypeScript types (the source of truth for help docs —
+    // schemas are optional) into node-types.json for the client help generator.
+    // Prod only: it stands up a ts.Program, and dev docs fall back to schema.
+    // Best-effort — never fail the build over doc metadata.
+    if (!buildContext.isDev) {
+      try {
+        const count = writeNodeTypes(resolvedSrcDir, buildContext.outDir);
+        logger.info(`✓ Extracted node types for ${count} node(s)`);
+      } catch (error) {
+        logger.warn(
+          `node type extraction skipped: ${(error as Error).message}`,
+        );
+      }
+    }
 
     // Production only: rename the emitted server imports from the toolkit to the
     // runtime package — the single, final rewrite, after the extractor has read

@@ -6,6 +6,8 @@ interface HelpTranslations {
     output: string;
     outputs: string;
     port: string;
+    settings: string;
+    complete: string;
   };
   columns: {
     property: string;
@@ -30,6 +32,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "Output",
       outputs: "Outputs",
       port: "Port",
+      settings: "Settings",
+      complete: "Complete",
     },
     columns: {
       property: "Property",
@@ -52,6 +56,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "Ausgang",
       outputs: "Ausgänge",
       port: "Port",
+      settings: "Einstellungen",
+      complete: "Abschluss",
     },
     columns: {
       property: "Eigenschaft",
@@ -74,6 +80,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "Salida",
       outputs: "Salidas",
       port: "Puerto",
+      settings: "Configuración",
+      complete: "Completado",
     },
     columns: {
       property: "Propiedad",
@@ -96,6 +104,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "Sortie",
       outputs: "Sorties",
       port: "Port",
+      settings: "Paramètres",
+      complete: "Terminé",
     },
     columns: {
       property: "Propriété",
@@ -118,6 +128,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "출력",
       outputs: "출력",
       port: "포트",
+      settings: "설정",
+      complete: "완료",
     },
     columns: {
       property: "속성",
@@ -140,6 +152,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "Saída",
       outputs: "Saídas",
       port: "Porta",
+      settings: "Configurações",
+      complete: "Concluído",
     },
     columns: {
       property: "Propriedade",
@@ -162,6 +176,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "Выход",
       outputs: "Выходы",
       port: "Порт",
+      settings: "Настройки",
+      complete: "Завершение",
     },
     columns: {
       property: "Свойство",
@@ -184,6 +200,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "出力",
       outputs: "出力",
       port: "ポート",
+      settings: "設定",
+      complete: "完了",
     },
     columns: {
       property: "プロパティ",
@@ -206,6 +224,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "输出",
       outputs: "输出",
       port: "端口",
+      settings: "设置",
+      complete: "完成",
     },
     columns: {
       property: "属性",
@@ -228,6 +248,8 @@ const translations: Record<string, HelpTranslations> = {
       output: "輸出",
       outputs: "輸出",
       port: "埠",
+      settings: "設定",
+      complete: "完成",
     },
     columns: {
       property: "屬性",

@@ -3,7 +3,13 @@ import fs from "fs";
 import path from "path";
 import { getHelpTranslations, type HelpTranslations } from "./help-i18n";
 import { extractUnsafeTypes, type UnsafeTypeMap } from "./unsafe-types";
-import { nodeDefsPath } from "../../utils";
+import type {
+  NodeTypeInfo,
+  NodeFieldInfo,
+  NodeRoleType,
+  NodeOutputPort,
+} from "../../server/plugins/node-type-info";
+import { nodeDefsPath, nodeTypesPath } from "../../utils";
 import { logger } from "../../logger";
 
 interface HelpGeneratorOptions {
@@ -30,13 +36,17 @@ function buildPropertyRow(
   required: boolean,
   label?: string,
   parsedType?: string,
+  tsType?: string,
 ): PropertyRow {
   let type = "";
-  if (schema["x-nrg-node-type"]) {
+  if (tsType) {
+    // The node's TypeScript type is the source of truth for the Type column.
+    type = tsType;
+  } else if (schema?.["x-nrg-node-type"]) {
     type = `NodeRef → ${schema["x-nrg-node-type"]}`;
-  } else if (schema["x-nrg-typed-input"]) {
+  } else if (schema?.["x-nrg-typed-input"]) {
     type = "TypedInput";
-  } else if (schema.type) {
+  } else if (schema?.type) {
     type = String(schema.type);
   } else if (parsedType) {
     // Recovered from the source `Unsafe<T>()` type argument at build time, since
@@ -44,23 +54,26 @@ function buildPropertyRow(
     type = parsedType;
   }
 
-  if (schema.enum) type += ` (${schema.enum.join(", ")})`;
+  // A schema `enum` is already captured by the resolved TS union — only append
+  // it when the Type came from the schema.
+  if (!tsType && schema?.enum) type += ` (${schema.enum.join(", ")})`;
 
+  // Schema constraints enrich the type even when the type itself came from TS.
   const constraints: string[] = [];
-  if (schema.minLength !== undefined)
+  if (schema?.minLength !== undefined)
     constraints.push(`min: ${schema.minLength}`);
-  if (schema.maxLength !== undefined)
+  if (schema?.maxLength !== undefined)
     constraints.push(`max: ${schema.maxLength}`);
-  if (schema.minimum !== undefined) constraints.push(`min: ${schema.minimum}`);
-  if (schema.maximum !== undefined) constraints.push(`max: ${schema.maximum}`);
-  if (schema.pattern) constraints.push(`pattern: \`${schema.pattern}\``);
-  if (schema.format && schema.format !== "password")
+  if (schema?.minimum !== undefined) constraints.push(`min: ${schema.minimum}`);
+  if (schema?.maximum !== undefined) constraints.push(`max: ${schema.maximum}`);
+  if (schema?.pattern) constraints.push(`pattern: \`${schema.pattern}\``);
+  if (schema?.format && schema.format !== "password")
     constraints.push(`format: ${schema.format}`);
   if (constraints.length) type += ` [${constraints.join(", ")}]`;
 
   const defaultVal =
-    schema.default !== undefined ? JSON.stringify(schema.default) : "";
-  const description = schema.description ?? "";
+    schema?.default !== undefined ? JSON.stringify(schema.default) : "";
+  const description = schema?.description ?? "";
 
   return { name, label: label ?? "", type, required, defaultVal, description };
 }
@@ -86,6 +99,12 @@ interface SchemaSectionOptions {
   includeDefault?: boolean;
   /** $id → { prop: typeText }, recovered from source Unsafe<T>() args. */
   unsafeTypes?: UnsafeTypeMap;
+  /**
+   * The role's TypeScript fields (name/type/optional). When present, they are
+   * the source of truth for which rows exist and the Type column; the schema
+   * (if any) only enriches each field with default/description/constraints.
+   */
+  typeFields?: NodeFieldInfo[];
 }
 
 function generateSchemaSection(options: SchemaSectionOptions): string {
@@ -97,23 +116,39 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
     heading = "###",
     includeDefault = true,
     unsafeTypes,
+    typeFields,
   } = options;
 
-  if (!schema?.properties) return "";
+  // Rows come from the TS types when available (source of truth — works even
+  // with no schema), otherwise from the schema properties.
+  if (!typeFields?.length && !schema?.properties) return "";
 
-  const parsed = unsafeTypes?.get(schema.$id);
-  const required = new Set<string>(schema.required ?? []);
-  const rows = Object.entries(schema.properties)
-    .filter(([key]) => !SKIP_FIELDS.has(key))
-    .map(([key, propSchema]) =>
-      buildPropertyRow(
-        key,
-        propSchema as any,
-        required.has(key),
-        labels?.[key],
-        parsed?.[key],
-      ),
-    );
+  const parsed = unsafeTypes?.get(schema?.$id);
+  const required = new Set<string>(schema?.required ?? []);
+  const rows = typeFields?.length
+    ? typeFields
+        .filter((f) => !SKIP_FIELDS.has(f.name))
+        .map((f) =>
+          buildPropertyRow(
+            f.name,
+            schema?.properties?.[f.name],
+            !f.optional,
+            labels?.[f.name],
+            parsed?.[f.name],
+            f.type,
+          ),
+        )
+    : Object.entries(schema.properties)
+        .filter(([key]) => !SKIP_FIELDS.has(key))
+        .map(([key, propSchema]) =>
+          buildPropertyRow(
+            key,
+            propSchema as any,
+            required.has(key),
+            labels?.[key],
+            parsed?.[key],
+          ),
+        );
 
   if (rows.length === 0) return "";
 
@@ -182,11 +217,60 @@ function loadNodeLabels(labelPath: string): NodeLabels {
   }
 }
 
+/** The enrichment schema for one output port, from the node's outputsSchema. */
+function outputSchemaForPort(
+  outputsSchema: any,
+  port: NodeOutputPort,
+  index: number,
+): any {
+  if (!outputsSchema) return undefined;
+  if (port.name !== undefined) {
+    return !Array.isArray(outputsSchema) && typeof outputsSchema === "object"
+      ? outputsSchema[port.name]
+      : undefined;
+  }
+  if (Array.isArray(outputsSchema)) return outputsSchema[index];
+  return outputsSchema; // single object output
+}
+
+/**
+ * Render a role that is either an object (a field table) or a primitive/union
+ * (a single typed line). Returns "" when there is nothing to show.
+ */
+function roleSection(
+  title: string,
+  role: NodeRoleType | undefined,
+  t: HelpTranslations,
+  opts: {
+    schema?: any;
+    labels?: Record<string, string>;
+    heading?: string;
+    includeDefault?: boolean;
+  } = {},
+): string {
+  if (!role) return "";
+  if (role.fields.length) {
+    return generateSchemaSection({
+      title,
+      schema: opts.schema,
+      typeFields: role.fields,
+      t,
+      labels: opts.labels,
+      heading: opts.heading,
+      includeDefault: opts.includeDefault ?? false,
+    });
+  }
+  // Primitive / union type — no members to table.
+  const level = (opts.heading ?? "###").length;
+  return `<h${level}>${title}</h${level}>\n<p><code>${role.text}</code></p>\n`;
+}
+
 function generateHelpDoc(
   nodeClass: any,
   labels: NodeLabels,
   t: HelpTranslations,
   unsafeTypes?: UnsafeTypeMap,
+  nodeTypes?: NodeTypeInfo,
 ): string {
   const lines: string[] = [];
 
@@ -197,6 +281,7 @@ function generateHelpDoc(
   const configSection = generateSchemaSection({
     title: t.sections.properties,
     schema: nodeClass.configSchema,
+    typeFields: nodeTypes?.config?.fields,
     t,
     labels: labels.configs,
     unsafeTypes,
@@ -206,17 +291,32 @@ function generateHelpDoc(
   const credsSection = generateSchemaSection({
     title: t.sections.credentials,
     schema: nodeClass.credentialsSchema,
+    typeFields: nodeTypes?.credentials?.fields,
     t,
     labels: labels.credentials,
     unsafeTypes,
   });
   if (credsSection) lines.push(credsSection);
 
+  // Settings — node-level configuration (RED.settings)
+  const settingsSection = nodeTypes?.settings
+    ? roleSection(t.sections.settings, nodeTypes.settings, t, {
+        schema: nodeClass.settingsSchema,
+        includeDefault: true,
+      })
+    : generateSchemaSection({
+        title: t.sections.settings,
+        schema: nodeClass.settingsSchema,
+        t,
+      });
+  if (settingsSection) lines.push(settingsSection);
+
   // Input — no Default column
-  if (nodeClass.inputSchema) {
+  if (nodeClass.inputSchema || nodeTypes?.input) {
     const inputSection = generateSchemaSection({
       title: t.sections.input,
       schema: nodeClass.inputSchema,
+      typeFields: nodeTypes?.input?.fields,
       t,
       labels: labels.input,
       includeDefault: false,
@@ -225,8 +325,37 @@ function generateHelpDoc(
     if (inputSection) lines.push(inputSection);
   }
 
-  // Output(s) — no Default column
-  if (nodeClass.outputsSchema) {
+  // Output(s) — type-driven (shape-aware) when available, else schema-driven.
+  if (nodeTypes?.outputs?.length) {
+    const os = nodeClass.outputsSchema;
+    const ports = nodeTypes.outputs;
+    if (ports.length === 1 && ports[0].name === undefined) {
+      const section = roleSection(t.sections.output, ports[0].role, t, {
+        schema: outputSchemaForPort(os, ports[0], 0),
+        labels: labels.outputs?.[0],
+      });
+      if (section) lines.push(section);
+    } else {
+      const portSections = ports
+        .map((port, i) => {
+          const title = port.name ?? `${t.sections.port} ${i + 1}`;
+          const portLabels = port.name
+            ? (labels.outputs as any)?.[port.name]
+            : labels.outputs?.[i];
+          return roleSection(title, port.role, t, {
+            schema: outputSchemaForPort(os, port, i),
+            labels: portLabels,
+            heading: "####",
+          });
+        })
+        .filter(Boolean);
+      if (portSections.length) {
+        lines.push(
+          `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
+        );
+      }
+    }
+  } else if (nodeClass.outputsSchema) {
     const os = nodeClass.outputsSchema;
     if (Array.isArray(os)) {
       const portSections: string[] = [];
@@ -284,6 +413,14 @@ function generateHelpDoc(
     }
   }
 
+  // Complete port — carries the value returned from input().
+  const completeSection = roleSection(
+    t.sections.complete,
+    nodeTypes?.complete,
+    t,
+  );
+  if (completeSection) lines.push(completeSection);
+
   return lines.join("\n").trim();
 }
 
@@ -327,6 +464,19 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
       }
 
       const unsafeTypes = srcDir ? extractUnsafeTypes(srcDir) : undefined;
+
+      // Per-node TypeScript type info (source of truth for docs) the server
+      // build extracted. Optional — absent in dev, where docs fall back to the
+      // schema-derived Type column.
+      let nodeTypesByType: Record<string, NodeTypeInfo> = {};
+      try {
+        nodeTypesByType = JSON.parse(
+          fs.readFileSync(nodeTypesPath(outDir), "utf-8"),
+        );
+      } catch {
+        // No node-types.json — schema-driven fallback.
+      }
+
       const helpByLang = new Map<string, string[]>();
 
       for (const def of nodeDefs) {
@@ -344,7 +494,13 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
           const labelPath = path.join(labelsDir, type, `${lang}.json`);
           const labels = loadNodeLabels(labelPath);
           const t = getHelpTranslations(lang);
-          const content = generateHelpDoc(def, labels, t, unsafeTypes);
+          const content = generateHelpDoc(
+            def,
+            labels,
+            t,
+            unsafeTypes,
+            nodeTypesByType[type],
+          );
           if (!content) continue;
 
           if (!helpByLang.has(lang)) helpByLang.set(lang, []);
