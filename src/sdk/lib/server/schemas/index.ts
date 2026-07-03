@@ -1,6 +1,6 @@
 // Server-owned schemas and resolution types. The schema builders (`SchemaType`,
 // `defineSchema`) and the plane-neutral schema types (`Schema`, `TNodeRef`,
-// TypeBox aliases, …) come from `@bonsae/nrg/schema` (core/shared/schemas) and
+// TypeBox aliases, …) come from `@bonsae/nrg/schema` (sdk/lib/shared/schemas) and
 // are intentionally NOT re-exported here — keeping the schema/server boundary
 // structural. These base schemas are authored with the shared builder but stay
 // server-only: node authors never reference them directly.

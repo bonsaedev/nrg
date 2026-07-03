@@ -15,7 +15,7 @@ export default defineConfig({
         "src/sdk/lib/runtime.ts",
       ),
       "@bonsae/nrg/server": path.resolve(__dirname, "src/sdk/lib/server/index.ts"),
-      "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
+      "@mocks": path.resolve(__dirname, "tests/sdk/client/mocks"),
       "@bonsae/nrg/client": path.resolve(__dirname, "src/sdk/test/client/unit"),
     },
   },
@@ -27,8 +27,8 @@ export default defineConfig({
   test: {
     testTimeout: 30_000,
     environment: "happy-dom",
-    setupFiles: ["tests/core/client/unit/setup.ts"],
-    include: ["tests/core/client/unit/**/*.test.ts"],
+    setupFiles: ["tests/sdk/client/unit/setup.ts"],
+    include: ["tests/sdk/client/unit/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reportsDirectory: "coverage/client-unit",

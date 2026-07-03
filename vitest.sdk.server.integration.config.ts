@@ -22,12 +22,12 @@ export default defineConfig({
     hookTimeout: 30_000,
     pool: "forks",
     fileParallelism: false,
-    include: ["tests/core/server/integration/**/*.test.ts"],
+    include: ["tests/sdk/server/integration/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reportsDirectory: "coverage/server-integration",
       reporter: ["text", "lcov"],
-      // the integration tier owns the integration harness; core server code is
+      // the integration tier owns the integration harness; server runtime code is
       // measured by the server unit tier
       include: ["src/sdk/test/server/integration/**/*.ts"],
       exclude: [

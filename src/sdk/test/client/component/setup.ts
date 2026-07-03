@@ -12,7 +12,7 @@ import { installEditorMocks } from "../install-mocks";
 config.global.mocks.$i18n = (key: string) => key;
 
 // Register the built-in form components globally, mirroring production
-// (createNodeRedVueApp in core/client/form/index.ts), so plugin component
+// (createNodeRedVueApp in sdk/lib/client/form/index.ts), so plugin component
 // tests render the real inputs instead of unresolved custom elements.
 config.global.components = {
   NodeRedInputLabel,

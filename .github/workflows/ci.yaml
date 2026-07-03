@@ -43,13 +43,13 @@ jobs:
         run: pnpm validate:format
 
       - name: Server Unit Tests
-        run: pnpm vitest run --config vitest.core.server.unit.config.ts --coverage
+        run: pnpm vitest run --config vitest.sdk.server.unit.config.ts --coverage
 
       - name: Server Integration Tests
-        run: pnpm vitest run --config vitest.core.server.integration.config.ts --coverage
+        run: pnpm vitest run --config vitest.sdk.server.integration.config.ts --coverage
 
       - name: Client Unit Tests
-        run: pnpm vitest run --config vitest.core.client.unit.config.ts --coverage
+        run: pnpm vitest run --config vitest.sdk.client.unit.config.ts --coverage
 
       - name: Vite Unit Tests
         run: pnpm vitest run --config vitest.vite.unit.config.ts --coverage
@@ -152,7 +152,7 @@ jobs:
         run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Client Component Tests
-        run: pnpm vitest run --config vitest.core.client.component.config.ts --coverage
+        run: pnpm vitest run --config vitest.sdk.client.component.config.ts --coverage
 
       - name: Upload Coverage
         if: always()
@@ -202,7 +202,7 @@ jobs:
           path: dist/runtime
 
       - name: Client E2E Tests
-        run: pnpm vitest run --config vitest.core.client.e2e.config.ts
+        run: pnpm vitest run --config vitest.sdk.client.e2e.config.ts
 
       - name: Upload Screenshots
         if: always()

@@ -442,11 +442,11 @@ pnpm validate:tsc                 # type-check all tsconfigs
 pnpm validate:lint                # eslint
 pnpm validate:format              # prettier check
 pnpm test                         # run all tests
-pnpm test:core:server:unit        # server unit tests
-pnpm test:core:server:integration # server integration tests (real Node-RED)
-pnpm test:core:client:unit        # client unit tests
-pnpm test:core:client:component   # client component tests
-pnpm test:core:client:e2e         # client E2E tests
+pnpm test:sdk:server:unit        # server unit tests
+pnpm test:sdk:server:integration # server integration tests (real Node-RED)
+pnpm test:sdk:client:unit        # client unit tests
+pnpm test:sdk:client:component   # client component tests
+pnpm test:sdk:client:e2e         # client E2E tests
 pnpm docs:dev                     # start docs dev server
 ```
 

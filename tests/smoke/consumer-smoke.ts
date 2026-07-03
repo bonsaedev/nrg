@@ -6,7 +6,7 @@
 // tests/fixtures/smoke-consumer folder OUTSIDE the workspace, and then runs the
 // three things a consumer actually does:
 //
-//   1. tsc   — server + client typecheck against the shipped core tsconfigs
+//   1. tsc   — server + client typecheck against the shipped lib tsconfigs
 //   2. build — `vite build` produces a publishable Node-RED package
 //   3. dev   — `vite --mode development` boots Node-RED
 //

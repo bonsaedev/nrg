@@ -62,22 +62,22 @@ jobs:
         run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Server Unit Tests
-        run: pnpm vitest run --config vitest.core.server.unit.config.ts
+        run: pnpm vitest run --config vitest.sdk.server.unit.config.ts
 
       - name: Client Unit Tests
-        run: pnpm vitest run --config vitest.core.client.unit.config.ts
+        run: pnpm vitest run --config vitest.sdk.client.unit.config.ts
 
       - name: Vite Unit Tests
         run: pnpm vitest run --config vitest.vite.unit.config.ts
 
       - name: Client Component Tests
-        run: pnpm vitest run --config vitest.core.client.component.config.ts
+        run: pnpm vitest run --config vitest.sdk.client.component.config.ts
 
       - name: Vite E2E Tests
         run: pnpm vitest run --config vitest.vite.e2e.config.ts
 
       - name: Client E2E Tests
-        run: pnpm vitest run --config vitest.core.client.e2e.config.ts
+        run: pnpm vitest run --config vitest.sdk.client.e2e.config.ts
 
       - name: Semantic Release
         id: semantic

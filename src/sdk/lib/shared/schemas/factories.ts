@@ -136,9 +136,9 @@ function TypedInput<T = unknown>(options?: NrgSchemaOptions): TTypedInput<T> {
  * String `format` values NRG validates at runtime. TypeBox's own
  * `StringFormatOption` covers the standard JSON Schema formats (`email`,
  * `date-time`, `uri`, `uuid`, `ipv4`, …); this adds the ajv-formats (full mode)
- * that TypeBox omits but `addFormats()` in `core/validator.ts` registers —
+ * that TypeBox omits but `addFormats()` in `sdk/lib/shared/validator.ts` registers —
  * notably `password`, which drives the editor's password input — plus NRG's own
- * `node-id` (registered in the core validation modules). The trailing `({} & string)`
+ * `node-id` (registered in the shared validation modules). The trailing `({} & string)`
  * inside `StringFormatOption` still accepts any string, so the extra literals
  * only enrich autocomplete; they never restrict what compiles.
  */

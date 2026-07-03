@@ -7,7 +7,11 @@ import {
   type Infer,
   type RED,
 } from "@/sdk/lib/server";
-import { defineSchema, SchemaType, type Schema } from "@/sdk/lib/shared/schemas";
+import {
+  defineSchema,
+  SchemaType,
+  type Schema,
+} from "@/sdk/lib/shared/schemas";
 import { createNode } from "@/sdk/test/server/unit";
 
 // --- Test fixtures ---

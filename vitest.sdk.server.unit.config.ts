@@ -12,14 +12,14 @@ export default defineConfig({
         "src/sdk/lib/runtime.ts",
       ),
       "@bonsae/nrg/server": path.resolve(__dirname, "src/sdk/lib/server/index.ts"),
-      "@mocks": path.resolve(__dirname, "tests/core/server/mocks"),
+      "@mocks": path.resolve(__dirname, "tests/sdk/server/mocks"),
     },
   },
   test: {
     testTimeout: 30_000,
     include: [
-      "tests/core/server/unit/**/*.test.ts",
-      "tests/core/unit/**/*.test.ts",
+      "tests/sdk/server/unit/**/*.test.ts",
+      "tests/sdk/unit/**/*.test.ts",
     ],
     coverage: {
       provider: "v8",

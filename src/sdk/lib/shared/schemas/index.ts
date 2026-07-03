@@ -3,7 +3,7 @@
 // TypeBox's own type builders. The node config-shape schemas (NodeConfigSchema /
 // IONodeConfigSchema / ConfigNodeConfigSchema), the built-in port schemas
 // (`*PortSchema`) and their message types are server-only — they live in
-// core/server/schemas and never reach this kit. `TypedInputSchema` stays
+// sdk/lib/server/schemas and never reach this kit. `TypedInputSchema` stays
 // framework-internal in ./base (consumed by the shared factory).
 export { SchemaType, defineSchema } from "./factories";
 // `Kind` is TypeBox's schema-brand symbol. Re-exported so the server tree can

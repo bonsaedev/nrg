@@ -4,11 +4,11 @@
     "lib": ["ESNext"],
     "paths": {
       "@/*": ["../src/*"],
-      "@mocks/*": ["./core/server/mocks/*"],
+      "@mocks/*": ["./sdk/server/mocks/*"],
       "@bonsae/nrg/server": ["../src/sdk/lib/server/index.ts"],
       "@bonsae/nrg-runtime": ["../src/sdk/lib/runtime.ts"]
     }
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "fixtures/**", "core/client/**"]
+  "exclude": ["node_modules", "fixtures/**", "sdk/client/**"]
 }

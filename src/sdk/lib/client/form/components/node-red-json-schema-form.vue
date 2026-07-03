@@ -200,7 +200,7 @@ const SKIP_FIELDS = new Set([
   ...BUILTIN_PORT_KEYS,
 ]);
 
-// The schema vocabulary is shared with the server (core/schema-options) and
+// The schema vocabulary is shared with the server (sdk/lib/shared/schema-options) and
 // surfaced through the client types — no local re-declarations.
 type FieldSchema = JsonPropertySchema;
 

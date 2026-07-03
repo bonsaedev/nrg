@@ -7,7 +7,7 @@ import { TYPED_INPUT_TYPES } from "../constants";
 // bundle (`SchemaType` undefined when this module's top-level ran). This is the
 // one base schema that is genuinely shared (the shared TypedInput factory
 // consumes it); the node config-shape and port schemas are server-only and live
-// in core/server/schemas/base.
+// in sdk/lib/server/schemas/base.
 import { Type as BaseType } from "@sinclair/typebox";
 
 const TypedInputSchema = BaseType.Object(

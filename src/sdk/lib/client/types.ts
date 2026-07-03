@@ -124,7 +124,7 @@ interface NodeDefinition {
 
 /**
  * A serialized property schema inside {@link JsonSchemaObject} `properties`,
- * including NRG's custom keywords (shared vocabulary in core/schema-options)
+ * including NRG's custom keywords (shared vocabulary in sdk/lib/shared/schema-options)
  * that drive form rendering and NodeRef/TypedInput identification.
  */
 interface JsonPropertySchema extends JsonSchemaObjectExtensions {

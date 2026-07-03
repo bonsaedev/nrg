@@ -18,7 +18,7 @@ export default defineConfig({
         "src/sdk/lib/runtime.ts",
       ),
       "@bonsae/nrg/server": path.resolve(__dirname, "src/sdk/lib/server/index.ts"),
-      "@mocks": path.resolve(__dirname, "tests/core/client/mocks"),
+      "@mocks": path.resolve(__dirname, "tests/sdk/client/mocks"),
       "@bonsae/nrg/client": path.resolve(
         __dirname,
         "src/sdk/test/client/component",
@@ -35,12 +35,12 @@ export default defineConfig({
   },
   test: {
     testTimeout: 30_000,
-    setupFiles: ["tests/core/client/component/setup.ts"],
+    setupFiles: ["tests/sdk/client/component/setup.ts"],
     // Serializes a fixture node registry in Node and provides it to the browser
     // tests as data — exercises the shipped schemas globalSetup end-to-end so
     // createNode({ type }) can resolve a real schema without a server import.
-    globalSetup: ["tests/core/client/component/fixtures/provide-schemas.ts"],
-    include: ["tests/core/client/component/**/*.test.ts"],
+    globalSetup: ["tests/sdk/client/component/fixtures/provide-schemas.ts"],
+    include: ["tests/sdk/client/component/**/*.test.ts"],
     browser: {
       enabled: true,
       instances: [

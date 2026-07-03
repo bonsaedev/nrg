@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { defineIONode, defineConfigNode } from "@/sdk/lib/server/nodes/factories";
+import {
+  defineIONode,
+  defineConfigNode,
+} from "@/sdk/lib/server/nodes/factories";
 import { defineModule } from "@/sdk/lib/server/index";
 import { IONode } from "@/sdk/lib/server/nodes/io-node";
 import { ConfigNode } from "@/sdk/lib/server/nodes/config-node";

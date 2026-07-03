@@ -24,7 +24,7 @@ interface CreateNodeOptions {
 type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
 type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
 
-// Named-port access is driven by the NamedPortsBrand the core stamps on a
+// Named-port access is driven by the NamedPortsBrand the runtime stamps on a
 // record `outputsSchema` (see schemas/types.ts) — not a structural guess. `any`
 // keeps the historical "no named access" behavior (fall back to numeric slots).
 type PortNames<T> =
@@ -76,10 +76,10 @@ type PortTuple<TOutput, TInput> =
             >[]
         : [WrappedPort<TOutput, TInput>];
 
-// Built-in port output shapes come from core (single source of truth) — the
+// Built-in port output shapes come from the runtime (single source of truth) — the
 // mock only layers on the test-delivery semantics: real emissions also spread
 // the input message and custom props (`& Record<string, unknown>`), and the
-// status port is narrowed to the object form the assertions read (the core
+// status port is narrowed to the object form the assertions read (the runtime
 // union also allows a bare string, which these helpers never surface).
 type ErrorPortOutput = CoreErrorPortOutput & Record<string, unknown>;
 type CompletePortOutput = CoreCompletePortOutput & Record<string, unknown>;

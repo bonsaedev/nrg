@@ -17,7 +17,7 @@ export default defineConfig({
   },
   test: {
     ...defaultConfig.test,
-    include: ["tests/core/client/e2e/**/*.test.ts"],
-    globalSetup: ["tests/core/client/e2e/global-setup.ts"],
+    include: ["tests/sdk/client/e2e/**/*.test.ts"],
+    globalSetup: ["tests/sdk/client/e2e/global-setup.ts"],
   },
 });

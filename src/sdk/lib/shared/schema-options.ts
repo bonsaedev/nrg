@@ -1,7 +1,7 @@
 /**
  * NRG's JSON Schema vocabulary — the custom keywords the server emits onto
  * serialized schemas and the client consumes for form rendering and
- * validation. Shared at the core root (like types.ts) so both planes derive
+ * validation. Shared at the sdk/lib root (like types.ts) so both planes derive
  * from one definition instead of drifting copies.
  */
 export interface JsonSchemaObjectExtensions {

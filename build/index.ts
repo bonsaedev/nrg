@@ -25,7 +25,7 @@ import vue from "@vitejs/plugin-vue";
 //   - @bonsae/nrg-runtime (light artifact for nodes)  → dist/runtime
 //
 // The runtime is NOT a source package: its publishable contents are a copied
-// subset of the toolkit's core output (server VALUES + editor client asset),
+// subset of the toolkit's runtime output (server VALUES + editor client asset),
 // plus a manifest generated from the root package.json and the dep list in
 // build/runtime/dependencies. It ships no types and no test-support surface.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,7 +95,7 @@ function esbuildBundle(
 
 /**
  * Post-build invariant guard for the published server test bundles. They are
- * ESM and must NOT inline core-server VALUES: a regression here ships broken to
+ * ESM and must NOT inline server runtime VALUES: a regression here ships broken to
  * consumers (Node's strict native ESM resolver) yet is invisible in-repo, where
  * source is a single identity and the source-aliased tests run fine. We hit
  * this class three times in 0.26.x — an extensionless `ajv/dist/compile/rules`
@@ -124,20 +124,20 @@ function assertEsmTestBundles(): void {
     }
   }
   // (3) The integration entry must keep @bonsae/nrg/server external and inline
-  //     no core-server values (the 0.26.2 instanceof-Node regression).
+  //     no server runtime values (the 0.26.2 instanceof-Node regression).
   const integ = readFileSync(
     path.join(DIST, "test/server/integration/index.js"),
     "utf-8",
   );
   if (!/\bfrom\s+"@bonsae\/nrg\/server"/.test(integ)) {
     problems.push(
-      "test/server/integration/index.js: @bonsae/nrg/server is not external (core server inlined → duplicate Node identity)",
+      "test/server/integration/index.js: @bonsae/nrg/server is not external (server runtime inlined → duplicate Node identity)",
     );
   }
   for (const marker of ["initValidator", "initRoutes"]) {
     if (integ.includes(marker)) {
       problems.push(
-        `test/server/integration/index.js: inlines core-server "${marker}" (must resolve via the external @bonsae/nrg/server)`,
+        `test/server/integration/index.js: inlines server runtime "${marker}" (must resolve via the external @bonsae/nrg/server)`,
       );
     }
   }
@@ -412,7 +412,7 @@ function buildEslintConfig() {
 
 function buildSchemaEntry() {
   // The neutral schema kit (@bonsae/nrg/schema): defineSchema + SchemaType built
-  // from the browser-safe core/shared/schemas tree (TypeBox only, no node
+  // from the browser-safe sdk/lib/shared/schemas tree (TypeBox only, no node
   // runtime). Schema modules import the builders from here so the shared
   // contract never reaches into `./server`. Ships CJS VALUES like the server
   // entry — consumers `require` it in dev; the production build rewrites the
@@ -436,7 +436,7 @@ async function buildTestUtils() {
     // Keep the host's nrg copy: runtime.ts imports registerTypes from here so
     // registration binds to the SAME Node class the consumer's nodes extend
     // (otherwise instanceof Node fails). Externalizing it also stops the bundle
-    // inlining the core server (its assets.ts __dirname / ajv deep-import).
+    // inlining the server runtime (its assets.ts __dirname / ajv deep-import).
     external: ["@bonsae/nrg/server"],
   });
   esbuildBundle("src/sdk/test/server/integration/config.ts", {
@@ -450,7 +450,7 @@ async function buildTestUtils() {
     logLevel: "warn",
     plugins: [vue()],
     // Mirror the `@/*` → `src/*` alias the tsconfigs declare so the test
-    // libraries can import core internals by alias instead of `../../../core`.
+    // libraries can import runtime internals by alias instead of `../../../sdk/lib`.
     resolve: {
       alias: [{ find: /^@\//, replacement: path.resolve(ROOT, "src") + "/" }],
     },
@@ -503,7 +503,7 @@ async function buildTestUtils() {
 // ---------------------------------------------------------------------------
 
 function buildCoreServer(clientAsset: string) {
-  // The core server, as a self-contained CJS bundle with external deps. This is
+  // The server runtime, as a self-contained CJS bundle with external deps. This is
   // the runtime VALUES served at ./server. The toolkit owns this bundle, and
   // the runtime artifact ships the very same bytes (deps are external, so the
   // bundle is identical for both packages).
@@ -516,7 +516,7 @@ function buildCoreServer(clientAsset: string) {
     outfile: "dist/toolkit/lib/server/index.cjs",
     define: { __NRG_CLIENT_ASSET__: clientAsset },
   });
-  console.log("✓ Built core server → dist/toolkit/lib/server/index.cjs");
+  console.log("✓ Built server runtime → dist/toolkit/lib/server/index.cjs");
 }
 
 async function buildClientAsset(): Promise<string> {
@@ -561,10 +561,7 @@ async function buildClientAsset(): Promise<string> {
     .digest("hex")
     .slice(0, 8);
   const hashedClient = `nrg.${clientHash}.js`;
-  renameSync(
-    clientPath,
-    path.join(DIST, "lib/server/resources", hashedClient),
-  );
+  renameSync(clientPath, path.join(DIST, "lib/server/resources", hashedClient));
   console.log(
     `✓ Built client asset → dist/toolkit/lib/server/resources/${hashedClient}`,
   );
@@ -585,10 +582,7 @@ function assertClientAssetWired(clientAsset: string): void {
   if (!existsSync(asset)) {
     problems.push(`missing hashed client asset: ${clientAsset}`);
   }
-  const server = readFileSync(
-    path.join(DIST, "lib/server/index.cjs"),
-    "utf-8",
-  );
+  const server = readFileSync(path.join(DIST, "lib/server/index.cjs"), "utf-8");
   if (!server.includes(clientAsset)) {
     problems.push(
       `lib/server/index.cjs does not reference the hashed client "${clientAsset}" (assets route __NRG_CLIENT_ASSET__ not injected)`,
@@ -665,7 +659,7 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
     { stdio: "inherit" },
   );
 
-  // ----- core surface (server + client), natively owned & generated here -----
+  // ----- native surface (server + client), natively owned & generated here -----
   // Consumers resolve every nrg type *here* (the ESM toolkit), never through
   // the transitive CJS runtime — that boundary splits TypeBox into nominally
   // incompatible cjs/esm `TObject` builds.
@@ -701,7 +695,7 @@ export declare function nrg(options?: NrgPluginOptions): Plugin[];
   // useFormNode is generated from public.ts (value-re-export) — its signature is
   // internals-free. defineNode/registerType/registerTypes stay hand-written:
   // generating them from source would drag the .vue editor runtime into the
-  // public surface. tests/core/client/unit/client-dts-guard.test-d.ts pins these
+  // public surface. tests/sdk/client/unit/client-dts-guard.test-d.ts pins these
   // three to the real runtime so tsc fails the moment a signature drifts.
   appendFileSync(
     "dist/toolkit/types/client.d.ts",
@@ -845,7 +839,7 @@ function emitRuntimeArtifact(clientAsset: string) {
   // bundling once emits the shared schema layer a single time instead of
   // duplicating it across separate server/schema bundles. It ships no types and
   // nothing from internal/* — a deployed node needs values, not a type or
-  // test-support surface. Built here (not copied from the toolkit's split core/
+  // test-support surface. Built here (not copied from the toolkit's split lib/
   // bundles) so the schema code is deduped.
   mkdirSync(RUNTIME_DIST, { recursive: true });
   esbuildBundle("src/sdk/lib/runtime.ts", {
@@ -906,7 +900,7 @@ async function main() {
   assertClientAssetWired(clientAsset);
   // Now that every shipped test + vite bundle exists, guard the whole surface.
   assertNoExtensionlessDeepImports();
-  // Types (toolkit surface + natively-owned core surface) + shims + components.
+  // Types (toolkit surface + natively-owned native surface) + shims + components.
   generateTypes();
   copyShims();
   generateComponentTypes();
@@ -914,7 +908,7 @@ async function main() {
   copyAssets();
   writeToolkitManifest();
   console.log("✓ @bonsae/nrg (toolkit) built → dist/toolkit");
-  // Emit the second published package from the core subset.
+  // Emit the second published package from the runtime subset.
   emitRuntimeArtifact(clientAsset);
   console.log("✓ @bonsae/nrg-runtime artifact emitted → dist/runtime");
 }
