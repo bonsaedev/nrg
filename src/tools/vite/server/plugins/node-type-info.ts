@@ -28,8 +28,14 @@ const BASE_CLASS_SLOTS: Record<string, string[]> = {
 /** Roles that only exist on message-processing (IONode) nodes. */
 const IO_ONLY_ROLES = new Set(["input", "output"]);
 
+// InTypeAlias expands a named type alias to its structure (e.g. `Config` →
+// `{ … }`, `"a" | "b"` instead of the alias name) so the rendered types are
+// self-contained — required for the generated .d.ts, and clearer in docs.
+// Classes (NodeRef/TypedInput) are not aliases, so they still render by name.
 const RENDER_FLAGS =
-  ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.WriteArrayAsGenericType;
+  ts.TypeFormatFlags.NoTruncation |
+  ts.TypeFormatFlags.WriteArrayAsGenericType |
+  ts.TypeFormatFlags.InTypeAlias;
 
 interface NodeFieldInfo {
   name: string;
@@ -56,6 +62,8 @@ interface NodeOutputPort {
 interface NodeTypeInfo {
   type: string;
   kind: "io" | "config";
+  /** The declared class name (class API only) — for the inheritable re-export. */
+  className?: string;
   config?: NodeRoleType;
   credentials?: NodeRoleType;
   input?: NodeRoleType;
@@ -414,7 +422,7 @@ function extractClassNode(
   if (!type) return undefined;
 
   const kind: "io" | "config" = base.baseName === "IONode" ? "io" : "config";
-  const info: NodeTypeInfo = { type, kind };
+  const info: NodeTypeInfo = { type, kind, className: classDecl.name?.text };
   assignRoleTypes(
     checker,
     info,

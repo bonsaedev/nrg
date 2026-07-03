@@ -171,7 +171,7 @@ describe("extractNodeTypes — output shapes (deep)", () => {
     expect(node.outputs?.[0].role.fields).toHaveLength(0);
   });
 
-  it("ALIASED union output → rendered as the alias NAME, not the expanded union (GAP B)", () => {
+  it("ALIASED union output → expanded to the union (self-contained, not the alias name)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
       type Output = "created" | "updated" | "deleted";
@@ -180,10 +180,12 @@ describe("extractNodeTypes — output shapes (deep)", () => {
       }
     `);
     expect(node.outputs).toHaveLength(1);
-    // GAP B: a top-level named type alias used as a generic arg renders as its
-    // identifier ("Output"), NOT the expanded type — inconsistent with the
-    // inline-union case above (and with inline *field* unions, which expand).
-    expect(node.outputs?.[0].role.text).toBe("Output");
+    // A top-level named alias is expanded (InTypeAlias) so the rendered type is
+    // self-contained — consistent with the inline-union case and usable in the
+    // generated .d.ts, where the alias name would be an unresolved reference.
+    expect(node.outputs?.[0].role.text).toBe(
+      '"created" | "updated" | "deleted"',
+    );
   });
 });
 
