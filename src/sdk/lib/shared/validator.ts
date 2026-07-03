@@ -9,6 +9,7 @@ import type {
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import addErrors from "ajv-errors";
+import { NrgError } from "./errors";
 
 interface ValidationResult<T = unknown> {
   valid: boolean;
@@ -50,6 +51,14 @@ class Validator {
   // Non-mutating instance (no coercion, no defaults): a pure predicate. Used for
   // message/form validation so a validated msg/form is never silently rewritten.
   private readonly pureAjv: Ajv;
+  // `$id` → the schema object (and owner label) that first claimed it, recorded
+  // by reserveSchemaId() at node registration. AJV caches compiled validators by
+  // `$id`, so two *different* schemas sharing one `$id` is a silent bug — this
+  // registry makes the collision fail loudly.
+  private readonly registeredSchemaIds = new Map<
+    string,
+    { schema: object; owner: string }
+  >();
 
   public constructor(options?: ValidatorOptions) {
     const { customKeywords, customFormats, ...ajvOptions } = options || {};
@@ -150,6 +159,33 @@ class Validator {
       if (cached) return cached as ValidateFunction;
     }
     return ajv.compile(schema);
+  }
+
+  /**
+   * Reserve a schema's `$id` at registration so a collision fails loudly.
+   * {@link createValidator} caches compiled validators by `$id`, so if two
+   * *different* schemas share one `$id` the second would silently validate
+   * against the first. Reserving the same schema object again (a re-deploy, or
+   * one schema reused across roles) is idempotent. A schema without `$id` is a
+   * no-op here. Convention: `"<node-type>:<role>"`.
+   *
+   * @param schema - the schema being registered (its `$id` is the key)
+   * @param owner - human-readable origin (e.g. `"my-node.config"`) for the error
+   * @throws NrgError when `$id` is already held by a different schema object.
+   */
+  public reserveSchemaId(schema: AnySchemaObject, owner: string): void {
+    const id = schema.$id;
+    if (!id) return;
+    const existing = this.registeredSchemaIds.get(id);
+    if (existing && existing.schema !== schema) {
+      throw new NrgError(
+        `Duplicate schema $id "${id}": declared by both ${existing.owner} and ` +
+          `${owner}. $id is the AJV compile-cache key and must be unique — a ` +
+          `collision makes one schema validate against another. Convention: ` +
+          `"<node-type>:<role>".`,
+      );
+    }
+    this.registeredSchemaIds.set(id, { schema, owner });
   }
 
   /**
