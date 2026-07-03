@@ -4,10 +4,10 @@ import { defineModule } from "@/core/server/index";
 import { IONode } from "@/core/server/nodes/io-node";
 import { ConfigNode } from "@/core/server/nodes/config-node";
 import { Node } from "@/core/server/nodes/node";
-import { defineSchema, SchemaType } from "@/core/server/schemas";
+import { defineSchema, SchemaType } from "@/core/shared/schemas";
 import { initValidator } from "@/core/server/validation";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { WIRE_HANDLERS } from "@/core/server/nodes/symbols";
+import { NRG_WIRE_HANDLERS } from "@/core/server/nodes/symbols";
 
 describe("defineIONode", () => {
   it("should create a class with the correct static type", () => {
@@ -127,7 +127,7 @@ describe("defineIONode", () => {
 
     // Wire up handlers and trigger input event
     const createdPromise = Promise.resolve();
-    instance[WIRE_HANDLERS](node, createdPromise);
+    instance[NRG_WIRE_HANDLERS](node, createdPromise);
 
     const send = vi.fn();
     const done = vi.fn();
@@ -235,6 +235,33 @@ describe("defineIONode", () => {
 
     expect(instance).toBeInstanceOf(IONode);
     expect(instance).toBeInstanceOf(Node);
+  });
+
+  it("normalizes a raw SchemaType.Object schema like defineSchema does", () => {
+    // A raw SchemaType.Object bypasses defineSchema's markNonValidatable pass.
+    // The factory must apply the same normalization to every declared schema,
+    // else AJV throws "type must be JSONType or JSONType[]: Function" the moment
+    // the constructor validates config against the un-stripped Function type.
+    const NodeClass = defineIONode({
+      type: "raw-io-fn",
+      configSchema: SchemaType.Object(
+        {
+          transform: SchemaType.Function(
+            [SchemaType.String()],
+            SchemaType.String(),
+          ),
+        },
+        { $id: "raw-io-fn:configs" },
+      ),
+      input() {},
+    });
+
+    const RED = createRED();
+    initValidator(RED);
+    const node = createNodeRedNode();
+    expect(
+      () => new NodeClass(RED, node, { transform: (s: string) => s }, {}),
+    ).not.toThrow();
   });
 });
 
@@ -364,6 +391,36 @@ describe("defineConfigNode", () => {
     expect(instance).toBeInstanceOf(ConfigNode);
     expect(instance).toBeInstanceOf(Node);
     expect(instance.userIds).toEqual(["u1"]);
+  });
+
+  it("normalizes a raw SchemaType.Object schema like defineSchema does", () => {
+    // Same equalization as defineIONode: a raw SchemaType.Object config with a
+    // non-JSON type must not blow up AJV at construction time.
+    const NodeClass = defineConfigNode({
+      type: "raw-config-fn",
+      configSchema: SchemaType.Object(
+        {
+          transform: SchemaType.Function(
+            [SchemaType.String()],
+            SchemaType.String(),
+          ),
+        },
+        { $id: "raw-config-fn:configs" },
+      ),
+    });
+
+    const RED = createRED();
+    initValidator(RED);
+    const node = createNodeRedNode();
+    expect(
+      () =>
+        new NodeClass(
+          RED,
+          node,
+          { transform: (s: string) => s, _users: [] },
+          {},
+        ),
+    ).not.toThrow();
   });
 });
 

@@ -1,5 +1,7 @@
-import { type TSchema } from "@sinclair/typebox";
-import type { Schema, InferOr, InferOutputs } from "../schemas/types";
+import type { TSchema, Schema } from "../../shared/schemas";
+import { Kind } from "../../shared/schemas";
+import { markNonValidatable } from "../../shared/schemas/factories";
+import type { InferOr, InferOutputs } from "../schemas/types";
 import type { RED } from "../red";
 import type {
   IONodeDefinition,
@@ -11,6 +13,36 @@ import type {
 } from "./types";
 import { IONode } from "./io-node";
 import { ConfigNode } from "./config-node";
+
+/**
+ * Equalize schemas built with a raw `SchemaType.Object` against ones built with
+ * `defineSchema`: run `markNonValidatable` on every schema the node declares so
+ * a non-JSON type (Function, …) is stripped for AJV regardless of how the schema
+ * was authored. `defineSchema` already did this, so it's a no-op there
+ * (idempotent). Runs once at class-definition time — before every validation
+ * path (register/settings, construct-time config/creds/input, send-time output).
+ * `outputsSchema` is a single schema, a positional tuple, or a record of named
+ * ports; `Kind` (present only on a schema) discriminates the single case from a
+ * plain port record — the same test io-node uses.
+ */
+function normalizeSchemas(
+  schemas: Array<Schema | undefined>,
+  outputsSchema?: Schema | Schema[] | Record<string, Schema>,
+): void {
+  for (const schema of schemas) {
+    if (schema) markNonValidatable(schema);
+  }
+  if (!outputsSchema) return;
+  if (Array.isArray(outputsSchema)) {
+    for (const schema of outputsSchema) markNonValidatable(schema);
+  } else if (Kind in outputsSchema) {
+    markNonValidatable(outputsSchema as Schema);
+  } else {
+    for (const schema of Object.values(outputsSchema)) {
+      markNonValidatable(schema);
+    }
+  }
+}
 
 /**
  * Creates an IO node class from a definition object. Provides automatic type
@@ -117,6 +149,16 @@ function defineIONode<
     configurable: true,
   });
 
+  normalizeSchemas(
+    [
+      NodeClass.configSchema,
+      NodeClass.credentialsSchema,
+      NodeClass.settingsSchema,
+      NodeClass.inputSchema,
+    ],
+    NodeClass.outputsSchema,
+  );
+
   return NodeClass as unknown as NodeConstructor<
     IIONode<
       InferOr<TConfigSchema, any>,
@@ -181,6 +223,12 @@ function defineConfigNode<
     ),
     configurable: true,
   });
+
+  normalizeSchemas([
+    NodeClass.configSchema,
+    NodeClass.credentialsSchema,
+    NodeClass.settingsSchema,
+  ]);
 
   return NodeClass as unknown as NodeConstructor<
     IConfigNode<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>

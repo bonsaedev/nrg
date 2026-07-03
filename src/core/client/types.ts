@@ -2,40 +2,40 @@ import type { Component, App } from "vue";
 import type { TSchema, Static } from "@sinclair/typebox";
 import type { SchemaObject } from "ajv";
 import type {
-  NodeRefResolved,
-  TypedInputResolved,
-  UnsafeResolved,
-} from "../shared/types";
+  NodeRefBrand,
+  TypedInputBrand,
+  UnsafeBrand,
+} from "../shared/schemas/types";
 import type { JsonSchemaObjectExtensions } from "../shared/schema-options";
 
 interface NodeStateCredentials {
   [key: string]: any;
 }
 
-export interface NodeState {
+interface NodeState {
   credentials: NodeStateCredentials;
   [key: string]: any;
 }
 
-export interface NodeButtonDefinition {
+interface NodeButtonDefinition {
   toggle: string;
   onClick: () => void;
   enabled?: () => boolean;
   visible?: () => boolean;
 }
 
-export interface NodeRedNodeButtonDefinition {
+interface NodeFormDefinition {
+  component?: Component;
+}
+
+interface NodeRedNodeButtonDefinition {
   toggle: string;
   onclick: () => void;
   enabled?: () => boolean;
   visible?: () => boolean;
 }
 
-export interface NodeFormDefinition {
-  component?: Component;
-}
-
-export interface NodeRedNode {
+interface NodeRedNode {
   id: string;
   type: string;
   name: string;
@@ -99,7 +99,7 @@ export interface NodeRedNode {
   [key: string]: any;
 }
 
-export interface NodeDefinition {
+interface NodeDefinition {
   type: string;
   category?: string;
   color?: string;
@@ -127,7 +127,7 @@ export interface NodeDefinition {
  * including NRG's custom keywords (shared vocabulary in core/schema-options)
  * that drive form rendering and NodeRef/TypedInput identification.
  */
-export interface JsonPropertySchema extends JsonSchemaObjectExtensions {
+interface JsonPropertySchema extends JsonSchemaObjectExtensions {
   type?: string | string[];
   properties?: Record<string, JsonPropertySchema>;
   required?: string[];
@@ -138,6 +138,8 @@ export interface JsonPropertySchema extends JsonSchemaObjectExtensions {
   title?: string;
   description?: string;
   default?: unknown;
+  minLength?: number;
+  minItems?: number;
 }
 
 /**
@@ -147,7 +149,7 @@ export interface JsonPropertySchema extends JsonSchemaObjectExtensions {
  * discriminant and structured `properties`/`required` that ajv's open
  * `[x: string]: any` shape does not provide.
  */
-export interface JsonSchemaObject extends SchemaObject {
+interface JsonSchemaObject extends SchemaObject {
   type: "object";
   properties?: Record<string, JsonPropertySchema>;
   required?: string[];
@@ -159,7 +161,7 @@ export interface JsonSchemaObject extends SchemaObject {
  * schemas). Authors write {@link NodeDefinition}; the inliner provides the
  * rest.
  */
-export interface RuntimeNodeDefinition extends NodeDefinition {
+interface RuntimeNodeDefinition extends NodeDefinition {
   defaults?: NodeDefaults;
   credentials?: NodeCredentials;
   /**
@@ -183,7 +185,7 @@ export interface RuntimeNodeDefinition extends NodeDefinition {
     | Record<string, JsonPropertySchema>;
 }
 
-export interface NodeDefaults {
+interface NodeDefaults {
   [key: string]: {
     value: any;
     type?: string;
@@ -193,7 +195,7 @@ export interface NodeDefaults {
   };
 }
 
-export interface NodeCredentials {
+interface NodeCredentials {
   [key: string]: {
     value?: string;
     type?: "password" | "text";
@@ -202,7 +204,7 @@ export interface NodeCredentials {
   };
 }
 
-export interface NodeFeatures {
+interface NodeFeatures {
   hasInputSchema: boolean;
   hasOutputSchema: boolean;
   /**
@@ -215,7 +217,7 @@ export interface NodeFeatures {
 // -- Client-side type inference --
 
 /** Client-side representation of a TypedInput field: the raw value string and its type selector. */
-export interface TypedInputValue {
+interface TypedInput {
   value: string;
   type: string;
 }
@@ -223,25 +225,33 @@ export interface TypedInputValue {
 /**
  * Maps a schema's static type to the raw values the editor form holds.
  * The server counterpart (`ResolvedStatic` in server/schemas/types) maps the
- * same brands — shared via core/types — to resolved runtime values instead.
+ * same brands — shared via shared/schemas/types — to resolved runtime values instead.
  * - `NodeRef<T>` → `string` (the referenced node's id)
- * - `TypedInput<T>` → `TypedInputValue` (raw value + type pair)
+ * - `TypedInput<T>` → `TypedInput` (raw value + type pair)
  * - Functions pass through, arrays and objects map recursively
+ *
+ * The arm before the generic `object` mapping is a loud-failure net, mirroring
+ * `ResolvedStatic`: every cross-plane brand shares `readonly __payload`, so a
+ * brand that matched none of the explicit arms above is one this resolver
+ * doesn't handle yet — map it to `never` (a compile error at every use site)
+ * rather than let `object` silently deep-map the brand's internal shape.
  */
-export type EditorStatic<T> =
-  T extends NodeRefResolved<any>
+type EditorStatic<T> =
+  T extends NodeRefBrand<any>
     ? string
-    : T extends TypedInputResolved<any>
-      ? TypedInputValue
-      : T extends UnsafeResolved<infer V>
+    : T extends TypedInputBrand<any>
+      ? TypedInput
+      : T extends UnsafeBrand<infer V>
         ? V
         : T extends (...args: any[]) => any
           ? T
           : T extends Array<infer I>
             ? EditorStatic<I>[]
-            : T extends object
-              ? { [K in keyof T]: EditorStatic<T[K]> }
-              : T;
+            : T extends { readonly __payload: any }
+              ? never
+              : T extends object
+                ? { [K in keyof T]: EditorStatic<T[K]> }
+                : T;
 
 /**
  * Infers the client-side TypeScript type from a TypeBox schema.
@@ -262,11 +272,28 @@ export type EditorStatic<T> =
  * type Config = Infer<typeof ConfigSchema>;
  * ```
  */
-export type Infer<T extends TSchema | Record<string, TSchema>> =
-  T extends TSchema
-    ? EditorStatic<Static<T>>
-    : {
-        [K in keyof T & string]: T[K] extends TSchema
-          ? EditorStatic<Static<T[K]>>
-          : never;
-      };
+type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
+  ? EditorStatic<Static<T>>
+  : {
+      [K in keyof T & string]: T[K] extends TSchema
+        ? EditorStatic<Static<T[K]>>
+        : never;
+    };
+
+export type {
+  NodeRedNode,
+  NodeRedNodeButtonDefinition,
+  NodeState,
+  NodeButtonDefinition,
+  NodeFormDefinition,
+  NodeDefinition,
+  JsonPropertySchema,
+  JsonSchemaObject,
+  RuntimeNodeDefinition,
+  NodeDefaults,
+  NodeCredentials,
+  NodeFeatures,
+  TypedInput,
+  EditorStatic,
+  Infer,
+};
