@@ -428,8 +428,8 @@ describe("extractNodeTypes — class resolution edge cases (deep)", () => {
     expect(nodes).toHaveLength(0);
   });
 
-  it("skips a defineIONode functional node without crashing (class-only extractor)", () => {
-    const nodes = extract(`
+  it("extracts a defineIONode functional node (via the call's return type)", () => {
+    const [node] = extract(`
       import { defineIONode } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       export default defineIONode({
@@ -439,6 +439,7 @@ describe("extractNodeTypes — class resolution edge cases (deep)", () => {
         async input() {},
       });
     `);
-    expect(nodes).toEqual([]);
+    expect(node?.type).toBe("fn-node");
+    expect(field(node, "config", "a")?.type).toBe("string");
   });
 });

@@ -370,6 +370,33 @@ function defaultExportClass(
   return referencedName ? classByName(referencedName) : undefined;
 }
 
+/**
+ * Assign each positional type argument to its semantic role on `info`
+ * (config/credentials/input/settings render directly; output is shape-aware).
+ */
+function assignRoleTypes(
+  checker: ts.TypeChecker,
+  info: NodeTypeInfo,
+  slots: string[],
+  typeArgs: readonly ts.Type[],
+  at: ts.Node,
+): void {
+  typeArgs.forEach((argType, i) => {
+    const role = slots[i];
+    if (!role) return;
+    if (info.kind === "config" && IO_ONLY_ROLES.has(role)) return;
+    if (role === "output") {
+      const ports = extractOutputs(checker, argType, at);
+      if (ports?.length) info.outputs = ports;
+      return;
+    }
+    const rendered = renderRole(checker, argType, at);
+    if (rendered) {
+      (info as unknown as Record<string, NodeRoleType>)[role] = rendered;
+    }
+  });
+}
+
 /** Extract type info for one class-API node, or `undefined` if not a node. */
 function extractClassNode(
   checker: ts.TypeChecker,
@@ -386,24 +413,15 @@ function extractClassNode(
   const type = readStaticType(classDecl);
   if (!type) return undefined;
 
-  const slots = BASE_CLASS_SLOTS[base.baseName];
   const kind: "io" | "config" = base.baseName === "IONode" ? "io" : "config";
   const info: NodeTypeInfo = { type, kind };
-
-  base.typeArgs.forEach((argType, i) => {
-    const role = slots[i];
-    if (!role) return;
-    if (kind === "config" && IO_ONLY_ROLES.has(role)) return;
-    if (role === "output") {
-      const ports = extractOutputs(checker, argType, classDecl);
-      if (ports?.length) info.outputs = ports;
-      return;
-    }
-    const rendered = renderRole(checker, argType, classDecl);
-    if (rendered) {
-      (info as unknown as Record<string, NodeRoleType>)[role] = rendered;
-    }
-  });
+  assignRoleTypes(
+    checker,
+    info,
+    BASE_CLASS_SLOTS[base.baseName],
+    base.typeArgs,
+    classDecl,
+  );
 
   if (kind === "io") {
     const inputSym = checker.getPropertyOfType(instanceType, "input");
@@ -421,10 +439,130 @@ function extractClassNode(
   return info;
 }
 
+const FACTORY_KINDS: Record<string, "io" | "config"> = {
+  defineIONode: "io",
+  defineConfigNode: "config",
+};
+
+/** Read a string-literal property (e.g. `type: "x"`) from an object literal. */
+function objectLiteralString(
+  obj: ts.ObjectLiteralExpression,
+  name: string,
+): string | undefined {
+  for (const p of obj.properties) {
+    if (
+      ts.isPropertyAssignment(p) &&
+      ts.isIdentifier(p.name) &&
+      p.name.text === name
+    ) {
+      return stringLiteralOf(p.initializer);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The default-export `defineIONode(...)` / `defineConfigNode(...)` call, if the
+ * file's default export is (or references) one. Handles `export default
+ * defineIONode({…})` and `const N = defineIONode({…}); export default N`.
+ */
+function defaultExportFactoryCall(
+  sourceFile: ts.SourceFile,
+): ts.CallExpression | undefined {
+  const asFactory = (expr: ts.Expression): ts.CallExpression | undefined =>
+    ts.isCallExpression(expr) &&
+    ts.isIdentifier(expr.expression) &&
+    expr.expression.text in FACTORY_KINDS
+      ? expr
+      : undefined;
+
+  const varInit = (name: string): ts.Expression | undefined => {
+    for (const stmt of sourceFile.statements) {
+      if (!ts.isVariableStatement(stmt)) continue;
+      for (const d of stmt.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && d.name.text === name && d.initializer) {
+          return d.initializer;
+        }
+      }
+    }
+    return undefined;
+  };
+
+  for (const stmt of sourceFile.statements) {
+    if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
+      const direct = asFactory(stmt.expression);
+      if (direct) return direct;
+      if (ts.isIdentifier(stmt.expression)) {
+        const init = varInit(stmt.expression.text);
+        if (init) {
+          const viaVar = asFactory(init);
+          if (viaVar) return viaVar;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/** Extract type info for a functional-API node (defineIONode/defineConfigNode). */
+function extractFunctionalNode(
+  checker: ts.TypeChecker,
+  callExpr: ts.CallExpression,
+): NodeTypeInfo | undefined {
+  const callee = callExpr.expression;
+  const kind = ts.isIdentifier(callee) ? FACTORY_KINDS[callee.text] : undefined;
+  if (!kind) return undefined;
+
+  const arg = callExpr.arguments[0];
+  if (!arg || !ts.isObjectLiteralExpression(arg)) return undefined;
+  const type = objectLiteralString(arg, "type");
+  if (!type) return undefined;
+
+  const info: NodeTypeInfo = { type, kind };
+
+  // Roles come from the call's return type: NodeConstructor<IIONode<…>>.
+  const ctorType = checker.getTypeAtLocation(callExpr);
+  const iface = (ctorType as ts.TypeReference).typeArguments?.[0];
+  const ifaceArgs = iface
+    ? ((iface as ts.TypeReference).typeArguments ?? [])
+    : [];
+  const slots =
+    kind === "io" ? BASE_CLASS_SLOTS.IONode : BASE_CLASS_SLOTS.ConfigNode;
+  assignRoleTypes(checker, info, slots, ifaceArgs, arg);
+
+  // Complete port — the inline input handler's inferred return type.
+  if (kind === "io") {
+    const inputProp = arg.properties.find(
+      (p): p is ts.MethodDeclaration | ts.PropertyAssignment =>
+        (ts.isMethodDeclaration(p) || ts.isPropertyAssignment(p)) &&
+        ts.isIdentifier(p.name) &&
+        p.name.text === "input",
+    );
+    if (inputProp) {
+      const fnNode = ts.isPropertyAssignment(inputProp)
+        ? inputProp.initializer
+        : inputProp;
+      const sig = checker.getTypeAtLocation(fnNode).getCallSignatures()[0];
+      if (sig) {
+        const rendered = renderRole(
+          checker,
+          unwrapPromise(sig.getReturnType()),
+          arg,
+        );
+        if (rendered) info.complete = rendered;
+      }
+    }
+  }
+
+  return info;
+}
+
 /**
  * Extract every node's TypeScript type info from a program. Class-API nodes
- * (`export default class … extends IONode/ConfigNode`) are read from the
- * resolved base-type instantiation and the `input()` return type.
+ * (`export default class … extends IONode/ConfigNode`) read from the resolved
+ * base-type instantiation; functional-API nodes (`export default
+ * defineIONode/defineConfigNode({…})`) read from the call's return type. Both
+ * derive the complete port from the `input` handler's return type.
  */
 function extractNodeTypes(program: ts.Program, srcDir: string): NodeTypeInfo[] {
   const checker = program.getTypeChecker();
@@ -436,9 +574,17 @@ function extractNodeTypes(program: ts.Program, srcDir: string): NodeTypeInfo[] {
     if (!path.resolve(sourceFile.fileName).startsWith(root)) continue;
 
     const classDecl = defaultExportClass(sourceFile);
-    if (!classDecl) continue;
-    const info = extractClassNode(checker, classDecl);
-    if (info) out.push(info);
+    if (classDecl) {
+      const info = extractClassNode(checker, classDecl);
+      if (info) out.push(info);
+      continue;
+    }
+
+    const factoryCall = defaultExportFactoryCall(sourceFile);
+    if (factoryCall) {
+      const info = extractFunctionalNode(checker, factoryCall);
+      if (info) out.push(info);
+    }
   }
 
   return out;

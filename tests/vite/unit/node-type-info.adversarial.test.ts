@@ -322,8 +322,8 @@ describe("adversarial — node discovery gaps", () => {
     expect(nodes.map((n) => n.type)).toEqual(["n"]);
   });
 
-  it("DROPS a functional defineIONode node (see gap)", () => {
-    const nodes = extract(`
+  it("extracts a functional defineIONode node", () => {
+    const [node] = extract(`
       import { defineIONode } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       export default defineIONode({
@@ -332,9 +332,9 @@ describe("adversarial — node discovery gaps", () => {
         async input() {},
       });
     `);
-    // The extractor only understands the class API; functional nodes get no
-    // type-driven docs (they still fall back to schema-driven docs elsewhere).
-    expect(nodes).toHaveLength(0);
+    // Functional nodes are recovered from the call's return type.
+    expect(node?.type).toBe("fn");
+    expect(field(node, "config", "a")?.type).toBe("string");
   });
 
   it("extracts ONLY the default export when a file has two node classes", () => {
