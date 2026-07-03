@@ -63,6 +63,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `inputLabels` | No | Label for the input port (string). |
 | `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports (from `outputsSchema` port names) and built-in ports (error/complete/status) are labeled automatically. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
+| `options` | No | User-facing labels for enum/union option values, keyed by config field then option value — e.g. `"provider": { "anthropic": "Anthropic API" }`. Unset values fall back to the raw option value. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
 | `outputs` | No | Per-port labels for the auto-generated help docs. An array of label maps (matching `outputsSchema` order) for positional ports, or an object keyed by port name for named ports. |
@@ -87,8 +88,8 @@ This matches the named ports defined in your server schema:
 
 ```typescript
 export const OutputSchema = {
-  success: defineSchema({ payload: SchemaType.String() }),
-  failure: defineSchema({ error: SchemaType.String() }),
+  success: defineSchema({ payload: SchemaType.String() }, { $id: "router:success" }),
+  failure: defineSchema({ error: SchemaType.String() }, { $id: "router:failure" }),
 };
 ```
 
@@ -159,6 +160,10 @@ For local development or when using a linked package, use the local path instead
     },
     "configs": {
       "$ref": "#/$defs/labelMap"
+    },
+    "options": {
+      "$ref": "#/$defs/portLabelMap",
+      "description": "User-facing labels for enum/union option values, keyed by config field then option value. Unset values fall back to the raw option value."
     },
     "credentials": {
       "$ref": "#/$defs/labelMap"
@@ -246,7 +251,7 @@ The generated help panel shows:
 >
 > **Outputs**
 >
-> *Port 1 — above*
+> *Port 1*
 >
 > | Property | Label | ... |
 > | --- | --- | --- |
