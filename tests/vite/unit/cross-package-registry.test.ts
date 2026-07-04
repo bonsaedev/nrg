@@ -71,12 +71,13 @@ beforeAll(() => {
   write(
     "node_modules/pkg-b/index.d.ts",
     `
-    import type { ErrorPort } from "@bonsae/nrg/server";
+    import type { ErrorPort, StatusPort } from "@bonsae/nrg/server";
     declare module "@bonsae/nrg/server" {
       interface NodeTypes {
         "b-consumer":         { input: { payload: string };  outputs: []; complete: never; error: ErrorPort; status: never };
         "b-complete-handler": { input: { done: boolean };    outputs: []; complete: never; error: ErrorPort; status: never };
         "b-error-handler":    { input: ErrorPort;            outputs: []; complete: never; error: ErrorPort; status: never };
+        "b-status-handler":   { input: StatusPort;           outputs: []; complete: never; error: ErrorPort; status: never };
       }
     }
     `,
@@ -165,6 +166,21 @@ describe("cross-package NodeTypes augmentation", () => {
     expect(
       tscCheck(
         `const _: NodeTypes["b-consumer"]["input"] = null as unknown as NodeTypes["a-producer"]["error"];`,
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("type-checks the STATUS lifecycle port into a status-handler input", () => {
+    // a-producer status port → b-status-handler input (both StatusPort) — connectable.
+    expect(
+      tscCheck(
+        `const _: NodeTypes["b-status-handler"]["input"] = null as unknown as NodeTypes["a-producer"]["status"];`,
+      ),
+    ).toHaveLength(0);
+    // …but not into b-error-handler (wants ErrorPort).
+    expect(
+      tscCheck(
+        `const _: NodeTypes["b-error-handler"]["input"] = null as unknown as NodeTypes["a-producer"]["status"];`,
       ).length,
     ).toBeGreaterThan(0);
   });
