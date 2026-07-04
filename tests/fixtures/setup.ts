@@ -8,8 +8,12 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const TOOLKIT_PKG = path.join(REPO_ROOT, "dist", "toolkit");
 const RUNTIME_PKG = path.join(REPO_ROOT, "dist", "runtime");
 
-/** Copy a built, publishable package directory into node_modules. */
+/** Copy a built, publishable package directory into node_modules (fresh). */
 function copyPackage(pkgDir: string, destDir: string): void {
+  // Remove any prior copy first so a stale build can't leave orphan files
+  // behind (e.g. an old content-hashed nrg.<hash>.js that would be served
+  // instead of the current one).
+  fs.rmSync(destDir, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(destDir), { recursive: true });
   fs.cpSync(pkgDir, destDir, { recursive: true });
 }
@@ -32,8 +36,12 @@ export function setupFixtureNodeModules(fixtureDir: string): void {
     "nrg-runtime",
   );
 
-  if (!fs.existsSync(nrgDir)) copyPackage(TOOLKIT_PKG, nrgDir);
-  if (!fs.existsSync(runtimeDir)) copyPackage(RUNTIME_PKG, runtimeDir);
+  // Always refresh from the current build. A leftover copy from an interrupted
+  // run (whose teardown never ran) would otherwise be served stale, silently
+  // rendering an old client asset into e2e assertions AND the generated
+  // screenshots — the copy is cheap next to a browser run.
+  copyPackage(TOOLKIT_PKG, nrgDir);
+  copyPackage(RUNTIME_PKG, runtimeDir);
 }
 
 /**
