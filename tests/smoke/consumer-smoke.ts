@@ -54,6 +54,16 @@ function depVersion(pkgJsonPath: string, dep: string): string {
   return v;
 }
 
+// The EXACT version this repo is validated against, read from its installed
+// node_modules. The consumer must install the SAME vite/vitest pair — a floating
+// `vite@^6.0.0 vitest@^4.0.0` can resolve an incompatible combo (e.g. vite 6.0.0
+// + vitest 4.1.9, whose ModuleRunner APIs mismatch and crash vitest at startup),
+// which fails the smoke on a version drift the toolkit never actually ships with.
+function repoResolvedVersion(dep: string): string {
+  const pkg = path.join(REPO_ROOT, "node_modules", dep, "package.json");
+  return JSON.parse(fs.readFileSync(pkg, "utf-8")).version;
+}
+
 // pnpm pack (not npm pack) so publishConfig.directory is honored (the tarball
 // contains the published layout). The printed tarball path is absolute when
 // publishConfig.directory is set (the toolkit) but relative to the pack cwd
@@ -432,7 +442,7 @@ async function main(): Promise<void> {
     execSync(
       `npm install --no-audit --no-fund "${toolkitForInstall}" "${runtimeForInstall}" ` +
         `"typescript@${tsRange}" "vue@${vueRange}" "@types/node@${nodeTypes}" ` +
-        `vite@^6.0.0 vitest@^4.0.0 node-red@latest`,
+        `"vite@${repoResolvedVersion("vite")}" "vitest@${repoResolvedVersion("vitest")}" node-red@latest`,
       // node-red@latest is a large tree; Windows runners (slow I/O + Defender)
       // routinely need >6min for a cold install, so allow generous headroom.
       { cwd: consumerDir, stdio: "inherit", timeout: 900_000 },
