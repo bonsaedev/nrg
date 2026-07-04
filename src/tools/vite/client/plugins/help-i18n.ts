@@ -8,6 +8,15 @@ interface HelpTranslations {
     port: string;
     settings: string;
     complete: string;
+    capabilities: string;
+  };
+  // Row labels for the Capabilities table. The VALUES (`error`/`complete`/
+  // `status`, `true`/`false`) stay canonical across locales — the literal names
+  // used when wiring/configuring — which also helps AI retrieval.
+  capabilities: {
+    lifecyclePorts: string;
+    customOutputContext: string;
+    customOutputProperty: string;
   };
   columns: {
     property: string;
@@ -34,6 +43,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "Port",
       settings: "Settings",
       complete: "Complete",
+      capabilities: "Capabilities",
+    },
+    capabilities: {
+      lifecyclePorts: "Lifecycle ports",
+      customOutputContext: "Custom Output Context",
+      customOutputProperty: "Custom Output Property",
     },
     columns: {
       property: "Property",
@@ -58,6 +73,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "Port",
       settings: "Einstellungen",
       complete: "Abschluss",
+      capabilities: "Funktionen",
+    },
+    capabilities: {
+      lifecyclePorts: "Lebenszyklus-Ports",
+      customOutputContext: "Angepasster Ausgabekontext",
+      customOutputProperty: "Angepasste Ausgabe-Eigenschaft",
     },
     columns: {
       property: "Eigenschaft",
@@ -82,6 +103,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "Puerto",
       settings: "Configuración",
       complete: "Completado",
+      capabilities: "Capacidades",
+    },
+    capabilities: {
+      lifecyclePorts: "Puertos de ciclo de vida",
+      customOutputContext: "Contexto de salida personalizado",
+      customOutputProperty: "Propiedad de salida personalizada",
     },
     columns: {
       property: "Propiedad",
@@ -106,6 +133,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "Port",
       settings: "Paramètres",
       complete: "Terminé",
+      capabilities: "Capacités",
+    },
+    capabilities: {
+      lifecyclePorts: "Ports de cycle de vie",
+      customOutputContext: "Contexte de sortie personnalisé",
+      customOutputProperty: "Propriété de sortie personnalisée",
     },
     columns: {
       property: "Propriété",
@@ -130,6 +163,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "포트",
       settings: "설정",
       complete: "완료",
+      capabilities: "기능",
+    },
+    capabilities: {
+      lifecyclePorts: "라이프사이클 포트",
+      customOutputContext: "사용자 지정 출력 컨텍스트",
+      customOutputProperty: "사용자 지정 출력 속성",
     },
     columns: {
       property: "속성",
@@ -154,6 +193,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "Porta",
       settings: "Configurações",
       complete: "Concluído",
+      capabilities: "Capacidades",
+    },
+    capabilities: {
+      lifecyclePorts: "Portas de ciclo de vida",
+      customOutputContext: "Contexto de saída personalizado",
+      customOutputProperty: "Propriedade de saída personalizada",
     },
     columns: {
       property: "Propriedade",
@@ -178,6 +223,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "Порт",
       settings: "Настройки",
       complete: "Завершение",
+      capabilities: "Возможности",
+    },
+    capabilities: {
+      lifecyclePorts: "Порты жизненного цикла",
+      customOutputContext: "Пользовательский контекст вывода",
+      customOutputProperty: "Пользовательское свойство вывода",
     },
     columns: {
       property: "Свойство",
@@ -202,6 +253,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "ポート",
       settings: "設定",
       complete: "完了",
+      capabilities: "機能",
+    },
+    capabilities: {
+      lifecyclePorts: "ライフサイクルポート",
+      customOutputContext: "カスタム出力コンテキスト",
+      customOutputProperty: "カスタム出力プロパティ",
     },
     columns: {
       property: "プロパティ",
@@ -226,6 +283,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "端口",
       settings: "设置",
       complete: "完成",
+      capabilities: "功能",
+    },
+    capabilities: {
+      lifecyclePorts: "生命周期端口",
+      customOutputContext: "自定义输出上下文",
+      customOutputProperty: "自定义输出属性",
     },
     columns: {
       property: "属性",
@@ -250,6 +313,12 @@ const translations: Record<string, HelpTranslations> = {
       port: "埠",
       settings: "設定",
       complete: "完成",
+      capabilities: "功能",
+    },
+    capabilities: {
+      lifecyclePorts: "生命週期埠",
+      customOutputContext: "自訂輸出情境",
+      customOutputProperty: "自訂輸出屬性",
     },
     columns: {
       property: "屬性",

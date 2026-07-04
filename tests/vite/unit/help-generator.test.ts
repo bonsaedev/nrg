@@ -259,6 +259,40 @@ describe("help-generator", () => {
       expect(section).not.toContain("<td>_users</td>");
     });
 
+    it("hides nrg system config fields, keeps real properties", () => {
+      // The lifecycle-port toggles + per-port output settings are baked into
+      // every IONode's config; they belong in the Capabilities table, not here.
+      const schema = {
+        properties: {
+          errorPort: { type: "boolean" },
+          completePort: { type: "boolean" },
+          statusPort: { type: "boolean" },
+          validateInput: { type: "boolean" },
+          outputReturnProperties: { type: "object" },
+          outputContextModes: { type: "object" },
+          connection: { "x-nrg-node-type": "salesforce-connection" },
+          query: { type: "string" },
+        },
+      };
+      const section = generateSchemaSection({ title: "P", schema, t: enUS });
+
+      // real properties kept
+      expect(section).toContain("<td>connection</td>");
+      expect(section).toContain("NodeRef → salesforce-connection");
+      expect(section).toContain("<td>query</td>");
+      // nrg system fields hidden
+      for (const f of [
+        "errorPort",
+        "completePort",
+        "statusPort",
+        "validateInput",
+        "outputReturnProperties",
+        "outputContextModes",
+      ]) {
+        expect(section).not.toContain(`<td>${f}</td>`);
+      }
+    });
+
     it("returns empty string for undefined schema", () => {
       expect(
         generateSchemaSection({ title: "Test", schema: undefined, t: enUS }),
@@ -547,7 +581,9 @@ describe("help-generator", () => {
       };
 
       const doc = generateHelpDoc(node, {}, enUS);
-      expect(doc).not.toContain("Input");
+      // No Input *section* (the schema is all system fields). The Capabilities
+      // table may still mention "Input ports", so target the section header.
+      expect(doc).not.toContain("<h3>Input</h3>");
     });
 
     it("omits sections for missing schemas", () => {

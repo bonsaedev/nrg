@@ -90,6 +90,30 @@ const SKIP_FIELDS = new Set([
   "_users",
 ]);
 
+// nrg framework config fields — the lifecycle-port toggles, validation flags,
+// and per-port output settings baked into every IONode's config. They configure
+// the node's *system behavior*, not its domain configuration, so they're
+// summarized in the Capabilities table rather than listed as user Properties.
+// (errorPort/completePort/statusPort = BUILTIN_PORT_KEYS; the rest come from
+// IONodeConfig — see src/sdk/lib/server/nodes/types/io-node.ts.)
+const NRG_SYSTEM_FIELDS = new Set([
+  "errorPort",
+  "completePort",
+  "statusPort",
+  "validateInput",
+  "validateOutput",
+  "validateOutputs",
+  "outputReturnProperty",
+  "outputReturnProperties",
+  "outputContextMode",
+  "outputContextModes",
+]);
+
+/** Fields hidden from the rendered property tables (Node-RED + nrg system). */
+function isHiddenField(name: string): boolean {
+  return SKIP_FIELDS.has(name) || NRG_SYSTEM_FIELDS.has(name);
+}
+
 interface SchemaSectionOptions {
   title: string;
   schema: any;
@@ -127,7 +151,7 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
   const required = new Set<string>(schema?.required ?? []);
   const rows = typeFields?.length
     ? typeFields
-        .filter((f) => !SKIP_FIELDS.has(f.name))
+        .filter((f) => !isHiddenField(f.name))
         .map((f) =>
           buildPropertyRow(
             f.name,
@@ -139,7 +163,7 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
           ),
         )
     : Object.entries(schema.properties)
-        .filter(([key]) => !SKIP_FIELDS.has(key))
+        .filter(([key]) => !isHiddenField(key))
         .map(([key, propSchema]) =>
           buildPropertyRow(
             key,
@@ -265,6 +289,55 @@ function roleSection(
   return `<h${level}>${title}</h${level}>\n<p><code>${role.text}</code></p>\n`;
 }
 
+/**
+ * A compact table of system-level capabilities — the built-in lifecycle ports
+ * and whether the node exposes per-port customization of output context / return
+ * property. These are nrg/framework features that don't belong in the user
+ * Properties table but let a reader (or an AI indexing these docs for
+ * flow-building) see how the node wires and behaves at a glance. IO nodes only —
+ * config nodes have no ports. (Port counts live in the Input/Output sections;
+ * per-boundary Validate Data / Validate Types is shown there, not here.)
+ *
+ * Row VALUES are canonical (`error`/`complete`/`status`, `true`/`false`) so they
+ * stay stable across locales and read consistently for retrieval.
+ */
+function generateCapabilitiesSection(
+  def: any,
+  nodeTypes: NodeTypeInfo | undefined,
+  t: HelpTranslations,
+): string {
+  if (nodeTypes?.kind === "config" || def.category === "config") return "";
+
+  const hasInput =
+    (def.inputs ?? 0) > 0 || !!nodeTypes?.input || !!def.inputSchema;
+  const outputCount =
+    nodeTypes?.outputs?.length ??
+    (typeof def.outputs === "number" ? def.outputs : 0);
+
+  // A node with no ports at all isn't a wireable message node — nothing to say.
+  if (!hasInput && outputCount === 0) return "";
+
+  // Whether the node's config exposes the per-port output-context / return-
+  // property settings (see the nrg system config fields).
+  const props = def.configSchema?.properties ?? {};
+  const bool = (v: unknown) => (v ? "true" : "false");
+
+  const rows: [string, string][] = [
+    [t.capabilities.lifecyclePorts, "error, complete, status"],
+    [t.capabilities.customOutputContext, bool(props.outputContextModes)],
+    [t.capabilities.customOutputProperty, bool(props.outputReturnProperties)],
+  ];
+
+  const body = rows
+    .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+    .join("\n");
+  return (
+    `<h3>${t.sections.capabilities}</h3>\n` +
+    `<div style="overflow-x:auto">\n` +
+    `<table width="100%" style="min-width:500px">\n<tbody>\n${body}\n</tbody>\n</table>\n</div>\n`
+  );
+}
+
 function generateHelpDoc(
   nodeClass: any,
   labels: NodeLabels,
@@ -287,6 +360,15 @@ function generateHelpDoc(
     unsafeTypes,
   });
   if (configSection) lines.push(configSection);
+
+  // System capabilities (ports, lifecycle ports, validation) — right after the
+  // user Properties, so the config table stays free of nrg-specific fields.
+  const capabilitiesSection = generateCapabilitiesSection(
+    nodeClass,
+    nodeTypes,
+    t,
+  );
+  if (capabilitiesSection) lines.push(capabilitiesSection);
 
   const credsSection = generateSchemaSection({
     title: t.sections.credentials,

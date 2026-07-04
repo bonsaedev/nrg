@@ -205,7 +205,9 @@ describe("help-generator — type-driven rendering", () => {
 
       expect(doc).toContain("<h3>Output</h3>");
       expect(doc).toContain("<p><code>string</code></p>");
-      expect(doc).not.toContain("<table");
+      // The primitive port is a code line, not a property table (the unrelated
+      // Capabilities table elsewhere in the doc may still be present).
+      expect(doc).not.toContain("<td>string</td>");
     });
 
     it("a primitive positional port renders a code line at the <h4> heading level", () => {
@@ -481,6 +483,98 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).toContain("<td>result</td><td>object</td>");
       // No Complete section without nodeTypes.complete
       expect(doc).not.toContain("Complete");
+    });
+  });
+
+  // (e) Capabilities table — system features after the Properties table.
+  describe("(e) Capabilities table", () => {
+    it("renders lifecycle ports + custom-output flags for an IO node", () => {
+      const doc = generateHelpDoc(
+        {
+          type: "n",
+          inputs: 1,
+          outputs: 1,
+          // config exposes both per-port output settings \u2192 flags are true
+          configSchema: {
+            properties: {
+              outputContextModes: { type: "object" },
+              outputReturnProperties: { type: "object" },
+            },
+          },
+        },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ text: string }", [{ name: "text", type: "string" }]),
+        }),
+      );
+      expect(doc).toContain("<h3>Capabilities</h3>");
+      expect(doc).toContain(
+        "<tr><td>Lifecycle ports</td><td>error, complete, status</td></tr>",
+      );
+      expect(doc).toContain(
+        "<tr><td>Custom Output Context</td><td>true</td></tr>",
+      );
+      expect(doc).toContain(
+        "<tr><td>Custom Output Property</td><td>true</td></tr>",
+      );
+      // No port-count or validation rows.
+      expect(doc).not.toContain("Input ports");
+      expect(doc).not.toContain("Output ports");
+      expect(doc).not.toContain("<td>Validation</td>");
+      // Comes after the user Properties table, before Input.
+      expect(doc.indexOf("Capabilities")).toBeLessThan(
+        doc.indexOf("<h3>Input</h3>"),
+      );
+    });
+
+    it("reports false custom-output flags when the config omits them", () => {
+      const doc = generateHelpDoc(
+        { type: "n", inputs: 1, outputs: 1 },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ a: string }", [{ name: "a", type: "string" }]),
+        }),
+      );
+      expect(doc).toContain(
+        "<tr><td>Custom Output Context</td><td>false</td></tr>",
+      );
+      expect(doc).toContain(
+        "<tr><td>Custom Output Property</td><td>false</td></tr>",
+      );
+    });
+
+    it("omits Capabilities for a config node (no ports)", () => {
+      const doc = generateHelpDoc(
+        {
+          type: "c",
+          category: "config",
+          configSchema: { properties: { host: { type: "string" } } },
+        },
+        {},
+        enUS,
+      );
+      expect(doc).not.toContain("<h3>Capabilities</h3>");
+    });
+
+    it("localizes the row labels", () => {
+      const doc = generateHelpDoc(
+        { type: "n", inputs: 1, outputs: 1 },
+        {},
+        getHelpTranslations("de"),
+        undefined,
+        ioTypes({
+          input: role("{ a: string }", [{ name: "a", type: "string" }]),
+        }),
+      );
+      expect(doc).toContain("<h3>Funktionen</h3>");
+      expect(doc).toContain("<td>Lebenszyklus-Ports</td>");
+      expect(doc).toContain("<td>Angepasster Ausgabekontext</td>");
+      // Values stay canonical identifiers.
+      expect(doc).toContain("<td>error, complete, status</td>");
     });
   });
 });
