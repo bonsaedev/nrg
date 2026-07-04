@@ -39,6 +39,7 @@ export default defineConfig({
         "src/sdk/lib/client/state.ts",
         "src/sdk/lib/client/labels.ts",
         "src/sdk/lib/client/form/index.ts",
+        "src/sdk/lib/client/wire-check/**/*.ts",
       ],
     },
   },

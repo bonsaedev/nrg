@@ -33,7 +33,7 @@ function renderInputForm(offersTypeValidation: boolean) {
       : {},
     credentials: undefined,
   };
-  return render(NodeRedVueApp, {
+  const c = render(NodeRedVueApp, {
     props: {
       node: node as any,
       schema: {
@@ -46,6 +46,7 @@ function renderInputForm(offersTypeValidation: boolean) {
     },
     global: { components: { NodeRedNodeForm: NodeRedJsonSchemaForm } },
   });
+  return { node, c };
 }
 
 function hasToggle(container: HTMLElement, ariaLabel: string): boolean {
@@ -61,26 +62,96 @@ describe("Validate Types gate (plugin installed AND node offers it)", () => {
 
   test("hidden with no plugin, even when the node offers it", () => {
     typeCheckEnabled.value = false;
-    const c = renderInputForm(true);
+    const { c } = renderInputForm(true);
     expect(hasToggle(c.container, "Validate Data")).toBe(true); // unconditional
     expect(hasToggle(c.container, "Validate Types")).toBe(false);
   });
 
   test("hidden when the plugin is installed but the node does NOT offer it", () => {
     typeCheckEnabled.value = true;
-    const c = renderInputForm(false);
+    const { c } = renderInputForm(false);
     expect(hasToggle(c.container, "Validate Data")).toBe(true);
     expect(hasToggle(c.container, "Validate Types")).toBe(false);
   });
 
-  test("shown only when BOTH plugin installed AND node offers it", async () => {
+  test("shown only when BOTH plugin installed AND node offers it, and writes the flag", async () => {
     typeCheckEnabled.value = false;
-    const c = renderInputForm(true);
+    const { node, c } = renderInputForm(true);
     expect(hasToggle(c.container, "Validate Types")).toBe(false);
 
     typeCheckEnabled.value = true;
     await vi.waitFor(() => {
       expect(hasToggle(c.container, "Validate Types")).toBe(true);
+    });
+
+    // toggling the gated control writes validateInputTypes on the node
+    const input = c.container.querySelector(
+      '.nrg-toggle__input[aria-label="Validate Types"]',
+    ) as HTMLInputElement;
+    input.click();
+    await vi.waitFor(() => {
+      expect((node as any).validateInputTypes).toBe(true);
+    });
+  });
+});
+
+const OUTPUT_FEATURES: NodeFeatures = {
+  hasInputSchema: false,
+  hasOutputSchema: true,
+  outputPorts: [{ index: 0, label: "out" }],
+};
+
+/** Render an output form; `offersTypeValidation` = the build injected the
+ *  per-port `validateOutputTypes` default (present only for a typed output). */
+function renderOutputForm(offersTypeValidation: boolean) {
+  const { node } = createNode({ configs: { name: "x" } });
+  node._def = {
+    outputs: 1,
+    defaults: offersTypeValidation
+      ? { validateOutputTypes: { value: {} } }
+      : {},
+    credentials: undefined,
+  };
+  const c = render(NodeRedVueApp, {
+    props: {
+      node: node as any,
+      schema: {
+        type: "object",
+        properties: { name: { type: "string" } },
+        required: ["name"],
+        additionalProperties: true,
+      },
+      features: OUTPUT_FEATURES,
+    },
+    global: { components: { NodeRedNodeForm: NodeRedJsonSchemaForm } },
+  });
+  return { node, c };
+}
+
+describe("Validate Types gate — output ports (plugin installed AND node offers it)", () => {
+  afterEach(() => {
+    typeCheckEnabled.value = false; // reset the module singleton
+  });
+
+  test("hidden when the plugin is installed but the node does NOT offer it", () => {
+    typeCheckEnabled.value = true;
+    const { c } = renderOutputForm(false);
+    expect(hasToggle(c.container, "Validate Data — out")).toBe(true); // unconditional
+    expect(hasToggle(c.container, "Validate Types — out")).toBe(false);
+  });
+
+  test("renders the per-port Types toggle and writes validateOutputTypes when BOTH hold", async () => {
+    typeCheckEnabled.value = true;
+    const { node, c } = renderOutputForm(true);
+    expect(hasToggle(c.container, "Validate Types — out")).toBe(true);
+
+    // toggling the gated per-port control writes validateOutputTypes[port]
+    const input = c.container.querySelector(
+      '.nrg-toggle__input[aria-label="Validate Types — out"]',
+    ) as HTMLInputElement;
+    input.click();
+    await vi.waitFor(() => {
+      expect((node as any).validateOutputTypes).toEqual({ 0: true });
     });
   });
 });

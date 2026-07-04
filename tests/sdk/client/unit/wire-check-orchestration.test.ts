@@ -87,7 +87,9 @@ describe("wire-check editor orchestration", () => {
 
   beforeEach(() => {
     checkWire.mockReset();
+    checkWires.mockReset();
     RED.nodes.removeLink.mockReset();
+    RED.nodes.eachLink.mockReset();
     RED.notify.mockReset();
   });
 
@@ -149,5 +151,120 @@ describe("wire-check editor orchestration", () => {
     );
     await new Promise((r) => setTimeout(r, 20));
     expect(checkWire).not.toHaveBeenCalled(); // burst → treated as import, skipped
+  });
+
+  it("drops the verdict for a wire deleted mid-check (no removal, no toast)", async () => {
+    // hold the check in flight so links:remove lands before it resolves
+    let settle!: (r: unknown) => void;
+    checkWire.mockReturnValueOnce(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+    const l = link();
+    emit("links:add", l);
+    await vi.waitFor(() => expect(checkWire).toHaveBeenCalled());
+
+    // author deletes the wire before the verdict lands → cancel it
+    emit("links:remove", l);
+
+    // the (mismatch) verdict now arrives and must be discarded
+    settle({
+      id: "s:0:t",
+      ok: false,
+      checked: true,
+      message: "Property 'marker' is missing",
+    });
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(RED.nodes.removeLink).not.toHaveBeenCalled();
+    expect(RED.notify).not.toHaveBeenCalled();
+  });
+
+  it("on deploy, batches every gated wire and toasts a summary of the failures", async () => {
+    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) => {
+      cb(link());
+      cb(
+        link({
+          target: {
+            id: "t2",
+            type: "tgt",
+            validateInputTypes: true,
+            _def: { set: { module: "pkg" } },
+          },
+        }),
+      );
+    });
+    checkWires.mockResolvedValueOnce([
+      { id: "s:0:t", ok: true, checked: true },
+      {
+        id: "s:0:t2",
+        ok: false,
+        checked: true,
+        message: "Property 'marker' is missing",
+      },
+    ]);
+
+    emit("deploy");
+
+    await vi.waitFor(() => expect(RED.notify).toHaveBeenCalled());
+    const [text, opts] = RED.notify.mock.calls[0];
+    expect(text).toContain("failed type validation");
+    expect(text).toContain("s:0:t2");
+    expect(opts).toMatchObject({ type: "error", timeout: 0 });
+    // exactly the two gated wires were sent to the transport
+    expect(checkWires).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "s:0:t" }),
+      expect.objectContaining({ id: "s:0:t2" }),
+    ]);
+  });
+
+  it("on deploy, stays silent when every gated wire passes", async () => {
+    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) =>
+      cb(link()),
+    );
+    checkWires.mockResolvedValueOnce([
+      { id: "s:0:t", ok: true, checked: true },
+    ]);
+
+    emit("deploy");
+
+    await vi.waitFor(() => expect(checkWires).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(RED.notify).not.toHaveBeenCalled();
+  });
+
+  it("on deploy with no gated wires, never calls the transport", async () => {
+    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) =>
+      // neither endpoint opted in → buildRequest returns null → nothing to send
+      cb(
+        link({
+          source: {
+            id: "s",
+            type: "src",
+            outputs: 1,
+            _def: { set: { module: "pkg" } },
+          },
+          target: { id: "t", type: "tgt", _def: { set: { module: "pkg" } } },
+        }),
+      ),
+    );
+
+    emit("deploy");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(checkWires).not.toHaveBeenCalled();
+    expect(RED.notify).not.toHaveBeenCalled();
+  });
+
+  it("on deploy, stays silent when the transport batch fails open (null)", async () => {
+    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) =>
+      cb(link()),
+    );
+    checkWires.mockResolvedValueOnce(null);
+
+    emit("deploy");
+    await vi.waitFor(() => expect(checkWires).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(RED.notify).not.toHaveBeenCalled();
   });
 });
