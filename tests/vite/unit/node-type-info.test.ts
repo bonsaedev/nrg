@@ -1,4 +1,9 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
+
+// Each case runs a real `tsc` compile; under CI's --coverage (v8 instrumentation)
+// each compile is several-fold slower and can exceed vitest's default 5s timeout.
+// Widen it so coverage-slowed compiles aren't reported as false timeouts.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 import fs from "fs";
 import path from "path";
 import os from "os";
