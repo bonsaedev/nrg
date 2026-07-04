@@ -194,6 +194,10 @@ async function build(
     publicDir: path.resolve(srcDir, "public"),
     resolve: {
       alias: {
+        // More specific first so `@/schemas/*` wins over the general `@` alias
+        // (Vite matches alias entries in order). Points at the consumer's shared
+        // schemas, a sibling of the client srcDir (e.g. src/client → src/shared).
+        "@/schemas": path.resolve(srcDir, "../shared/schemas"),
         "@": path.resolve(srcDir),
       },
     },

@@ -6,6 +6,8 @@ export const defaultConfig = {
   },
   resolve: {
     alias: {
+      // More specific first: `@/schemas/*` → the consumer's shared schemas.
+      "@/schemas": path.resolve(process.cwd(), "src/shared/schemas"),
       "@": path.resolve(process.cwd(), "src"),
       "@bonsae/nrg/client": "@bonsae/nrg/test/client/unit",
     },

@@ -19,7 +19,14 @@
     "strict": true,
     "stripInternal": true,
     "target": "ES2022",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "paths": {
+      "@/schemas/*": [
+        "${configDir}/src/shared/schemas/*",
+        "${configDir}/../shared/schemas/*",
+        "${configDir}/../../src/shared/schemas/*"
+      ]
+    }
   },
   "exclude": ["node_modules", "dist"]
 }

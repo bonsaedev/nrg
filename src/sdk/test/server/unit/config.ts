@@ -3,6 +3,8 @@ import path from "path";
 export const defaultConfig = {
   resolve: {
     alias: {
+      // More specific first: `@/schemas/*` → the consumer's shared schemas.
+      "@/schemas": path.resolve(process.cwd(), "src/shared/schemas"),
       "@": path.resolve(process.cwd(), "src"),
     },
   },

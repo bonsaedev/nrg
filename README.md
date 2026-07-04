@@ -87,7 +87,7 @@ NRG supports two ways to define nodes:
 
 ```typescript
 import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
+import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
 
 export default defineIONode({
   type: "my-node",
@@ -108,7 +108,7 @@ export default defineIONode({
 ```typescript
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
-import { ConfigsSchema, InputSchema, OutputSchema } from "../../shared/schemas/my-node";
+import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = Infer<typeof InputSchema>;
@@ -134,6 +134,8 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
 <td>Custom methods, inheritance, mixins</td>
 </tr>
 </table>
+
+> The `@/schemas` alias resolves to `src/shared/schemas`, so nodes can import their schemas with `@/schemas/my-node` instead of a relative path. It's shipped in NRG's base tsconfig, build, and test configs — no setup required.
 
 **src/server/index.ts**
 
