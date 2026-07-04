@@ -226,6 +226,13 @@
                 "Check the sent value against this port's schema before it is emitted.",
               )
             }}
+            <a
+              class="nrg-help-link"
+              :href="docsUrl('/guide/schemas#output-schema')"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+            >
           </li>
           <li v-if="typeCheckEnabled && supportsOutputTypeValidation">
             <strong>{{
@@ -238,6 +245,13 @@
                 "Type-check wires from this port on deploy (TypeScript).",
               )
             }}
+            <a
+              class="nrg-help-link"
+              :href="docsUrl('/guide/schemas#output-schema')"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+            >
           </li>
           <li v-if="hasOutputReturnProperties">
             <strong>{{
@@ -250,6 +264,13 @@
                 "The message property the sent value is placed on (default: output).",
               )
             }}
+            <a
+              class="nrg-help-link"
+              :href="docsUrl('/guide/schemas#overriding-the-return-key')"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+            >
           </li>
           <li v-if="hasOutputContextModes">
             <strong>{{
@@ -262,11 +283,9 @@
                 "How the incoming message is carried to this port: carry, trace, or reset.",
               )
             }}
-          </li>
-          <li>
             <a
               class="nrg-help-link"
-              :href="docsUrl('/guide/creating-a-node#the-editor-form')"
+              :href="docsUrl('/guide/schemas#context-modes')"
               target="_blank"
               rel="noopener noreferrer"
               >{{ resolveLabel("help.learnMore", "Learn more") }}</a
@@ -842,6 +861,13 @@ export default defineComponent({
 .nrg-lifecycle,
 .nrg-input {
   table-layout: auto;
+}
+
+/* The Input table holds just Label + Validate Data (+ Validate Types), so unlike
+   the Outputs table it needn't span the panel — size it to its content. Declared
+   after the shared `width: 100%` so it wins. */
+.nrg-input {
+  width: auto;
 }
 
 .nrg-lifecycle .nrg-outputs-flag,
