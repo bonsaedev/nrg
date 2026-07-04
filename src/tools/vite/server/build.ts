@@ -7,12 +7,12 @@ import { logger } from "../logger";
 import type { ServerBuildOptions, BuildContext } from "../types";
 import {
   packageJsonGenerator,
-  typeGenerator,
-  rewriteRuntimeTypeImports,
   cjsWrapper,
   esmWrapper,
   extractNodeDefinitions,
-  writeNodeTypes,
+  extractNodeTypesFromSrc,
+  writeNodeTypesJson,
+  writePackageDts,
   rewriteEmittedRuntimeImports,
 } from "./plugins";
 
@@ -59,16 +59,6 @@ async function build(
     isEsm ? esmWrapper() : cjsWrapper(),
   ];
 
-  if (types && !buildContext.isDev) {
-    plugins.push(
-      ...typeGenerator({
-        srcDir: resolvedSrcDir,
-        outDir: buildContext.outDir,
-        entryFiles: Object.values(entryPoints),
-      }),
-    );
-  }
-
   const config: InlineConfig = {
     configFile: false,
     logLevel: "warn",
@@ -112,13 +102,6 @@ async function build(
   try {
     await viteBuild(config);
 
-    // The emitted .d.ts imports from `@bonsae/nrg/server` (required so types
-    // resolve during generation). The published node depends on the runtime,
-    // so rewrite the declaration imports to match.
-    if (types && !buildContext.isDev) {
-      rewriteRuntimeTypeImports(buildContext.outDir, Object.keys(entryPoints));
-    }
-
     // Generate CJS bridge so Node-RED can require() the ESM bundle
     if (isEsm) {
       const bridgeCode = `\
@@ -145,14 +128,30 @@ module.exports = function (RED) {
     // inliner. Runs in dev and prod.
     await extractNodeDefinitions(buildContext.outDir);
 
-    // Extract each node's TypeScript types (the source of truth for help docs —
-    // schemas are optional) into node-types.json for the client help generator.
-    // Prod only: it stands up a ts.Program, and dev docs fall back to schema.
-    // Best-effort — never fail the build over doc metadata.
+    // Extract each node's TypeScript types (the source of truth — schemas are
+    // optional) once, then emit both consumers: node-types.json for the client
+    // help generator, and index.d.ts for the editor connection-type surface
+    // (inheritable classes + the NodeTypes wiring registry). Prod only: it
+    // stands up a ts.Program, and dev docs fall back to schema. Best-effort —
+    // never fail the build over generated type metadata.
     if (!buildContext.isDev) {
       try {
-        const count = writeNodeTypes(resolvedSrcDir, buildContext.outDir);
-        logger.info(`✓ Extracted node types for ${count} node(s)`);
+        const localTypes: Record<string, string> = {};
+        const infos = extractNodeTypesFromSrc(
+          resolvedSrcDir,
+          undefined,
+          localTypes,
+        );
+        writeNodeTypesJson(infos, buildContext.outDir);
+        if (types) {
+          writePackageDts(
+            infos,
+            localTypes,
+            buildContext.outDir,
+            Object.keys(entryPoints),
+          );
+        }
+        logger.info(`✓ Extracted types for ${infos.length} node(s)`);
       } catch (error) {
         logger.warn(
           `node type extraction skipped: ${(error as Error).message}`,

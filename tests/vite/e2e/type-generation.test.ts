@@ -1,286 +1,193 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
+import ts from "typescript";
 import { build } from "../../../src/tools/vite/server/build";
 import type { ServerBuildOptions } from "../../../src/tools/vite/types";
 
+// Guards the emitted package `index.d.ts` — the editor connection-type surface.
+// It must carry (a) inheritable class declarations, (b) the `NodeTypes` wiring
+// registry (module augmentation, with the built-in error/status ports), (c) a
+// module default — and, above all, COMPILE CLEAN against the real framework, so
+// the editor's synthesized wire type-checks against real shapes (a dangling
+// reference would silently collapse to `any` and mis-validate every wire).
+
+const REPO = path.resolve(__dirname, "../../..");
 const BASIC_FIXTURE = path.resolve(__dirname, "../../fixtures/basic-node");
 const CUSTOM_FIXTURE = path.resolve(__dirname, "../../fixtures/custom-client");
 
-describe("type generation — class-based nodes", () => {
-  let outDir: string;
-  let originalCwd: string;
-  let dtsContent: string;
+/**
+ * Compile a generated `index.d.ts` against the real @bonsae/nrg/server (resolved
+ * via paths) and return diagnostics in the .d.ts itself — proving every type it
+ * references resolves (no dangling names collapsing to `any`).
+ */
+function compileDts(dtsPath: string): readonly ts.Diagnostic[] {
+  const dir = path.dirname(dtsPath);
+  const consumer = path.join(dir, "__compile_check.ts");
+  fs.writeFileSync(consumer, `import "./index";\n`);
+  const program = ts.createProgram({
+    rootNames: [consumer],
+    options: {
+      strict: true,
+      // skipLibCheck FALSE: we WANT unresolved names in the .d.ts to surface.
+      skipLibCheck: false,
+      noEmit: true,
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      baseUrl: dir,
+      paths: {
+        "@bonsae/nrg/server": [path.join(REPO, "src/sdk/lib/server/index.ts")],
+        "@bonsae/nrg/schema": [
+          path.join(REPO, "src/sdk/lib/shared/schemas/index.ts"),
+        ],
+      },
+    },
+  });
+  // Only diagnostics in the generated .d.ts count — the real nrg source is
+  // pulled in for resolution but type-checked under a stricter program than the
+  // repo tsconfig (noImplicitAny), so ignore its own noise.
+  const diags = ts
+    .getPreEmitDiagnostics(program)
+    .filter(
+      (d) => d.file && path.resolve(d.file.fileName) === path.resolve(dtsPath),
+    );
+  fs.rmSync(consumer, { force: true });
+  return diags;
+}
 
-  beforeAll(async () => {
-    outDir = path.join(BASIC_FIXTURE, "dist-types");
-    if (fs.existsSync(outDir)) {
-      fs.rmSync(outDir, { recursive: true });
-    }
-    fs.mkdirSync(outDir, { recursive: true });
+async function buildFixture(
+  fixture: string,
+  packageName: string,
+): Promise<string> {
+  const outDir = path.join(fixture, "dist-types");
+  if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true });
 
-    originalCwd = process.cwd();
-    process.chdir(BASIC_FIXTURE);
-
+  const originalCwd = process.cwd();
+  process.chdir(fixture);
+  try {
     const opts: ServerBuildOptions = {
-      srcDir: path.join(BASIC_FIXTURE, "src/server"),
+      srcDir: path.join(fixture, "src/server"),
       entry: "index.ts",
       format: "esm",
       bundled: [],
       types: true,
       nodeTarget: "node22",
     };
-
     await build(opts, {
       outDir,
-      packageName: "node-red-test-basic",
+      packageName,
       isDev: false,
-      resourcesDir: path.join(BASIC_FIXTURE, "src/resources"),
+      resourcesDir: path.join(fixture, "src/resources"),
     });
+  } finally {
+    process.chdir(originalCwd);
+  }
+  return path.join(outDir, "index.d.ts");
+}
 
-    dtsContent = fs.readFileSync(path.join(outDir, "index.d.ts"), "utf-8");
+describe("type generation — class-based nodes", () => {
+  let dtsPath: string;
+  let dts: string;
+
+  beforeAll(async () => {
+    dtsPath = await buildFixture(BASIC_FIXTURE, "node-red-test-basic");
+    dts = fs.readFileSync(dtsPath, "utf-8");
   }, 60000);
 
   afterAll(() => {
-    process.chdir(originalCwd);
-    if (fs.existsSync(outDir)) {
-      fs.rmSync(outDir, { recursive: true });
+    const outDir = path.dirname(dtsPath);
+    if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
+  });
+
+  it("emits index.d.ts", () => {
+    expect(fs.existsSync(dtsPath)).toBe(true);
+  });
+
+  it("references the toolkit types, not the runtime (which ships no types)", () => {
+    expect(dts).toContain("@bonsae/nrg/server");
+    expect(dts).not.toContain("@bonsae/nrg-runtime");
+  });
+
+  it("emits inheritable class declarations for each node", () => {
+    expect(dts).toContain("export declare class TestNode extends IONode<");
+    expect(dts).toContain("export declare class SecondNode extends IONode<");
+    expect(dts).toContain(
+      "export declare class ConfigServer extends ConfigNode<",
+    );
+    expect(dts).toMatch(/static readonly type: "test-node"/);
+  });
+
+  it("emits the NodeTypes wiring registry with the built-in lifecycle ports", () => {
+    expect(dts).toContain('declare module "@bonsae/nrg/server"');
+    expect(dts).toContain("interface NodeTypes {");
+    // IONode nodes get a registry entry; the config node does not.
+    expect(dts).toContain('"test-node": {');
+    expect(dts).toContain('"router-node": {');
+    expect(dts).not.toContain('"config-server": {');
+    expect(dts).toMatch(/error: ErrorPort;/);
+    expect(dts).toMatch(/status: StatusPort;/);
+  });
+
+  it("emits a module default listing the node classes", () => {
+    expect(dts).toContain("export default _default;");
+    expect(dts).toMatch(/nodes: \[typeof \w/);
+    expect(dts).toContain("typeof TestNode");
+  });
+
+  it("compiles clean against the framework (no dangling references)", () => {
+    const diags = compileDts(dtsPath);
+    if (diags.length) {
+      throw new Error(
+        diags
+          .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"))
+          .join("\n"),
+      );
     }
-  });
-
-  it("should generate index.d.ts", () => {
-    expect(fs.existsSync(path.join(outDir, "index.d.ts"))).toBe(true);
-  });
-
-  it("should import types from @bonsae/nrg (the toolkit), not the runtime", () => {
-    // The runtime ships VALUES only — no type declarations. A node's emitted
-    // declarations keep their @bonsae/nrg/* type imports (resolvable in the
-    // author/build env where the toolkit is installed); they are never
-    // rewritten to the runtime, which has nothing to resolve against.
-    expect(dtsContent).toContain("@bonsae/nrg/server");
-    expect(dtsContent).not.toContain("@bonsae/nrg-runtime");
-  });
-
-  // --- Class-based nodes ---
-
-  it("should export class-based node as a named class", () => {
-    expect(dtsContent).toContain("export declare class TestNode");
-  });
-
-  it("should export config schema for class-based node", () => {
-    expect(dtsContent).toMatch(/declare const TestNodeConfigSchema/);
-  });
-
-  it("should export credentials schema for class-based node", () => {
-    expect(dtsContent).toMatch(/declare const TestNodeCredentialsSchema/);
-  });
-
-  // --- Config nodes ---
-
-  it("should export config node as a named class", () => {
-    expect(dtsContent).toContain("export declare class ConfigServer");
-  });
-
-  it("should export config schema for config node", () => {
-    expect(dtsContent).toMatch(/declare const ConfigServerConfigSchema/);
-  });
-
-  // --- Multiple nodes ---
-
-  it("should export second node as a named class", () => {
-    expect(dtsContent).toContain("export declare class SecondNode");
-  });
-
-  it("should export second node config schema", () => {
-    expect(dtsContent).toMatch(/declare const SecondNodeConfigSchema/);
-  });
-
-  // --- Schema content ---
-
-  it("should include schema property types in TestNode config", () => {
-    // TestNode has name (string), timeout (number), enabled (boolean), server (NodeRef)
-    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TString/s);
-    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TNumber/s);
-    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TBoolean/s);
-  });
-
-  it("should include NodeRef type in TestNode config schema", () => {
-    expect(dtsContent).toMatch(/TestNodeConfigSchema.*TNodeRef/s);
-  });
-
-  // --- NodeRef ---
-
-  it("should preserve NodeRef type in schema", () => {
-    // TestNode has server: SchemaType.NodeRef(ConfigServer)
-    expect(dtsContent).toContain("TNodeRef<ConfigServer>");
-  });
-
-  // --- Input/Output schemas for wired contracts ---
-
-  it("should not export input schema when node has none", () => {
-    // TestNode and SecondNode don't define inputSchema
-    expect(dtsContent).not.toContain("TestNodeInputSchema");
-    expect(dtsContent).not.toContain("SecondNodeInputSchema");
-  });
-
-  it("should not export output schema when node has none", () => {
-    expect(dtsContent).not.toContain("TestNodeOutputsSchema");
-    expect(dtsContent).not.toContain("SecondNodeOutputsSchema");
-  });
-
-  it("should not export credentials schema when node has none", () => {
-    // SecondNode and ConfigServer don't define credentialsSchema
-    expect(dtsContent).not.toContain("SecondNodeCredentialsSchema");
-    expect(dtsContent).not.toContain("ConfigServerCredentialsSchema");
-  });
-
-  // --- Only referenced schemas ---
-
-  it("should not export schemas that are not referenced by any node", () => {
-    const schemaExports = dtsContent
-      .split("\n")
-      .filter((l) => l.includes("declare const") && l.includes("Schema"));
-    for (const line of schemaExports) {
-      expect(
-        line.includes("TestNode") ||
-          line.includes("SecondNode") ||
-          line.includes("ConfigServer"),
-      ).toBe(true);
-    }
-  });
-
-  // --- Default export ---
-
-  it("should have a default export", () => {
-    expect(dtsContent).toContain("export default");
+    expect(diags).toHaveLength(0);
   });
 });
 
 describe("type generation — factory-based nodes", () => {
-  let outDir: string;
-  let originalCwd: string;
-  let dtsContent: string;
+  let dtsPath: string;
+  let dts: string;
 
   beforeAll(async () => {
-    outDir = path.join(CUSTOM_FIXTURE, "dist-types");
-    if (fs.existsSync(outDir)) {
-      fs.rmSync(outDir, { recursive: true });
-    }
-    fs.mkdirSync(outDir, { recursive: true });
-
-    originalCwd = process.cwd();
-    process.chdir(CUSTOM_FIXTURE);
-
-    const opts: ServerBuildOptions = {
-      srcDir: path.join(CUSTOM_FIXTURE, "src/server"),
-      entry: "index.ts",
-      format: "esm",
-      bundled: [],
-      types: true,
-      nodeTarget: "node22",
-    };
-
-    await build(opts, {
-      outDir,
-      packageName: "node-red-test-custom",
-      isDev: false,
-      resourcesDir: path.join(CUSTOM_FIXTURE, "src/resources"),
-    });
-
-    dtsContent = fs.readFileSync(path.join(outDir, "index.d.ts"), "utf-8");
+    dtsPath = await buildFixture(CUSTOM_FIXTURE, "node-red-test-custom");
+    dts = fs.readFileSync(dtsPath, "utf-8");
   }, 60000);
 
   afterAll(() => {
-    process.chdir(originalCwd);
-    if (fs.existsSync(outDir)) {
-      fs.rmSync(outDir, { recursive: true });
+    const outDir = path.dirname(dtsPath);
+    if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
+  });
+
+  it("emits index.d.ts", () => {
+    expect(fs.existsSync(dtsPath)).toBe(true);
+  });
+
+  it("emits the NodeTypes registry for functional (defineIONode) nodes", () => {
+    expect(dts).toContain('declare module "@bonsae/nrg/server"');
+    expect(dts).toContain("interface NodeTypes {");
+    expect(dts).toContain('"custom-node": {');
+    expect(dts).toContain('"multi-output-node": {');
+  });
+
+  it("types the module default's functional nodes as NodeConstructor", () => {
+    expect(dts).toContain("export default _default;");
+    expect(dts).toContain("NodeConstructor");
+  });
+
+  it("compiles clean against the framework (no dangling references)", () => {
+    const diags = compileDts(dtsPath);
+    if (diags.length) {
+      throw new Error(
+        diags
+          .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"))
+          .join("\n"),
+      );
     }
-  });
-
-  it("should generate index.d.ts", () => {
-    expect(fs.existsSync(path.join(outDir, "index.d.ts"))).toBe(true);
-  });
-
-  // --- defineIONode (all schemas) ---
-
-  it("should export factory IO node with correct type", () => {
-    expect(dtsContent).toMatch(
-      /CustomNode:\s*NodeConstructor<IIONode<Infer<typeof\s+\w+>,\s*any,\s*Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>>>/,
-    );
-  });
-
-  it("should export config schema for factory node", () => {
-    expect(dtsContent).toMatch(/declare const CustomNodeConfigSchema/);
-  });
-
-  it("should export input schema for factory node", () => {
-    expect(dtsContent).toMatch(/declare const CustomNodeInputSchema/);
-  });
-
-  it("should export output schema for factory node", () => {
-    expect(dtsContent).toMatch(/declare const CustomNodeOutputsSchema/);
-  });
-
-  it("should include schema property types in config schema", () => {
-    expect(dtsContent).toMatch(/CustomNodeConfigSchema.*TString/s);
-  });
-
-  it("should include schema property types in input schema", () => {
-    expect(dtsContent).toMatch(
-      /CustomNodeInputSchema.*?Schema<\s*\{[^}]*payload[^}]*\}/s,
-    );
-  });
-
-  it("should include schema property types in output schema", () => {
-    expect(dtsContent).toMatch(/CustomNodeOutputsSchema.*TNumber/s);
-  });
-
-  // --- defineConfigNode ---
-
-  it("should export factory config node with correct type", () => {
-    expect(dtsContent).toMatch(
-      /ConfigServer:\s*NodeConstructor<IConfigNode<Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>>>/,
-    );
-  });
-
-  it("should export config schema for config node", () => {
-    expect(dtsContent).toMatch(/declare const ConfigServerConfigSchema/);
-  });
-
-  it("should export credentials schema for config node", () => {
-    expect(dtsContent).toMatch(/declare const ConfigServerCredentialsSchema/);
-  });
-
-  // --- no schemas ---
-
-  it("should type no-schema node with all any args", () => {
-    expect(dtsContent).toMatch(
-      /NoSchemaNode:\s*NodeConstructor<IIONode<any,\s*any,\s*any,\s*any>>/,
-    );
-  });
-
-  // --- partial schemas (config only) ---
-
-  it("should export config schema for partial node", () => {
-    expect(dtsContent).toMatch(/declare const MinimalNodeConfigSchema/);
-  });
-
-  it("should type partial node with Infer for config and any for the rest", () => {
-    expect(dtsContent).toMatch(
-      /MinimalNode:\s*NodeConstructor<IIONode<Infer<typeof\s+\w+>,\s*any,\s*any,\s*any>>/,
-    );
-  });
-
-  // --- array outputsSchema (tuple) ---
-
-  it("should type array outputsSchema as tuple", () => {
-    expect(dtsContent).toMatch(
-      /MultiOutputNode:\s*NodeConstructor<IIONode<any,\s*any,\s*any,\s*\[Infer<typeof\s+\w+>,\s*Infer<typeof\s+\w+>\]>>/,
-    );
-  });
-
-  it("should export individual schemas from array outputsSchema", () => {
-    expect(dtsContent).toMatch(/declare const MultiOutputNodeSuccessSchema/);
-    expect(dtsContent).toMatch(/declare const MultiOutputNodeErrorSchema/);
+    expect(diags).toHaveLength(0);
   });
 });

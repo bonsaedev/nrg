@@ -46,6 +46,16 @@ interface NodeFieldInfo {
 interface NodeRoleType {
   /** The whole role type, rendered (e.g. `{ name: string }`, `"A" | "B"`). */
   text: string;
+  /**
+   * A self-contained render of the same type for the generated `.d.ts`: named
+   * types are made resolvable — external types keep the author's import
+   * specifier (`import("node:stream").Readable`), globals stay bare, and local
+   * types are inlined structurally. `text` (used for docs) may reference a bare
+   * name that only resolves in the author's source; `resolved` always resolves
+   * for a consumer, so wiring type-checks aren't silently poisoned. Omitted when
+   * identical to `text`.
+   */
+  resolved?: string;
   /** Object members, when the role is an object type — otherwise empty. */
   fields: NodeFieldInfo[];
 }
@@ -64,6 +74,14 @@ interface NodeTypeInfo {
   kind: "io" | "config";
   /** The declared class name (class API only) — for the inheritable re-export. */
   className?: string;
+  /**
+   * Absolute path to the `.ts` file the node's default export lives in. Lets the
+   * editor wire-checker reference an author's own node by inline type-query
+   * (`typeof import("<sourceFile>").default`) for full-fidelity source types —
+   * no rendered `.d.ts`. Absent when the info came from anywhere but a live
+   * program (installed-package nodes fall back to the `NodeTypes` registry).
+   */
+  sourceFile?: string;
   config?: NodeRoleType;
   credentials?: NodeRoleType;
   input?: NodeRoleType;
@@ -73,6 +91,12 @@ interface NodeTypeInfo {
    * tuple → one port per element; a named-port record → one port per name.
    */
   outputs?: NodeOutputPort[];
+  /**
+   * The output's port shape, so the wire-checker knows how to index the whole
+   * `send()` value per port: `single` → the value itself, `tuple` → `value[P]`,
+   * `named` → `value["<name>"]`. Absent when the output is untyped/vacuous.
+   */
+  outputKind?: "single" | "tuple" | "named";
   /** The `input()` return type — what the built-in complete port carries. */
   complete?: NodeRoleType;
 }
@@ -93,15 +117,19 @@ function collectTsFiles(dir: string): string[] {
 }
 
 /**
- * Create a `ts.Program` over a consumer's server source, honoring their
- * tsconfig's compilerOptions (needed so `@bonsae/nrg/server` and NodeRef/config
- * imports resolve). The node source files are always used as roots so a
- * type-only tsconfig `include` never drops them.
+ * Resolve the compiler options for a consumer's server source: base defaults
+ * overlaid with their tsconfig's `compilerOptions` (needed so `@bonsae/nrg/server`
+ * and NodeRef/config imports resolve exactly as the author's build does).
+ *
+ * The consumer's own `lib` is deliberately honored, never overridden — a node
+ * that types a port as `ReadableStream`/`WritableStream` resolves it from
+ * whatever lib the consumer declares (no hardcoded DOM). Shared by the help-docs
+ * program and the editor wire-checker so both judge types under identical rules.
  */
-function createNodeTypesProgram(
+function resolveConsumerCompilerOptions(
   srcDir: string,
   tsconfigPath?: string,
-): ts.Program {
+): ts.CompilerOptions {
   const configPath =
     tsconfigPath ??
     [path.resolve(srcDir, "tsconfig.json"), path.resolve("tsconfig.json")].find(
@@ -124,10 +152,25 @@ function createNodeTypesProgram(
       ts.sys,
       path.dirname(configPath),
     );
-    // Keep resolution-relevant options; force noEmit (we only type-check).
+    // Keep resolution-relevant options (incl. the consumer's own `lib`); force
+    // noEmit (we only type-check).
     options = { ...options, ...parsed.options, noEmit: true };
   }
 
+  return options;
+}
+
+/**
+ * Create a `ts.Program` over a consumer's server source, honoring their
+ * tsconfig's compilerOptions (needed so `@bonsae/nrg/server` and NodeRef/config
+ * imports resolve). The node source files are always used as roots so a
+ * type-only tsconfig `include` never drops them.
+ */
+function createNodeTypesProgram(
+  srcDir: string,
+  tsconfigPath?: string,
+): ts.Program {
+  const options = resolveConsumerCompilerOptions(srcDir, tsconfigPath);
   return ts.createProgram({ rootNames: collectTsFiles(srcDir), options });
 }
 
@@ -192,6 +235,472 @@ function render(checker: ts.TypeChecker, type: ts.Type, at: ts.Node): string {
   ).replace(/import\("[^"]*"\)\./g, "");
 }
 
+/** How the author imported a name: the module specifier + its exported name. */
+interface ImportInfo {
+  specifier: string;
+  name: string;
+}
+
+/** True for a relative/absolute path specifier — its target isn't shipped. */
+function isRelativeSpecifier(spec: string): boolean {
+  return (
+    spec.startsWith(".") || spec.startsWith("/") || /^[A-Za-z]:/.test(spec)
+  );
+}
+
+/**
+ * Map every imported binding in a file to how the author imported it, keyed by
+ * both the local alias symbol and the resolved target symbol. Lets the printer
+ * turn a referenced type back into `import("<the author's specifier>").Name` —
+ * the specifier a consumer of the published package can resolve.
+ */
+function buildImportMap(
+  checker: ts.TypeChecker,
+  sourceFile: ts.SourceFile,
+): Map<ts.Symbol, ImportInfo> {
+  const map = new Map<ts.Symbol, ImportInfo>();
+  const add = (local: ts.Node, info: ImportInfo): void => {
+    const sym = checker.getSymbolAtLocation(local);
+    if (!sym) return;
+    map.set(sym, info);
+    if (sym.getFlags() & ts.SymbolFlags.Alias) {
+      try {
+        map.set(checker.getAliasedSymbol(sym), info);
+      } catch {
+        // getAliasedSymbol throws for some unresolved aliases — ignore.
+      }
+    }
+  };
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isImportDeclaration(stmt)) continue;
+    if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+    const specifier = stmt.moduleSpecifier.text;
+    const clause = stmt.importClause;
+    if (!clause) continue;
+    if (clause.name) add(clause.name, { specifier, name: "default" });
+    const bindings = clause.namedBindings;
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const el of bindings.elements) {
+        add(el.name, { specifier, name: (el.propertyName ?? el.name).text });
+      }
+    }
+  }
+  return map;
+}
+
+const PRIMITIVEISH_FLAGS =
+  ts.TypeFlags.String |
+  ts.TypeFlags.Number |
+  ts.TypeFlags.Boolean |
+  ts.TypeFlags.BigInt |
+  ts.TypeFlags.ESSymbol |
+  ts.TypeFlags.UniqueESSymbol |
+  ts.TypeFlags.Void |
+  ts.TypeFlags.Undefined |
+  ts.TypeFlags.Null |
+  ts.TypeFlags.Never |
+  ts.TypeFlags.Any |
+  ts.TypeFlags.Unknown |
+  ts.TypeFlags.NonPrimitive |
+  ts.TypeFlags.StringLiteral |
+  ts.TypeFlags.NumberLiteral |
+  ts.TypeFlags.BooleanLiteral |
+  ts.TypeFlags.BigIntLiteral |
+  ts.TypeFlags.EnumLiteral |
+  ts.TypeFlags.TemplateLiteral |
+  ts.TypeFlags.StringMapping;
+
+/** Type arguments of a type — alias args for aliases, else reference args. */
+function typeArgsOf(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+): readonly ts.Type[] {
+  if (type.aliasSymbol) return type.aliasTypeArguments ?? [];
+  return (type as ts.TypeReference).target
+    ? checker.getTypeArguments(type as ts.TypeReference)
+    : [];
+}
+
+/**
+ * Collector for named types that must be DECLARED in the generated `.d.ts`
+ * rather than inlined: recursive local types (which have no finite structural
+ * expansion) and local enums (which are nominal). Package-level, so a type used
+ * by several nodes is declared once. `decls` holds full statements
+ * (`type X = …;` / `enum X { … }`), emitted verbatim; `byType` maps a resolved
+ * type to its assigned (collision-free) alias — keyed by the type instance, so
+ * distinct generic instantiations (`Tree<number>` vs `Tree<string>`) and mutual
+ * recursion each get their own monomorphized declaration.
+ */
+interface LocalDeclCtx {
+  byType: Map<ts.Type, string>;
+  decls: Map<string, string>;
+  used: Set<string>;
+}
+
+function newLocalDeclCtx(): LocalDeclCtx {
+  return { byType: new Map(), decls: new Map(), used: new Set() };
+}
+
+function uniqueName(ctx: LocalDeclCtx, base: string): string {
+  const clean = /^[A-Za-z_$][\w$]*$/.test(base) ? base : "Local";
+  let name = clean;
+  for (let i = 1; ctx.used.has(name); i++) name = `${clean}$${i}`;
+  ctx.used.add(name);
+  return name;
+}
+
+/** A symbol that names a real type declaration (interface/class/alias/enum). */
+function isNamedTypeSymbol(sym: ts.Symbol): boolean {
+  return (
+    (sym.getFlags() &
+      (ts.SymbolFlags.Interface |
+        ts.SymbolFlags.Class |
+        ts.SymbolFlags.TypeAlias |
+        ts.SymbolFlags.Enum |
+        ts.SymbolFlags.ConstEnum |
+        ts.SymbolFlags.RegularEnum)) !==
+    0
+  );
+}
+
+/**
+ * Qualify a global type with its enclosing namespaces (`Intl.Collator`,
+ * `NodeJS.ReadableStream`) — a bare `Collator` doesn't resolve.
+ */
+function qualifiedGlobalName(sym: ts.Symbol): string {
+  const parts = [sym.getName()];
+  let parent = (sym as ts.Symbol & { parent?: ts.Symbol }).parent;
+  while (
+    parent &&
+    parent.getFlags() &
+      (ts.SymbolFlags.NamespaceModule | ts.SymbolFlags.ValueModule) &&
+    /^[A-Za-z_$][\w$]*$/.test(parent.getName())
+  ) {
+    parts.unshift(parent.getName());
+    parent = (parent as ts.Symbol & { parent?: ts.Symbol }).parent;
+  }
+  return parts.join(".");
+}
+
+/** True when a named type is declared in the author's own (unshipped) source. */
+function isLocalNamedSymbol(
+  sym: ts.Symbol,
+  imports: Map<ts.Symbol, ImportInfo>,
+): boolean {
+  const imported = imports.get(sym);
+  if (imported) return isRelativeSpecifier(imported.specifier);
+  const file = sym.declarations?.[0]?.getSourceFile();
+  return !!file && !file.isDeclarationFile;
+}
+
+/** Whether `type` transitively references `sym` (i.e. the type is recursive). */
+function referencesSymbol(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  sym: ts.Symbol,
+  at: ts.Node,
+  seen: Set<ts.Type>,
+): boolean {
+  if (seen.has(type)) return false;
+  seen.add(type);
+  const kids: ts.Type[] = [];
+  if (type.isUnionOrIntersection()) kids.push(...type.types);
+  kids.push(...typeArgsOf(checker, type));
+  if (type.flags & ts.TypeFlags.Object) {
+    for (const prop of checker.getPropertiesOfType(type)) {
+      kids.push(
+        checker.getTypeOfSymbolAtLocation(prop, prop.valueDeclaration ?? at),
+      );
+    }
+  }
+  for (const kid of kids) {
+    if ((kid.aliasSymbol ?? kid.getSymbol()) === sym) return true;
+    if (referencesSymbol(checker, kid, sym, at, seen)) return true;
+  }
+  return false;
+}
+
+/** Reconstruct an enum declaration body (`{ A = 0, B = "x" }`) from its type. */
+function renderEnumDecl(checker: ts.TypeChecker, enumSym: ts.Symbol): string {
+  const decl = enumSym.declarations?.find(ts.isEnumDeclaration);
+  const members = (decl?.members ?? []).map((m) => {
+    const name = ts.isIdentifier(m.name)
+      ? m.name.text
+      : ts.isStringLiteral(m.name)
+        ? JSON.stringify(m.name.text)
+        : m.name.getText();
+    const value = checker.getConstantValue(m);
+    const rhs =
+      typeof value === "string" ? JSON.stringify(value) : String(value ?? 0);
+    return `${name} = ${rhs}`;
+  });
+  return `{ ${members.join(", ")} }`;
+}
+
+/**
+ * True for an nrg node-instance type — what a `NodeRef` config field resolves to
+ * on the server plane. These carry the private `NRG_NODE` brand plus framework
+ * internals (RED, the Node-RED node, timers) and are nominal, not portable
+ * message data — so they render as `unknown` rather than a huge, unresolvable
+ * structural expansion. (They only occur in config, never on a wire.)
+ */
+function isNodeInstanceType(checker: ts.TypeChecker, type: ts.Type): boolean {
+  if ((type.flags & ts.TypeFlags.Object) === 0) return false;
+  return checker
+    .getPropertiesOfType(type)
+    .some((prop) => /[_@]nrg/i.test(prop.getName()));
+}
+
+/**
+ * Render a type into a form that resolves standalone in the published `.d.ts`,
+ * so an editor's synthesized wire (`target.input = source.outputs[i]`) is
+ * type-checked against the real shapes rather than a silent `any`:
+ *
+ * - a type the author imported keeps that import — `import("<specifier>").Name`
+ *   (relative specifiers are local, handled below);
+ * - a global/lib type stays a bare name (resolves for the consumer);
+ * - a local non-recursive type is inlined structurally;
+ * - a local RECURSIVE type or ENUM is emitted as a declaration in `ctx` and
+ *   referenced by name (inlining a recursive type never terminates; an enum is
+ *   nominal, so a bare value union would wrongly widen);
+ * - objects/unions/tuples/arrays/functions recurse, so nested named types are
+ *   handled too.
+ *
+ * `renderResolvable` decides name-vs-inline; `renderStructure` renders the shape.
+ */
+function renderResolvable(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  at: ts.Node,
+  imports: Map<ts.Symbol, ImportInfo>,
+  seen: Set<ts.Type>,
+  ctx?: LocalDeclCtx,
+): string {
+  // A NodeRef config field resolves to a node instance — nominal framework
+  // internals, not portable data. Render it opaque instead of expanding it.
+  if (isNodeInstanceType(checker, type)) return "unknown";
+
+  const sym = type.aliasSymbol ?? type.getSymbol();
+  if (sym && ctx) {
+    // Keyed by the type instance so a self-reference (or a mutual back-edge)
+    // resolves to the same alias, terminating the recursion.
+    const already = ctx.byType.get(type);
+    if (already) return already;
+
+    const isEnum =
+      (type.flags & (ts.TypeFlags.EnumLike | ts.TypeFlags.EnumLiteral)) !== 0 &&
+      (sym.getFlags() &
+        (ts.SymbolFlags.Enum |
+          ts.SymbolFlags.ConstEnum |
+          ts.SymbolFlags.RegularEnum)) !==
+        0;
+    if (isEnum && isLocalNamedSymbol(sym, imports)) {
+      const name = uniqueName(ctx, sym.getName());
+      ctx.byType.set(type, name);
+      // `declare` — a bare `enum` is not a valid top-level `.d.ts` statement.
+      ctx.decls.set(
+        name,
+        `declare enum ${name} ${renderEnumDecl(checker, sym)}`,
+      );
+      return name;
+    }
+    // A local RECURSIVE type (generic or not) — inlining never terminates, so
+    // emit a monomorphized alias and reference it. The alias name is assigned
+    // (and cached) BEFORE its body is rendered, so a self/mutual reference in
+    // the body resolves to the name instead of recursing.
+    if (
+      isNamedTypeSymbol(sym) &&
+      isLocalNamedSymbol(sym, imports) &&
+      referencesSymbol(checker, type, sym, at, new Set())
+    ) {
+      const name = uniqueName(ctx, sym.getName());
+      ctx.byType.set(type, name);
+      ctx.decls.set(
+        name,
+        `type ${name} = ${renderStructure(checker, type, at, imports, seen, ctx)};`,
+      );
+      return name;
+    }
+  }
+  return renderStructure(checker, type, at, imports, seen, ctx);
+}
+
+/** Render a type's shape (no name-vs-inline decision — see renderResolvable). */
+function renderStructure(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  at: ts.Node,
+  imports: Map<ts.Symbol, ImportInfo>,
+  seen: Set<ts.Type>,
+  ctx?: LocalDeclCtx,
+): string {
+  const recurse = (t: ts.Type) =>
+    renderResolvable(checker, t, at, imports, seen, ctx);
+
+  // An enum member with no collector (or an external enum): its literal value
+  // is self-contained and avoids referencing an undeclared enum name.
+  if (
+    type.flags & ts.TypeFlags.EnumLiteral &&
+    !(type.flags & ts.TypeFlags.Union)
+  ) {
+    const value = (type as ts.LiteralType).value;
+    return typeof value === "string" ? JSON.stringify(value) : String(value);
+  }
+  if (type.flags & PRIMITIVEISH_FLAGS) {
+    return checker.typeToString(type, at, RENDER_FLAGS);
+  }
+  // A generic signature's type parameter renders by its name (`T`), not its
+  // constraint — the enclosing `renderSignature` declares the `<T>`.
+  if (type.flags & ts.TypeFlags.TypeParameter) {
+    return checker.typeToString(type, at, RENDER_FLAGS);
+  }
+  if (type.isUnion()) return type.types.map(recurse).join(" | ");
+  if (type.isIntersection()) return type.types.map(recurse).join(" & ");
+
+  if (isTupleType(checker, type)) {
+    const target = (type as ts.TupleTypeReference).target;
+    const flags = target.elementFlags;
+    const ro = target.readonly ? "readonly " : "";
+    const parts = typeArgsOf(checker, type).map((el, i) => {
+      const flag = flags[i] ?? ts.ElementFlags.Required;
+      if (flag & ts.ElementFlags.Rest) return `...${recurse(el)}[]`;
+      if (flag & ts.ElementFlags.Variadic) return `...${recurse(el)}`;
+      // An optional element's type already carries `| undefined`; render the
+      // non-nullable type with a trailing `?` (`number?`, not `number | undefined?`).
+      if (flag & ts.ElementFlags.Optional) {
+        return `${recurse(checker.getNonNullableType(el))}?`;
+      }
+      return recurse(el);
+    });
+    return `${ro}[${parts.join(", ")}]`;
+  }
+  if (typeof checker.isArrayType === "function" && checker.isArrayType(type)) {
+    const el = typeArgsOf(checker, type)[0];
+    const s = el ? recurse(el) : "unknown";
+    const targetName = (type as ts.TypeReference).target
+      ?.getSymbol?.()
+      ?.getName();
+    return targetName === "ReadonlyArray"
+      ? `ReadonlyArray<${s}>`
+      : `Array<${s}>`;
+  }
+
+  const sym = type.aliasSymbol ?? type.getSymbol();
+  const args = typeArgsOf(checker, type);
+  const withArgs = (base: string) =>
+    args.length ? `${base}<${args.map(recurse).join(", ")}>` : base;
+
+  if (sym) {
+    const imported = imports.get(sym);
+    if (imported && !isRelativeSpecifier(imported.specifier)) {
+      // External package / node builtin — reference it through the author's own
+      // specifier so a consumer resolves it exactly as the author's source does.
+      return withArgs(
+        `import(${JSON.stringify(imported.specifier)}).${imported.name}`,
+      );
+    }
+    if (isNamedTypeSymbol(sym) && !isLocalNamedSymbol(sym, imports)) {
+      // Global / lib type (Array, Date, Record, Intl.Collator, ReadableStream…)
+      // — a namespace-qualified name (with args) resolves for the consumer.
+      return withArgs(qualifiedGlobalName(sym));
+    }
+    // Local named type — inline it structurally (recursive/enum ones were
+    // already turned into declarations by renderResolvable).
+  }
+
+  if (seen.has(type)) return "unknown";
+  seen.add(type);
+  const members: string[] = [];
+  for (const sig of type.getCallSignatures()) {
+    members.push(renderSignature(checker, sig, "", at, imports, seen, ctx));
+  }
+  for (const sig of type.getConstructSignatures()) {
+    members.push(renderSignature(checker, sig, "new ", at, imports, seen, ctx));
+  }
+  for (const prop of checker.getPropertiesOfType(type)) {
+    const raw = prop.getName();
+    // Skip members that can't appear in a structural type literal: private
+    // fields (`#x`) and computed/symbol-keyed members (escaped as `__@…`).
+    if (raw.startsWith("#") || raw.startsWith("__@")) continue;
+    const optional = (prop.getFlags() & ts.SymbolFlags.Optional) !== 0;
+    let propType = checker.getTypeOfSymbolAtLocation(
+      prop,
+      prop.valueDeclaration ?? at,
+    );
+    if (optional) propType = checker.getNonNullableType(propType);
+    // Quote a key that isn't a plain identifier (`"content-type"`, `"0abc"`).
+    const key = /^[A-Za-z_$][\w$]*$/.test(raw) ? raw : JSON.stringify(raw);
+    members.push(`${key}${optional ? "?" : ""}: ${recurse(propType)}`);
+  }
+  for (const info of checker.getIndexInfosOfType(type)) {
+    const key = info.keyType.flags & ts.TypeFlags.Number ? "number" : "string";
+    const ro = info.isReadonly ? "readonly " : "";
+    members.push(`${ro}[key: ${key}]: ${recurse(info.type)}`);
+  }
+  seen.delete(type);
+  // Match `checker.typeToString`'s object formatting exactly (trailing `; }`),
+  // so a purely-structural type renders identically and `renderRole` stores no
+  // `resolved` — only types with a genuinely-resolved named member differ.
+  return members.length ? `{ ${members.join("; ")}; }` : "{}";
+}
+
+/** Render a call/construct signature: `<T>(a: X, b?: Y, ...rest: Z[]) => R`. */
+function renderSignature(
+  checker: ts.TypeChecker,
+  sig: ts.Signature,
+  prefix: string,
+  at: ts.Node,
+  imports: Map<ts.Symbol, ImportInfo>,
+  seen: Set<ts.Type>,
+  ctx?: LocalDeclCtx,
+): string {
+  const render = (t: ts.Type) =>
+    renderResolvable(checker, t, at, imports, seen, ctx);
+
+  // Generic signature type parameters (`<T extends C = D>`).
+  const typeParams = (sig.getTypeParameters() ?? []).map((tp) => {
+    const constraint = tp.getConstraint();
+    const dflt = tp.getDefault();
+    return (
+      checker.typeToString(tp, at, RENDER_FLAGS) +
+      (constraint ? ` extends ${render(constraint)}` : "") +
+      (dflt ? ` = ${render(dflt)}` : "")
+    );
+  });
+  const generics = typeParams.length ? `<${typeParams.join(", ")}>` : "";
+
+  const params = sig.getParameters().map((p) => {
+    const decl = p.valueDeclaration as ts.ParameterDeclaration | undefined;
+    const rest = decl?.dotDotDotToken ? "..." : "";
+    // A `?` or a default initializer both make a parameter optional.
+    const optional = !rest && (decl?.questionToken || decl?.initializer);
+    let pType = checker.getTypeOfSymbolAtLocation(p, decl ?? at);
+    if (optional) pType = checker.getNonNullableType(pType);
+    return `${rest}${p.getName()}${optional ? "?" : ""}: ${render(pType)}`;
+  });
+
+  // Type-predicate return (`x is Foo`, `asserts x is Foo`, `this is Foo`).
+  const predicate = checker.getTypePredicateOfSignature?.(sig);
+  let ret: string;
+  if (predicate) {
+    const asserts =
+      predicate.kind === ts.TypePredicateKind.AssertsThis ||
+      predicate.kind === ts.TypePredicateKind.AssertsIdentifier
+        ? "asserts "
+        : "";
+    const subject =
+      predicate.kind === ts.TypePredicateKind.This ||
+      predicate.kind === ts.TypePredicateKind.AssertsThis
+        ? "this"
+        : predicate.parameterName;
+    ret = `${asserts}${subject}${predicate.type ? ` is ${render(predicate.type)}` : ""}`;
+  } else {
+    ret = render(sig.getReturnType());
+  }
+
+  return `${prefix}${generics}(${params.join(", ")}): ${ret}`;
+}
+
 /** Object members of a type (empty for primitives/literals/unions). */
 function objectFields(
   checker: ts.TypeChecker,
@@ -220,12 +729,24 @@ function renderRole(
   checker: ts.TypeChecker,
   type: ts.Type,
   at: ts.Node,
+  imports?: Map<ts.Symbol, ImportInfo>,
+  ctx?: LocalDeclCtx,
 ): NodeRoleType | undefined {
   if (isVacuous(checker, type)) return undefined;
-  return {
-    text: render(checker, type, at),
-    fields: objectFields(checker, type, at),
-  };
+  const text = render(checker, type, at);
+  const role: NodeRoleType = { text, fields: objectFields(checker, type, at) };
+  if (imports) {
+    const resolved = renderResolvable(
+      checker,
+      type,
+      at,
+      imports,
+      new Set(),
+      ctx,
+    );
+    if (resolved !== text) role.resolved = resolved;
+  }
+  return role;
 }
 
 /** The brand property nrg stamps on a named-port output type (see schemas/types). */
@@ -234,6 +755,21 @@ const NAMED_PORTS_BRAND = "__nrg_named_ports";
 /** True when a type is a tuple (positional multi-output). */
 function isTupleType(checker: ts.TypeChecker, type: ts.Type): boolean {
   return typeof checker.isTupleType === "function" && checker.isTupleType(type);
+}
+
+/**
+ * The output's port shape, mirroring {@link extractOutputs}'s branching — but
+ * returned as a single tag so a caller can tell a single-object output apart
+ * from a one-element tuple (both yield one port, so the port list alone can't).
+ * The wire-checker uses it to index the whole `send()` value per port.
+ */
+function outputPortKind(
+  checker: ts.TypeChecker,
+  outputType: ts.Type,
+): "single" | "tuple" | "named" {
+  if (isTupleType(checker, outputType)) return "tuple";
+  if (checker.getPropertyOfType(outputType, NAMED_PORTS_BRAND)) return "named";
+  return "single";
 }
 
 /**
@@ -248,11 +784,13 @@ function extractOutputs(
   checker: ts.TypeChecker,
   outputType: ts.Type,
   at: ts.Node,
+  imports?: Map<ts.Symbol, ImportInfo>,
+  ctx?: LocalDeclCtx,
 ): NodeOutputPort[] | undefined {
   if (isVacuous(checker, outputType)) return undefined;
 
   const portRole = (type: ts.Type): NodeRoleType =>
-    renderRole(checker, type, at) ?? {
+    renderRole(checker, type, at, imports, ctx) ?? {
       text: render(checker, type, at),
       fields: [],
     };
@@ -388,17 +926,22 @@ function assignRoleTypes(
   slots: string[],
   typeArgs: readonly ts.Type[],
   at: ts.Node,
+  imports: Map<ts.Symbol, ImportInfo>,
+  ctx: LocalDeclCtx,
 ): void {
   typeArgs.forEach((argType, i) => {
     const role = slots[i];
     if (!role) return;
     if (info.kind === "config" && IO_ONLY_ROLES.has(role)) return;
     if (role === "output") {
-      const ports = extractOutputs(checker, argType, at);
-      if (ports?.length) info.outputs = ports;
+      const ports = extractOutputs(checker, argType, at, imports, ctx);
+      if (ports?.length) {
+        info.outputs = ports;
+        info.outputKind = outputPortKind(checker, argType);
+      }
       return;
     }
-    const rendered = renderRole(checker, argType, at);
+    const rendered = renderRole(checker, argType, at, imports, ctx);
     if (rendered) {
       (info as unknown as Record<string, NodeRoleType>)[role] = rendered;
     }
@@ -409,6 +952,7 @@ function assignRoleTypes(
 function extractClassNode(
   checker: ts.TypeChecker,
   classDecl: ts.ClassDeclaration,
+  ctx: LocalDeclCtx,
 ): NodeTypeInfo | undefined {
   const symbol = classDecl.name && checker.getSymbolAtLocation(classDecl.name);
   if (!symbol) return undefined;
@@ -423,12 +967,15 @@ function extractClassNode(
 
   const kind: "io" | "config" = base.baseName === "IONode" ? "io" : "config";
   const info: NodeTypeInfo = { type, kind, className: classDecl.name?.text };
+  const imports = buildImportMap(checker, classDecl.getSourceFile());
   assignRoleTypes(
     checker,
     info,
     BASE_CLASS_SLOTS[base.baseName],
     base.typeArgs,
     classDecl,
+    imports,
+    ctx,
   );
 
   if (kind === "io") {
@@ -438,7 +985,7 @@ function extractClassNode(
       const sig = inputType.getCallSignatures()[0];
       if (sig) {
         const ret = unwrapPromise(sig.getReturnType());
-        const rendered = renderRole(checker, ret, classDecl);
+        const rendered = renderRole(checker, ret, classDecl, imports, ctx);
         if (rendered) info.complete = rendered;
       }
     }
@@ -516,6 +1063,7 @@ function defaultExportFactoryCall(
 function extractFunctionalNode(
   checker: ts.TypeChecker,
   callExpr: ts.CallExpression,
+  ctx: LocalDeclCtx,
 ): NodeTypeInfo | undefined {
   const callee = callExpr.expression;
   const kind = ts.isIdentifier(callee) ? FACTORY_KINDS[callee.text] : undefined;
@@ -527,6 +1075,7 @@ function extractFunctionalNode(
   if (!type) return undefined;
 
   const info: NodeTypeInfo = { type, kind };
+  const imports = buildImportMap(checker, callExpr.getSourceFile());
 
   // Roles come from the call's return type: NodeConstructor<IIONode<…>>.
   const ctorType = checker.getTypeAtLocation(callExpr);
@@ -536,7 +1085,7 @@ function extractFunctionalNode(
     : [];
   const slots =
     kind === "io" ? BASE_CLASS_SLOTS.IONode : BASE_CLASS_SLOTS.ConfigNode;
-  assignRoleTypes(checker, info, slots, ifaceArgs, arg);
+  assignRoleTypes(checker, info, slots, ifaceArgs, arg, imports, ctx);
 
   // Complete port — the inline input handler's inferred return type.
   if (kind === "io") {
@@ -556,6 +1105,8 @@ function extractFunctionalNode(
           checker,
           unwrapPromise(sig.getReturnType()),
           arg,
+          imports,
+          ctx,
         );
         if (rendered) info.complete = rendered;
       }
@@ -572,29 +1123,48 @@ function extractFunctionalNode(
  * defineIONode/defineConfigNode({…})`) read from the call's return type. Both
  * derive the complete port from the `input` handler's return type.
  */
-function extractNodeTypes(program: ts.Program, srcDir: string): NodeTypeInfo[] {
+function extractNodeTypes(
+  program: ts.Program,
+  srcDir: string,
+  localTypes?: Record<string, string>,
+): NodeTypeInfo[] {
   const checker = program.getTypeChecker();
   const root = path.resolve(srcDir);
   const out: NodeTypeInfo[] = [];
+  // Package-level, so a type shared by several nodes is declared once. Callers
+  // that build a `.d.ts` pass `localTypes` to receive the declarations that the
+  // resolved types reference (recursive/enum types); others discard them.
+  const ctx = newLocalDeclCtx();
 
   for (const sourceFile of program.getSourceFiles()) {
     if (sourceFile.isDeclarationFile) continue;
     if (!path.resolve(sourceFile.fileName).startsWith(root)) continue;
 
+    const absPath = path.resolve(sourceFile.fileName);
+
     const classDecl = defaultExportClass(sourceFile);
     if (classDecl) {
-      const info = extractClassNode(checker, classDecl);
-      if (info) out.push(info);
+      const info = extractClassNode(checker, classDecl, ctx);
+      if (info) {
+        info.sourceFile = absPath;
+        out.push(info);
+      }
       continue;
     }
 
     const factoryCall = defaultExportFactoryCall(sourceFile);
     if (factoryCall) {
-      const info = extractFunctionalNode(checker, factoryCall);
-      if (info) out.push(info);
+      const info = extractFunctionalNode(checker, factoryCall, ctx);
+      if (info) {
+        info.sourceFile = absPath;
+        out.push(info);
+      }
     }
   }
 
+  if (localTypes) {
+    for (const [name, decl] of ctx.decls) localTypes[name] = decl;
+  }
   return out;
 }
 
@@ -602,35 +1172,38 @@ function extractNodeTypes(program: ts.Program, srcDir: string): NodeTypeInfo[] {
 function extractNodeTypesFromSrc(
   srcDir: string,
   tsconfigPath?: string,
+  localTypes?: Record<string, string>,
 ): NodeTypeInfo[] {
   const program = createNodeTypesProgram(srcDir, tsconfigPath);
-  return extractNodeTypes(program, srcDir);
+  return extractNodeTypes(program, srcDir, localTypes);
 }
 
 /**
- * Extract each node's type info from a consumer's server source and write it to
- * the client cache (`node-types.json`), keyed by node type, for the help
- * generator. Returns the number of nodes written.
+ * Write already-extracted node type info to the client cache (`node-types.json`),
+ * keyed by node type, for the help generator. `sourceFile` is stripped — it's an
+ * absolute build-machine path only the in-process wire-checker needs, and it has
+ * no place in a persisted, machine-independent artifact.
  */
-function writeNodeTypes(
-  srcDir: string,
-  outDir: string,
-  tsconfigPath?: string,
-): number {
-  const infos = extractNodeTypesFromSrc(srcDir, tsconfigPath);
+function writeNodeTypesJson(infos: NodeTypeInfo[], outDir: string): void {
   const byType: Record<string, NodeTypeInfo> = {};
-  for (const info of infos) byType[info.type] = info;
+  for (const info of infos) {
+    const { sourceFile: _sourceFile, ...rest } = info;
+    byType[info.type] = rest;
+  }
   const outPath = nodeTypesPath(outDir);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(byType));
-  return infos.length;
 }
 
 export {
+  resolveConsumerCompilerOptions,
   createNodeTypesProgram,
   extractNodeTypes,
   extractNodeTypesFromSrc,
-  writeNodeTypes,
+  writeNodeTypesJson,
+  isVacuous,
+  extractOutputs,
+  outputPortKind,
   BASE_CLASS_SLOTS,
 };
 export type { NodeTypeInfo, NodeRoleType, NodeFieldInfo, NodeOutputPort };

@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import type { NodeTypeInfo } from "./node-type-info";
 
 /**
@@ -17,18 +19,24 @@ import type { NodeTypeInfo } from "./node-type-info";
  * message types (ErrorPort/StatusPort), which the framework exports.
  */
 
-const roleText = (r?: { text: string }): string | undefined => r?.text;
+// Prefer the self-contained `resolved` render (named types made resolvable for
+// a consumer) over `text` (which may reference a bare name only in scope in the
+// author's source) — so the generated types type-check standalone.
+const roleText = (r?: {
+  text: string;
+  resolved?: string;
+}): string | undefined => r?.resolved ?? r?.text;
 
 /** Reconstruct the `Output` generic from the shape-aware ports. */
 function outputTypeText(node: NodeTypeInfo): string {
   const ports = node.outputs;
   if (!ports || ports.length === 0) return "unknown";
   if (ports.length === 1 && ports[0].name === undefined)
-    return ports[0].role.text;
+    return roleText(ports[0].role)!;
   if (ports[0].name !== undefined) {
-    return `{ ${ports.map((p) => `${p.name}: ${p.role.text}`).join("; ")} }`;
+    return `{ ${ports.map((p) => `${p.name}: ${roleText(p.role)}`).join("; ")} }`;
   }
-  return `[${ports.map((p) => p.role.text).join(", ")}]`;
+  return `[${ports.map((p) => roleText(p.role)).join(", ")}]`;
 }
 
 /** (a) An inheritable `export declare class` with resolved generics. */
@@ -65,7 +73,7 @@ function buildClassDecl(node: NodeTypeInfo): string {
 /** (b) The `NodeTypes` registry augmentation — one entry per node, by type string. */
 function buildRegistryAugmentation(nodes: NodeTypeInfo[]): string {
   const entry = (n: NodeTypeInfo): string => {
-    const outputs = (n.outputs ?? []).map((p) => p.role.text).join(", ");
+    const outputs = (n.outputs ?? []).map((p) => roleText(p.role)).join(", ");
     const lines = [
       `input: ${roleText(n.input) ?? "unknown"};`,
       `outputs: [${outputs}];`,
@@ -88,34 +96,57 @@ function buildRegistryAugmentation(nodes: NodeTypeInfo[]): string {
 }
 
 /** The full flat `index.d.ts` for a package (classes + registry + default). */
-function buildPackageDts(nodes: NodeTypeInfo[]): string {
+function buildPackageDts(
+  nodes: NodeTypeInfo[],
+  localTypes: Record<string, string> = {},
+): string {
   const classNodes = nodes.filter((n) => n.className);
   // Only message-processing (IONode) nodes are wired, so only they get a
   // connection-registry entry; config nodes get their class decl only.
   const ioNodes = nodes.filter((n) => n.kind === "io");
+  // Functional-API nodes have no class declaration to reference, so the default
+  // export's `nodes` tuple types them as the base `NodeConstructor`.
+  const hasFunctional = nodes.some((n) => !n.className);
 
-  const baseImports = [
+  // IONode/ConfigNode are value classes (used in `extends`); NodeConstructor and
+  // the port types are type-only.
+  const valueImports = [
     classNodes.some((n) => n.kind === "io") && "IONode",
     classNodes.some((n) => n.kind === "config") && "ConfigNode",
   ].filter((x): x is string => Boolean(x));
+  const typeImports = [
+    hasFunctional && "NodeConstructor",
+    ioNodes.length && "ErrorPort",
+    ioNodes.length && "StatusPort",
+  ].filter((x): x is string => Boolean(x));
 
   const parts: string[] = [];
-  if (baseImports.length) {
+  if (valueImports.length) {
     parts.push(
-      `import { ${baseImports.join(", ")} } from "@bonsae/nrg/server";`,
+      `import { ${valueImports.join(", ")} } from "@bonsae/nrg/server";`,
     );
   }
-  if (ioNodes.length) {
+  if (typeImports.length) {
     parts.push(
-      `import type { ErrorPort, StatusPort } from "@bonsae/nrg/server";`,
+      `import type { ${typeImports.join(", ")} } from "@bonsae/nrg/server";`,
     );
   }
+  // Declarations for named types the resolved ports reference — recursive local
+  // types (no finite structural expansion) and local enums (nominal). Emitted
+  // before the classes/registry that reference them.
+  const localDecls = Object.keys(localTypes)
+    .sort()
+    .map((name) => localTypes[name]);
+  parts.push(...localDecls);
   parts.push(...classNodes.map(buildClassDecl));
   if (ioNodes.length) parts.push(buildRegistryAugmentation(ioNodes));
 
-  if (classNodes.length) {
-    const nodesTuple = classNodes
-      .map((n) => `typeof ${n.className}`)
+  if (nodes.length) {
+    // The module default (`export default { nodes: [...] }`): class nodes are
+    // referenced by their declared class (so `typeof` preserves the exact type),
+    // functional nodes fall back to the base `NodeConstructor`.
+    const nodesTuple = nodes
+      .map((n) => (n.className ? `typeof ${n.className}` : "NodeConstructor"))
       .join(", ");
     parts.push(`declare const _default: { nodes: [${nodesTuple}] };`);
     parts.push(`export default _default;`);
@@ -124,4 +155,22 @@ function buildPackageDts(nodes: NodeTypeInfo[]): string {
   return parts.join("\n\n") + "\n";
 }
 
-export { buildPackageDts, buildRegistryAugmentation };
+/**
+ * Emit the package type surface to `<entryName>.d.ts` for each entry, matching
+ * the `types` field the package-json generator points at. All entries get the
+ * same self-contained surface (the extractor sees every node under srcDir).
+ */
+function writePackageDts(
+  nodes: NodeTypeInfo[],
+  localTypes: Record<string, string>,
+  outDir: string,
+  entryNames: string[],
+): void {
+  const dts = buildPackageDts(nodes, localTypes);
+  fs.mkdirSync(outDir, { recursive: true });
+  for (const name of entryNames) {
+    fs.writeFileSync(path.join(outDir, `${name}.d.ts`), dts);
+  }
+}
+
+export { buildPackageDts, buildRegistryAugmentation, writePackageDts };
