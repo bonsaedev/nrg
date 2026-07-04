@@ -74,6 +74,8 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
     const defaults = getDefaultsFromSchema(configSchema);
     if (defaults && inputSchema) {
       defaults.validateInput = { required: false, value: false };
+      // Design-time: type-check wires into this input (editor wire check).
+      defaults.validateInputTypes = { required: false, value: false };
     }
     if (defaults && outputsSchema) {
       // Per-port output validation flags, keyed by base-output port index and
@@ -81,6 +83,8 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
       // runtime by IONode. Return Property / Context Mode columns are
       // author-declared in the schema, so their defaults come from there.
       defaults.validateOutputs = { required: false, value: {} };
+      // Design-time per-port type-check flags (editor wire check).
+      defaults.validateOutputTypes = { required: false, value: {} };
     }
     const credentials = getCredentialsFromSchema(credentialsSchema);
 

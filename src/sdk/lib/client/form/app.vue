@@ -32,8 +32,13 @@
               <th class="nrg-outputs-flag">
                 {{ resolveLabel("toggles.validateInput", "Validate Data") }}
               </th>
-              <th class="nrg-input-desc">
-                {{ resolveLabel("lifecyclePorts.description", "Description") }}
+              <th
+                v-if="typeCheckEnabled && supportsInputTypeValidation"
+                class="nrg-outputs-flag"
+              >
+                {{
+                  resolveLabel("toggles.validateInputTypes", "Validate Types")
+                }}
               </th>
             </tr>
           </thead>
@@ -53,45 +58,64 @@
                   "
                 />
               </td>
-              <td class="nrg-input-desc">
-                {{
-                  resolveLabel(
-                    "help.validateInput",
-                    "Validate incoming messages against the input schema before input() runs.",
-                  )
-                }}
-                <a
-                  class="nrg-help-link"
-                  :href="docsUrl('/guide/schemas#input-schema')"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >{{ resolveLabel("help.learnMore", "Learn more") }}</a
-                >
+              <td
+                v-if="typeCheckEnabled && supportsInputTypeValidation"
+                class="nrg-outputs-flag"
+              >
+                <NodeRedToggle
+                  :model-value="localNode.validateInputTypes"
+                  :aria-label="
+                    resolveLabel('toggles.validateInputTypes', 'Validate Types')
+                  "
+                  @update:model-value="
+                    (val: boolean) => {
+                      localNode.validateInputTypes = val;
+                    }
+                  "
+                />
               </td>
             </tr>
           </tbody>
         </table>
+        <ul class="nrg-help-list">
+          <li>
+            <strong>{{
+              resolveLabel("toggles.validateInput", "Validate Data")
+            }}</strong>
+            —
+            {{
+              resolveLabel(
+                "help.validateInput",
+                "Validate incoming messages against the input schema before input() runs.",
+              )
+            }}
+            <a
+              class="nrg-help-link"
+              :href="docsUrl('/guide/schemas#input-schema')"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+            >
+          </li>
+          <li v-if="typeCheckEnabled && supportsInputTypeValidation">
+            <strong>{{
+              resolveLabel("toggles.validateInputTypes", "Validate Types")
+            }}</strong>
+            —
+            {{
+              resolveLabel(
+                "help.validateInputTypes",
+                "Type-check wires connected to this input on deploy (TypeScript).",
+              )
+            }}
+          </li>
+        </ul>
       </div>
 
       <!-- Outputs -->
       <div v-if="showOutputs && outputRows.length" class="nrg-subsection">
         <div class="nrg-subsection-title">
           {{ resolveLabel("sections.outputs", "Outputs") }}
-        </div>
-        <div class="nrg-help">
-          {{
-            resolveLabel(
-              "help.outputs",
-              "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
-            )
-          }}
-          <a
-            class="nrg-help-link"
-            :href="docsUrl('/guide/creating-a-node#the-editor-form')"
-            target="_blank"
-            rel="noopener noreferrer"
-            >{{ resolveLabel("help.learnMore", "Learn more") }}</a
-          >
         </div>
         <table class="nrg-outputs">
           <thead>
@@ -104,6 +128,12 @@
               </th>
               <th class="nrg-outputs-flag">
                 {{ resolveLabel("outputs.validate", "Validate Data") }}
+              </th>
+              <th
+                v-if="typeCheckEnabled && supportsOutputTypeValidation"
+                class="nrg-outputs-flag"
+              >
+                {{ resolveLabel("outputs.validateTypes", "Validate Types") }}
               </th>
               <th
                 v-if="hasOutputReturnProperties"
@@ -126,6 +156,18 @@
                   :aria-label="`${resolveLabel('outputs.validate', 'Validate Data')} — ${port.label}`"
                   @update:model-value="
                     (val: boolean) => setValidateOutput(port.index, val)
+                  "
+                />
+              </td>
+              <td
+                v-if="typeCheckEnabled && supportsOutputTypeValidation"
+                class="nrg-outputs-flag"
+              >
+                <NodeRedToggle
+                  :model-value="validateOutputTypesFor(port.index)"
+                  :aria-label="`${resolveLabel('outputs.validateTypes', 'Validate Types')} — ${port.label}`"
+                  @update:model-value="
+                    (val: boolean) => setValidateOutputTypes(port.index, val)
                   "
                 />
               </td>
@@ -172,6 +214,65 @@
             </tr>
           </tbody>
         </table>
+        <ul class="nrg-help-list">
+          <li>
+            <strong>{{
+              resolveLabel("outputs.validate", "Validate Data")
+            }}</strong>
+            —
+            {{
+              resolveLabel(
+                "help.validateData",
+                "Check the sent value against this port's schema before it is emitted.",
+              )
+            }}
+          </li>
+          <li v-if="typeCheckEnabled && supportsOutputTypeValidation">
+            <strong>{{
+              resolveLabel("outputs.validateTypes", "Validate Types")
+            }}</strong>
+            —
+            {{
+              resolveLabel(
+                "help.validateTypes",
+                "Type-check wires from this port on deploy (TypeScript).",
+              )
+            }}
+          </li>
+          <li v-if="hasOutputReturnProperties">
+            <strong>{{
+              resolveLabel("outputs.returnProperty", "Return Property")
+            }}</strong>
+            —
+            {{
+              resolveLabel(
+                "help.returnProperty",
+                "The message property the sent value is placed on (default: output).",
+              )
+            }}
+          </li>
+          <li v-if="hasOutputContextModes">
+            <strong>{{
+              resolveLabel("outputs.contextMode", "Context Mode")
+            }}</strong>
+            —
+            {{
+              resolveLabel(
+                "help.contextMode",
+                "How the incoming message is carried to this port: carry, trace, or reset.",
+              )
+            }}
+          </li>
+          <li>
+            <a
+              class="nrg-help-link"
+              :href="docsUrl('/guide/creating-a-node#the-editor-form')"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+            >
+          </li>
+        </ul>
       </div>
 
       <!-- Lifecycle ports: extra output ports, a subsection of Ports Settings -->
@@ -303,6 +404,7 @@ import type { PropType } from "vue";
 import { defineComponent, shallowRef } from "vue";
 import { debounce } from "es-toolkit";
 import { validateForm } from "../validation";
+import { typeCheckEnabled } from "../wire-check/availability";
 import type { NodeFeatures, NodeRedNode } from "../types";
 
 export default defineComponent({
@@ -333,6 +435,9 @@ export default defineComponent({
       debouncedValidate: shallowRef<
         (((...args: any[]) => void) & { cancel?: () => void }) | null
       >(null),
+      // Reactive: the Validate Types controls render only when the type-check
+      // plugin is installed and enabled (unwrapped for the template).
+      typeCheckEnabled,
     };
   },
   data() {
@@ -347,6 +452,19 @@ export default defineComponent({
     },
     hasOutputContextModes(): boolean {
       return this.schema?.properties?.outputContextModes !== undefined;
+    },
+    /**
+     * Whether THIS node offers input/output type-checking. The build injects the
+     * `validateInputTypes` / `validateOutputTypes` default only for nodes with a
+     * typed input / typed outputs, so its presence on the node definition is the
+     * node's opt-in. The Validate Types column renders only when the node offers
+     * it AND the type-check plugin is installed ({@link typeCheckEnabled}).
+     */
+    supportsInputTypeValidation(): boolean {
+      return this.node._def?.defaults?.validateInputTypes !== undefined;
+    },
+    supportsOutputTypeValidation(): boolean {
+      return this.node._def?.defaults?.validateOutputTypes !== undefined;
     },
     /**
      * The node author's per-port context-mode defaults, declared in the schema.
@@ -443,6 +561,7 @@ export default defineComponent({
     if (this.features.hasOutputSchema) {
       for (const key of [
         "validateOutputs",
+        "validateOutputTypes",
         "outputContextModes",
         "outputReturnProperties",
       ] as const) {
@@ -571,6 +690,15 @@ export default defineComponent({
         [index]: checked,
       };
     },
+    validateOutputTypesFor(index: number): boolean {
+      return this.localNode.validateOutputTypes?.[index] ?? false;
+    },
+    setValidateOutputTypes(index: number, checked: boolean) {
+      this.localNode.validateOutputTypes = {
+        ...(this.localNode.validateOutputTypes ?? {}),
+        [index]: checked,
+      };
+    },
     returnPropertyFor(index: number): string {
       return this.localNode.outputReturnProperties?.[index] ?? "";
     },
@@ -623,11 +751,24 @@ export default defineComponent({
 /* Left-align the description (overrides the shared centered cell rule, which
    out-specifies a bare class) and keep it — with its Learn more link — on one
    line. Header stays centered like the others. */
-.nrg-lifecycle td.nrg-lifecycle-desc,
-.nrg-input td.nrg-input-desc {
+.nrg-lifecycle td.nrg-lifecycle-desc {
   text-align: left;
   white-space: nowrap;
   color: var(--red-ui-text-color-disabled, #999);
+}
+
+/* Per-column explanations below the input/outputs tables (replaces the old
+   per-row Description column — one dash item per column that takes user input). */
+.nrg-help-list {
+  margin: 4px 0 6px;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--red-ui-text-color-disabled, #999);
+}
+
+.nrg-help-list li {
+  margin: 1px 0;
 }
 
 .nrg-section {

@@ -218,6 +218,9 @@ declare const RED: {
       source?: NodeRED.BaseNode;
       target?: NodeRED.BaseNode;
     }): NodeRED.Link[];
+    eachLink(callback: (link: NodeRED.Link) => void | false): void;
+    addLink(link: NodeRED.Link): void;
+    removeLink(link: NodeRED.Link): void;
     getType(type: string): any;
     id(): NodeRED.UID;
     add(node: any): NodeRED.BaseNode;

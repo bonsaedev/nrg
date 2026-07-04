@@ -29,6 +29,7 @@ function localesGenerator(options: {
     "en-US": {
       configs: { name: "Name" },
       toggles: {
+        validateInputTypes: "Validate Types",
         validateInput: "Validate Data",
         errorPort: "Error Port",
         completePort: "Complete Port",
@@ -41,6 +42,7 @@ function localesGenerator(options: {
         lifecyclePorts: "Lifecycle Output Ports",
       },
       outputs: {
+        validateTypes: "Validate Types",
         port: "Port",
         label: "Label",
         validate: "Validate Data",
@@ -55,6 +57,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "Type-check wires connected to this input on deploy (TypeScript).",
+        validateTypes:
+          "Type-check wires from this port on deploy (TypeScript).",
+        validateData:
+          "Check the sent value against this port's schema before it is emitted.",
+        returnProperty:
+          "The message property the sent value is placed on (default: output).",
+        contextMode:
+          "How the incoming message is carried to this port: carry, trace, or reset.",
         validateInput:
           "Validate incoming messages against the input schema before input() runs.",
         outputs:
@@ -87,6 +99,7 @@ function localesGenerator(options: {
     de: {
       configs: { name: "Name" },
       toggles: {
+        validateInputTypes: "Typen prüfen",
         validateInput: "Daten validieren",
         errorPort: "Fehler-Port",
         completePort: "Abschluss-Port",
@@ -99,6 +112,7 @@ function localesGenerator(options: {
         lifecyclePorts: "Lebenszyklus-Ausgangsports",
       },
       outputs: {
+        validateTypes: "Typen prüfen",
         port: "Port",
         label: "Bezeichnung",
         validate: "Daten validieren",
@@ -113,6 +127,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "Typprüfung der mit diesem Eingang verbundenen Verbindungen beim Deployment (TypeScript).",
+        validateTypes:
+          "Typprüfung der von diesem Port ausgehenden Verbindungen beim Deployment (TypeScript).",
+        validateData:
+          "Prüft den gesendeten Wert gegen das Schema dieses Ports, bevor er ausgegeben wird.",
+        returnProperty:
+          "Die Nachrichteneigenschaft, unter der der gesendete Wert abgelegt wird (Standard: output).",
+        contextMode:
+          "Wie die eingehende Nachricht zu diesem Port getragen wird: carry, trace oder reset.",
         validateInput:
           "Eingehende Nachrichten vor dem Ausführen von input() gegen das Eingabe-Schema validieren.",
         outputs:
@@ -145,6 +169,7 @@ function localesGenerator(options: {
     "es-ES": {
       configs: { name: "Nombre" },
       toggles: {
+        validateInputTypes: "Validar tipos",
         validateInput: "Validar datos",
         errorPort: "Puerto de error",
         completePort: "Puerto de completado",
@@ -157,6 +182,7 @@ function localesGenerator(options: {
         lifecyclePorts: "Puertos de salida de ciclo de vida",
       },
       outputs: {
+        validateTypes: "Validar tipos",
         port: "Puerto",
         label: "Etiqueta",
         validate: "Validar datos",
@@ -171,6 +197,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "Comprueba los tipos de las conexiones a esta entrada al desplegar (TypeScript).",
+        validateTypes:
+          "Comprueba los tipos de las conexiones desde este puerto al desplegar (TypeScript).",
+        validateData:
+          "Comprueba el valor enviado contra el esquema de este puerto antes de emitirlo.",
+        returnProperty:
+          "La propiedad del mensaje donde se coloca el valor enviado (predeterminado: output).",
+        contextMode:
+          "Cómo se transporta el mensaje entrante a este puerto: carry, trace o reset.",
         validateInput:
           "Valida los mensajes entrantes con el esquema de entrada antes de ejecutar input().",
         outputs:
@@ -203,6 +239,7 @@ function localesGenerator(options: {
     fr: {
       configs: { name: "Nom" },
       toggles: {
+        validateInputTypes: "Valider les types",
         validateInput: "Valider les données",
         errorPort: "Port d'erreur",
         completePort: "Port de complétion",
@@ -215,6 +252,7 @@ function localesGenerator(options: {
         lifecyclePorts: "Ports de sortie de cycle de vie",
       },
       outputs: {
+        validateTypes: "Valider les types",
         port: "Port",
         label: "Libellé",
         validate: "Valider les données",
@@ -229,6 +267,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "Vérifie les types des liaisons connectées à cette entrée au déploiement (TypeScript).",
+        validateTypes:
+          "Vérifie les types des liaisons issues de ce port au déploiement (TypeScript).",
+        validateData:
+          "Vérifie la valeur envoyée par rapport au schéma de ce port avant l'émission.",
+        returnProperty:
+          "La propriété du message où la valeur envoyée est placée (par défaut : output).",
+        contextMode:
+          "Comment le message entrant est transporté vers ce port : carry, trace ou reset.",
         validateInput:
           "Valide les messages entrants avec le schéma d'entrée avant l'exécution de input().",
         outputs:
@@ -261,6 +309,7 @@ function localesGenerator(options: {
     ko: {
       configs: { name: "이름" },
       toggles: {
+        validateInputTypes: "타입 검증",
         validateInput: "데이터 검증",
         errorPort: "오류 포트",
         completePort: "완료 포트",
@@ -273,6 +322,7 @@ function localesGenerator(options: {
         lifecyclePorts: "수명 주기 출력 포트",
       },
       outputs: {
+        validateTypes: "타입 검증",
         port: "포트",
         label: "레이블",
         validate: "데이터 검증",
@@ -287,6 +337,14 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "배포 시 이 입력에 연결된 와이어의 타입을 검사합니다 (TypeScript).",
+        validateTypes:
+          "배포 시 이 포트에서 나가는 와이어의 타입을 검사합니다 (TypeScript).",
+        validateData: "값을 내보내기 전에 이 포트의 스키마에 대해 검사합니다.",
+        returnProperty: "전송된 값이 배치되는 메시지 속성 (기본값: output).",
+        contextMode:
+          "들어오는 메시지를 이 포트로 전달하는 방식: carry, trace 또는 reset.",
         validateInput:
           "input() 실행 전에 들어오는 메시지를 입력 스키마로 검증합니다.",
         outputs:
@@ -319,6 +377,7 @@ function localesGenerator(options: {
     "pt-BR": {
       configs: { name: "Nome" },
       toggles: {
+        validateInputTypes: "Validar tipos",
         validateInput: "Validar dados",
         errorPort: "Porta de Erro",
         completePort: "Porta de Conclusão",
@@ -331,6 +390,7 @@ function localesGenerator(options: {
         lifecyclePorts: "Portas de saída de ciclo de vida",
       },
       outputs: {
+        validateTypes: "Validar tipos",
         port: "Porta",
         label: "Rótulo",
         validate: "Validar dados",
@@ -345,6 +405,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "Verifica os tipos das conexões ligadas a esta entrada ao implantar (TypeScript).",
+        validateTypes:
+          "Verifica os tipos das conexões a partir desta porta ao implantar (TypeScript).",
+        validateData:
+          "Verifica o valor enviado em relação ao esquema desta porta antes de emiti-lo.",
+        returnProperty:
+          "A propriedade da mensagem onde o valor enviado é colocado (padrão: output).",
+        contextMode:
+          "Como a mensagem recebida é transportada para esta porta: carry, trace ou reset.",
         validateInput:
           "Valida as mensagens recebidas com o esquema de entrada antes de input() executar.",
         outputs:
@@ -377,6 +447,7 @@ function localesGenerator(options: {
     ru: {
       configs: { name: "Имя" },
       toggles: {
+        validateInputTypes: "Проверять типы",
         validateInput: "Проверять данные",
         errorPort: "Порт ошибки",
         completePort: "Порт завершения",
@@ -389,6 +460,7 @@ function localesGenerator(options: {
         lifecyclePorts: "Выходные порты жизненного цикла",
       },
       outputs: {
+        validateTypes: "Проверять типы",
         port: "Порт",
         label: "Метка",
         validate: "Проверять данные",
@@ -403,6 +475,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "Проверяет типы соединений с этим входом при развёртывании (TypeScript).",
+        validateTypes:
+          "Проверяет типы соединений из этого порта при развёртывании (TypeScript).",
+        validateData:
+          "Проверяет отправляемое значение по схеме этого порта перед отправкой.",
+        returnProperty:
+          "Свойство сообщения, в которое помещается отправляемое значение (по умолчанию: output).",
+        contextMode:
+          "Как входящее сообщение переносится в этот порт: carry, trace или reset.",
         validateInput:
           "Проверять входящие сообщения по схеме ввода перед вызовом input().",
         outputs:
@@ -435,6 +517,7 @@ function localesGenerator(options: {
     ja: {
       configs: { name: "名前" },
       toggles: {
+        validateInputTypes: "型を検証",
         validateInput: "データを検証",
         errorPort: "エラーポート",
         completePort: "完了ポート",
@@ -447,6 +530,7 @@ function localesGenerator(options: {
         lifecyclePorts: "ライフサイクル出力ポート",
       },
       outputs: {
+        validateTypes: "型を検証",
         port: "ポート",
         label: "ラベル",
         validate: "データを検証",
@@ -461,6 +545,16 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "デプロイ時にこの入力に接続されたワイヤーの型を検査します（TypeScript）。",
+        validateTypes:
+          "デプロイ時にこのポートから出るワイヤーの型を検査します（TypeScript）。",
+        validateData:
+          "送信前に、送信値をこのポートのスキーマに対して検証します。",
+        returnProperty:
+          "送信値が設定されるメッセージプロパティ（既定: output）。",
+        contextMode:
+          "受信メッセージをこのポートへ運ぶ方法: carry、trace、reset。",
         validateInput:
           "input() の実行前に、受信メッセージを入力スキーマで検証します。",
         outputs:
@@ -493,6 +587,7 @@ function localesGenerator(options: {
     "zh-CN": {
       configs: { name: "名称" },
       toggles: {
+        validateInputTypes: "验证类型",
         validateInput: "验证数据",
         errorPort: "错误端口",
         completePort: "完成端口",
@@ -505,6 +600,7 @@ function localesGenerator(options: {
         lifecyclePorts: "生命周期输出端口",
       },
       outputs: {
+        validateTypes: "验证类型",
         port: "端口",
         label: "标签",
         validate: "验证数据",
@@ -519,6 +615,12 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "部署时对连接到此输入的连线进行类型检查（TypeScript）。",
+        validateTypes: "部署时对从此端口发出的连线进行类型检查（TypeScript）。",
+        validateData: "在发送前根据此端口的模式检查发送的值。",
+        returnProperty: "放置发送值的消息属性（默认：output）。",
+        contextMode: "传入消息如何传递到此端口：carry、trace 或 reset。",
         validateInput: "在 input() 运行前，根据输入结构描述校验传入消息。",
         outputs:
           "按端口的输出设置。验证数据根据端口结构描述校验发送的值；上下文模式控制如何携带传入消息。",
@@ -550,6 +652,7 @@ function localesGenerator(options: {
     "zh-TW": {
       configs: { name: "名稱" },
       toggles: {
+        validateInputTypes: "驗證類型",
         validateInput: "驗證資料",
         errorPort: "錯誤端口",
         completePort: "完成端口",
@@ -562,6 +665,7 @@ function localesGenerator(options: {
         lifecyclePorts: "生命週期輸出端口",
       },
       outputs: {
+        validateTypes: "驗證類型",
         port: "端口",
         label: "標籤",
         validate: "驗證資料",
@@ -576,6 +680,12 @@ function localesGenerator(options: {
         },
       },
       help: {
+        validateInputTypes:
+          "部署時對連接到此輸入的連線進行型別檢查（TypeScript）。",
+        validateTypes: "部署時對從此埠發出的連線進行型別檢查（TypeScript）。",
+        validateData: "在發送前根據此埠的結構描述檢查發送的值。",
+        returnProperty: "放置發送值的訊息屬性（預設：output）。",
+        contextMode: "傳入訊息如何傳遞到此埠：carry、trace 或 reset。",
         validateInput: "在 input() 執行前，依輸入結構描述驗證傳入訊息。",
         outputs:
           "依連接埠的輸出設定。驗證資料依連接埠結構描述檢查送出的值；內容模式控制如何攜帶傳入訊息。",

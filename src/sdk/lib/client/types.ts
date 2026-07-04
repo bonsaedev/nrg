@@ -81,6 +81,8 @@ interface NodeRedNode {
   outputs?: number;
   /** injected when the node has an inputSchema */
   validateInput?: boolean;
+  /** design-time: type-check wires into this node's input (editor wire check) */
+  validateInputTypes?: boolean;
   /** built-in port toggles, present when declared in the configSchema */
   errorPort?: boolean;
   completePort?: boolean;
@@ -93,6 +95,8 @@ interface NodeRedNode {
    * runtime by IONode.
    */
   validateOutputs?: Record<number, boolean>;
+  /** design-time: type-check wires out of a base output port (editor wire check) */
+  validateOutputTypes?: Record<number, boolean>;
   outputContextModes?: Record<number, "carry" | "trace" | "reset">;
   outputReturnProperties?: Record<number, string>;
 

@@ -29,6 +29,13 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
     validateInput?: boolean;
     /** Per-port output-validation flags, keyed by base-output port index. */
     validateOutputs?: Record<number, boolean>;
+    /** Design-time: type-check wires INTO this node's input (editor wire check). */
+    validateInputTypes?: boolean;
+    /**
+     * Design-time: type-check wires OUT of a base output port, keyed by
+     * base-output port index (editor wire check).
+     */
+    validateOutputTypes?: Record<number, boolean>;
     /** Per-port return properties, keyed by base-output port index. */
     outputReturnProperties?: Record<number, string>;
     /** Per-port context modes, keyed by base-output port index. */

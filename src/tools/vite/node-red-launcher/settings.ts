@@ -1,4 +1,4 @@
-import { builtinModules } from "module";
+import { builtinModules, createRequire } from "module";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -6,6 +6,25 @@ import { pathToFileURL } from "url";
 import { build as esbuild } from "esbuild";
 import type { Logger } from "../logger";
 import type { GenerateRuntimeSettingsOptions, RuntimeSettings } from "./types";
+
+/**
+ * The optional wire type-check plugin (`@bonsae/node-red-type-check-plugin`), if
+ * the consumer installed it. We resolve its package dir from the project's
+ * `node_modules` and add it to Node-RED's `nodesDir` so `nrg dev` auto-loads it —
+ * the author gets wire type-checking while developing with no manual settings.
+ * Returns null when it isn't installed, so the feature simply stays off.
+ */
+function resolveTypeCheckPluginDir(): string | null {
+  try {
+    const req = createRequire(path.join(process.cwd(), "package.json"));
+    const manifest = req.resolve(
+      "@bonsae/node-red-type-check-plugin/package.json",
+    );
+    return path.dirname(manifest).split(path.sep).join("/");
+  } catch {
+    return null;
+  }
+}
 
 function findUserRuntimeSettingsFilepath(
   settingsFilepath: string | undefined,
@@ -97,6 +116,8 @@ async function generateRuntimeSettings(
   // characters can't break the generated JavaScript
   const userDirLiteral = JSON.stringify(userDir);
   const outDirLiteral = JSON.stringify(normalizedOutDir);
+  const pluginDir = resolveTypeCheckPluginDir();
+  const pluginDirLiteral = pluginDir ? JSON.stringify(pluginDir) : null;
 
   const finalRuntimeSettingsFile = compiledRuntimeSettingsFilepath
     ? `
@@ -111,6 +132,13 @@ if(!settings.userDir){
 settings.nodesDir = settings.nodesDir || [];
 if (!settings.nodesDir.includes(${outDirLiteral})) {
   settings.nodesDir.push(${outDirLiteral});
+}
+${
+  pluginDirLiteral
+    ? `if (!settings.nodesDir.includes(${pluginDirLiteral})) {
+  settings.nodesDir.push(${pluginDirLiteral});
+}`
+    : ""
 }
 if(!settings.flowFile){
   settings.flowFile = "flows.json";
@@ -128,7 +156,7 @@ const settings = {
   uiPort: ${port},
   userDir: ${userDirLiteral},
   flowFile: "flows.json",
-  nodesDir: [${outDirLiteral}],
+  nodesDir: [${outDirLiteral}${pluginDirLiteral ? `, ${pluginDirLiteral}` : ""}],
   // the welcome tour overlay intercepts pointer events — fatal for e2e
   editorTheme: { tours: false },
 };

@@ -340,6 +340,15 @@ interface RED {
   httpAdmin: NodeRedExpressApp;
   /** Express app for node HTTP endpoints */
   httpNode: NodeRedExpressApp;
+  /**
+   * Admin authentication API. Absent when the runtime exposes no auth layer
+   * (older versions / test shims); `needsPermission` returns an Express
+   * middleware that enforces a permission (e.g. `"flows.read"`) — a passthrough
+   * when adminAuth isn't configured.
+   */
+  auth?: {
+    needsPermission(permission: string): RequestHandler;
+  };
   /** Runtime settings (user-provided settings plus node-registered settings) */
   settings: NodeRedRuntimeSettings & Record<string, any>;
   /** Node-RED version string */
