@@ -14,3 +14,6 @@ tests/fixtures/*/dist*/
 # packed tarballs
 *.tgz
 .dts-tmp/
+
+# internal design docs — kept locally, never committed
+*_DESIGN.md
