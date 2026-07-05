@@ -223,6 +223,31 @@ describe("buildPackageDts", () => {
     expect(diags.length).toBeGreaterThan(0);
   });
 
+  it("enriches built-in error/complete ports with the node's input (and return)", () => {
+    const dts = buildPackageDts(extractPkg(PKG));
+    // Built-in ports are generic over the node's input; complete also over its
+    // input() return. (Base `outputs` stay the bare value — see wire tests above.)
+    expect(dts).toContain("error: ErrorPort<{ text: string; }>");
+    expect(dts).toContain(
+      "complete: CompletePort<{ text: string; }, { parsed: number; }>",
+    );
+    expect(dts).toMatch(/import type \{[^}]*\bCompletePort\b/);
+    // A downstream handler can read the carried original input, the `input`
+    // provenance frame, and the error metadata off the registry, type-safely.
+    const diags = compilePackage(
+      dts,
+      `import "acme-nodes";
+       import type { NodeTypes } from "@bonsae/nrg/server";
+       const carried: { text: string } =
+         null as unknown as NodeTypes["csv-parser"]["error"]["input"];
+       const message: string =
+         null as unknown as NodeTypes["csv-parser"]["error"]["error"]["message"];
+       void carried;
+       void message;`,
+    );
+    expect(diags).toHaveLength(0);
+  });
+
   it("renders a NodeRef field as the emitted config-node class (not `unknown`)", () => {
     const dts = buildPackageDts(extractPkg(PKG_NODEREF));
     expect(dts).toContain("export declare class Dml extends IONode<");

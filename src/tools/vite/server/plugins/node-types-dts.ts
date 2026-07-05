@@ -79,11 +79,20 @@ function buildClassDecl(node: NodeTypeInfo): string {
 function buildRegistryAugmentation(nodes: NodeTypeInfo[]): string {
   const entry = (n: NodeTypeInfo): string => {
     const outputs = (n.outputs ?? []).map((p) => roleText(p.role)).join(", ");
+    const input = roleText(n.input) ?? "unknown";
+    // `complete`'s TReturn is input()'s return type; `void` when it returns
+    // nothing (so a void-returning node's complete port is still wireable).
+    const ret = roleText(n.complete) ?? "void";
     const lines = [
-      `input: ${roleText(n.input) ?? "unknown"};`,
+      `input: ${input};`,
       `outputs: [${outputs}];`,
-      `complete: ${roleText(n.complete) ?? "never"};`,
-      `error: ErrorPort;`,
+      // Built-in ports carry the DELIVERED message envelope, generic over this
+      // node's input (and its input() return, for complete) — so a wire drawn
+      // FROM an error/complete port type-checks against the real carried message
+      // (original input + `input` provenance + error data / `output` return),
+      // not a stripped shape. Base `outputs` stay the bare Port value.
+      `complete: CompletePort<${input}, ${ret}>;`,
+      `error: ErrorPort<${input}>;`,
       `status: StatusPort;`,
     ];
     return `      ${JSON.stringify(n.type)}: {\n        ${lines.join(
@@ -125,6 +134,7 @@ function buildPackageDts(
   const typeImports = [
     hasFunctional && "NodeConstructor",
     ioNodes.length && "ErrorPort",
+    ioNodes.length && "CompletePort",
     ioNodes.length && "StatusPort",
     hasNamedOutputs && "Port",
   ].filter((x): x is string => Boolean(x));
