@@ -138,11 +138,14 @@ type InferOutputs<T> = T extends readonly TSchema[]
 // input (and the author's extra data / return value) so a downstream handler can
 // read the original message, the `input` provenance frame, and custom fields.
 
-/** Provenance of a message: which node produced a built-in-port message. */
+/** Provenance of a message: which node produced a built-in-port message.
+ * `name` is `string | undefined` — a Node-RED node need not be named, and the
+ * runtime emits `this.node.name` verbatim (the old schema's `string` was an
+ * unenforced contract the runtime never actually honoured). */
 interface NodeSource {
   id: string;
   type: string;
-  name: string;
+  name: string | undefined;
 }
 
 /** The authoritative metadata layered onto every error-port message. */

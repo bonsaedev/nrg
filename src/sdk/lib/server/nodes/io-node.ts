@@ -13,7 +13,13 @@ import type {
 } from "./types";
 import { setupContext } from "./context";
 import { NRG_SETUP_INPUT_HANDLER } from "./symbols";
-import type { OutputPortNames, PortValue } from "../schemas/types";
+import type {
+  OutputPortNames,
+  PortValue,
+  NodeSource,
+  ErrorInfo,
+  StatusPortOutput,
+} from "../schemas/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Per-`input()`-invocation context — see `IONode.#invocation`. */
@@ -655,7 +661,7 @@ abstract class IONode<
     return this.config.statusPort ? idx : null;
   }
 
-  #nodeSource() {
+  #nodeSource(): NodeSource {
     return {
       id: this.node.id,
       type: (this.constructor as typeof IONode).type,
@@ -668,7 +674,7 @@ abstract class IONode<
     this.#sendToPort("status", {
       status,
       source: this.#nodeSource(),
-    });
+    } satisfies StatusPortOutput);
   }
 
   public override error(message: string, msg?: any) {
@@ -682,7 +688,7 @@ abstract class IONode<
           name: "Error",
           message,
           source: this.#nodeSource(),
-        },
+        } satisfies ErrorInfo,
         [INPUT_KEY]: msg,
       });
       // Dedupe: if this call also throws, the input handler's catch must not
