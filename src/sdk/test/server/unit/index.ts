@@ -366,7 +366,7 @@ async function createNode<T extends NodeClass>(
   // surfaced as the result's `error` (production defers it to the first input,
   // where the wire handler surfaces it through `done(err)`).
   const createdPromise = Promise.resolve(node.created?.());
-  node[NRG_WIRE_HANDLERS](nodeRedNode, createdPromise);
+  node[NRG_WIRE_HANDLERS](createdPromise);
   let error: unknown;
   await createdPromise.catch((err) => {
     error = err;

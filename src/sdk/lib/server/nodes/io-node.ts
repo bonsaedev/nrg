@@ -232,15 +232,12 @@ abstract class IONode<
     }
   }
 
-  override [NRG_WIRE_HANDLERS](
-    nodeRedNode: NodeRedNode,
-    createdPromise: Promise<void>,
-  ) {
-    super[NRG_WIRE_HANDLERS](nodeRedNode, createdPromise);
+  override [NRG_WIRE_HANDLERS](createdPromise: Promise<void>) {
+    super[NRG_WIRE_HANDLERS](createdPromise);
 
     const NC = this.constructor as typeof IONode;
 
-    nodeRedNode.on(
+    this.node.on(
       "input",
       async (
         msg: unknown,
@@ -265,7 +262,7 @@ abstract class IONode<
         const store: InputInvocation = { inputMsg: msg, send };
 
         try {
-          nodeRedNode.log("Calling input");
+          this.node.log("Calling input");
           const result = await this.#input(msg as TInput, store);
 
           // Send to complete port if enabled. Nest the input so a flow
@@ -290,7 +287,7 @@ abstract class IONode<
           }
 
           done();
-          nodeRedNode.log("Input processed");
+          this.node.log("Input processed");
         } catch (error) {
           const errorMsg =
             error instanceof Error
@@ -324,13 +321,13 @@ abstract class IONode<
           }
 
           if (error instanceof Error) {
-            nodeRedNode.error(
+            this.node.error(
               "Error while processing input: " + error.message,
               msg,
             );
             done(error);
           } else {
-            nodeRedNode.error(
+            this.node.error(
               "Unknown error occurred during input handling",
               msg,
             );

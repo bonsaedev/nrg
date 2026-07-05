@@ -149,7 +149,7 @@ abstract class Node<
           this.status({ fill: "red", shape: "ring", text: "created() failed" });
         });
 
-        node[NRG_WIRE_HANDLERS](this, createdPromise);
+        node[NRG_WIRE_HANDLERS](createdPromise);
       },
       {
         credentials: NodeClass.credentialsSchema
@@ -234,8 +234,12 @@ abstract class Node<
     }
   }
 
-  [NRG_WIRE_HANDLERS](nodeRedNode: NodeRedNode, createdPromise: Promise<void>) {
-    nodeRedNode.on(
+  // Wires the `close` handler common to every node kind. `createdPromise` is
+  // unused here — only IONode's `input` handler awaits it — but stays in the
+  // shared signature so the polymorphic call site and IONode's `super` call
+  // type-check against the base `Node` method.
+  [NRG_WIRE_HANDLERS](createdPromise: Promise<void>) {
+    this.node.on(
       "close",
       async (removed: boolean, done: (err?: Error) => void) => {
         try {
