@@ -3,7 +3,15 @@ import TestConfig from "./nodes/test-config";
 import CustomFormNode from "./nodes/custom-form-node";
 import BasicNode from "./nodes/basic-node";
 import CtxModesNode from "./nodes/ctx-modes-node";
+import OutputSchemaNode from "./nodes/output-schema-node";
 
 export default {
-  nodes: [AllFieldsNode, TestConfig, CustomFormNode, BasicNode, CtxModesNode],
+  nodes: [
+    AllFieldsNode,
+    TestConfig,
+    CustomFormNode,
+    BasicNode,
+    CtxModesNode,
+    OutputSchemaNode,
+  ],
 };

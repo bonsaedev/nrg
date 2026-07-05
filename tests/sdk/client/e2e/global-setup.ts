@@ -71,6 +71,16 @@ export const FIXTURE_FLOW: Record<string, unknown>[] = [
     wires: [[], [], []],
   },
   {
+    id: "n5",
+    type: "output-schema-node",
+    z: "tab1",
+    name: "",
+    outputs: 2,
+    x: 250,
+    y: 540,
+    wires: [[], []],
+  },
+  {
     id: "cfg1",
     type: "test-config",
     name: "Test Server",

@@ -129,6 +129,9 @@
               <th class="nrg-outputs-flag">
                 {{ resolveLabel("outputs.validate", "Validate Data") }}
               </th>
+              <th v-if="hasOutputSchemas" class="nrg-outputs-flag">
+                {{ resolveLabel("outputs.schema", "Schema") }}
+              </th>
               <th
                 v-if="typeCheckEnabled && supportsOutputTypeValidation"
                 class="nrg-outputs-flag"
@@ -158,6 +161,20 @@
                     (val: boolean) => setValidateOutput(port.index, val)
                   "
                 />
+              </td>
+              <td v-if="hasOutputSchemas" class="nrg-outputs-flag">
+                <button
+                  type="button"
+                  class="red-ui-button red-ui-button-small nrg-outputs-schema-btn"
+                  :disabled="
+                    !outputSchemaEnabled(port.index) ||
+                    !validateOutputFor(port.index)
+                  "
+                  :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${port.label}`"
+                  @click="openOutputSchemaEditor(port.index)"
+                >
+                  <i class="fa fa-code"></i>
+                </button>
               </td>
               <td
                 v-if="typeCheckEnabled && supportsOutputTypeValidation"
@@ -493,6 +510,18 @@ export default defineComponent({
     authorContextModeDefaults(): Record<number, string> {
       return this.schema?.properties?.outputContextModes?.default ?? {};
     },
+    /**
+     * Whether this node accepts per-port output DATA-VALIDATION schema overrides
+     * — true when its config schema declares `outputSchemas`. Renders the Schema
+     * column; a port is editable only when it has an author default (see
+     * {@link authorOutputSchemaDefaults}) AND its Validate Data toggle is on.
+     */
+    hasOutputSchemas(): boolean {
+      return this.schema?.properties?.outputSchemas !== undefined;
+    },
+    authorOutputSchemaDefaults(): Record<number, string> {
+      return this.schema?.properties?.outputSchemas?.default ?? {};
+    },
     hasErrorPort(): boolean {
       return this.schema?.properties?.errorPort !== undefined;
     },
@@ -583,6 +612,7 @@ export default defineComponent({
         "validateOutputTypes",
         "outputContextModes",
         "outputReturnProperties",
+        "outputSchemas",
       ] as const) {
         const existing = this.localNode[key];
         this.localNode[key] =
@@ -747,6 +777,72 @@ export default defineComponent({
         ...(this.localNode.outputContextModes ?? {}),
         [index]: value,
       };
+    },
+    /** Whether this port's data-validation schema may be overridden — true only
+     * when the node author declared a default for it; otherwise it is locked. */
+    outputSchemaEnabled(index: number): boolean {
+      return this.authorOutputSchemaDefaults[index] !== undefined;
+    },
+    /** The effective schema string for a port: the flow-author override, else the
+     * author default, else empty. */
+    outputSchemaFor(index: number): string {
+      return (
+        this.localNode.outputSchemas?.[index] ??
+        this.authorOutputSchemaDefaults[index] ??
+        ""
+      );
+    },
+    setOutputSchema(index: number, value: string) {
+      const next = { ...(this.localNode.outputSchemas ?? {}) };
+      if (value.trim()) {
+        next[index] = value;
+      } else {
+        delete next[index];
+      }
+      this.localNode.outputSchemas = next;
+    },
+    /** Open a Monaco (JSON) tray to edit this port's validation schema, seeded
+     * from the effective value and saved back to config on Done. */
+    openOutputSchemaEditor(index: number) {
+      const editorId = `nrg-output-schema-editor-${index}`;
+      let editor: { getValue(): string; destroy(): void } | undefined;
+      RED.tray.show({
+        title: `${this.resolveLabel("outputs.schema", "Schema")} — ${
+          this.outputRows[index]?.label ?? `Output ${index}`
+        }`,
+        width: "Infinity",
+        buttons: [
+          {
+            id: "node-dialog-cancel",
+            text: RED._("common.label.cancel"),
+            click: () => RED.tray.close(),
+          },
+          {
+            id: "node-dialog-ok",
+            text: RED._("common.label.done"),
+            class: "primary",
+            click: () => {
+              if (editor) this.setOutputSchema(index, editor.getValue());
+              RED.tray.close();
+            },
+          },
+        ],
+        open: (tray: JQuery) => {
+          const form = $(
+            '<form id="nrg-schema-dialog-form" class="form-horizontal" autocomplete="off"></form>',
+          ).appendTo(tray.find(".red-ui-tray-body"));
+          form.html(`<div id="${editorId}" style="height: 100%"></div>`);
+          editor = RED.editor.createEditor({
+            id: editorId,
+            mode: "json",
+            value: this.outputSchemaFor(index),
+          });
+          form.i18n();
+        },
+        close: () => {
+          editor?.destroy();
+        },
+      });
     },
   },
 });

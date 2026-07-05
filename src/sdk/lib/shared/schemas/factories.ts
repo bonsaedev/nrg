@@ -236,6 +236,34 @@ function OutputContextModes(
 }
 
 /**
+ * Declares the `outputSchemas` config map: per-port DATA-VALIDATION schema
+ * overrides, keyed by output port index, as JSON-Schema strings a flow author
+ * edits in the editor (Monaco). Declaring it exposes an editable Schema column
+ * in the Outputs table — but only for ports the author gives a default (a port
+ * absent from `default` is not overridable, so its button stays disabled).
+ * Validation is opt-in and orthogonal to topology/types (which come from the
+ * generics); this only affects runtime data validation when Validate Data is on.
+ *
+ * @example
+ * ```ts
+ * // port 0 is overridable, seeded with an author default schema
+ * outputSchemas: SchemaType.OutputSchemas({
+ *   default: { 0: JSON.stringify({ type: "object" }) },
+ * }),
+ * ```
+ */
+function OutputSchemas(
+  options?: NrgSchemaOptions & { default?: Record<number, string> },
+) {
+  return BaseType.Record(BaseType.Number(), BaseType.String(), {
+    description:
+      "Per-port output data-validation schema (JSON Schema string), keyed by output port index.",
+    default: {},
+    ...options,
+  });
+}
+
+/**
  * Identical to TypeBox's `Type.Unsafe` at runtime (no validation), but brands
  * the static type as {@link UnsafeBrand} so the per-plane resolvers pass `T`
  * through unchanged. Without the brand a class instance (`Unsafe<Connection>`)
@@ -270,6 +298,7 @@ const NRG_SCHEMA_TYPES_FACTORIES = {
   TypedInput,
   OutputReturnProperties,
   OutputContextModes,
+  OutputSchemas,
 };
 
 const SchemaType: Omit<

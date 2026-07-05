@@ -197,6 +197,7 @@ const SKIP_FIELDS = new Set([
   "outputs",
   "outputContextModes",
   "outputReturnProperties",
+  "outputSchemas",
   ...BUILTIN_PORT_KEYS,
 ]);
 
