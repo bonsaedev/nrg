@@ -1,5 +1,29 @@
 # Changelog
 
+# [0.32.0](https://github.com/bonsaedev/nrg/compare/v0.31.0...v0.32.0) (2026-07-05)
+
+
+### Bug Fixes
+
+* fit the Input table to content, per-bullet Outputs help links ([aede7a5](https://github.com/bonsaedev/nrg/commit/aede7a5d744503280df8241748b4a5183234158b))
+* resolve @/schemas in the server build ([366dfc9](https://github.com/bonsaedev/nrg/commit/366dfc97e6e91172d654d2921c73939357733518))
+* **vite:** bundle Windows-absolute @/schemas paths instead of externalizing ([d2f94fd](https://github.com/bonsaedev/nrg/commit/d2f94fd3717eb1e15902c509d820c8472d0903f8))
+
+
+### Features
+
+* add a Capabilities table to generated node help docs ([ccd1ce6](https://github.com/bonsaedev/nrg/commit/ccd1ce60f8e6189d703aaacd6d2cdd6aeff5be2c))
+* add the editor wire type-check client, gated on the optional plugin ([c9ce816](https://github.com/bonsaedev/nrg/commit/c9ce816633531282f8df03adb619ed7b2756da17))
+* **client:** bake node schema onto each defineNode at build time ([ffe0b70](https://github.com/bonsaedev/nrg/commit/ffe0b70ec57bbd420d25f5311d60da980dffdf8a))
+* derive node help docs from TypeScript types ([95f5e05](https://github.com/bonsaedev/nrg/commit/95f5e05cd9174a78ab86c0e0f59bbb2721bffc71))
+* enforce unique schema $id at node registration ([3e583e1](https://github.com/bonsaedev/nrg/commit/3e583e1efe5206e8449cef69461ec86c076cf409))
+* extend type-driven node docs to the functional API ([9c58682](https://github.com/bonsaedev/nrg/commit/9c58682fe7ec14cda437f93440c6bdd0abbcc076))
+* generate a package type surface (inheritable classes + editor registry) ([5556baa](https://github.com/bonsaedev/nrg/commit/5556baa0a86537f9ffedaa8d7343b68bc9f23767))
+* render node port types self-contained in the generated package d.ts ([fa6944e](https://github.com/bonsaedev/nrg/commit/fa6944e5a0aff34f5d6da16ad2307cb33e6df75e))
+* **server:** export NodeTypes registry + built-in port types ([6cc3252](https://github.com/bonsaedev/nrg/commit/6cc3252a703a88484c3f250b9f32e76bd943e9d5))
+* **server:** stop @bonsae/nrg/server re-exporting schema builders ([1b9476d](https://github.com/bonsaedev/nrg/commit/1b9476de5d6d6d799dd743b6e03d4bc88d9e102b))
+* ship a @/schemas alias for consumer authoring code ([56aaa67](https://github.com/bonsaedev/nrg/commit/56aaa67892a93c7fbd31cd02fce02ee8f97b16b7))
+
 # [0.31.0](https://github.com/bonsaedev/nrg/compare/v0.30.0...v0.31.0) (2026-06-30)
 
 
