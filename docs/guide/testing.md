@@ -173,7 +173,7 @@ Creates a fully initialized node instance with mocked RED and Node-RED internals
 | `settings`    | `RED.settings` overrides                                                                                                              |
 | `overrides`   | Low-level Node-RED node overrides (`id`, `wires`, etc.)                                                                               |
 
-**Returns:** `Promise<{ node, RED }>`
+**Returns:** `Promise<{ node, RED, error }>` — `error` is whatever `created()` threw, or `undefined` when it succeeded. `createNode` never rejects on a failing `created()`: production constructs the node regardless and defers the failure to the first input, so the node is still returned for inspection and you assert the setup failure via `error`.
 
 #### `createRED(options?)`
 
@@ -251,6 +251,18 @@ describe("my-node", () => {
   it("should call created() automatically", async () => {
     const { node } = await createNode(MyNode);
     expect(node.logged("info")).toContain("node created");
+  });
+
+  it("returns a created() failure as `error`", async () => {
+    const { node, error } = await createNode(MyNode, {
+      config: { threshold: "not-a-number" },
+    });
+    // createNode still resolves — the node is constructed and the failure is
+    // on `error`. The framework also sets a red "created() failed" status.
+    expect(error).toBeInstanceOf(Error);
+    expect(node.statuses()).toContainEqual(
+      expect.objectContaining({ fill: "red" }),
+    );
   });
 
   it("should support close lifecycle", async () => {

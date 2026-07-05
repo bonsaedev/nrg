@@ -136,11 +136,6 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
   logged(level?: "info" | "warn" | "error" | "debug"): string[];
   warned(): string[];
   errored(): string[];
-  /** The error thrown by `created()`, if any — `undefined` when it succeeded.
-   * `createNode` never rejects on a failing `created()` (production constructs
-   * the node regardless and surfaces the error on the first input via `done`);
-   * assert it here instead. */
-  createdError(): unknown;
   /** Promise-based access to the node's context stores (node / flow / global). */
   context: TestNodeContext;
 }
@@ -154,6 +149,11 @@ interface TestNodeContext {
 interface CreateNodeResult<T> {
   node: T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>>;
   RED: MockRED;
+  /** The error thrown by `created()`, if any — `undefined` when it succeeded.
+   * `createNode` never rejects on a failing `created()` (production constructs
+   * the node regardless and surfaces the error on the first input via `done`);
+   * assert it here instead. */
+  error: unknown;
 }
 
 function buildConfig(
@@ -263,9 +263,6 @@ function attachHelpers<T>(
     errored() {
       return nodeRedNode.error.mock.calls.map((c: any[]) => c[0]);
     },
-    // Default: no created() error. createNode overrides this after awaiting
-    // created() with the captured rejection (if any).
-    createdError: () => undefined,
     // expose the node's own (already promise-wrapped) context stores; the
     // node keeps using the same object internally, callable form included
     context: (node as unknown as { context: TestNodeContext }).context,
@@ -366,18 +363,16 @@ async function createNode<T extends NodeClass>(
   // Wire up event handlers (same path as production). `created()` is awaited so
   // a test can assert post-created state — but, like production, a rejection does
   // NOT abort construction: the node is still returned and the failure is
-  // captured for assertion via `node.createdError()` (production defers it to the
-  // first input, where the wire handler surfaces it through `done(err)`).
+  // surfaced as the result's `error` (production defers it to the first input,
+  // where the wire handler surfaces it through `done(err)`).
   const createdPromise = Promise.resolve(node.created?.());
   node[NRG_WIRE_HANDLERS](nodeRedNode, createdPromise);
-  let createdError: unknown;
+  let error: unknown;
   await createdPromise.catch((err) => {
-    createdError = err;
+    error = err;
   });
-  (augmented as unknown as { createdError: () => unknown }).createdError = () =>
-    createdError;
 
-  return { node: augmented, RED };
+  return { node: augmented, RED, error };
 }
 
 export { createNode };

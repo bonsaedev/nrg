@@ -647,7 +647,7 @@ describe("settings", () => {
   });
 
   describe("created() failure semantics", () => {
-    it("does NOT reject when created() throws; exposes it via createdError()", async () => {
+    it("does NOT reject when created() throws; exposes it as the result error", async () => {
       const boom = new Error("created boom");
       const Failing = defineIONode({
         type: "created-fails",
@@ -658,19 +658,20 @@ describe("settings", () => {
 
       // Production constructs the node regardless (it surfaces the error on the
       // first input via done); createNode mirrors that — it resolves, not rejects.
-      const { node } = await createNode(Failing);
-      expect(node.createdError()).toBe(boom);
+      const { node, error } = await createNode(Failing);
+      expect(node).toBeDefined();
+      expect(error).toBe(boom);
     });
 
-    it("createdError() is undefined when created() succeeds", async () => {
+    it("result error is undefined when created() succeeds", async () => {
       const Ok = defineIONode({
         type: "created-ok",
         async created() {
           /* no-op */
         },
       });
-      const { node } = await createNode(Ok);
-      expect(node.createdError()).toBeUndefined();
+      const { error } = await createNode(Ok);
+      expect(error).toBeUndefined();
     });
   });
 });
