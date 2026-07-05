@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.33.0](https://github.com/bonsaedev/nrg/compare/v0.32.0...v0.33.0) (2026-07-05)
+
+
+### Features
+
+* **test:** expose a created() error as the createNode result `error` ([1ab9aec](https://github.com/bonsaedev/nrg/commit/1ab9aec4111e8d18aa103be030fa30ac46f4260b))
+
 # [0.32.0](https://github.com/bonsaedev/nrg/compare/v0.31.0...v0.32.0) (2026-07-05)
 
 
