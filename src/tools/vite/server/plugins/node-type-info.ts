@@ -452,6 +452,24 @@ function isNodeInstanceType(checker: ts.TypeChecker, type: ts.Type): boolean {
 }
 
 /**
+ * True when a node-instance type is one of the package's OWN nodes — the default
+ * export of a local source file, which the build emits as its own
+ * `export declare class` in the same `.d.ts`. Only such a class can be referenced
+ * by name from another node's rendered types (it resolves against that sibling
+ * declaration). This mirrors the extractor's own entry criterion, so it never
+ * names a class that isn't emitted. An external/installed node instance (a `.d.ts`
+ * declaration) or a non-exported local class is NOT emitted here — it stays opaque.
+ */
+function isEmittedNodeClass(type: ts.Type): boolean {
+  const sym = type.aliasSymbol ?? type.getSymbol();
+  const decl = sym?.declarations?.find(ts.isClassDeclaration);
+  if (!decl) return false;
+  const sourceFile = decl.getSourceFile();
+  if (sourceFile.isDeclarationFile) return false;
+  return defaultExportClass(sourceFile) === decl;
+}
+
+/**
  * Render a type into a form that resolves standalone in the published `.d.ts`,
  * so an editor's synthesized wire (`target.input = source.outputs[i]`) is
  * type-checked against the real shapes rather than a silent `any`:
@@ -477,8 +495,14 @@ function renderResolvable(
   ctx?: LocalDeclCtx,
 ): string {
   // A NodeRef config field resolves to a node instance — nominal framework
-  // internals, not portable data. Render it opaque instead of expanding it.
-  if (isNodeInstanceType(checker, type)) return "unknown";
+  // internals, not portable data, so never expand it structurally. If it's one
+  // of the package's own config nodes (emitted as its own class decl in this
+  // same .d.ts), reference that class by name so the field types as the real
+  // config node instead of `unknown`; external/non-emitted instances stay opaque.
+  if (isNodeInstanceType(checker, type)) {
+    const name = isEmittedNodeClass(type) ? typeDisplayName(type) : undefined;
+    return name ?? "unknown";
+  }
 
   const sym = type.aliasSymbol ?? type.getSymbol();
   if (sym && ctx) {

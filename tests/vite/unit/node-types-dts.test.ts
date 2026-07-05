@@ -120,6 +120,31 @@ const PKG = {
   `,
 };
 
+// A package whose IONode has a NodeRef config field pointing at a config node
+// that IS emitted (both are default exports → both get class decls).
+const PKG_NODEREF = {
+  connection: `
+    import { ConfigNode } from "@bonsae/nrg/server";
+    export default class Connection extends ConfigNode<{ host: string }> {
+      static readonly type = "connection";
+    }
+  `,
+  dml: `
+    import { IONode } from "@bonsae/nrg/server";
+    import type { Infer } from "@bonsae/nrg/server";
+    import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+    import type Connection from "./connection";
+    const Config = defineSchema({
+      connection: SchemaType.NodeRef<Connection>("connection"),
+      name: SchemaType.String(),
+    }, { $id: "dml:config" });
+    export default class Dml extends IONode<Infer<typeof Config>, never, { payload: string }> {
+      static readonly type = "dml";
+      async input(_msg: { payload: string }) {}
+    }
+  `,
+};
+
 describe("buildPackageDts", () => {
   it("emits inheritable classes, the registry augmentation, and a default", () => {
     const dts = buildPackageDts(extractPkg(PKG));
@@ -176,5 +201,16 @@ describe("buildPackageDts", () => {
        const _: NodeTypes["consumer"]["input"] = null as unknown as NodeTypes["csv-parser"]["outputs"][1];`,
     );
     expect(diags.length).toBeGreaterThan(0);
+  });
+
+  it("renders a NodeRef field as the emitted config-node class (not `unknown`)", () => {
+    const dts = buildPackageDts(extractPkg(PKG_NODEREF));
+    expect(dts).toContain("export declare class Dml extends IONode<");
+    // The NodeRef config field types as the real config node class — which is
+    // emitted as a sibling class decl in this same .d.ts — instead of `unknown`.
+    expect(dts).toMatch(/connection:\s*Connection\b/);
+    expect(dts).not.toMatch(/connection:\s*unknown/);
+    // …and the generated .d.ts still compiles clean (the reference resolves).
+    expect(compilePackage(dts, `import "acme-nodes";\n`)).toHaveLength(0);
   });
 });
