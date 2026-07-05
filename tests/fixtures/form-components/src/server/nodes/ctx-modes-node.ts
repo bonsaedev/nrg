@@ -1,6 +1,6 @@
 import { defineIONode } from "@bonsae/nrg/server";
 import { SchemaType } from "@bonsae/nrg/schema";
-import { ConfigsSchema } from "../schemas/ctx-modes-node";
+import { ConfigsSchema } from "@/schemas/ctx-modes-node";
 
 // Three positional output ports → a 3-row Outputs table for the docs
 // context-modes screenshot. The config's outputContextModes defaults ports 0 & 1

@@ -6,7 +6,10 @@
     "strict": true,
     "noImplicitAny": false,
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/schemas/*": ["../shared/schemas/*"]
+    }
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts", "../shared/**/*.ts"]
 }

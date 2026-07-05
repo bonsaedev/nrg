@@ -1,6 +1,6 @@
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { SchemaType, type Schema } from "@bonsae/nrg/schema";
-import { ConfigsSchema, CredentialsSchema } from "../schemas/test-node";
+import { ConfigsSchema, CredentialsSchema } from "@/schemas/test-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Credentials = Infer<typeof CredentialsSchema>;

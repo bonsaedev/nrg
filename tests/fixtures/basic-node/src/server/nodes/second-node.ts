@@ -1,6 +1,6 @@
 import { IONode } from "@bonsae/nrg/server";
 import { SchemaType, type Schema } from "@bonsae/nrg/schema";
-import { ConfigsSchema } from "../schemas/second-node";
+import { ConfigsSchema } from "@/schemas/second-node";
 
 export default class SecondNode extends IONode {
   static override readonly type = "second-node";

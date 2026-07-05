@@ -1,5 +1,5 @@
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-import type ConfigServer from "../nodes/config-server";
+import type ConfigServer from "../../server/nodes/config-server";
 
 const ConfigsSchema = defineSchema(
   {

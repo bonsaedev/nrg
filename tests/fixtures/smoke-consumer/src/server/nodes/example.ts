@@ -1,5 +1,5 @@
 import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "../schemas/example";
+import { ConfigsSchema } from "@/schemas/example";
 
 export default defineIONode({
   type: "example-node",

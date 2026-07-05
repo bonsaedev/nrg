@@ -1,5 +1,5 @@
 import { defineIONode } from "@bonsae/nrg/server";
-import { SuccessSchema, ErrorSchema } from "../schemas/multi-output-node";
+import { SuccessSchema, ErrorSchema } from "@/schemas/multi-output-node";
 
 export default defineIONode({
   type: "multi-output-node",
