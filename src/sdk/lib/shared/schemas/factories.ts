@@ -264,6 +264,21 @@ function OutputSchemas(
 }
 
 /**
+ * Declares the `inputSchema` config property: the input port's DATA-VALIDATION
+ * schema override, a JSON-Schema string a flow author edits in the editor.
+ * Declaring it exposes the input Schema editor (enabled when Validate Data is on
+ * for the input). The effective input schema is the flow-author override, else
+ * this default, else the node's static `inputSchema`.
+ */
+function InputSchema(options?: NrgSchemaOptions & { default?: string }) {
+  return BaseType.String({
+    description: "Input data-validation schema (JSON Schema string).",
+    default: "",
+    ...options,
+  });
+}
+
+/**
  * Identical to TypeBox's `Type.Unsafe` at runtime (no validation), but brands
  * the static type as {@link UnsafeBrand} so the per-plane resolvers pass `T`
  * through unchanged. Without the brand a class instance (`Unsafe<Connection>`)
@@ -299,6 +314,7 @@ const NRG_SCHEMA_TYPES_FACTORIES = {
   OutputReturnProperties,
   OutputContextModes,
   OutputSchemas,
+  InputSchema,
 };
 
 const SchemaType: Omit<

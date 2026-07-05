@@ -364,9 +364,10 @@ abstract class IONode<
     const NodeClass = this.constructor as typeof IONode;
     const shouldValidateInput =
       this.config.validateInput ?? NodeClass.validateInput;
-    if (shouldValidateInput && NodeClass.inputSchema) {
+    const inputSchema = this.#effectiveInputSchema();
+    if (shouldValidateInput && inputSchema) {
       this.node.log("Validating input");
-      this.RED.validator.validate(msg, NodeClass.inputSchema, {
+      this.RED.validator.validate(msg, inputSchema, {
         // Pure predicate: never coerce or inject defaults into the live msg that
         // continues downstream.
         mutate: false,
@@ -433,7 +434,7 @@ abstract class IONode<
     const configured = this.config.validateOutputs?.[port];
     if (!(configured ?? staticForPort)) return;
 
-    const schema = this.#outputSchemaForPort(port);
+    const schema = this.#effectiveOutputSchema(port);
     if (!schema) return;
     this.node.log("Validating output");
     this.RED.validator.validate(value, schema, {
@@ -452,6 +453,36 @@ abstract class IONode<
     if (Array.isArray(raw)) return raw[port] as Schema | undefined;
     if (isSchemaLike(raw)) return raw as Schema;
     return Object.values(raw)[port] as Schema | undefined;
+  }
+
+  /** Parse a flow-author schema override (a JSON-Schema string set in the editor)
+   * into a schema object, or `undefined` when it is blank or invalid JSON. */
+  #parseConfigSchema(raw: unknown): Schema | undefined {
+    if (typeof raw !== "string" || !raw.trim()) return undefined;
+    try {
+      return JSON.parse(raw) as Schema;
+    } catch {
+      this.node.warn("Ignoring an invalid JSON schema override");
+      return undefined;
+    }
+  }
+
+  /** The schema used for INPUT validation: the flow-author's `config.inputSchema`
+   * override, else the node author's static `inputSchema`. */
+  #effectiveInputSchema(): Schema | undefined {
+    return (
+      this.#parseConfigSchema(this.config.inputSchema) ??
+      (this.constructor as typeof IONode).inputSchema
+    );
+  }
+
+  /** The schema used for OUTPUT validation on a port: the flow-author's
+   * `config.outputSchemas[port]` override, else the author's static schema. */
+  #effectiveOutputSchema(port: number): Schema | undefined {
+    return (
+      this.#parseConfigSchema(this.config.outputSchemas?.[port]) ??
+      this.#outputSchemaForPort(port)
+    );
   }
 
   /**

@@ -41,6 +41,12 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
     outputReturnProperties?: Record<number, string>;
     /** Per-port context modes, keyed by base-output port index. */
     outputContextModes?: Record<number, "carry" | "trace" | "reset">;
+    /** Flow-author input data-validation schema override (JSON Schema string);
+     * overwrites the node's static `inputSchema` at validation time. */
+    inputSchema?: string;
+    /** Flow-author per-port output data-validation schema overrides (JSON Schema
+     * strings), keyed by base-output port index; overwrite the static schema. */
+    outputSchemas?: Record<number, string>;
   };
 
 type IONodeCredentials<TCredentials = any> = NodeCredentials<TCredentials>;

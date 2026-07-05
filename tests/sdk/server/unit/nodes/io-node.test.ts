@@ -212,6 +212,40 @@ describe("IONode", () => {
       // done should have been called without error
       expect(done).toHaveBeenCalledWith();
     });
+
+    it("validates input against the flow-author config.inputSchema override", async () => {
+      // No static inputSchema — the flow-author's JSON override supplies it, and
+      // overwrites the author's (here absent) schema at validation time.
+      class OverrideInputNode extends IONode {
+        static override readonly type = "cfg-input-schema";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        public override async input() {}
+      }
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new OverrideInputNode(
+        RED,
+        node,
+        {
+          validateInput: true,
+          inputSchema: JSON.stringify({
+            type: "object",
+            properties: { payload: { type: "string", minLength: 1 } },
+            required: ["payload"],
+          }),
+        },
+        {},
+      );
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](Promise.resolve());
+
+      const send = vi.fn();
+      const done = vi.fn();
+      await node.emit("input", { payload: "" }, send, done);
+      expect(done.mock.calls[0][0]).toBeInstanceOf(Error);
+    });
   });
 
   describe("send", () => {
@@ -283,6 +317,38 @@ describe("IONode", () => {
 
       // Invalid: first port has empty result
       expect(() => instance.send([{ result: "" }, null])).toThrow();
+    });
+
+    it("validates output against the flow-author config.outputSchemas override", () => {
+      // The static schema accepts anything; the config override is strict and
+      // overwrites it, so an invalid value throws and a valid one passes.
+      class OverrideOutputNode extends IONode {
+        static override readonly type = "cfg-output-schema";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        static override readonly outputsSchema = [SchemaType.Any()];
+      }
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new OverrideOutputNode(
+        RED,
+        node,
+        {
+          validateOutputs: { 0: true },
+          outputSchemas: {
+            0: JSON.stringify({
+              type: "object",
+              properties: { n: { type: "number" } },
+              required: ["n"],
+            }),
+          },
+        },
+        {},
+      );
+      // single output port → the raw value is the port-0 value.
+      expect(() => instance.send({ n: 1 })).not.toThrow();
+      expect(() => instance.send({ wrong: "x" })).toThrow();
     });
 
     it("honors a per-port boolean[] validateOutput default", () => {
