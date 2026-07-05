@@ -757,7 +757,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
-| `this.error(msg)` | Log an error |
+| `this.error(message, msg?)` | Log an error; pass the `msg` object to also emit the [error port](#lifecycle-output-ports) |
 | `this.i18n(key)` | Get a translated string |
 | `this.config.<prop>.resolve(msg?)` | Resolve a TypedInput value |
 | `this.setTimeout(fn, ms)` | Auto-cleared timeout |
@@ -982,7 +982,7 @@ export default defineModule({
 
 ## Client-Side Files
 
-NRG auto-generates everything needed for the Node-RED editor from your server-side schema. You don't need to write any client-side code for a basic node. The files below are **all optional** and exist for when you need more control.
+NRG auto-generates everything needed for the Node-RED editor from your schema. You don't need to write any client-side code for a basic node. The files below are **all optional** and exist for when you need more control.
 
 ::: tip Zero client code required
 If your node has a `configSchema` and `credentialsSchema`, NRG automatically generates a form using `<NodeRedJsonSchemaForm>`, wires up defaults and credential fields, and registers the node in the editor. You only need client files when you want to customize behavior beyond what the schema provides.
@@ -1004,7 +1004,7 @@ await registerTypes([myNode]);
 
 ### Client-Side Type Inference {#client-type-inference}
 
-The client package uses the same TypeBox schemas defined on the server to provide full type safety in form components. Schema types resolve to their **editor form** representation:
+The client package uses your node's TypeBox schemas to provide full type safety in form components. Schema types resolve to their **editor form** representation:
 
 | Schema Type | Server `Infer` | Client (form) |
 | --- | --- | --- |
@@ -1112,7 +1112,7 @@ const { node } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 </template>
 ```
 
-The `useFormNode` composable uses the same TypeBox schemas you defined on the server to give you full autocomplete and type safety on `node` properties. See [Client-Side Type Inference](#client-type-inference) for details.
+The `useFormNode` composable uses your node's TypeBox schemas to give you full autocomplete and type safety on `node` properties. See [Client-Side Type Inference](#client-type-inference) for details.
 
 #### Full example — conditional visibility, icons, and custom validation
 
@@ -1599,3 +1599,17 @@ async input(msg) {
 | Mixins/decorators | Yes | No |
 
 Both approaches produce the same runtime behavior. Choose based on your needs — the functional API trades flexibility for less boilerplate, while classes give you full control over the node's structure.
+
+### Extending a published node
+
+The class API compiles to real, inheritable class declarations in your package's `index.d.ts`, so another package can install yours, import a node class, and extend it — with the base schema, ports, and types all carried over:
+
+```typescript
+import { HttpClient } from "some-published-nrg-package";
+
+export default class AuthedHttpClient extends HttpClient {
+  // add or override behavior; the inherited schema and port types stay intact
+}
+```
+
+The build also augments `@bonsae/nrg/server`'s `NodeTypes` registry with every node's port types, keyed by node-type string. Because each installed package merges into the same registry, the editor can type-check a wire between nodes from _different_ packages. See [the generated `index.d.ts`](./project-structure#dist) for the full type surface.

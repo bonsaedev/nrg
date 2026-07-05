@@ -126,4 +126,10 @@ dist/
 └── package.json          # Generated package.json for publishing
 ```
 
-The `index.d.ts` file holds auto-generated server-side type declarations, which consumers import when they reference your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.
+The `index.d.ts` file holds auto-generated server-side type declarations. NRG derives them from your nodes' TypeScript types and emits three things:
+
+- **Inheritable node classes** — each node ships as an `export declare class` with fully-resolved generics, so a downstream package can `import { MyNode }` from your package and `class Extended extends MyNode { … }`.
+- **The `NodeTypes` registry** — the build augments `@bonsae/nrg/server`'s `NodeTypes` interface with one entry per node (keyed by node-type string, holding its `input`, `outputs`, `complete`, `error`, and `status` port types). Because every installed package augments the same interface, the editor can look up any node's port types and type-check a wire between nodes from different packages.
+- **The module default** — `{ nodes: [...] }`, typed from the classes above.
+
+Consumers import these when they reference your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.

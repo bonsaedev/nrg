@@ -111,7 +111,7 @@ Create `tsconfig.json` files that extend the shared configs:
 Node schemas live in `src/shared/schemas/`, imported via the `@/schemas` alias (shipped in NRG's base tsconfig, build, and test configs): the server plane value-imports them, while the client imports only their _types_. The `rootDir: ".."` roots each plane at `src/`, so a client tsconfig can still type-check the `src/shared` schema types its forms import.
 
 ::: tip
-The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your server schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.
+The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.
 :::
 
 ### 4. Create the entry file
@@ -152,7 +152,7 @@ export default [
 ];
 ```
 
-Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). Among other things, `nrg` surfaces the `@bonsae/nrg/schema-server-imports-type-only` boundary rule in-editor, which keeps client code from value-importing the server runtime.
+Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). Among other things, `nrg` enforces NRG's plane boundaries in-editor: client code may only `import type` from server or schema modules (keeping the node runtime out of the editor bundle), and the `@bonsae/nrg/schema-server-imports-type-only` rule keeps your schema modules from value-importing your own `server/` directory.
 
 ### 6. Add package.json scripts
 

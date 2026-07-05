@@ -1109,7 +1109,7 @@ await vi.waitFor(() => {
 });
 ```
 
-`configSchema`/`credentialsSchema` can still be passed explicitly for inline or ad-hoc schemas — each overrides the corresponding `type`-resolved schema independently. They must be plain JSON Schema **data**; never value-import a server schema module into a browser test (see the boundary note above).
+`configSchema`/`credentialsSchema` can still be passed explicitly for inline or ad-hoc schemas — each overrides the corresponding `type`-resolved schema independently. They must be plain JSON Schema **data**; never value-import a schema module into a browser test (see the boundary note above).
 
 Fields declared with `SchemaType.NodeRef` validate that the referenced config node exists — register fakes with `nodes`:
 

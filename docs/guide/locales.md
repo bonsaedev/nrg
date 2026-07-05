@@ -84,7 +84,7 @@ When your `outputsSchema` uses a record (named ports) instead of an array, the e
 }
 ```
 
-This matches the named ports defined in your server schema:
+This matches the named ports defined in your schema:
 
 ```typescript
 export const OutputSchema = {
