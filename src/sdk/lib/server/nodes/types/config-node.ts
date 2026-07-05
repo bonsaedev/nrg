@@ -1,4 +1,4 @@
-import type { Static, TSchema } from "../../../shared/schemas";
+import type { TSchema } from "../../../shared/schemas";
 import type { RED } from "../../red";
 import type { ConfigNode } from "../config-node";
 import type {
@@ -9,13 +9,13 @@ import type {
   NodeContextStore,
 } from "./node";
 import type { InferOr } from "../../schemas/types";
-import type { ConfigNodeConfigSchema } from "../../schemas";
 import type { ConfigNodeBrand } from "../../../shared/schemas/types";
 
 type ConfigNodeContextScope = Exclude<NodeContextScope, "flow">;
 
-type ConfigNodeConfig<TConfig = any> = NodeConfig<TConfig> &
-  Static<typeof ConfigNodeConfigSchema>;
+type ConfigNodeConfig<TConfig = any> = NodeConfig<TConfig> & {
+  _users: string[];
+};
 
 type ConfigNodeCredentials<TCredentials = any> = NodeCredentials<TCredentials>;
 

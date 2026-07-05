@@ -1,6 +1,5 @@
-import type { Static, TSchema } from "../../../shared/schemas";
+import type { TSchema } from "../../../shared/schemas";
 import type { Schema } from "../../../shared/schemas";
-import type { NodeConfigSchema } from "../../schemas";
 import type { RED, NodeRedNode } from "../../red";
 
 type NodeContextScope = "node" | "flow" | "global";
@@ -54,7 +53,15 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   ): T;
 }
 
-type NodeConfig<TConfig = any> = TConfig & Static<typeof NodeConfigSchema>;
+/** The Node-RED-owned base fields present on every node's config. */
+interface NodeConfigBase {
+  id: string;
+  type: string;
+  name: string;
+  z?: string;
+}
+
+type NodeConfig<TConfig = any> = TConfig & NodeConfigBase;
 
 type NodeCredentials<TCredentials = any> = TCredentials;
 

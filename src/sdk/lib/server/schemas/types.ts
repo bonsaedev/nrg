@@ -6,12 +6,6 @@ import type {
   UnsafeBrand,
 } from "../../shared/schemas";
 import type TypedInput from "../typed-input";
-import type {
-  NodeSourceSchema,
-  ErrorPortOutputSchema,
-  CompletePortOutputSchema,
-  StatusPortOutputSchema,
-} from "./base";
 
 /**
  * Maps a schema's static type to the values server node code sees at
@@ -136,21 +130,65 @@ type InferOutputs<T> = T extends readonly TSchema[]
       : any;
 
 // --- Built-in port message types ---
-// Server-owned: they derive from the server base port schemas (./base). The
-// server tree resolves them here rather than from the shared kit because the
-// port schemas themselves are server-only.
+// Server-owned PLAIN types that model exactly what the IONode base class emits
+// on the built-in ports (see io-node.ts `#sendToPort` sites). Formerly derived
+// from server base schemas via `Static<>`, but nothing validated against those
+// schemas at runtime — they were pure type surface, so the shapes live directly
+// as types. `ErrorPortOutput`/`CompletePortOutput` are generic over the carried
+// input (and the author's extra data / return value) so a downstream handler can
+// read the original message, the `input` provenance frame, and custom fields.
 
-/** Provenance of a message (which node/port produced it), carried on error output. */
-type NodeSource = Static<typeof NodeSourceSchema>;
+/** Provenance of a message: which node produced a built-in-port message. */
+interface NodeSource {
+  id: string;
+  type: string;
+  name: string;
+}
 
-/** Message shape emitted on the built-in error port. */
-type ErrorPortOutput = Static<typeof ErrorPortOutputSchema>;
+/** The authoritative metadata layered onto every error-port message. */
+interface ErrorInfo {
+  name: string;
+  message: string;
+  source: NodeSource;
+}
 
-/** Message shape emitted on the built-in complete port. */
-type CompletePortOutput = Static<typeof CompletePortOutputSchema>;
+/**
+ * Message emitted on the built-in ERROR port. The failing input rides along —
+ * spread at the top level (Catch-node compatible) and preserved under `input` as
+ * the provenance frame — alongside the `error` block. `TError` captures the
+ * author's extra data: the enumerable own properties of a thrown `Error`
+ * subclass, or the `msg` passed to `this.error(message, msg)`. `name`/`message`/
+ * `source` stay authoritative over `TError`.
+ */
+type ErrorPortOutput<
+  TInput = unknown,
+  TError extends object = object,
+> = TInput & {
+  error: Omit<TError, keyof ErrorInfo> & ErrorInfo;
+  input: TInput;
+};
 
-/** Message shape emitted on the built-in status port. */
-type StatusPortOutput = Static<typeof StatusPortOutputSchema>;
+/**
+ * Message emitted on the built-in COMPLETE port. The input rides along (spread +
+ * under `input`); when `input()` returns a value it is carried under the return
+ * key (`output` by default) as `TReturn`. A `void`-returning node omits it.
+ */
+type CompletePortOutput<TInput = unknown, TReturn = void> = TInput & {
+  complete: { source: NodeSource };
+  input: TInput;
+} & ([TReturn] extends [void] ? unknown : { output: TReturn });
+
+/** Message emitted on the built-in STATUS port (no carried input/provenance). */
+interface StatusPortOutput {
+  status:
+    | {
+        fill?: "red" | "green" | "yellow" | "blue" | "grey" | "gray";
+        shape?: "ring" | "dot";
+        text?: string;
+      }
+    | string;
+  source: NodeSource;
+}
 
 export type {
   Infer,
@@ -162,6 +200,7 @@ export type {
   NamedPortsBrand,
   OutputPortNames,
   NodeSource,
+  ErrorInfo,
   ErrorPortOutput,
   CompletePortOutput,
   StatusPortOutput,

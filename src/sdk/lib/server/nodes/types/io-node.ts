@@ -1,5 +1,4 @@
-import type { Static, TSchema } from "../../../shared/schemas";
-import type { IONodeConfigSchema } from "../../schemas";
+import type { TSchema } from "../../../shared/schemas";
 import type { BUILTIN_PORT_KEYS } from "../../../shared/constants";
 import type { RED } from "../../red";
 import type { IONode } from "../io-node";
@@ -24,9 +23,12 @@ type BuiltinPortFlags = {
   [K in (typeof BUILTIN_PORT_KEYS)[number]]?: boolean;
 };
 
-type IONodeConfig<TConfig = any> = NodeConfig<TConfig> &
-  Static<typeof IONodeConfigSchema> &
-  BuiltinPortFlags & {
+type IONodeConfig<TConfig = any> = NodeConfig<TConfig> & {
+  wires: string[][];
+  x: number;
+  y: number;
+  g?: string;
+} & BuiltinPortFlags & {
     validateInput?: boolean;
     /** Per-port output-validation flags, keyed by base-output port index. */
     validateOutputs?: Record<number, boolean>;
