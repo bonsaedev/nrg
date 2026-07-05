@@ -458,9 +458,13 @@ import { debounce } from "es-toolkit";
 import { validateForm } from "../validation";
 import { typeCheckEnabled } from "../wire-check/availability";
 import type { NodeFeatures, NodeRedNode } from "../types";
+// Framework-internal: the built-in schema fields' editor tray. Registered
+// locally (NOT globally) — only this form uses it.
+import NodeRedSchemaTray from "./components/node-red-schema-tray.vue";
 
 export default defineComponent({
   name: "NodeRedVueApp",
+  components: { NodeRedSchemaTray },
   provide() {
     return {
       __nrg_form_node: this.localNode,

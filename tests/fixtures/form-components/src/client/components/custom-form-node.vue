@@ -15,11 +15,25 @@
         :types="sobjectTypes"
       />
     </div>
+    <!-- A node author reusing the globally-registered NodeRedTray: a button that
+         opens a tray whose content is the author's own Vue markup. -->
+    <div class="form-row">
+      <button
+        type="button"
+        class="red-ui-button custom-open-tray"
+        @click="openCustomTray"
+      >
+        Open custom tray
+      </button>
+      <NodeRedTray ref="customTray" title="Custom Tray">
+        <div class="custom-tray-body">Hello from a custom Vue tray</div>
+      </NodeRedTray>
+    </div>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 import { useFormNode } from "@bonsae/nrg/client";
 
 const SOBJECTS = ["Account", "AccountContactRole", "Case", "Contact", "Lead"];
@@ -28,6 +42,9 @@ export default defineComponent({
   name: "CustomFormNodeForm",
   setup() {
     const { node, errors } = useFormNode();
+
+    const customTray = ref<{ open(): void } | null>(null);
+    const openCustomTray = () => customTray.value?.open();
 
     const sobjectTypes = [
       {
@@ -46,7 +63,7 @@ export default defineComponent({
       },
     ];
 
-    return { node, errors, sobjectTypes };
+    return { node, errors, sobjectTypes, customTray, openCustomTray };
   },
 });
 </script>

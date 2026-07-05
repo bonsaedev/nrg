@@ -127,4 +127,21 @@ describe("output schema editor (chromium)", () => {
     // Restore the fixture flow so later runs start clean.
     await editor.deployFlow(FIXTURE_FLOW);
   });
+
+  test("a custom form opens a reusable NodeRedTray with its own Vue content", async () => {
+    // n2 (custom-form-node) is an author-authored form that uses the globally
+    // registered <NodeRedTray> with its own slot content.
+    await editor.editNode("n2");
+    const page = editor.page;
+
+    const btn = page.locator("button.custom-open-tray");
+    await btn.waitFor({ state: "visible", timeout: 10_000 });
+    await btn.click();
+
+    const tray = page.locator(".red-ui-tray").last();
+    await tray
+      .locator(".custom-tray-body")
+      .waitFor({ state: "visible", timeout: 10_000 });
+    expect(await tray.textContent()).toContain("Hello from a custom Vue tray");
+  });
 });
