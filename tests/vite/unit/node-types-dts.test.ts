@@ -179,6 +179,26 @@ describe("buildPackageDts", () => {
     expect(diags).toHaveLength(0);
   });
 
+  it("preserves named-port Port<> so a subclass keeps its named ports", () => {
+    const dts = buildPackageDts(extractPkg(PKG));
+    // Named outputs are re-wrapped in Port<> in the inheritable class (a bare
+    // `{ success; failure }` would collapse to one object port on inheritance),
+    // and Port is imported.
+    expect(dts).toContain("success: Port<{ payload: string; }>");
+    expect(dts).toContain("failure: Port<{ error: string; }>");
+    expect(dts).toMatch(/import type \{[^}]*\bPort\b/);
+    // A subclass therefore keeps two NAMED ports — `sendToPort("success", …)`
+    // only type-checks when the named-ness survived inheritance.
+    const diags = compilePackage(
+      dts,
+      `import { CsvParser } from "acme-nodes";
+       export class Mine extends CsvParser {
+         demo() { this.sendToPort("success", { payload: "x" }); }
+       }`,
+    );
+    expect(diags).toHaveLength(0);
+  });
+
   it("type-checks a COMPATIBLE wire via the registry", () => {
     const dts = buildPackageDts(extractPkg(PKG));
     // csv-parser port 0 (success: { payload: string }) → consumer.input ({ payload: string })

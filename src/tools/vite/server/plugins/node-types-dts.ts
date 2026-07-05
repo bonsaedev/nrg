@@ -27,14 +27,19 @@ const roleText = (r?: {
   resolved?: string;
 }): string | undefined => r?.resolved ?? r?.text;
 
-/** Reconstruct the `Output` generic from the shape-aware ports. */
+/** Reconstruct the `Output` generic from the shape-aware ports. Named ports are
+ * re-wrapped in `Port<…>` so the inheritable class preserves its named-ness — a
+ * consumer who `extends` it keeps N named ports (a bare `{ … }` would collapse to
+ * one object port). Positional ports stay a tuple; a single output stays itself. */
 function outputTypeText(node: NodeTypeInfo): string {
   const ports = node.outputs;
   if (!ports || ports.length === 0) return "unknown";
   if (ports.length === 1 && ports[0].name === undefined)
     return roleText(ports[0].role)!;
   if (ports[0].name !== undefined) {
-    return `{ ${ports.map((p) => `${p.name}: ${roleText(p.role)}`).join("; ")} }`;
+    return `{ ${ports
+      .map((p) => `${p.name}: Port<${roleText(p.role)}>`)
+      .join("; ")} }`;
   }
   return `[${ports.map((p) => roleText(p.role)).join(", ")}]`;
 }
@@ -114,10 +119,14 @@ function buildPackageDts(
     classNodes.some((n) => n.kind === "io") && "IONode",
     classNodes.some((n) => n.kind === "config") && "ConfigNode",
   ].filter((x): x is string => Boolean(x));
+  // A class node with named outputs re-wraps them in `Port<…>` (see
+  // outputTypeText), so the surface must import `Port`.
+  const hasNamedOutputs = classNodes.some((n) => n.outputKind === "named");
   const typeImports = [
     hasFunctional && "NodeConstructor",
     ioNodes.length && "ErrorPort",
     ioNodes.length && "StatusPort",
+    hasNamedOutputs && "Port",
   ].filter((x): x is string => Boolean(x));
 
   const parts: string[] = [];
