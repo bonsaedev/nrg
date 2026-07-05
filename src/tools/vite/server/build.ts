@@ -14,7 +14,10 @@ import {
   writeNodeTypesJson,
   writePackageDts,
   rewriteEmittedRuntimeImports,
+  portTopology,
+  portTopologyInjector,
 } from "./plugins";
+import type { PortTopology } from "./plugins/node-type-info";
 
 async function build(
   serverOpts: ServerBuildOptions,
@@ -47,6 +50,29 @@ async function build(
 
   const isEsm = format === "esm";
 
+  // Extract each node's TypeScript types up front — the source of truth for port
+  // topology (schemas are validation-only). Best-effort: if it throws, the map
+  // stays empty, the injector is a no-op, and the runtime falls back to the
+  // schema. Runs in dev too (a schema-free node needs its topology to route),
+  // and is reused for node-types.json / index.d.ts (prod) so tsc runs once.
+  // NOTE: the ts.Program is not cheap; caching per changed file is a follow-up.
+  const localTypes: Record<string, string> = {};
+  let infos: ReturnType<typeof extractNodeTypesFromSrc> = [];
+  try {
+    infos = extractNodeTypesFromSrc(resolvedSrcDir, undefined, localTypes);
+  } catch (error) {
+    logger.warn(`node type extraction skipped: ${(error as Error).message}`);
+  }
+
+  // Map each node's source file → its generic-derived port topology, for the
+  // injector to stamp as `<Node>.__nrgPorts`. Untyped nodes yield no entry.
+  const topologyMap = new Map<string, PortTopology>();
+  for (const info of infos) {
+    if (!info.sourceFile) continue;
+    const ports = portTopology(info);
+    if (ports) topologyMap.set(path.resolve(info.sourceFile), ports);
+  }
+
   const plugins = [
     packageJsonGenerator({
       outDir: buildContext.outDir,
@@ -57,6 +83,7 @@ async function build(
       isDev: buildContext.isDev,
     }),
     isEsm ? esmWrapper() : cjsWrapper(),
+    portTopologyInjector(topologyMap),
   ];
 
   const config: InlineConfig = {
@@ -139,34 +166,22 @@ module.exports = function (RED) {
     // inliner. Runs in dev and prod.
     await extractNodeDefinitions(buildContext.outDir);
 
-    // Extract each node's TypeScript types (the source of truth — schemas are
-    // optional) once, then emit both consumers: node-types.json for the client
-    // help generator, and index.d.ts for the editor connection-type surface
-    // (inheritable classes + the NodeTypes wiring registry). Prod only: it
-    // stands up a ts.Program, and dev docs fall back to schema. Best-effort —
-    // never fail the build over generated type metadata.
+    // Emit the prod type consumers from the types extracted up front (reused, so
+    // tsc runs once): node-types.json for the client help generator, and
+    // index.d.ts for the editor connection-type surface (inheritable classes +
+    // the NodeTypes wiring registry). Dev docs fall back to schema.
     if (!buildContext.isDev) {
-      try {
-        const localTypes: Record<string, string> = {};
-        const infos = extractNodeTypesFromSrc(
-          resolvedSrcDir,
-          undefined,
+      writeNodeTypesJson(infos, buildContext.outDir);
+      if (types) {
+        writePackageDts(
+          infos,
           localTypes,
+          buildContext.outDir,
+          Object.keys(entryPoints),
         );
-        writeNodeTypesJson(infos, buildContext.outDir);
-        if (types) {
-          writePackageDts(
-            infos,
-            localTypes,
-            buildContext.outDir,
-            Object.keys(entryPoints),
-          );
-        }
+      }
+      if (infos.length) {
         logger.info(`✓ Extracted types for ${infos.length} node(s)`);
-      } catch (error) {
-        logger.warn(
-          `node type extraction skipped: ${(error as Error).message}`,
-        );
       }
     }
 

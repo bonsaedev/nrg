@@ -108,6 +108,24 @@ describe("IONode", () => {
       expect(Positional.outputPortNames).toBeUndefined();
       expect(NoOut.outputPortNames).toBeUndefined();
     });
+
+    it("prefers build-injected __nrgPorts topology over the schema", () => {
+      // Topology comes from the Output generic (build-injected). When present it
+      // is the source of truth — even over a schema, which is validation-only
+      // and must NOT drive port count/names.
+      class Generic extends IONode {
+        static override readonly type = "generic-ports";
+        static override readonly outputsSchema = SchemaType.Object({});
+        static override __nrgPorts: NonNullable<typeof IONode.__nrgPorts> = {
+          inputs: 1,
+          outputs: 2,
+          outputNames: ["ok", "failed"],
+        };
+      }
+      expect(Generic.outputs).toBe(2); // not 1 (the single-object schema)
+      expect(Generic.inputs).toBe(1);
+      expect(Generic.outputPortNames).toEqual(["ok", "failed"]);
+    });
   });
 
   describe("input handling", () => {

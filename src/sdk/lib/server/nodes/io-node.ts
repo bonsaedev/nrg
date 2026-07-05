@@ -129,11 +129,26 @@ abstract class IONode<
   // per-port default by base-output index (missing entries default to false).
   public static readonly validateOutput: boolean | boolean[] = false;
 
+  /**
+   * Port topology derived from the node's `Input`/`Output` generics and injected
+   * by the build (`node-type-info` extraction → server inliner). When present it
+   * is the SOURCE OF TRUTH for port count/names; when absent (e.g. a legacy
+   * schema-only node, or a class read before the build injects it) the getters
+   * below fall back to computing topology from `outputsSchema`. Framework-owned,
+   * build-injected — never set this from node code.
+   */
+  public static __nrgPorts?: {
+    inputs: 0 | 1;
+    outputs: number;
+    outputNames?: string[];
+  };
+
   public static get inputs(): 0 | 1 {
-    return this.inputSchema ? 1 : 0;
+    return this.__nrgPorts?.inputs ?? (this.inputSchema ? 1 : 0);
   }
 
   public static get outputs(): number {
+    if (this.__nrgPorts) return this.__nrgPorts.outputs;
     const s = this.outputsSchema;
     if (!s) return 0;
     if (Array.isArray(s)) return s.length;
@@ -166,6 +181,7 @@ abstract class IONode<
    * instead of guessing them from a serialized (symbol-stripped) schema.
    */
   public static get outputPortNames(): string[] | undefined {
+    if (this.__nrgPorts) return this.__nrgPorts.outputNames;
     const s = this.outputsSchema;
     if (!s || Array.isArray(s) || isSchemaLike(s)) return undefined;
     return Object.keys(s);
@@ -577,10 +593,13 @@ abstract class IONode<
     this.node.send(out);
   }
 
-  /** The declared named output ports (record `outputsSchema`), or null when the
-   * node has none (no schema, a tuple schema, or a single schema). */
+  /** The declared named output ports (from the injected `Output`-generic
+   * topology, or a record `outputsSchema`), or null when the node has none (a
+   * positional/single output, or no declaration). */
   #namedPortKeys(): string[] | null {
-    const schema = (this.constructor as typeof IONode).outputsSchema;
+    const NC = this.constructor as typeof IONode;
+    if (NC.__nrgPorts) return NC.__nrgPorts.outputNames ?? null;
+    const schema = NC.outputsSchema;
     if (!schema || Array.isArray(schema) || isSchemaLike(schema)) return null;
     return Object.keys(schema);
   }

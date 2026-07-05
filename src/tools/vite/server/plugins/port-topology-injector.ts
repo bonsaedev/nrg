@@ -1,0 +1,90 @@
+import type { Plugin } from "vite";
+import path from "path";
+import type { PortTopology } from "./node-type-info";
+
+/**
+ * Stamp each node's `Input`/`Output`-generic topology onto its built class as a
+ * static `__nrgPorts`, so the runtime routes ports and the editor draws them
+ * from the TYPES — no `outputsSchema` required (schemas become data-validation
+ * only). `io-node`'s `get outputs()`/`get inputs()`/named-port resolution prefer
+ * this descriptor and fall back to the schema when it is absent, so a node whose
+ * generics are untyped is left untouched (`portTopology` returns `undefined` for
+ * those, and the map has no entry).
+ *
+ * Runs `post`, after vite:esbuild strips TypeScript, so `this.parse` (acorn)
+ * sees plain JS. With `keepNames` (the server build's esbuild setting) every
+ * default-export form — `export default class X`, `export default defineIONode(…)`,
+ * an anonymous class — is normalized to a local binding plus
+ * `export { <local> as default }`; we append `<local>.__nrgPorts = {…}` after it.
+ * Two extra shapes are handled defensively in case a future esbuild keeps
+ * `export default class X {}` or a bare `export default <expr>`.
+ */
+function portTopologyInjector(topology: Map<string, PortTopology>): Plugin {
+  return {
+    name: "vite-plugin-node-red:server:port-topology-injector",
+    enforce: "post",
+
+    transform(code, id) {
+      if (topology.size === 0) return;
+      const file = path.resolve(id.split("?")[0]);
+      const ports = topology.get(file);
+      if (!ports) return;
+
+      let ast: { body: any[] };
+      try {
+        ast = this.parse(code) as { body: any[] };
+      } catch {
+        return;
+      }
+
+      const json = JSON.stringify(ports);
+      const appendStatic = (localName: string) => ({
+        code: `${code}\n${localName}.__nrgPorts = ${json};\n`,
+        map: null,
+      });
+
+      for (const node of ast.body) {
+        // `export default class X {}` (named class declaration)
+        if (
+          node.type === "ExportDefaultDeclaration" &&
+          node.declaration?.type === "ClassDeclaration" &&
+          node.declaration.id?.name
+        ) {
+          return appendStatic(node.declaration.id.name);
+        }
+        // `export { X as default }` (the esbuild-normalized shape)
+        if (node.type === "ExportNamedDeclaration" && !node.source) {
+          const local = node.specifiers?.find(
+            (s: any) => s.exported?.name === "default",
+          )?.local?.name;
+          if (local) return appendStatic(local);
+        }
+      }
+
+      // `export default <expr>` (not a declaration) — capture, stamp, re-export.
+      for (const node of ast.body) {
+        if (
+          node.type === "ExportDefaultDeclaration" &&
+          node.declaration &&
+          node.declaration.type !== "ClassDeclaration" &&
+          node.declaration.type !== "FunctionDeclaration"
+        ) {
+          const expr = code.slice(node.declaration.start, node.declaration.end);
+          const replacement =
+            `const __nrgDefault = ${expr};\n` +
+            `__nrgDefault.__nrgPorts = ${json};\n` +
+            `export { __nrgDefault as default };`;
+          return {
+            code:
+              code.slice(0, node.start) + replacement + code.slice(node.end),
+            map: null,
+          };
+        }
+      }
+
+      return;
+    },
+  };
+}
+
+export { portTopologyInjector };

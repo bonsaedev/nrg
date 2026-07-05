@@ -10,6 +10,7 @@ import os from "os";
 import ts from "typescript";
 import {
   extractNodeTypes,
+  portTopology,
   type NodeTypeInfo,
 } from "@/tools/vite/server/plugins/node-type-info";
 
@@ -235,5 +236,61 @@ describe("extractNodeTypes — class API", () => {
       }
     `);
     expect(node.complete).toBeUndefined();
+  });
+});
+
+describe("portTopology (generic-derived __nrgPorts descriptor)", () => {
+  it("derives named ports + input port from typed generics", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      import type { Port } from "@bonsae/nrg/server";
+      type Output = { success: Port<{ a: 1 }>; failure: Port<{ b: 2 }> };
+      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
+        static readonly type = "my-node";
+      }
+    `);
+    expect(portTopology(node)).toEqual({
+      inputs: 1,
+      outputs: 2,
+      outputNames: ["success", "failure"],
+    });
+  });
+
+  it("a single object output is one port with no names", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, { r: 1 }> {
+        static readonly type = "my-node";
+      }
+    `);
+    expect(portTopology(node)).toEqual({
+      inputs: 1,
+      outputs: 1,
+      outputNames: undefined,
+    });
+  });
+
+  it("no Input generic → no input port (generics are the source of truth)", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      export default class MyNode extends IONode<{ x: 1 }, never, never, { r: 1 }> {
+        static readonly type = "my-node";
+      }
+    `);
+    expect(portTopology(node)).toEqual({
+      inputs: 0,
+      outputs: 1,
+      outputNames: undefined,
+    });
+  });
+
+  it("returns undefined for an untyped node so the runtime falls back to schema", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      export default class MyNode extends IONode {
+        static readonly type = "my-node";
+      }
+    `);
+    expect(portTopology(node)).toBeUndefined();
   });
 });

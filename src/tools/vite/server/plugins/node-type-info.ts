@@ -1259,6 +1259,37 @@ function writeNodeTypesJson(infos: NodeTypeInfo[], outDir: string): void {
   fs.writeFileSync(outPath, JSON.stringify(byType));
 }
 
+/**
+ * The port-topology descriptor injected as `<Node>.__nrgPorts`, derived purely
+ * from the node's typed generics. Returns `undefined` when NEITHER `Input` nor
+ * `Output` is typed (a schema-only / untyped node) so injection is skipped and
+ * the runtime keeps computing topology from `outputsSchema`. When any generic IS
+ * typed the descriptor is authoritative — an input port exists iff the `Input`
+ * generic is non-vacuous (generics are the source of truth).
+ */
+interface PortTopology {
+  inputs: 0 | 1;
+  outputs: number;
+  outputNames?: string[];
+}
+
+function portTopology(info: NodeTypeInfo): PortTopology | undefined {
+  const hasTypedInput = info.input !== undefined;
+  const hasTypedOutput = info.outputs !== undefined;
+  if (!hasTypedInput && !hasTypedOutput) return undefined;
+  const outputNames =
+    info.outputKind === "named"
+      ? info.outputs
+          ?.map((p) => p.name)
+          .filter((n): n is string => n !== undefined)
+      : undefined;
+  return {
+    inputs: hasTypedInput ? 1 : 0,
+    outputs: info.outputs?.length ?? 0,
+    outputNames,
+  };
+}
+
 export {
   resolveConsumerCompilerOptions,
   createNodeTypesProgram,
@@ -1268,6 +1299,13 @@ export {
   isVacuous,
   extractOutputs,
   outputPortKind,
+  portTopology,
   BASE_CLASS_SLOTS,
 };
-export type { NodeTypeInfo, NodeRoleType, NodeFieldInfo, NodeOutputPort };
+export type {
+  NodeTypeInfo,
+  NodeRoleType,
+  NodeFieldInfo,
+  NodeOutputPort,
+  PortTopology,
+};
