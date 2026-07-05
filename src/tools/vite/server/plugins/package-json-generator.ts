@@ -112,7 +112,19 @@ function packageJsonGenerator(options: {
     resolveId: {
       order: "pre",
       handler(source, importer) {
-        if (!importer || source.startsWith(".") || source.startsWith("/")) {
+        // Relative/absolute imports and the internal `@/` source alias (e.g.
+        // `@/schemas/*`, wired via resolve.alias to the consumer's own shared
+        // sources and bundled INTO the server) are never external package
+        // dependencies — `@/` is an invalid npm scope, so it can only be the
+        // internal alias. Let the default/alias resolution handle (and bundle)
+        // them; externalizing here would leave a raw `@/schemas/...` specifier
+        // in the emitted bundle, since this pre-order hook runs before the alias.
+        if (
+          !importer ||
+          source.startsWith(".") ||
+          source.startsWith("/") ||
+          source.startsWith("@/")
+        ) {
           return null;
         }
 

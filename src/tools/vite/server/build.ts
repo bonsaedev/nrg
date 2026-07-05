@@ -66,10 +66,12 @@ async function build(
     // esbuild reads no tsconfig here (tsconfigRaw: "{}"), so the `@/schemas`
     // path alias from the shipped base tsconfig isn't applied at build time —
     // wire it up for Vite so a consumer's server nodes can import their shared
-    // schemas via `@/schemas/*`. process.cwd() is the consumer's project root.
+    // schemas via `@/schemas/*`. Resolve from the server srcDir (`../shared/schemas`)
+    // rather than process.cwd(), so it's correct even when the build runs from a
+    // different cwd than the project root (e.g. nrg's own in-process fixture builds).
     resolve: {
       alias: {
-        "@/schemas": path.resolve(process.cwd(), "src/shared/schemas"),
+        "@/schemas": path.resolve(resolvedSrcDir, "../shared/schemas"),
       },
     },
     build: {
