@@ -214,65 +214,59 @@ describe("NodeRedEditorInput expand tray", () => {
 
   async function openExpandedTray(props: Record<string, any> = {}) {
     const onUpdate = vi.fn();
-    const onTrayOpen = vi.fn();
-    const onTrayClose = vi.fn();
     const screen = render(NodeRedEditorInput, {
       props: {
         value: "initial code",
         language: "json",
         "onUpdate:value": onUpdate,
-        onTrayOpen,
-        onTrayClose,
         ...props,
       },
     });
+    // the inline editor is created on mount
     await vi.waitFor(() => {
-      expect(RED.editor.createEditor).toHaveBeenCalled();
+      expect(RED.editor.createEditor).toHaveBeenCalledTimes(1);
     });
 
+    // Expand delegates to the shared NodeRedTray (the sole RED.tray.show caller).
     screen.container.querySelector<HTMLElement>(".expand-button")!.click();
     expect(RED.tray.show).toHaveBeenCalledTimes(1);
     const trayOptions = vi.mocked(RED.tray.show).mock.calls.at(-1)![0];
 
-    // simulate Node-RED mounting the tray DOM and invoking open()
+    // Simulate Node-RED mounting the tray DOM and invoking open(): NodeRedTray
+    // captures the body and emits `open`, which schedules the expanded editor on
+    // the next tick (once the teleported host div has rendered into the body).
     const trayEl = document.createElement("div");
     trayEl.innerHTML = '<div class="red-ui-tray-body"></div>';
     document.body.appendChild(trayEl);
     trayOptions.open(window.$(trayEl));
 
+    await vi.waitFor(() => {
+      expect(RED.editor.createEditor).toHaveBeenCalledTimes(2);
+    });
     const expanded = vi.mocked(RED.editor.createEditor).mock.results.at(-1)!
       .value as ReturnType<typeof RED.editor.createEditor>;
 
-    return {
-      screen,
-      trayOptions,
-      trayEl,
-      expanded,
-      onUpdate,
-      onTrayOpen,
-      onTrayClose,
-    };
+    return { screen, trayOptions, trayEl, expanded, onUpdate };
   }
 
   test("open mounts an expanded editor seeded with the field value", async () => {
-    const { trayOptions, trayEl, expanded, onTrayOpen } =
-      await openExpandedTray();
+    const { trayOptions, trayEl, expanded } = await openExpandedTray();
 
-    expect(onTrayOpen).toHaveBeenCalled();
     expect(expanded.getValue()).toBe("initial code");
-    expect(vi.mocked(RED.editor.createEditor).mock.calls.at(-1)![0].id).toBe(
-      "expanded-editor-input",
-    );
-    expect(trayEl.querySelector("#expanded-editor-input")).not.toBeNull();
-    expect(trayEl.querySelector(".red-ui-tray-footer")).not.toBeNull();
+    const lastCall = vi.mocked(RED.editor.createEditor).mock.calls.at(-1)![0];
+    // A distinct, per-field host id, sharing the field's stateId for view state.
+    expect(lastCall.id).toMatch(/^expanded-editor-/);
+    expect(lastCall.mode).toBe("json");
+    expect(lastCall.stateId).toBeTruthy();
+    // The host div was teleported into the tray body.
+    expect(trayEl.querySelector(".expanded-editor-host")).not.toBeNull();
 
     trayOptions.close();
     trayEl.remove();
   });
 
   test("Done copies the expanded value back into the inline editor", async () => {
-    const { trayOptions, trayEl, expanded, onTrayClose } =
-      await openExpandedTray();
+    const { trayOptions, trayEl, expanded } = await openExpandedTray();
     const inline = vi.mocked(RED.editor.createEditor).mock.results[0]
       .value as ReturnType<typeof RED.editor.createEditor>;
 
@@ -288,8 +282,6 @@ describe("NodeRedEditorInput expand tray", () => {
     });
 
     trayOptions.close();
-    expect(onTrayClose).toHaveBeenCalled();
-    expect(trayEl.querySelector(".red-ui-tray-footer")).toBeNull();
     trayEl.remove();
   });
 
@@ -307,6 +299,17 @@ describe("NodeRedEditorInput expand tray", () => {
     expect(onUpdate).not.toHaveBeenCalledWith("discarded");
 
     trayOptions.close();
+    trayEl.remove();
+  });
+
+  test("closing the tray destroys the expanded editor", async () => {
+    const { trayOptions, trayEl, expanded } = await openExpandedTray();
+    const destroySpy = vi.spyOn(expanded, "destroy");
+
+    // NodeRedTray's close (fired by RED after the animation) tears the editor down.
+    trayOptions.close();
+    expect(destroySpy).toHaveBeenCalled();
+
     trayEl.remove();
   });
 });

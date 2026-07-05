@@ -27,17 +27,28 @@
     <div v-show="error" class="node-red-vue-input-error-message">
       {{ error }}
     </div>
-    <Teleport v-if="trayElement" :to="trayElement">
-      <slot name="tray-footer" />
-    </Teleport>
+    <!-- "Expand" pops the field's editor into a full-width tray. Reuses the
+         shared NodeRedTray shell; a second Monaco is mounted into the teleported
+         host (sharing this field's stateId for scroll/cursor view state). -->
+    <NodeRedTray
+      ref="expandTray"
+      title="Editor"
+      @open="onExpandOpen"
+      @done="onExpandDone"
+      @cancel="onExpandCancel"
+      @close="onExpandClose"
+    >
+      <div :id="expandedEditorId" class="expanded-editor-host"></div>
+    </NodeRedTray>
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent, shallowRef } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
+import NodeRedTray from "./node-red-tray.vue";
 export default defineComponent({
-  components: { NodeRedInputLabel },
+  components: { NodeRedInputLabel, NodeRedTray },
   props: {
     modelValue: {
       type: String,
@@ -168,13 +179,7 @@ export default defineComponent({
       default: "",
     },
   },
-  emits: [
-    "update:modelValue",
-    "update:value",
-    "editor-ready",
-    "tray-open",
-    "tray-close",
-  ],
+  emits: ["update:modelValue", "update:value", "editor-ready"],
   setup() {
     // shallowRef avoids deep reactivity — Monaco editor breaks with Vue proxies.
     // data() + markRaw() was tested and does not work because the reactive
@@ -184,15 +189,16 @@ export default defineComponent({
       // NOTE: must not be named "editor" — the template's ref="editor" would
       // overwrite this with the DOM element on every re-render.
       editorInstance: shallowRef<any>(null),
-      expandedEditorTray: shallowRef<any>(null),
+      // The second Monaco created inside the expand tray while it's open.
+      expandedEditor: shallowRef<any>(null),
     };
   },
   data() {
     const stateId = Math.random().toString(36).substring(2, 9);
     return {
       editorId: "node-red-editor-" + stateId,
+      expandedEditorId: "expanded-editor-" + stateId,
       stateId,
-      trayElement: null as HTMLElement | null,
     };
   },
   computed: {
@@ -205,7 +211,6 @@ export default defineComponent({
     const expandButton = $(this.$refs["expand-button"] as HTMLElement);
     RED.popover.tooltip(expandButton, RED._("node-red:common.label.expand"));
     this.mountEditor();
-    this.createExpandeEditorTray();
   },
   beforeUnmount() {
     if (this.editorInstance) {
@@ -216,6 +221,9 @@ export default defineComponent({
       }
       this.editorInstance = null;
     }
+    // The tray is normally torn down before the field unmounts, but guard the
+    // expanded editor in case the whole form is destroyed while it's open.
+    this.destroyExpandedEditor();
   },
   methods: {
     mountEditor() {
@@ -269,81 +277,50 @@ export default defineComponent({
       });
       this.$emit("editor-ready", this.editorInstance);
     },
-    createExpandeEditorTray() {
-      let expandedEditor: any;
-
-      const onCancel = () => {
-        // the editor can be destroyed (tray closed, component unmounted)
-        // before this deferred focus fires — guard against a null instance
-        setTimeout(() => {
-          this.editorInstance?.focus();
-        }, 250);
-        RED.tray.close();
-      };
-
-      const onDone = () => {
-        expandedEditor.saveView();
-        this.editorInstance?.setValue(expandedEditor.getValue(), -1);
-        // the editor can be destroyed before this deferred restore fires
-        setTimeout(() => {
-          this.editorInstance?.restoreView();
-          this.editorInstance?.focus();
-        }, 250);
-        RED.tray.close();
-      };
-
-      this.expandedEditorTray = {
-        title: "Editor",
-        focusElement: true,
-        width: "Infinity",
-        buttons: [
-          {
-            id: "node-dialog-cancel",
-            text: RED._("common.label.cancel"),
-            click: onCancel,
-          },
-          {
-            id: "node-dialog-ok",
-            text: RED._("common.label.done"),
-            class: "primary",
-            click: onDone,
-          },
-        ],
-        open: (tray) => {
-          const dialogForm = $(
-            '<form id="dialog-form" class="form-horizontal" autocomplete="off"></form>',
-          ).appendTo(tray.find(".red-ui-tray-body"));
-          dialogForm.html(
-            '<div id="expanded-editor-input" style="height: 100%"></div>',
-          );
-
-          expandedEditor = RED.editor.createEditor({
-            id: "expanded-editor-input",
-            stateId: this.stateId,
-            mode: this.language,
-            focus: true,
-            value: this.effectiveValue,
-          });
-          dialogForm.i18n();
-          const trayBody = tray.find(".red-ui-tray-body")[0];
-          const footerContainer = document.createElement("div");
-          footerContainer.className = "red-ui-tray-footer";
-          trayBody.insertAdjacentElement("afterend", footerContainer);
-          this.trayElement = footerContainer;
-          this.$emit("tray-open", this.trayElement);
-        },
-        close: () => {
-          this.$emit("tray-close");
-          if (this.trayElement) {
-            this.trayElement.remove();
-            this.trayElement = null;
-          }
-          expandedEditor.destroy();
-        },
-      };
+    destroyExpandedEditor() {
+      if (this.expandedEditor) {
+        try {
+          this.expandedEditor.destroy();
+        } catch {
+          // already destroyed with its container — nothing to clean up
+        }
+        this.expandedEditor = null;
+      }
     },
     onClickExpand() {
-      RED.tray.show(this.expandedEditorTray);
+      (this.$refs.expandTray as { open(): void }).open();
+    },
+    // The tray body exists once NodeRedTray emits `open`; the teleported host
+    // div renders on the next tick, so create the expanded editor then. It
+    // shares this field's stateId so scroll/cursor position carries over.
+    onExpandOpen() {
+      this.$nextTick(() => {
+        this.expandedEditor = RED.editor.createEditor({
+          id: this.expandedEditorId,
+          stateId: this.stateId,
+          mode: this.language,
+          value: this.effectiveValue,
+        });
+        this.expandedEditor.focus?.();
+      });
+    },
+    onExpandDone() {
+      this.expandedEditor.saveView();
+      this.editorInstance?.setValue(this.expandedEditor.getValue(), -1);
+      // the inline editor can be destroyed before this deferred restore fires
+      setTimeout(() => {
+        this.editorInstance?.restoreView();
+        this.editorInstance?.focus();
+      }, 250);
+    },
+    onExpandCancel() {
+      // the inline editor can be destroyed (form closed) before this fires
+      setTimeout(() => {
+        this.editorInstance?.focus();
+      }, 250);
+    },
+    onExpandClose() {
+      this.destroyExpandedEditor();
     },
   },
 });
@@ -360,5 +337,10 @@ export default defineComponent({
   z-index: 10;
   transition: color 0.3s ease;
   cursor: pointer;
+}
+
+/* The expanded editor fills the tray body (NodeRedTray pads its content). */
+.expanded-editor-host {
+  height: 100%;
 }
 </style>
