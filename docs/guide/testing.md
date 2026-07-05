@@ -986,7 +986,7 @@ describe("validateNode", () => {
 Component tests render your Vue editor components in a real browser with mocked Node-RED globals. They use [Vitest browser mode](https://vitest.dev/guide/browser/) so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
 
 ::: warning Server/client boundary
-Component tests run in a **real browser**. Never value-import the server runtime — and that includes your `src/server/schemas/*` modules, which import `defineSchema`/`SchemaType` from `@bonsae/nrg/schema` (which pulls in TypeBox). Value-importing them pulls the node runtime into the browser bundle and crashes the test. Instead, pass your node's `type` to `createNode()` and let the [schemas globalSetup](#resolving-schemas-by-node-type) hand the real schema to the test as serialized data.
+Component tests run in a **real browser**. Never value-import the server runtime — and that includes your `src/shared/schemas/*` modules, which import `defineSchema`/`SchemaType` from `@bonsae/nrg/schema` (which pulls in TypeBox). Value-importing them pulls the node runtime into the browser bundle and crashes the test. Instead, pass your node's `type` to `createNode()` and let the [schemas globalSetup](#resolving-schemas-by-node-type) hand the real schema to the test as serialized data.
 :::
 
 ### Setup

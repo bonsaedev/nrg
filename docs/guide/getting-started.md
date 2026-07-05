@@ -108,7 +108,7 @@ Create `tsconfig.json` files that extend the shared configs:
 }
 ```
 
-Node schemas live in `src/server/schemas/`: the server plane value-imports them, while the client imports only their _types_. The `rootDir: ".."` roots each plane at `src/`, so a client tsconfig can still type-check the `src/server` schema types its forms import.
+Node schemas live in `src/shared/schemas/`, imported via the `@/schemas` alias (shipped in NRG's base tsconfig, build, and test configs): the server plane value-imports them, while the client imports only their _types_. The `rootDir: ".."` roots each plane at `src/`, so a client tsconfig can still type-check the `src/shared` schema types its forms import.
 
 ::: tip
 The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your server schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.

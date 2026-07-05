@@ -9,11 +9,12 @@ my-node-red-nodes/
 ├── package.json
 ├── node-red.settings.ts           # Optional Node-RED runtime settings
 ├── src/
+│   ├── shared/
+│   │   └── schemas/
+│   │       └── {type-id}.ts       # TypeBox schema — server-value, client-type-only
 │   ├── server/
 │   │   ├── tsconfig.json          # Extends @bonsae/nrg/tsconfig/lib/server.json
 │   │   ├── index.ts               # Server entry — export default defineModule({ nodes: [...] })
-│   │   ├── schemas/
-│   │   │   └── {type-id}.ts       # TypeBox schema — server-value, client-type-only
 │   │   └── nodes/
 │   │       └── {type-id}.ts       # Node class (extends IONode/ConfigNode)
 │   ├── client/
@@ -75,9 +76,9 @@ The entry file (`index.ts`) calls `registerTypes()` with all node definitions.
 
 Optional Vue 3 single-file components (`.vue`) used as custom editor forms. When a file named `{type}.vue` exists here, it replaces the auto-generated JSON schema form for that node. NRG provides built-in components like `<NodeRedInput>`, `<NodeRedTypedInput>`, and `<NodeRedConfigInput>` for building forms.
 
-### `src/server/schemas/`
+### `src/shared/schemas/`
 
-The TypeBox schemas (config, credentials, input, outputs) — the **contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). They live under `src/server/` because the server owns runtime validation and a schema value-imports its builders from `@bonsae/nrg/schema` (which pulls in TypeBox, so schemas are **not** browser-safe). A node co-locates with its schema — `src/server/nodes/{type}.ts` value-imports `../schemas/{type}`.
+The TypeBox schemas (config, credentials, input, outputs) — the **contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). A schema value-imports its builders from `@bonsae/nrg/schema` (which pulls in TypeBox, so schemas are **not** browser-safe); they're kept off the client not by their folder but by the boundary rule — the client may only `import type` from them and gets each schema as *serialized* data at runtime. They live in `src/shared/schemas/`, imported through the `@/schemas` alias — `src/server/nodes/{type}.ts` value-imports `@/schemas/{type}`.
 
 Because TypeBox ships in that value import, **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
 

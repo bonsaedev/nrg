@@ -4,7 +4,7 @@ NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime 
 
 ## Defining Schemas
 
-Use `defineSchema` to create a schema with a required `$id`. Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/server/schemas/` never value-imports the node runtime:
+Use `defineSchema` to create a schema with a required `$id`. Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/shared/schemas/` never value-imports the node runtime:
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -27,8 +27,10 @@ export const ConfigsSchema = defineSchema(
 
 The `$id` is **required**: it's the AJV compile-cache key (validators are reused per `$id`, so it must be unique across all your schemas), and it makes the schema addressable for cross-schema `$ref`. Convention: `"<node-type>:<role>"` (e.g. `"my-node:configs"`, `"my-node:credentials"`).
 
+> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
+
 ::: tip Where the builders live
-`@bonsae/nrg/schema` ships only the builders plus TypeBox — no node runtime — so a dedicated file in `src/server/schemas/` stays decoupled from the node runtime. The builders (`defineSchema`, `SchemaType`) and the plane-neutral schema types (`Schema`, `TNodeRef`, `TTypedInput`) come **only** from `@bonsae/nrg/schema` — `@bonsae/nrg/server` does not re-export them, which keeps the schema/server boundary structural. Type inference (`Infer`, below) is the exception: it's plane-specific — always from `@bonsae/nrg/server` on the server or `@bonsae/nrg/client` on the client.
+`@bonsae/nrg/schema` ships only the builders plus TypeBox — no node runtime — so a dedicated file in `src/shared/schemas/` stays decoupled from the node runtime. The builders (`defineSchema`, `SchemaType`) and the plane-neutral schema types (`Schema`, `TNodeRef`, `TTypedInput`) come **only** from `@bonsae/nrg/schema` — `@bonsae/nrg/server` does not re-export them, which keeps the schema/server boundary structural. Type inference (`Infer`, below) is the exception: it's plane-specific — always from `@bonsae/nrg/server` on the server or `@bonsae/nrg/client` on the client.
 :::
 
 ## Type Inference
@@ -48,7 +50,7 @@ The client package resolves the same schemas to their editor form representation
 
 ```typescript
 import { useFormNode } from "@bonsae/nrg/client";
-import type { ConfigsSchema, CredentialsSchema } from "../../server/schemas/my-node";
+import type { ConfigsSchema, CredentialsSchema } from "@/schemas/my-node";
 
 const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSchema>();
 // each field resolves to its editor form: a plain field stays as-is, a NodeRef
