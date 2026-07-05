@@ -8,8 +8,8 @@ import { ConfigsSchema } from "@/schemas/output-schema-node";
 export default defineIONode({
   type: "output-schema-node",
   category: "function",
-  color: "#c0deed",
   configSchema: ConfigsSchema,
+  inputSchema: SchemaType.Object({}),
   outputsSchema: [SchemaType.Object({}), SchemaType.Object({})],
   async input(msg) {
     this.send([msg, null]);

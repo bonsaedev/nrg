@@ -8,6 +8,7 @@ import NodeRedTypedInput from "./components/node-red-typed-input.vue";
 import NodeRedConfigInput from "./components/node-red-config-input.vue";
 import NodeRedSelectInput from "./components/node-red-select-input.vue";
 import NodeRedEditorInput from "./components/node-red-editor-input.vue";
+import NodeRedSchemaTray from "./components/node-red-schema-tray.vue";
 import NodeRedInputLabel from "./components/node-red-input-label.vue";
 import NodeRedToggle from "./components/node-red-toggle.vue";
 import NodeRedJsonSchemaForm from "./components/node-red-json-schema-form.vue";
@@ -32,6 +33,7 @@ function createNodeRedVueApp(
   app.component("NodeRedConfigInput", NodeRedConfigInput);
   app.component("NodeRedSelectInput", NodeRedSelectInput);
   app.component("NodeRedEditorInput", NodeRedEditorInput);
+  app.component("NodeRedSchemaTray", NodeRedSchemaTray);
   app.component("NodeRedJsonSchemaForm", NodeRedJsonSchemaForm);
   app.component("NodeRedNodeForm", form?.component ?? NodeRedJsonSchemaForm);
 

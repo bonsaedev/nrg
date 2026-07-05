@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { chromium, type Browser } from "playwright";
 import { NodeRedEditor } from "@/sdk/test/client/e2e";
+import { FIXTURE_FLOW } from "./global-setup";
 
 // Per-port OUTPUT SCHEMA editor: a node that declares `outputSchemas` gets a
 // gated "Schema" column in the Outputs table. The button opens a Monaco (JSON)
@@ -33,8 +34,10 @@ describe("output schema editor (chromium)", () => {
     await editor.editNode("n5");
     const page = editor.page;
 
-    // Opted in → the Schema column header renders.
-    const th = page.locator("th.nrg-outputs-flag", { hasText: "Schema" });
+    // Opted in → the Schema column header renders in the Outputs table.
+    const th = page.locator("table.nrg-outputs th.nrg-outputs-flag", {
+      hasText: "Schema",
+    });
     await th.waitFor({ state: "visible", timeout: 10_000 });
     expect(await th.isVisible()).toBe(true);
 
@@ -67,5 +70,61 @@ describe("output schema editor (chromium)", () => {
     expect(await editorTray.textContent()).toContain("type");
 
     await editor.screenshot("chromium-output-schema-editor");
+  });
+
+  test("the input Schema button is gated on the input Validate Data toggle", async () => {
+    await editor.editNode("n5");
+    const page = editor.page;
+
+    const inBtn = page.locator('[aria-label="Schema — Input"]');
+    await inBtn.scrollIntoViewIfNeeded();
+    expect(await inBtn.isDisabled()).toBe(true);
+
+    // The input's Validate Data toggle has no port suffix (single input).
+    await page
+      .locator('label.nrg-toggle:has(input[aria-label="Validate Data"])')
+      .first()
+      .click();
+    await expect.poll(() => inBtn.isEnabled(), { timeout: 5_000 }).toBe(true);
+  });
+
+  test("saving the schema editor persists the schema to the node config", async () => {
+    await editor.editNode("n5");
+    const page = editor.page;
+
+    await page
+      .locator(
+        'label.nrg-toggle:has(input[aria-label="Validate Data — Output 0"])',
+      )
+      .click();
+    const btn0 = page.locator('[aria-label="Schema — Output 0"]');
+    await btn0.scrollIntoViewIfNeeded();
+    await btn0.click();
+
+    // Wait for the effective schema to load into Monaco, then save it. The tray's
+    // Done reads the editor value and writes it to config; the node's Done commits.
+    const editorTray = page.locator(".red-ui-tray").last();
+    const monaco = editorTray.locator(".monaco-editor");
+    await monaco.waitFor({ state: "visible", timeout: 10_000 });
+    await expect
+      .poll(() => monaco.textContent(), { timeout: 8_000 })
+      .toContain("type");
+    await editorTray.locator("#node-dialog-ok").click();
+    await editor.clickDone();
+
+    // The schema (its effective value) is committed to the node's config.
+    const saved = await page.evaluate(() => {
+      const n = (
+        globalThis as unknown as {
+          RED: { nodes: { node(id: string): Record<string, unknown> } };
+        }
+      ).RED.nodes.node("n5");
+      const os = n?.outputSchemas as Record<number, string> | undefined;
+      return os?.[0] ?? `MISSING keys=[${Object.keys(n ?? {}).join(",")}]`;
+    });
+    expect(saved).toContain("type");
+
+    // Restore the fixture flow so later runs start clean.
+    await editor.deployFlow(FIXTURE_FLOW);
   });
 });

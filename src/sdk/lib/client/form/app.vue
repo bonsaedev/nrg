@@ -1,5 +1,7 @@
 <template>
   <div class="nrg-form-app">
+    <!-- Vue-driven schema editor tray (renders into a RED tray on open()). -->
+    <NodeRedSchemaTray ref="schemaTray" />
     <!-- 1. Node fields (schema-driven, name first) -->
     <div style="width: 100%; padding-bottom: 12px">
       <NodeRedNodeForm
@@ -32,6 +34,9 @@
               <th class="nrg-outputs-flag">
                 {{ resolveLabel("toggles.validateInput", "Validate Data") }}
               </th>
+              <th v-if="acceptsInputSchema" class="nrg-outputs-flag">
+                {{ resolveLabel("outputs.schema", "Schema") }}
+              </th>
               <th
                 v-if="typeCheckEnabled && supportsInputTypeValidation"
                 class="nrg-outputs-flag"
@@ -57,6 +62,17 @@
                     }
                   "
                 />
+              </td>
+              <td v-if="acceptsInputSchema" class="nrg-outputs-flag">
+                <button
+                  type="button"
+                  class="red-ui-button red-ui-button-small nrg-outputs-schema-btn"
+                  :disabled="!localNode.validateInput"
+                  :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${inputLabel}`"
+                  @click="openInputSchemaEditor()"
+                >
+                  <i class="fa fa-code"></i>
+                </button>
               </td>
               <td
                 v-if="typeCheckEnabled && supportsInputTypeValidation"
@@ -522,6 +538,12 @@ export default defineComponent({
     authorOutputSchemaDefaults(): Record<number, string> {
       return this.schema?.properties?.outputSchemas?.default ?? {};
     },
+    /** Whether this node accepts an input DATA-VALIDATION schema override — true
+     * when its config schema declares `inputSchema`. Renders the input Schema
+     * button (enabled when the input's Validate Data toggle is on). */
+    acceptsInputSchema(): boolean {
+      return this.schema?.properties?.inputSchema !== undefined;
+    },
     hasErrorPort(): boolean {
       return this.schema?.properties?.errorPort !== undefined;
     },
@@ -803,46 +825,47 @@ export default defineComponent({
     },
     /** Open a Monaco (JSON) tray to edit this port's validation schema, seeded
      * from the effective value and saved back to config on Done. */
+    /** The Vue schema-editor tray component (globally registered), typed. */
+    schemaTrayRef(): {
+      open(title: string, value: string, onSave: (value: string) => void): void;
+    } {
+      return this.$refs.schemaTray as {
+        open(
+          title: string,
+          value: string,
+          onSave: (value: string) => void,
+        ): void;
+      };
+    },
     openOutputSchemaEditor(index: number) {
-      const editorId = `nrg-output-schema-editor-${index}`;
-      let editor: { getValue(): string; destroy(): void } | undefined;
-      RED.tray.show({
-        title: `${this.resolveLabel("outputs.schema", "Schema")} — ${
-          this.outputRows[index]?.label ?? `Output ${index}`
-        }`,
-        width: "Infinity",
-        buttons: [
-          {
-            id: "node-dialog-cancel",
-            text: RED._("common.label.cancel"),
-            click: () => RED.tray.close(),
-          },
-          {
-            id: "node-dialog-ok",
-            text: RED._("common.label.done"),
-            class: "primary",
-            click: () => {
-              if (editor) this.setOutputSchema(index, editor.getValue());
-              RED.tray.close();
-            },
-          },
-        ],
-        open: (tray: JQuery) => {
-          const form = $(
-            '<form id="nrg-schema-dialog-form" class="form-horizontal" autocomplete="off"></form>',
-          ).appendTo(tray.find(".red-ui-tray-body"));
-          form.html(`<div id="${editorId}" style="height: 100%"></div>`);
-          editor = RED.editor.createEditor({
-            id: editorId,
-            mode: "json",
-            value: this.outputSchemaFor(index),
-          });
-          form.i18n();
-        },
-        close: () => {
-          editor?.destroy();
-        },
-      });
+      const title = `${this.resolveLabel("outputs.schema", "Schema")} — ${
+        this.outputRows[index]?.label ?? `Output ${index}`
+      }`;
+      this.schemaTrayRef().open(title, this.outputSchemaFor(index), (value) =>
+        this.setOutputSchema(index, value),
+      );
+    },
+    /** The effective input schema string: the flow-author override, else the
+     * author default, else empty. */
+    inputSchemaValue(): string {
+      return (
+        this.localNode.inputSchema ??
+        this.schema?.properties?.inputSchema?.default ??
+        ""
+      );
+    },
+    setInputSchema(value: string) {
+      this.localNode.inputSchema = value.trim();
+    },
+    /** Open a Monaco (JSON) tray to edit the input's validation schema, seeded
+     * from the effective value and saved back to config on Done. */
+    openInputSchemaEditor() {
+      const title = `${this.resolveLabel("outputs.schema", "Schema")} — ${
+        this.inputLabel
+      }`;
+      this.schemaTrayRef().open(title, this.inputSchemaValue(), (value) =>
+        this.setInputSchema(value),
+      );
     },
   },
 });

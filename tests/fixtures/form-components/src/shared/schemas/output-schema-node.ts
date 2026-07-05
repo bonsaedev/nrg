@@ -7,6 +7,9 @@ import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
+    inputSchema: SchemaType.InputSchema({
+      default: '{ "type": "object" }',
+    }),
     outputSchemas: SchemaType.OutputSchemas({
       default: { 0: '{ "type": "object" }' },
     }),
