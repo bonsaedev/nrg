@@ -182,6 +182,34 @@ describe("packageJsonGenerator plugin", () => {
     expect(resolveId("/absolute/path", "/some/importer.ts")).toBeNull();
   });
 
+  it("resolveId defers the internal @/ source alias (bundled, never external)", () => {
+    // `@/schemas/*` is wired via resolve.alias to the consumer's shared sources
+    // and must be bundled IN — externalizing here would leave a raw `@/schemas`
+    // import in the emitted bundle.
+    const plugin = packageJsonGenerator({ outDir: tmpDir });
+    const resolveId = (plugin.resolveId as any).handler;
+    expect(resolveId("@/schemas/example", "/some/importer.ts")).toBeNull();
+  });
+
+  it("resolveId defers Windows-absolute paths from the resolved @/ alias", () => {
+    // @rollup/plugin-alias rewrites `@/schemas/*` to an absolute path and
+    // re-runs resolution through this pre hook. On Windows that path starts with
+    // a drive letter, not `/` — it must still be deferred (bundled), or a raw
+    // `C:\…` import survives and Node's ESM loader rejects it at load time
+    // (ERR_UNSUPPORTED_ESM_URL_SCHEME, "protocol 'c:'").
+    const plugin = packageJsonGenerator({ outDir: tmpDir });
+    const resolveId = (plugin.resolveId as any).handler;
+    expect(
+      resolveId("C:\\proj\\src\\shared\\schemas\\example", "C:\\proj\\a.ts"),
+    ).toBeNull();
+    expect(
+      resolveId("C:/proj/src/shared/schemas/example", "C:/proj/a.ts"),
+    ).toBeNull();
+    expect(
+      resolveId("d:\\proj\\src\\shared\\schemas\\example", "d:\\proj\\a.ts"),
+    ).toBeNull();
+  });
+
   it("resolveId returns null for bundled packages", () => {
     const plugin = packageJsonGenerator({
       outDir: tmpDir,

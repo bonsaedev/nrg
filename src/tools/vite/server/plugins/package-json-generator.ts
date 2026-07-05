@@ -119,10 +119,19 @@ function packageJsonGenerator(options: {
         // internal alias. Let the default/alias resolution handle (and bundle)
         // them; externalizing here would leave a raw `@/schemas/...` specifier
         // in the emitted bundle, since this pre-order hook runs before the alias.
+        //
+        // `@rollup/plugin-alias` rewrites `@/schemas/*` to an ABSOLUTE path and
+        // re-runs resolution through this pre hook. On POSIX that path starts
+        // with `/` (covered below); on Windows it starts with a drive letter
+        // (`C:\…` / `C:/…`), which `startsWith("/")` misses — so match that form
+        // too. Otherwise the resolved schema module is externalized and a raw
+        // `C:\…` import survives in the bundle, which Node's ESM loader rejects
+        // at load time (ERR_UNSUPPORTED_ESM_URL_SCHEME, "protocol 'c:'").
         if (
           !importer ||
           source.startsWith(".") ||
           source.startsWith("/") ||
+          /^[A-Za-z]:[\\/]/.test(source) ||
           source.startsWith("@/")
         ) {
           return null;
