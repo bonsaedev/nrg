@@ -1,6 +1,6 @@
 import { Kind, type TSchema, type Schema } from "../../shared/schemas";
 import type { RED, NodeRedNode } from "../red";
-import { Node } from "./node";
+import { Node, lockField } from "./node";
 import { NrgError } from "../../shared/errors";
 import type {
   HexColor,
@@ -12,7 +12,7 @@ import type {
   IONodeCredentials,
 } from "./types";
 import { setupContext } from "./context";
-import { NRG_WIRE_HANDLERS } from "./symbols";
+import { NRG_SETUP_INPUT_HANDLER } from "./symbols";
 import type { OutputPortNames } from "../schemas/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 
@@ -187,7 +187,7 @@ abstract class IONode<
   static readonly #invocation = new AsyncLocalStorage<InputInvocation>();
 
   declare public readonly config: IONodeConfig<TConfig>;
-  protected override readonly context: IONodeContext;
+  declare protected readonly context: IONodeContext;
 
   constructor(
     RED: RED,
@@ -208,11 +208,15 @@ abstract class IONode<
       return setupContext(target, store);
     };
 
-    this.context = Object.assign(resolve, {
-      node: setupContext(context),
-      flow: setupContext(context.flow),
-      global: setupContext(context.global),
-    });
+    lockField(
+      this,
+      "context",
+      Object.assign(resolve, {
+        node: setupContext(context),
+        flow: setupContext(context.flow),
+        global: setupContext(context.global),
+      }),
+    );
 
     // Validate any per-port return keys up front.
     const outputReturnProperties = this.config.outputReturnProperties;
@@ -232,11 +236,9 @@ abstract class IONode<
     }
   }
 
-  override [NRG_WIRE_HANDLERS](createdPromise: Promise<void>) {
-    super[NRG_WIRE_HANDLERS](createdPromise);
-
-    const NC = this.constructor as typeof IONode;
-
+  // Wires the `input` handler (IONode only). The base Node wires `close`
+  // separately (NRG_SETUP_CLOSE_HANDLER); the registrar invokes both.
+  [NRG_SETUP_INPUT_HANDLER](createdPromise: Promise<void>) {
     this.node.on(
       "input",
       async (
@@ -347,14 +349,14 @@ abstract class IONode<
     const shouldValidateInput =
       this.config.validateInput ?? NodeClass.validateInput;
     if (shouldValidateInput && NodeClass.inputSchema) {
-      this.log("Validating input");
+      this.node.log("Validating input");
       this.RED.validator.validate(msg, NodeClass.inputSchema, {
         // Pure predicate: never coerce or inject defaults into the live msg that
         // continues downstream.
         mutate: false,
         throwOnError: true,
       });
-      this.log("Input is valid");
+      this.node.log("Input is valid");
     }
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
@@ -374,9 +376,9 @@ abstract class IONode<
     // per port). A single-output node always treats the argument as the value
     // (arrays included) — hence the `baseOutputs > 1` guard, which keeps a
     // single-output `send([a, b])` meaning "the value at port 0 is [a, b]".
-    const multi = this.baseOutputs > 1 && Array.isArray(msg);
+    const multi = this.#baseOutputs > 1 && Array.isArray(msg);
     const values = multi
-      ? (msg as unknown[]).slice(0, this.baseOutputs)
+      ? (msg as unknown[]).slice(0, this.#baseOutputs)
       : [msg];
 
     const out = values.map((m, port) => {
@@ -417,13 +419,13 @@ abstract class IONode<
 
     const schema = this.#outputSchemaForPort(port);
     if (!schema) return;
-    this.log("Validating output");
+    this.node.log("Validating output");
     this.RED.validator.validate(value, schema, {
       // Pure predicate: don't coerce or default the outgoing value.
       mutate: false,
       throwOnError: true,
     });
-    this.log("Output is valid");
+    this.node.log("Output is valid");
   }
 
   /** Resolves the output schema for a base-output port: array → `[port]`,
@@ -491,16 +493,27 @@ abstract class IONode<
 
   // --- Built-in port management ---
 
-  public get baseOutputs(): number {
+  // Private, override-proof accessors the framework reads for port routing. A
+  // consumer field named `baseOutputs`/`totalOutputs` shadows the PUBLIC getters
+  // below (self-inflicted), but never these `#` ones the framework relies on.
+  get #baseOutputs(): number {
     return (this.constructor as typeof IONode).outputs ?? 0;
   }
 
-  public get totalOutputs(): number {
-    let count = this.baseOutputs;
+  get #totalOutputs(): number {
+    let count = this.#baseOutputs;
     if (this.config.errorPort) count++;
     if (this.config.completePort) count++;
     if (this.config.statusPort) count++;
     return count;
+  }
+
+  public get baseOutputs(): number {
+    return this.#baseOutputs;
+  }
+
+  public get totalOutputs(): number {
+    return this.#totalOutputs;
   }
 
   /**
@@ -559,7 +572,7 @@ abstract class IONode<
         throw new NrgError(`Unknown output port "${port}".`);
       }
     }
-    const out = new Array(this.totalOutputs);
+    const out = new Array(this.#totalOutputs);
     out[portIndex] = msg;
     this.node.send(out);
   }
@@ -581,9 +594,9 @@ abstract class IONode<
 
   #getBuiltinPortIndex(name: "error" | "complete" | "status"): number | null {
     if (name === "error") {
-      return this.config.errorPort ? this.baseOutputs : null;
+      return this.config.errorPort ? this.#baseOutputs : null;
     }
-    let idx = this.baseOutputs;
+    let idx = this.#baseOutputs;
     if (this.config.errorPort) idx++;
     if (name === "complete") {
       return this.config.completePort ? idx : null;
@@ -594,9 +607,9 @@ abstract class IONode<
 
   #nodeSource() {
     return {
-      id: this.id,
+      id: this.node.id,
       type: (this.constructor as typeof IONode).type,
-      name: this.name,
+      name: this.node.name,
     };
   }
 

@@ -1,6 +1,24 @@
-/** Symbol for the internal wireHandlers template method. Not exported from public API.
- * Uses Symbol.for() so the symbol is shared across separate bundles (server + test). */
-export const NRG_WIRE_HANDLERS = Symbol.for("nrg.wireHandlers");
+/**
+ * Symbols for the internal per-kind Node-RED handler setup. Not exported from the
+ * public API. These are symbols (rather than `#` private methods) for the ONE thing
+ * `#` can't do here: be invoked across module boundaries — the registrar's static
+ * context and the test harness both call them. `Symbol.for()` keeps them the same
+ * across the server + test bundle split.
+ *
+ * The base `Node` sets up the `close` handler (every node kind); `IONode` adds the
+ * `input` handler. They're split into two symbols so each takes only what it needs:
+ * `close` needs nothing, `input` needs the post-construction `createdPromise`.
+ */
+export const NRG_SETUP_CLOSE_HANDLER = Symbol.for("nrg.setupCloseHandler");
+export const NRG_SETUP_INPUT_HANDLER = Symbol.for("nrg.setupInputHandler");
+
+/**
+ * Shape of a node that wires an `input` handler (IONode). A plain `Node`/`ConfigNode`
+ * has none, so the registrar and test harness optional-dispatch it via this type.
+ */
+export interface InputWireable {
+  [NRG_SETUP_INPUT_HANDLER]?(createdPromise: Promise<void>): void;
+}
 
 /**
  * Runtime NRG-node brand: stamped on the base `Node` class (`static [NRG_NODE] =

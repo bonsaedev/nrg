@@ -10,7 +10,10 @@ import { Node } from "@/sdk/lib/server/nodes/node";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { initValidator } from "@/sdk/lib/server/validation";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
+import {
+  NRG_SETUP_CLOSE_HANDLER,
+  NRG_SETUP_INPUT_HANDLER,
+} from "@/sdk/lib/server/nodes/symbols";
 
 describe("defineIONode", () => {
   it("should create a class with the correct static type", () => {
@@ -130,7 +133,8 @@ describe("defineIONode", () => {
 
     // Wire up handlers and trigger input event
     const createdPromise = Promise.resolve();
-    instance[NRG_WIRE_HANDLERS](node, createdPromise);
+    instance[NRG_SETUP_CLOSE_HANDLER]();
+    instance[NRG_SETUP_INPUT_HANDLER](createdPromise);
 
     const send = vi.fn();
     const done = vi.fn();

@@ -3,7 +3,7 @@ import { Node } from "@/sdk/lib/server/nodes/node";
 import { initValidator } from "@/sdk/lib/server/validation";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
+import { NRG_SETUP_CLOSE_HANDLER } from "@/sdk/lib/server/nodes/symbols";
 
 class ConcreteNode extends Node {
   static override readonly type = "test-node";
@@ -34,6 +34,27 @@ describe("Node", () => {
       expect(() => {
         instance.config.name = "changed";
       }).toThrow();
+    });
+
+    it("locks RED/node/config so consumer code cannot reassign or redefine them", () => {
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new ConcreteNode(RED, node, { name: "test" }, {});
+
+      // Non-writable — a consumer reassignment throws.
+      expect(() => Object.assign(instance, { RED: {} })).toThrow(TypeError);
+      expect(() => Object.assign(instance, { node: {} })).toThrow(TypeError);
+      expect(() => Object.assign(instance, { config: {} })).toThrow(TypeError);
+
+      // Non-configurable — can't be redefined, so a subclass can't override it
+      // with its own field or getter.
+      expect(() => {
+        Object.defineProperty(instance, "config", {
+          value: {},
+          configurable: true,
+        });
+      }).toThrow(TypeError);
     });
 
     it("should validate config when configSchema is defined", () => {
@@ -161,14 +182,49 @@ describe("Node", () => {
       const fn = vi.fn();
 
       // Wire up close handler via the template method
-      const createdPromise = Promise.resolve();
-      instance[NRG_WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_SETUP_CLOSE_HANDLER]();
 
       instance.setTimeout(fn, 1000);
       instance.setInterval(fn, 1000);
 
       const done = vi.fn();
       await node.emit("close", false, done);
+      vi.advanceTimersByTime(2000);
+      expect(fn).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    it("clears timers on close even when a consumer overrides log() to throw", async () => {
+      // Encapsulation guard: the framework's close/cleanup path logs via the raw
+      // `this.node.log`, NOT the public, consumer-overridable `this.log`. A
+      // subclass that throws from its own `log()` must not be able to abort
+      // `#closed` and leak the node's timers/intervals.
+      class LeakyLog extends Node {
+        static override readonly type = "leaky-log-node";
+        static override readonly category = "function";
+        override log(): void {
+          throw new Error("consumer log sink unavailable");
+        }
+      }
+
+      vi.useFakeTimers();
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new LeakyLog(RED, node, {}, {});
+      const fn = vi.fn();
+
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance.setTimeout(fn, 1000);
+      instance.setInterval(fn, 1000);
+
+      const done = vi.fn();
+      await node.emit("close", false, done);
+
+      // close completed cleanly (done called with no error) despite the throwing
+      // override, and the timers were still cleared.
+      expect(done).toHaveBeenCalledWith();
       vi.advanceTimersByTime(2000);
       expect(fn).not.toHaveBeenCalled();
 

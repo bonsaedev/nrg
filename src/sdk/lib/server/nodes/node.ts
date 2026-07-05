@@ -11,11 +11,31 @@ import type {
 } from "./types";
 import { setupConfigProxy } from "./proxy";
 import { getCredentialsFromSchema } from "../../shared/schemas/utils";
-import { NRG_WIRE_HANDLERS, NRG_NODE } from "./symbols";
+import {
+  NRG_SETUP_CLOSE_HANDLER,
+  NRG_SETUP_INPUT_HANDLER,
+  NRG_NODE,
+  type InputWireable,
+} from "./symbols";
 import { NrgError } from "../../shared/errors";
 
 /** Module-scoped cache for validated settings, keyed by constructor. */
 const cachedSettingsMap = new WeakMap<typeof Node, unknown>();
+
+/**
+ * Define `key` on `obj` as a read-only, non-configurable OWN property. Consumer
+ * subclasses then can't reassign it (throws), re-declare it as a field (throws),
+ * or override it with a getter (the own property shadows the prototype accessor).
+ * Used for the framework-owned node state (RED / node / context / config).
+ */
+function lockField(obj: object, key: string, value: unknown): void {
+  Object.defineProperty(obj, key, {
+    value,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  });
+}
 
 /**
  * Abstract base class for all NRG nodes. Provides lifecycle hooks, config
@@ -149,7 +169,9 @@ abstract class Node<
           this.status({ fill: "red", shape: "ring", text: "created() failed" });
         });
 
-        node[NRG_WIRE_HANDLERS](createdPromise);
+        node[NRG_SETUP_CLOSE_HANDLER]();
+        // Only IONode wires an input handler; a plain Node/ConfigNode has none.
+        (node as InputWireable)[NRG_SETUP_INPUT_HANDLER]?.(createdPromise);
       },
       {
         credentials: NodeClass.credentialsSchema
@@ -175,13 +197,13 @@ abstract class Node<
     }
   }
 
-  protected readonly RED: RED;
-  protected readonly node: NodeRedNode;
+  protected readonly RED!: RED;
+  protected readonly node!: NodeRedNode;
   protected readonly context!: ConfigNodeContext | IONodeContext;
   public readonly config!: NodeConfig<TConfig>;
 
-  private readonly timers = new Set<NodeJS.Timeout>();
-  private readonly intervals = new Set<NodeJS.Timeout>();
+  readonly #timers = new Set<NodeJS.Timeout>();
+  readonly #intervals = new Set<NodeJS.Timeout>();
 
   constructor(
     RED: RED,
@@ -189,12 +211,16 @@ abstract class Node<
     config: NodeConfig<TConfig>,
     credentials: NodeCredentials<TCredentials>,
   ) {
-    this.RED = RED;
-    this.node = node;
+    // Framework state — locked as non-writable/non-configurable OWN properties so
+    // consumer subclasses can neither reassign nor override them (a re-declared
+    // field throws; an overriding getter is shadowed by the own property). See
+    // `_node` above for the same guard on the Node-RED side.
+    lockField(this, "RED", RED);
+    lockField(this, "node", node);
 
     const constructor = this.constructor as typeof Node;
     if (constructor.configSchema) {
-      this.log("Validating configs");
+      this.node.log("Validating configs");
       const configResult = this.RED.validator.validate(
         config,
         constructor.configSchema,
@@ -205,20 +231,24 @@ abstract class Node<
         },
       );
       if (!configResult.valid && configResult.errors?.length) {
-        this.warn(
+        this.node.warn(
           `Config validation errors: ${configResult.errors.map((e) => `${e.instancePath} ${e.message}`).join("; ")}`,
         );
       }
     }
-    (this as any).config = setupConfigProxy({
-      RED,
-      node,
-      config,
-      schema: constructor.configSchema,
-    });
+    lockField(
+      this,
+      "config",
+      setupConfigProxy({
+        RED,
+        node,
+        config,
+        schema: constructor.configSchema,
+      }),
+    );
 
     if (constructor.credentialsSchema && credentials) {
-      this.log("Validating credentials");
+      this.node.log("Validating credentials");
       const credResult = this.RED.validator.validate(
         credentials,
         constructor.credentialsSchema,
@@ -227,32 +257,31 @@ abstract class Node<
         },
       );
       if (!credResult.valid && credResult.errors?.length) {
-        this.warn(
+        this.node.warn(
           `Credentials validation errors: ${credResult.errors.map((e) => `${e.instancePath} ${e.message}`).join("; ")}`,
         );
       }
     }
   }
 
-  // Wires the `close` handler common to every node kind. `createdPromise` is
-  // unused here — only IONode's `input` handler awaits it — but stays in the
-  // shared signature so the polymorphic call site and IONode's `super` call
-  // type-check against the base `Node` method.
-  [NRG_WIRE_HANDLERS](createdPromise: Promise<void>) {
+  // Wires the `close` handler, common to every node kind. IONode adds the `input`
+  // handler separately (NRG_SETUP_INPUT_HANDLER), so this setup carries none of the
+  // input-only `createdPromise`.
+  [NRG_SETUP_CLOSE_HANDLER]() {
     this.node.on(
       "close",
       async (removed: boolean, done: (err?: Error) => void) => {
         try {
-          this.log("Calling closed");
+          this.node.log("Calling closed");
           await this.#closed(removed);
-          this.log("Node was closed");
+          this.node.log("Node was closed");
           done();
         } catch (error) {
           if (error instanceof Error) {
-            this.error("Error while closing node: " + error.message);
+            this.node.error("Error while closing node: " + error.message);
             done(error);
           } else {
-            this.error("Unknown error occurred while closing node");
+            this.node.error("Unknown error occurred while closing node");
             done(new Error("Unknown error occurred while closing node"));
           }
         }
@@ -264,12 +293,12 @@ abstract class Node<
     try {
       await Promise.resolve(this.closed?.(removed));
     } finally {
-      this.log("clearing timers and intervals");
-      this.timers.forEach((t) => clearTimeout(t));
-      this.intervals.forEach((i) => clearInterval(i));
-      this.timers.clear();
-      this.intervals.clear();
-      this.log("timers and intervals cleared");
+      this.node.log("clearing timers and intervals");
+      this.#timers.forEach((t) => clearTimeout(t));
+      this.#intervals.forEach((i) => clearInterval(i));
+      this.#timers.clear();
+      this.#intervals.clear();
+      this.node.log("timers and intervals cleared");
     }
   }
 
@@ -280,27 +309,27 @@ abstract class Node<
 
   public setTimeout(fn: () => void, ms: number): NodeJS.Timeout {
     const timer = setTimeout(() => {
-      this.timers.delete(timer);
+      this.#timers.delete(timer);
       fn();
     }, ms);
-    this.timers.add(timer);
+    this.#timers.add(timer);
     return timer;
   }
 
   public setInterval(fn: () => void, ms: number): NodeJS.Timeout {
     const interval = setInterval(fn, ms);
-    this.intervals.add(interval);
+    this.#intervals.add(interval);
     return interval;
   }
 
   public clearTimeout(timer: NodeJS.Timeout): void {
     clearTimeout(timer);
-    this.timers.delete(timer);
+    this.#timers.delete(timer);
   }
 
   public clearInterval(interval: NodeJS.Timeout): void {
     clearInterval(interval);
-    this.intervals.delete(interval);
+    this.#intervals.delete(interval);
   }
 
   public created?(): void | Promise<void>;
@@ -346,4 +375,4 @@ abstract class Node<
   }
 }
 
-export { Node };
+export { Node, lockField };

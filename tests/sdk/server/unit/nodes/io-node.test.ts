@@ -3,7 +3,10 @@ import { IONode } from "@/sdk/lib/server/nodes/io-node";
 import { initValidator } from "@/sdk/lib/server/validation";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
+import {
+  NRG_SETUP_CLOSE_HANDLER,
+  NRG_SETUP_INPUT_HANDLER,
+} from "@/sdk/lib/server/nodes/symbols";
 
 class TestIONode extends IONode {
   static override readonly type = "test-io-node";
@@ -116,7 +119,8 @@ describe("IONode", () => {
 
       // Wire up event handlers
       const createdPromise = Promise.resolve();
-      instance[NRG_WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();
@@ -147,7 +151,8 @@ describe("IONode", () => {
       const instance = new ValidatedIONode(RED, node, {}, {});
 
       const createdPromise = Promise.resolve();
-      instance[NRG_WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();
@@ -179,7 +184,8 @@ describe("IONode", () => {
       const instance = new NoValidateIONode(RED, node, {}, {});
 
       const createdPromise = Promise.resolve();
-      instance[NRG_WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();
@@ -207,7 +213,8 @@ describe("IONode", () => {
 
       const instance = new SendingNode(RED, node, {}, {});
       const createdPromise = Promise.resolve();
-      instance[NRG_WIRE_HANDLERS](node, createdPromise);
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](createdPromise);
 
       const send = vi.fn();
       const done = vi.fn();

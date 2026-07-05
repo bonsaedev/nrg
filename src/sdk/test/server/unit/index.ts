@@ -4,7 +4,11 @@ import { initValidator } from "@/sdk/lib/server/validation";
 import type { NodeRedNode } from "@/sdk/lib/server/red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
-import { NRG_WIRE_HANDLERS } from "@/sdk/lib/server/nodes/symbols";
+import {
+  NRG_SETUP_CLOSE_HANDLER,
+  NRG_SETUP_INPUT_HANDLER,
+  type InputWireable,
+} from "@/sdk/lib/server/nodes/symbols";
 import type { NodeContextStore } from "@/sdk/lib/server/nodes/types/node";
 import type {
   ErrorPortOutput as CoreErrorPortOutput,
@@ -192,7 +196,10 @@ function attachHelpers<T>(
     statusCalls.push(status);
   });
 
-  const helpers: TestNodeHelpers = {
+  // `context` is intentionally omitted — it's a locked, readable own property on
+  // the node itself (see `lockField`), so it stays intact through Object.assign
+  // (which can't write it) and is already exposed on the returned node.
+  const helpers: Omit<TestNodeHelpers, "context"> = {
     async receive(msg: any): Promise<void> {
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
@@ -263,9 +270,6 @@ function attachHelpers<T>(
     errored() {
       return nodeRedNode.error.mock.calls.map((c: any[]) => c[0]);
     },
-    // expose the node's own (already promise-wrapped) context stores; the
-    // node keeps using the same object internally, callable form included
-    context: (node as unknown as { context: TestNodeContext }).context,
   };
 
   return Object.assign(node as any, helpers);
@@ -366,7 +370,8 @@ async function createNode<T extends NodeClass>(
   // surfaced as the result's `error` (production defers it to the first input,
   // where the wire handler surfaces it through `done(err)`).
   const createdPromise = Promise.resolve(node.created?.());
-  node[NRG_WIRE_HANDLERS](createdPromise);
+  node[NRG_SETUP_CLOSE_HANDLER]();
+  (node as InputWireable)[NRG_SETUP_INPUT_HANDLER]?.(createdPromise);
   let error: unknown;
   await createdPromise.catch((err) => {
     error = err;

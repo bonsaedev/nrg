@@ -1,5 +1,5 @@
 import type { RED, NodeRedNode } from "../red";
-import { Node } from "./node";
+import { Node, lockField } from "./node";
 import { NRG_CONFIG_NODE } from "./symbols";
 import type {
   ConfigNodeConfig,
@@ -42,7 +42,7 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
   // guard a JS author gets. See NRG_CONFIG_NODE in ./symbols.
   public readonly [NRG_CONFIG_NODE] = true;
 
-  protected override readonly context: ConfigNodeContext;
+  declare protected readonly context: ConfigNodeContext;
 
   constructor(
     RED: RED,
@@ -58,10 +58,14 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
       return setupContext(target, store);
     };
 
-    this.context = Object.assign(resolve, {
-      node: setupContext(context),
-      global: setupContext(context.global),
-    });
+    lockField(
+      this,
+      "context",
+      Object.assign(resolve, {
+        node: setupContext(context),
+        global: setupContext(context.global),
+      }),
+    );
   }
 
   get userIds(): string[] {
