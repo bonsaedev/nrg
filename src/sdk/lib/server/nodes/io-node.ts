@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import { setupContext } from "./context";
 import { NRG_SETUP_INPUT_HANDLER } from "./symbols";
-import type { OutputPortNames } from "../schemas/types";
+import type { OutputPortNames, PortValue } from "../schemas/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Per-`input()`-invocation context — see `IONode.#invocation`. */
@@ -528,7 +528,7 @@ abstract class IONode<
    */
   public sendToPort<P extends OutputPortNames<TOutput> | number>(
     port: P,
-    msg: P extends keyof TOutput ? TOutput[P] : unknown,
+    msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
   ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(

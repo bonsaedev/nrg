@@ -773,12 +773,37 @@ function renderRole(
   return role;
 }
 
-/** The brand property nrg stamps on a named-port output type (see schemas/types). */
+/** The brand property on a legacy named-port output type (`Infer<record>`). */
 const NAMED_PORTS_BRAND = "__nrg_named_ports";
+/** The brand property on a `Port<T>` value (see schemas/types). */
+const PORT_BRAND = "__nrg_port";
 
 /** True when a type is a tuple (positional multi-output). */
 function isTupleType(checker: ts.TypeChecker, type: ts.Type): boolean {
   return typeof checker.isTupleType === "function" && checker.isTupleType(type);
+}
+
+/** The message type inside a `Port<T>`, or undefined when `type` is not a Port. */
+function portInner(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+): ts.Type | undefined {
+  const brand = checker.getPropertyOfType(type, PORT_BRAND);
+  return brand ? checker.getTypeOfSymbol(brand) : undefined;
+}
+
+/**
+ * True when a type is a record whose every value is a `Port` — i.e. named
+ * ports. A tuple and a bare `Port<T>` (one port) are deliberately excluded, as
+ * is a plain object (one object port).
+ */
+function isPortRecord(checker: ts.TypeChecker, type: ts.Type): boolean {
+  if (isTupleType(checker, type) || portInner(checker, type)) return false;
+  const props = checker.getPropertiesOfType(type);
+  return (
+    props.length > 0 &&
+    props.every((p) => portInner(checker, checker.getTypeOfSymbol(p)))
+  );
 }
 
 /**
@@ -792,16 +817,21 @@ function outputPortKind(
   outputType: ts.Type,
 ): "single" | "tuple" | "named" {
   if (isTupleType(checker, outputType)) return "tuple";
-  if (checker.getPropertyOfType(outputType, NAMED_PORTS_BRAND)) return "named";
+  if (
+    checker.getPropertyOfType(outputType, NAMED_PORTS_BRAND) ||
+    isPortRecord(checker, outputType)
+  )
+    return "named";
   return "single";
 }
 
 /**
  * Resolve an `Output` type to its ports, shape-aware:
  * - positional tuple `[A, B]` → one port per element;
- * - named-port record `{ success, failure } & NamedPortsBrand` → one per name
- *   (the brand property is dropped);
- * - a single object → one port.
+ * - named-port record `{ ok: Port<A>; err: Port<B> }` (or legacy
+ *   `{ … } & NamedPortsBrand`) → one port per name;
+ * - a single object / bare `Port<A>` → one port.
+ * `Port<T>` values are unwrapped to their inner `T` wherever they appear.
  * Returns `undefined` when the output carries nothing to document (any/void).
  */
 function extractOutputs(
@@ -813,9 +843,11 @@ function extractOutputs(
 ): NodeOutputPort[] | undefined {
   if (isVacuous(checker, outputType)) return undefined;
 
+  // A port value may be wrapped in `Port<T>`; render the inner `T`.
+  const value = (type: ts.Type): ts.Type => portInner(checker, type) ?? type;
   const portRole = (type: ts.Type): NodeRoleType =>
-    renderRole(checker, type, at, imports, ctx) ?? {
-      text: render(checker, type, at),
+    renderRole(checker, value(type), at, imports, ctx) ?? {
+      text: render(checker, value(type), at),
       fields: [],
     };
 
@@ -833,6 +865,14 @@ function extractOutputs(
         index,
         role: portRole(checker.getTypeOfSymbolAtLocation(p, at)),
       }));
+  }
+
+  if (isPortRecord(checker, outputType)) {
+    return checker.getPropertiesOfType(outputType).map((p, index) => ({
+      name: p.getName(),
+      index,
+      role: portRole(checker.getTypeOfSymbolAtLocation(p, at)),
+    }));
   }
 
   return [{ index: 0, role: portRole(outputType) }];

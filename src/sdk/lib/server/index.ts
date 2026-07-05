@@ -15,10 +15,11 @@ export type { RED, NodeRedRuntimeSettings } from "./red";
 // The schema builders (`SchemaType`, `defineSchema`) and plane-neutral schema
 // types (`Schema`, `TNodeRef`, `TTypedInput`) come from `@bonsae/nrg/schema` —
 // not re-exported here, so the schema/server boundary stays structural (you
-// can't pull a builder through the node runtime entry). Only `Infer` stays —
-// the server-plane resolution type (NodeRef → node instance, TypedInput →
-// `TypedInput<T>` wrapper).
-export type { Infer } from "./schemas/types";
+// can't pull a builder through the node runtime entry). `Infer` stays — the
+// server-plane resolution type (NodeRef → node instance, TypedInput →
+// `TypedInput<T>` wrapper) — as does `Port`, the per-port marker for declaring
+// named/typed output ports directly in the `Output` generic.
+export type { Infer, Port } from "./schemas/types";
 
 // The built-in lifecycle port message shapes, public so a generated package
 // `index.d.ts` can reference them in its `NodeTypes` registry.

@@ -179,6 +179,32 @@ describe("extractNodeTypes — class API", () => {
     expect(names).not.toContain("__nrg_named_ports");
   });
 
+  it("reads a record of Port<T> in the Output generic as named ports", () => {
+    // Topology from the generic, no schema anywhere — a record whose values are
+    // Ports is read as named ports, and each Port is unwrapped to its message
+    // type. A plain object (values NOT Ports) stays a single object port.
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      import type { Port } from "@bonsae/nrg/server";
+      type Output = {
+        success: Port<{ payload: string }>;
+        failure: Port<{ error: string }>;
+      };
+      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
+        static readonly type = "my-node";
+      }
+    `);
+    const names = node.outputs?.map((o) => o.name);
+    expect(names).toContain("success");
+    expect(names).toContain("failure");
+    const success = node.outputs?.find((o) => o.name === "success");
+    // Port<{ payload }> unwraps to the message type
+    expect(success?.role.fields.find((f) => f.name === "payload")?.type).toBe(
+      "string",
+    );
+    expect(names).not.toContain("__nrg_port");
+  });
+
   it("omits outputs when the Output type is absent (any)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";

@@ -62,16 +62,47 @@ interface NamedPortsBrand {
 type IsAny<T> = 0 extends 1 & T ? true : false;
 
 /**
+ * A single output PORT carrying a message of type `T`. Type-only marker (a
+ * phantom brand — never present at runtime). A `Record` whose values are all
+ * `Port`s is read as NAMED ports (topology + names), which disambiguates it from
+ * a plain object type (which is ONE object port) — the ambiguity that means a
+ * bare `{ a; b }` can't declare two ports. Composes with `Infer` for a
+ * schema-typed port: `Port<Infer<typeof schema>>`.
+ *
+ * @example
+ * class CsvParse extends IONode<Config, never, In,
+ *   { rows: Port<Row[]>; failed: Port<{ line: number; reason: string }> }> {
+ *   async input(msg: In) { this.sendToPort("rows", parse(msg.payload)); } // "rows" | "failed" checked
+ * }
+ */
+interface Port<T> {
+  readonly __nrg_port: T;
+}
+
+/** Unwrap a {@link Port} to its message type; pass a non-Port through unchanged. */
+type PortValue<P> = P extends Port<infer U> ? U : P;
+
+/** True when every value of a record is a {@link Port} (→ named ports). */
+type IsPortRecord<TOutput> = [keyof TOutput] extends [never]
+  ? false
+  : TOutput[keyof TOutput] extends Port<any>
+    ? true
+    : false;
+
+/**
  * The addressable named-port keys of an output type: the record's port names
- * when `TOutput` carries {@link NamedPortsBrand}; `string` when it's `any`; else
- * `never` (a single object output, a tuple, or no outputs has no named ports).
+ * when its values are {@link Port}s (or it carries the legacy
+ * {@link NamedPortsBrand}); `string` when it's `any`; else `never` (a single
+ * object output, a single `Port`, a tuple, or no outputs has no named ports).
  */
 type OutputPortNames<TOutput> =
   IsAny<TOutput> extends true
     ? string
     : TOutput extends NamedPortsBrand
       ? Exclude<keyof TOutput, keyof NamedPortsBrand> & string
-      : never;
+      : IsPortRecord<TOutput> extends true
+        ? keyof TOutput & string
+        : never;
 
 /**
  * Infers the TypeScript type from a schema or a record of schemas.
@@ -125,6 +156,8 @@ export type {
   Infer,
   InferOr,
   InferOutputs,
+  Port,
+  PortValue,
   ResolvedStatic,
   NamedPortsBrand,
   OutputPortNames,

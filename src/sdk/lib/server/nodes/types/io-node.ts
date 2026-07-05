@@ -14,6 +14,7 @@ import type {
   InferOr,
   InferOutputs,
   OutputPortNames,
+  PortValue,
 } from "../../schemas/types";
 
 type IONodeContextScope = NodeContextScope;
@@ -112,7 +113,7 @@ interface IIONode<
   readonly totalOutputs: number;
   sendToPort<P extends OutputPortNames<TOutput> | number>(
     port: P,
-    msg: P extends keyof TOutput ? TOutput[P] : unknown,
+    msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
   ): void;
 }
 
