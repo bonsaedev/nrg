@@ -678,7 +678,10 @@ function renderSignature(
   seen: Set<ts.Type>,
   ctx?: LocalDeclCtx,
 ): string {
-  const render = (t: ts.Type) =>
+  // Local resolver — distinct from the module-level `render` (which renders a
+  // type for docs); this one resolves named types so a signature's parts stay
+  // resolvable in the generated `.d.ts`.
+  const renderResolved = (t: ts.Type) =>
     renderResolvable(checker, t, at, imports, seen, ctx);
 
   // Generic signature type parameters (`<T extends C = D>`).
@@ -687,8 +690,8 @@ function renderSignature(
     const dflt = tp.getDefault();
     return (
       checker.typeToString(tp, at, RENDER_FLAGS) +
-      (constraint ? ` extends ${render(constraint)}` : "") +
-      (dflt ? ` = ${render(dflt)}` : "")
+      (constraint ? ` extends ${renderResolved(constraint)}` : "") +
+      (dflt ? ` = ${renderResolved(dflt)}` : "")
     );
   });
   const generics = typeParams.length ? `<${typeParams.join(", ")}>` : "";
@@ -700,7 +703,7 @@ function renderSignature(
     const optional = !rest && (decl?.questionToken || decl?.initializer);
     let pType = checker.getTypeOfSymbolAtLocation(p, decl ?? at);
     if (optional) pType = checker.getNonNullableType(pType);
-    return `${rest}${p.getName()}${optional ? "?" : ""}: ${render(pType)}`;
+    return `${rest}${p.getName()}${optional ? "?" : ""}: ${renderResolved(pType)}`;
   });
 
   // Type-predicate return (`x is Foo`, `asserts x is Foo`, `this is Foo`).
@@ -717,9 +720,9 @@ function renderSignature(
       predicate.kind === ts.TypePredicateKind.AssertsThis
         ? "this"
         : predicate.parameterName;
-    ret = `${asserts}${subject}${predicate.type ? ` is ${render(predicate.type)}` : ""}`;
+    ret = `${asserts}${subject}${predicate.type ? ` is ${renderResolved(predicate.type)}` : ""}`;
   } else {
-    ret = render(sig.getReturnType());
+    ret = renderResolved(sig.getReturnType());
   }
 
   return `${prefix}${generics}(${params.join(", ")}): ${ret}`;
