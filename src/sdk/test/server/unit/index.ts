@@ -268,10 +268,6 @@ function attachHelpers<T>(
   return Object.assign(node as any, helpers);
 }
 
-function isConfigNode(NodeClass: any): boolean {
-  return NodeClass.category === "config";
-}
-
 /**
  * Creates a node instance for testing, with helpers for sending messages,
  * inspecting output, and checking status/log calls.
@@ -333,7 +329,7 @@ async function createNode<T extends NodeClass>(
   };
 
   // ConfigNodes require _users array
-  if (isConfigNode(NodeClass)) {
+  if (NodeClass.category === "config") {
     configDefaults._users = [];
   }
 

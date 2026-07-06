@@ -176,8 +176,7 @@ class Flow {
     config: Record<string, unknown> = {},
     opts: AddNodeOptions = {},
   ): NodeRef {
-    const isConfig =
-      (Cls as unknown as { category?: string }).category === "config";
+    const isConfig = Cls.category === "config";
     const ref = new NodeRef(this, Cls.type, isConfig, config, opts);
     this.#nodes.push(ref);
     return ref;
