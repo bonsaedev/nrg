@@ -312,4 +312,18 @@ describe("NodeRedEditorInput expand tray", () => {
 
     trayEl.remove();
   });
+
+  test("destroys the expanded editor when unmounted while the tray is open", async () => {
+    const { screen, trayOptions, trayEl, expanded } = await openExpandedTray();
+    const destroySpy = vi.spyOn(expanded, "destroy");
+
+    // Tear the field down WITHOUT closing the tray first (e.g. the whole form
+    // is unmounted mid-edit). beforeUnmount is then the only path that disposes
+    // the expanded Monaco — a real leak vector if it regresses.
+    screen.unmount();
+    expect(destroySpy).toHaveBeenCalledTimes(1);
+
+    trayOptions.close();
+    trayEl.remove();
+  });
 });
