@@ -56,9 +56,16 @@ function getPortTopologyMap(srcDir?: string): Record<string, PortTopology> {
       const topo = portTopology(info);
       if (topo) map[info.type] = topo;
     }
-  } catch {
+  } catch (err) {
     // Best-effort: a node whose topology can't be type-derived keeps the
-    // runtime's outputsSchema fallback. Extraction failure never fails a test.
+    // runtime's outputsSchema fallback, so we never fail a test here. But a
+    // genuine throw (an fs error, or an extractor bug on some exotic type) zeroes
+    // topology for EVERY node in this dir — surface it so that shows up as a
+    // traceable warning, not a silent wall of confusing zero-port test failures.
+    console.warn(
+      `[nrg] port-topology extraction failed for ${dir}; types-only nodes will fall back to schema topology:`,
+      err,
+    );
   }
   topologyByDir.set(dir, map);
   return map;

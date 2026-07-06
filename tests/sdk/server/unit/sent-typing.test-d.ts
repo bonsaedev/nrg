@@ -162,4 +162,15 @@ const AnyOutputNode = defineIONode({
     this.send({ free: "form" });
   },
 });
-void AnyOutputNode;
+
+async function anyOutputProof() {
+  const { node } = await createNode(AnyOutputNode);
+  // The read side stays permissive too: sent(name) and sent(index) are both
+  // allowed (each message is `any`), mirroring sendToPort — `sent` uses the same
+  // `OutputPortNames` as the runtime, so there's no stricter test-only variant.
+  const byName = node.sent("whatever")[0]?.output;
+  const byIndex = node.sent(3)[0]?.output;
+  void byName;
+  void byIndex;
+}
+void anyOutputProof;

@@ -16,6 +16,8 @@ import type {
   CompletePortOutput as CoreCompletePortOutput,
   StatusPortOutput as CoreStatusPortOutput,
   NamedPortsBrand,
+  OutputPortNames,
+  PortValue,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 interface CreateNodeOptions {
@@ -28,18 +30,14 @@ interface CreateNodeOptions {
 type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
 type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
 
-// Named-port access is driven by the NamedPortsBrand the runtime stamps on a
-// record `outputsSchema` (see schemas/types.ts) — not a structural guess. `any`
-// keeps the historical "no named access" behavior (fall back to numeric slots).
-type PortNames<T> =
-  IsAny<T> extends true
-    ? never
-    : [T] extends [NamedPortsBrand]
-      ? Exclude<keyof T, keyof NamedPortsBrand> & string
-      : never;
-
+// The message a named port carries: unwrap a `Port<T>` to its `T` (a schema-
+// derived branded record isn't wrapped, so `PortValue` passes it through).
 type PortMessage<T, P extends string> =
-  T extends Record<string, any> ? (P extends keyof T ? T[P] : never) : never;
+  T extends Record<string, any>
+    ? P extends keyof T
+      ? PortValue<T[P]>
+      : never
+    : never;
 
 /** True only for `any` (distributes via the `1 & T` trick). */
 type IsAny<T> = 0 extends 1 & T ? true : false;
@@ -132,7 +130,7 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
   sent(port: "error"): ErrorPortOutput[];
   sent(port: "complete"): CompletePortOutput[];
   sent(port: "status"): StatusPortOutput[];
-  sent<P extends PortNames<TOutput>>(
+  sent<P extends OutputPortNames<TOutput>>(
     port: P,
   ): WrappedPort<PortMessage<TOutput, P>, TInput>[];
   sent(port: number): WrappedPort<unknown, TInput>[];

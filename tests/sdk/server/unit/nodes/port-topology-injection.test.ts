@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
 import ErrorRouter from "../fixtures/types-first/error-router";
 import Passthrough from "../fixtures/types-first/passthrough";
+import NamedRouter from "../fixtures/types-first/named-router";
 
 // The fixture node is TYPES-ONLY (no inputSchema/outputsSchema); its topology
 // lives only in its generics. In un-built source there is no `__nrgPorts` static,
@@ -68,5 +69,21 @@ describe("port topology injection (types-only node behaves like a built node)", 
     await expect(node.receive({ fail: true })).rejects.toThrow("nope");
     expect(node.sent(0)).toHaveLength(0);
     expect(node.sent("error")[0].error).toMatchObject({ message: "nope" });
+  });
+
+  it("resolves custom named ports (a `Port<T>` record) by name", async () => {
+    // Two named ports come purely from the generics (no outputsSchema); the
+    // harness stamps their names so sendToPort/sent resolve by name.
+    const { node } = await createNode(NamedRouter);
+    expect(node.baseOutputs).toBe(2);
+
+    await node.receive({ payload: "x" });
+    expect(node.sent("ok")[0].output).toEqual({ value: 1 });
+    expect(node.sent("err")).toHaveLength(0);
+
+    node.reset();
+    await node.receive({ bad: true });
+    expect(node.sent("err")[0].output).toEqual({ reason: "bad" });
+    expect(node.sent("ok")).toHaveLength(0);
   });
 });
