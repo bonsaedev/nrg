@@ -1,6 +1,7 @@
 import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
-import type { Infer, NamedPortsBrand } from "@/sdk/lib/server/schemas/types";
+import type { Infer } from "@/sdk/lib/server/schemas/types";
+import type { NamedPortsBrand } from "@/sdk/lib/server/nodes/types/ports";
 import type TypedInput from "@/sdk/lib/server/typed-input";
 import type {
   TypedInputBrand,

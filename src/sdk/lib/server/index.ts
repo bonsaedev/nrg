@@ -19,7 +19,8 @@ export type { RED, NodeRedRuntimeSettings } from "./red";
 // server-plane resolution type (NodeRef → node instance, TypedInput →
 // `TypedInput<T>` wrapper) — as does `Port`, the per-port marker for declaring
 // named/typed output ports directly in the `Output` generic.
-export type { Infer, Port } from "./schemas/types";
+export type { Infer } from "./schemas/types";
+export type { Port } from "./nodes/types/ports";
 
 // The built-in lifecycle port message shapes, public so a generated package
 // `index.d.ts` can reference them in its `NodeTypes` registry.
@@ -28,7 +29,7 @@ export type {
   ErrorPortOutput as ErrorPort,
   CompletePortOutput as CompletePort,
   StatusPortOutput as StatusPort,
-} from "./schemas/types";
+} from "./nodes/types/ports";
 
 /**
  * The editor connection registry, keyed by node-type string. A package's build

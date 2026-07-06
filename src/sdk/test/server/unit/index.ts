@@ -15,7 +15,7 @@ import type {
   CompletePortOutput as CoreCompletePortOutput,
   StatusPortOutput as CoreStatusPortOutput,
   NamedPortsBrand,
-} from "@/sdk/lib/server/schemas/types";
+} from "@/sdk/lib/server/nodes/types/ports";
 import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {

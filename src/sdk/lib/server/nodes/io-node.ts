@@ -19,7 +19,7 @@ import type {
   NodeSource,
   ErrorInfo,
   StatusPortOutput,
-} from "../schemas/types";
+} from "./types/ports";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Per-`input()`-invocation context — see `IONode.#invocation`. */

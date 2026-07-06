@@ -9,12 +9,8 @@ import type {
   NodeContextStore,
   NodeContextScope,
 } from "./node";
-import type {
-  InferOr,
-  InferOutputs,
-  OutputPortNames,
-  PortValue,
-} from "../../schemas/types";
+import type { InferOr, InferOutputs } from "../../schemas/types";
+import type { OutputPortNames, PortValue } from "./ports";
 
 type IONodeContextScope = NodeContextScope;
 
