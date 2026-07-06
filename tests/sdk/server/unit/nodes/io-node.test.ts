@@ -587,6 +587,31 @@ describe("IONode", () => {
       // "passes everything" false positive.
       expect(() => instance.send({ handler: () => {}, name: "" })).toThrow();
     });
+
+    it("validates a named-port send (sendToPort) against that port's schema", () => {
+      // sendToPort is the primary emission path for named Port outputs, so
+      // opt-in per-port output validation applies to it just like send().
+      const okSchema = defineSchema(
+        { value: SchemaType.Number() },
+        { $id: "io-sendtoport-validate" },
+      );
+      class NamedOutNode extends IONode {
+        static override readonly type = "sendtoport-validated";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        static override readonly validateOutput = true;
+        static override readonly outputsSchema = { ok: okSchema };
+        public override async input() {}
+      }
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new NamedOutNode(RED, node, {}, {});
+
+      // Valid → delivered; invalid → throws (which routes to the error port).
+      expect(() => instance.sendToPort("ok", { value: 1 })).not.toThrow();
+      expect(() => instance.sendToPort("ok", { value: "nope" })).toThrow();
+    });
   });
 
   describe("status", () => {

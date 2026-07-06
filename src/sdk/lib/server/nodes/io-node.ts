@@ -630,10 +630,19 @@ abstract class IONode<
           : `sendToPort("${port}") — this node has no named output ports. Make outputsSchema a record of named schemas, or send to a numeric port index.`,
       );
     }
-    const mode = this.#resolveContextMode(portIndex ?? 0);
+    const idx = portIndex ?? 0;
+    if (msg == null) {
+      this.#sendToPort(port, msg);
+      return;
+    }
+    // Validate the outgoing value exactly as `send()` validates a positional
+    // port: `sendToPort` is the PRIMARY emission path for named `Port` outputs,
+    // so opt-in per-port output validation must apply here too (built-in ports
+    // already returned above). A failure throws and routes to the error port.
+    this.#validatePort(msg, idx);
     this.#sendToPort(
       port,
-      msg == null ? msg : this.#wrapOutgoing(msg, mode, portIndex ?? 0),
+      this.#wrapOutgoing(msg, this.#resolveContextMode(idx), idx),
     );
   }
 
