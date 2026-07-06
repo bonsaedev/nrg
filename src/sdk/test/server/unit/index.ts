@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
+import { ensurePortTopology } from "../port-topology";
 import { initValidator } from "@/sdk/lib/server/validation";
 import type { NodeRedNode } from "@/sdk/lib/server/red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
@@ -16,7 +17,6 @@ import type {
   StatusPortOutput as CoreStatusPortOutput,
   NamedPortsBrand,
 } from "@/sdk/lib/server/nodes/types/ports";
-import { Kind } from "@sinclair/typebox";
 
 interface CreateNodeOptions {
   config?: Record<string, any>;
@@ -235,15 +235,12 @@ function attachHelpers<T>(
         // positional slot beyond the declared ports.
         const builtin = builtinPortIndex(node, port);
         if (builtin !== undefined) return builtin === -1 ? [] : pluck(builtin);
-        const schema = NodeClass.outputsSchema;
-        if (
-          !schema ||
-          Array.isArray(schema) ||
-          (typeof schema === "object" && Kind in schema)
-        ) {
-          return [];
-        }
-        const idx = Object.keys(schema).indexOf(port);
+        // Custom named ports: resolve via the class getter, which prefers the
+        // type-derived names (injected `__nrgPorts`) and falls back to a record
+        // `outputsSchema` — so a types-only `Port<T>` node resolves by name too.
+        const names = (NodeClass as { outputPortNames?: string[] })
+          .outputPortNames;
+        const idx = names?.indexOf(port) ?? -1;
         if (idx === -1) return [];
         return pluck(idx);
       }
@@ -302,6 +299,12 @@ async function createNode<T extends NodeClass>(
     settings = {},
     overrides: overrideOpts = {},
   } = options;
+
+  // Behave like a built node: stamp the type-derived port topology the build
+  // would inject, so a types-only node (no outputsSchema) routes its base and
+  // built-in error/complete/status ports at the right indices. No-op for a node
+  // that already carries it or whose ports come from a schema. (port-topology.ts)
+  ensurePortTopology(NodeClass);
 
   // Extract config node instances passed directly in config values
   const resolvedConfig: Record<string, any> = {};

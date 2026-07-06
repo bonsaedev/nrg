@@ -12,6 +12,7 @@ import type { NodeConstructor } from "@/sdk/lib/server/nodes";
 import type { NodeRedContextStore } from "@/sdk/lib/server/red";
 import { Recorder } from "./recorder";
 import { Flow } from "./flow";
+import { ensurePortTopologyAll } from "../port-topology";
 
 interface StartRuntimeOptions {
   /** Node classes (IONode / ConfigNode subclasses) to register in the runtime. */
@@ -82,6 +83,12 @@ async function startRuntime(options: StartRuntimeOptions): Promise<Runtime> {
     const nodeId = event.node?.id ?? event.source?.id ?? event.destination?.id;
     recorder.recordComplete(nodeId, event.msg?._msgid);
   });
+
+  // Behave like built nodes: stamp each source class with the type-derived port
+  // topology the production build injects, so a types-only node (no outputsSchema)
+  // registers with the right port count/names. No-op for already-stamped or
+  // schema-topology nodes. (see ../port-topology)
+  ensurePortTopologyAll(options.nodes);
 
   // register node types through the same path production uses. The cast tracks
   // whatever `registerTypes` resolves to: `@bonsae/nrg/server` can land on the

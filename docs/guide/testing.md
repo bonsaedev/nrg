@@ -49,6 +49,8 @@ pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, server 
 
 Server **unit** tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
 
+Both server tiers make a node behave exactly as it does when built: a **types-only node** (ports declared through the `IONode` generics, with no `inputSchema`/`outputsSchema`) has its port topology derived from those types and stamped on the class the same way the production build does — so base outputs, named `Port<T>` ports, and the built-in `error`/`complete`/`status` port indices all resolve correctly with no extra setup.
+
 Server **integration** tests boot a real, headless Node-RED runtime, register your node classes through the same path production uses, deploy a flow, and drive it with real messages. Use them to verify the things mocks can't: that a config node resolves through a real `NodeRef`, that credentials reach a deployed node, that wired nodes pass messages, and that context stores persist across a flow.
 
 ### Client
@@ -198,7 +200,7 @@ Every node returned by `createNode` has these helpers:
 | `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
 | `node.sent()`          | All raw emissions — each is a positional array, one slot per output port (so `node.sent()[i][0]` is the first port of emission `i`). Use `sent(port)` / `sent(name)` to read one port directly. |
 | `node.sent(port)`      | The per-port message for a specific output port (numeric index) — one level out of the positional array, still wrapped under the return key (`output`)                                          |
-| `node.sent(name)`      | The per-port message for a named output port (resolved from a record `outputsSchema`; address a types-only `Port<T>` node's ports by index for now), still wrapped under the return key (`output`)                                                                |
+| `node.sent(name)`      | The per-port message for a named output port — resolved from the node's typed `Port<T>` names or a record `outputsSchema` — still wrapped under the return key (`output`). Built-in `"error"`/`"complete"`/`"status"` ports resolve by name too. |
 | `node.statuses()`      | All `status()` calls                                                                                                                                                                            |
 | `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`)                                                                                                                       |
 | `node.warned()`        | Warning messages                                                                                                                                                                                |
