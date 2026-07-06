@@ -397,6 +397,22 @@ function buildVitePlugin(clientAsset: string) {
   esbuildBundle("src/tools/vite/define-nodered-runtime-settings.ts", {
     outfile: "dist/toolkit/vite/define-nodered-runtime-settings.js",
   });
+  // Invariant: the Node-RED-settings compiler (node-red-launcher/settings.ts)
+  // resolves this leaf co-located with the `./vite` entry — `dirname(resolve(
+  // "@bonsae/nrg/vite")) + this basename`. If a refactor moves or renames the
+  // emit, `resolveSettingsHelperLeaf` silently returns null, the redirect never
+  // registers, and a consumer's `node-red.settings.ts` drags the plugin's native
+  // deps (chokidar→fsevents, vite→lightningcss) into the settings bundle → `nrg
+  // dev` breaks. Fail the build loudly instead of shipping that.
+  const settingsLeaf = path.join(
+    DIST,
+    "vite/define-nodered-runtime-settings.js",
+  );
+  if (!existsSync(settingsLeaf)) {
+    throw new Error(
+      `Node-RED-settings helper leaf not emitted at ${settingsLeaf} — settings.ts's redirect will fall back to bundling the full @bonsae/nrg/vite plugin and break nrg dev.`,
+    );
+  }
   console.log("✓ Built vite plugin → dist/toolkit/vite/");
 }
 
