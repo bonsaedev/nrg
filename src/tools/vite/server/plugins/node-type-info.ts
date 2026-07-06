@@ -841,7 +841,12 @@ function extractOutputs(
   imports?: Map<ts.Symbol, ImportInfo>,
   ctx?: LocalDeclCtx,
 ): NodeOutputPort[] | undefined {
-  if (isVacuous(checker, outputType)) return undefined;
+  // An explicit `unknown` output declares ONE untyped output port — a node that
+  // emits arbitrary data (a passthrough, a dynamic REST/query result) without a
+  // schema. Only a truly-absent output (`any`/`void`/`never`/`undefined`) yields
+  // no port; `any` stays "unspecified" and falls back to the schema.
+  const isUnknown = (outputType.flags & ts.TypeFlags.Unknown) !== 0;
+  if (!isUnknown && isVacuous(checker, outputType)) return undefined;
 
   // A port value may be wrapped in `Port<T>`; render the inner `T`.
   const value = (type: ts.Type): ts.Type => portInner(checker, type) ?? type;

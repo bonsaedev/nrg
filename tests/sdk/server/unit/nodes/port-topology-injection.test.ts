@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
 import ErrorRouter from "../fixtures/types-first/error-router";
+import Passthrough from "../fixtures/types-first/passthrough";
 
 // The fixture node is TYPES-ONLY (no inputSchema/outputsSchema); its topology
 // lives only in its generics. In un-built source there is no `__nrgPorts` static,
@@ -54,5 +55,18 @@ describe("port topology injection (types-only node behaves like a built node)", 
 
     expect(node.sent(0)).toHaveLength(1);
     expect(node.sent(0)[0].output).toEqual({ value: 1 });
+  });
+
+  it("derives one output port from an explicit `unknown` output", async () => {
+    // A dynamic-output node (Output = unknown) still has ONE port — so its
+    // built-in error port routes at index 1, not on top of the data port.
+    const { node } = await createNode(Passthrough, {
+      config: { errorPort: true },
+    });
+    expect(node.baseOutputs).toBe(1);
+
+    await expect(node.receive({ fail: true })).rejects.toThrow("nope");
+    expect(node.sent(0)).toHaveLength(0);
+    expect(node.sent("error")[0].error).toMatchObject({ message: "nope" });
   });
 });

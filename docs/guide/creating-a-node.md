@@ -635,15 +635,16 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 ```
 
 - **`TInput`** is the message your `input(msg)` handler receives. A real type gives the node **one input port**; `never` (or the `any` default) means **no input** — a source node.
-- **`TOutput`** is the node's output port(s). A single type is **one output port** (emit with `this.send(value)`); a record of [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports** (emit with `this.sendToPort(name, value)`).
+- **`TOutput`** is the node's output port(s). A single type is **one output port** (emit with `this.send(value)`); a record of [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports** (emit with `this.sendToPort(name, value)`). For a port whose payload is genuinely dynamic, `unknown` is **one untyped output port**.
 
 | Generic | Ports |
 | --- | --- |
 | `TInput` is a real type (e.g. `{ payload: string }`) | 1 input port |
 | `TInput` is `never` / `any` | 0 input ports (source node) |
 | `TOutput` is a single type (e.g. `string`, `{ ok: boolean }`) | 1 output port |
+| `TOutput` is `unknown` (a dynamic, untyped payload) | 1 output port |
 | `TOutput` is `{ a: Port<A>; b: Port<B> }` | N named output ports |
-| `TOutput` is `never` / `any` | 0 output ports (sink node) |
+| `TOutput` is `never` / `any` / `void` | 0 output ports (sink node) |
 
 At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](#extending-a-published-node)). Schemas are **not** required for any of this.
 
