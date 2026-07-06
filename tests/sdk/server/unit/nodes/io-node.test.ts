@@ -612,6 +612,38 @@ describe("IONode", () => {
       expect(() => instance.sendToPort("ok", { value: 1 })).not.toThrow();
       expect(() => instance.sendToPort("ok", { value: "nope" })).toThrow();
     });
+
+    it("catches a configured output-validation failure during input() and reports it", async () => {
+      // End-to-end: a flow author enables output validation; the node emits data
+      // that fails the schema during input(); the throw is caught by the input
+      // handler and surfaced via done(error) — the configured-validation promise.
+      const outputSchema = defineSchema(
+        { value: SchemaType.Number() },
+        { $id: "io-runtime-output-validation" },
+      );
+      class ValidatingNode extends IONode {
+        static override readonly type = "runtime-validating";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        static override readonly validateOutput = true;
+        static override readonly outputsSchema = outputSchema;
+        public override async input() {
+          this.send({ value: "not a number" });
+        }
+      }
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new ValidatingNode(RED, node, {}, {});
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](Promise.resolve());
+
+      const send = vi.fn();
+      const done = vi.fn();
+      await node.emit("input", { payload: "x" }, send, done);
+
+      expect(done.mock.calls[0][0]).toBeInstanceOf(Error);
+    });
   });
 
   describe("status", () => {
