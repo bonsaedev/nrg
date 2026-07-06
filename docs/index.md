@@ -20,7 +20,7 @@ features:
   - title: No More jQuery
     details: Replace raw HTML templates and jQuery event handlers with auto-generated forms from JSON Schemas — or write Vue 3 components when you need custom UI.
   - title: TypeScript-First
-    details: Extend IONode or ConfigNode with full type safety. Config types are inferred from your schemas, lifecycle hooks are typed, and errors surface at compile time.
+    details: Extend IONode or ConfigNode with full type safety. A node's input/output ports and wiring come from its types, config is inferred from your schemas, and errors surface at compile time.
   - title: Async by Default
     details: "No callback chains. Write async input(msg) and call this.send() — done() is handled for you. Resolve TypedInputs with await this.config.target.resolve(msg)."
   - title: Schema-Driven Validation

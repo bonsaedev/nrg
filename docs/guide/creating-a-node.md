@@ -1,6 +1,11 @@
 # Creating a Node
 
-This guide walks through creating a complete Node-RED node — from schema definition to server logic to the Vue 3 editor form.
+This guide walks through creating a complete Node-RED node — its schema, server logic, and Vue 3 editor form.
+
+Two separate things drive a node in NRG:
+
+- Its **config form** comes from the config/credentials/settings **schemas** you define (next section).
+- Its **input/output ports and wiring** come from its **TypeScript types** — the `IONode` generics. Input/output _schemas_ are optional and only add runtime data validation. See [Inputs and Outputs](#inputs-and-outputs).
 
 ## Define a Schema
 
@@ -569,7 +574,7 @@ Nodes are defined server-side and handle runtime logic. Create `src/server/nodes
 
 ```typescript
 import { IONode, type RED, type Infer } from "@bonsae/nrg/server";
-import { SchemaType, type Schema } from "@bonsae/nrg/schema";
+import { type Schema } from "@bonsae/nrg/schema";
 import {
   ConfigsSchema,
   CredentialsSchema,
@@ -580,11 +585,15 @@ export type Config = Infer<typeof ConfigsSchema>;
 export type Credentials = Infer<typeof CredentialsSchema>;
 export type Settings = Infer<typeof SettingsSchema>;
 
+// Ports and wiring come from these two types — no input/output schema needed.
+type Input = { output: string }; // the message input() receives → 1 input port
+type Output = string; // a single output port carrying a string
+
 export default class MyNode extends IONode<
   Config,
   Credentials,
-  any,
-  any,
+  Input,
+  Output,
   Settings
 > {
   static override readonly type = "my-node";
@@ -593,8 +602,6 @@ export default class MyNode extends IONode<
   static override readonly configSchema: Schema = ConfigsSchema;
   static override readonly credentialsSchema: Schema = CredentialsSchema;
   static override readonly settingsSchema: Schema = SettingsSchema;
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
   static override async registered(RED: RED) {
     RED.log.info("my-node type registered");
@@ -604,7 +611,7 @@ export default class MyNode extends IONode<
     this.log(`Using endpoint: ${this.settings.apiEndpoint}`);
   }
 
-  override async input(msg: Record<string, any>) {
+  override async input(msg: Input) {
     const apiKey = this.credentials?.apiKey;
     // send the result value — the framework puts it at msg.output and keeps
     // the incoming message's fields at the top level (the default carry mode)
@@ -617,53 +624,86 @@ export default class MyNode extends IONode<
 }
 ```
 
+Want runtime data validation on top? Add a static `inputSchema` / `outputsSchema` (they validate message data — they don't define the ports). See [Schema Validation](./schemas).
+
 ### Inputs and Outputs
 
-The number of input and output ports is **derived from the schemas you declare** — there is no `inputs` or `outputs` property to set manually.
+A node's port **topology and wiring come from its types** — the `IONode` generics — not from schemas. There is no `inputs`/`outputs` property to set by hand.
+
+```ts
+class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {}
+```
+
+- **`TInput`** is the message your `input(msg)` handler receives. A real type gives the node **one input port**; `never` (or the `any` default) means **no input** — a source node.
+- **`TOutput`** is the node's output port(s). A single type is **one output port** (emit with `this.send(value)`); a record of [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports** (emit with `this.sendToPort(name, value)`).
+
+| Generic | Ports |
+| --- | --- |
+| `TInput` is a real type (e.g. `{ payload: string }`) | 1 input port |
+| `TInput` is `never` / `any` | 0 input ports (source node) |
+| `TOutput` is a single type (e.g. `string`, `{ ok: boolean }`) | 1 output port |
+| `TOutput` is `{ a: Port<A>; b: Port<B> }` | N named output ports |
+| `TOutput` is `never` / `any` | 0 output ports (sink node) |
+
+At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](#extending-a-published-node)). Schemas are **not** required for any of this.
+
+#### Declaring output ports with `Port<T>` {#declaring-output-ports-with-port}
+
+A bare record type is ambiguous — `TOutput = { a: A; b: B }` could mean _one_ object port with fields `a`/`b`, or _two_ ports named `a`/`b`. The **`Port<T>`** marker removes the ambiguity: wrap each port's message type in `Port<…>` and NRG reads the record as **named ports**.
+
+```typescript
+import { IONode, type Port } from "@bonsae/nrg/server";
+
+type Config = { name: string };
+type Input = { payload: string };
+type Output = {
+  ok: Port<{ value: number }>;
+  err: Port<{ reason: string }>;
+};
+
+export default class PortNode extends IONode<Config, never, Input, Output> {
+  static override readonly type = "port-node";
+  static override readonly category = "function";
+  static override readonly color: `#${string}` = "#a6bbcf";
+
+  async input(msg: Input) {
+    this.sendToPort("ok", { value: msg.payload.length });
+    //              ^^^^ autocompletes "ok" | "err"; the value is
+    //                   type-checked against that port's message type
+  }
+}
+```
+
+This node ships **no `inputSchema` or `outputsSchema`** — its one input port and two named output ports (`ok`, `err`) come entirely from the generics.
+
+- A **single** output port needs no `Port` — `TOutput = number[]` is one port, emitted with `this.send(rows)`.
+- `sendToPort(name, value)` autocompletes the port name and checks `value` against that port's `Port<T>`. You can also send by numeric index (`sendToPort(0, …)`), in record order.
+- `Port` is a **type-only** marker (erased at runtime), exported from `@bonsae/nrg/server`.
+
+#### Schema-driven topology (functional API & JavaScript) {#schema-driven-topology}
+
+The generics are TypeScript-only. When a node declares **no** typed `TInput`/`TOutput`, NRG falls back to deriving topology from its schemas instead:
 
 | Declaration | Result |
 | --- | --- |
 | `inputSchema` present | 1 input port |
-| `inputSchema` absent | 0 input ports (source node) |
-| `outputsSchema` is a single Schema | 1 output port |
-| `outputsSchema` is an array of N schemas | N output ports |
-| `outputsSchema` is a record `{ name: Schema }` | N named output ports |
-| `outputsSchema` absent | 0 output ports (sink node) |
+| `inputSchema` absent | 0 input ports |
+| `outputsSchema` is a single schema | 1 output port |
+| `outputsSchema` is an array of N schemas | N positional ports |
+| `outputsSchema` is a record `{ name: schema }` | N named ports |
+| `outputsSchema` absent | 0 output ports |
 
-**Examples:**
+The [functional API](#functional-api) infers its generics from the schemas you pass, so `defineIONode` gets the same typed topology automatically — a record `outputsSchema` there yields named ports with typed `sendToPort()`. See [Per-port output typing](#per-port-output-typing).
 
-```typescript
-// Standard node: 1 input, 1 output
-static override readonly inputSchema: Schema = InputSchema;
-static override readonly outputsSchema: Schema = OutputSchema;
+::: tip JavaScript authors
+Generics are a TypeScript feature, so a plain-JS node can't declare topology through types — declare it through **schemas** instead (a static `inputSchema` and `outputsSchema`: single, array, or named record), which the runtime reads for both topology and validation. Type extraction runs only over `.ts` at build time; there is no `allowJs` extraction today, so JS nodes always use the schema path.
+:::
 
-// Source node (no input, e.g., subscriber/inject): 0 inputs, 1 output
-static override readonly outputsSchema: Schema = OutputSchema;
-
-// Sink node (no output, e.g., debug/log): 1 input, 0 outputs
-static override readonly inputSchema: Schema = InputSchema;
-
-// Multi-output node: 1 input, 3 outputs (indexed)
-static override readonly inputSchema: Schema = InputSchema;
-static override readonly outputsSchema: Schema[] = [Port1Schema, Port2Schema, Port3Schema];
-
-// Named output ports: 1 input, 2 named outputs
-static override readonly inputSchema: Schema = InputSchema;
-static override readonly outputsSchema = { success: SuccessSchema, failure: FailureSchema };
-```
-
-Use `SchemaType.Object({})` when a port accepts or emits any message shape:
-
-```typescript
-static override readonly inputSchema: Schema = SchemaType.Object({});
-static override readonly outputsSchema: Schema[] = [SchemaType.Object({}), SchemaType.Object({})];
-```
-
-For ports that carry **non-data** values — a function, class instance, `Buffer`, stream, or connection — use `SchemaType.Unsafe<T>()` to type the port without validating it. See [Non-data inputs & outputs](/guide/schemas#non-data-ports).
+For ports that carry **non-data** values (a function, class instance, `Buffer`, stream, or connection), a plain type already works — there is nothing to validate. If you _do_ write an output schema, use `SchemaType.Unsafe<T>()` to type such a field without validating it. See [Non-data inputs & outputs](/guide/schemas#non-data-ports).
 
 #### Named Output Ports
 
-When `outputsSchema` is a **record** (an object with string keys mapping to schemas), each key becomes a named output port. Port names appear as labels in the editor, and `sendToPort()` gets full autocomplete and per-port type safety.
+You get named output ports two ways: a `Port<T>` record in the `TOutput` generic (above), or — on the schema/functional path — a **record** `outputsSchema` (string keys → schemas). Either way, port names appear as labels in the editor and `sendToPort()` gets full autocomplete and per-port type safety. The `defineIONode` example below uses the record `outputsSchema` form:
 
 ```typescript
 const SuccessSchema = defineSchema(
@@ -734,8 +774,8 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 | `color` | Yes | Node color in hex format (e.g., `"#a6bbcf"`) |
 | `configSchema` | No | TypeBox schema for config validation |
 | `credentialsSchema` | No | TypeBox schema for credential fields |
-| `inputSchema` | No | Schema for incoming messages. Presence defines `inputs = 1`; absence means no input port (source node). |
-| `outputsSchema` | No | Schema (or array of schemas) for outgoing messages. Single schema = 1 output port; array of N schemas = N output ports; absence means no output port (sink node). |
+| `inputSchema` | No | Optional **data-validation** schema for incoming messages. Topology comes from the `TInput` generic; a JS/schema-only node instead derives its input port from this schema's presence. |
+| `outputsSchema` | No | Optional **data-validation** schema(s) for outgoing values — a single schema, an array (positional ports), or a named record. Topology comes from `TOutput`; a schema-only node derives its ports from this shape. |
 | `settingsSchema` | No | Schema for Node-RED runtime settings |
 | `align` | No | `"left"` or `"right"` alignment |
 
@@ -853,6 +893,8 @@ Port 2: Error        (if errorPort enabled)
 Port 3: Complete     (if completePort enabled)
 Port 4: Status       (if statusPort enabled)
 ```
+
+These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorPort<TInput, TError>`, `CompletePort<TInput, TReturn>`, and `StatusPort` — the error and complete shapes are generic over the node's input message (and, for complete, `input()`'s return value), so a downstream handler sees the original message under `input`, the `source` provenance, and any custom fields. NRG feeds these into the generated `NodeTypes` registry, so the editor can type-check a wire coming off a built-in port too.
 
 #### Returning a custom completion message {#returning-a-custom-completion-message}
 
@@ -1291,6 +1333,43 @@ NRG registers these components globally in every form:
 | `<NodeRedEditorInput>` | Code editor (ACE/Monaco) input |
 | `<NodeRedToggle>` | Toggle switch for boolean fields |
 | `<NodeRedJsonSchemaForm>` | Auto-generated form from a JSON schema |
+| `<NodeRedTray>` | Reusable Node-RED tray (slide-out panel) you drive from Vue — for building custom editors |
+
+### Building a custom tray with `<NodeRedTray>` {#node-red-tray}
+
+`<NodeRedTray>` opens a real Node-RED slide-out tray whose body is a Vue subtree you control — no jQuery. It is the same primitive NRG's own code-editor field is built on, and it is registered globally, so you can use it in any form component. Put your UI in the default slot and open it from a `ref`:
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+
+const tray = ref<{ open(): void } | null>(null);
+function save() {
+  // persist the tray's draft state back onto the node
+}
+</script>
+
+<template>
+  <button type="button" @click="tray?.open()">Open editor…</button>
+
+  <NodeRedTray ref="tray" title="My editor" @done="save">
+    <template #default="{ close }">
+      <!-- your content renders inside the tray body -->
+      <div class="my-editor">…</div>
+      <button type="button" @click="close">Close</button>
+    </template>
+  </NodeRedTray>
+</template>
+```
+
+| | |
+| --- | --- |
+| **Props** | `title` (header text), `width` (a pixel number, a CSS width, or `"Infinity"` for full width — the default) |
+| **Slot** | default — rendered into the tray body; receives a `{ close }` helper |
+| **Events** | `open` / `close` (tray shown/hidden), `done` / `cancel` (footer buttons; both also close the tray) |
+| **Methods** (via `ref`) | `open()`, `close()` |
+
+The tray shell (title bar and the Cancel/Done footer) is owned by Node-RED; your slot fills the body.
 
 ### TypedInput Example
 

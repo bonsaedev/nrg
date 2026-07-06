@@ -107,7 +107,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
 > Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
 
 ::: tip
-`inputs` and `outputs` are set automatically: `1` input when `inputSchema` is defined, and one output per entry in the `outputsSchema` array. No need to set them manually.
+You never set `inputs`/`outputs` by hand. Port topology comes from the node's **types** — the `IONode` input/output generics (a plain-JS or schema-only node instead derives ports from its `inputSchema`/`outputsSchema`). See [Inputs and Outputs](./creating-a-node#inputs-and-outputs).
 :::
 
 ```typescript

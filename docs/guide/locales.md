@@ -61,17 +61,17 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
 | `inputLabels` | No | Label for the input port (string). |
-| `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports (from `outputsSchema` port names) and built-in ports (error/complete/status) are labeled automatically. |
+| `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports (by their declared port names) and built-in ports (error/complete/status) are labeled automatically. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
 | `options` | No | User-facing labels for enum/union option values, keyed by config field then option value — e.g. `"provider": { "anthropic": "Anthropic API" }`. Unset values fall back to the raw option value. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
-| `outputs` | No | Per-port labels for the auto-generated help docs. An array of label maps (matching `outputsSchema` order) for positional ports, or an object keyed by port name for named ports. |
+| `outputs` | No | Per-port labels for the auto-generated help docs. An array of label maps (in output-port order) for positional ports, or an object keyed by port name for named ports. |
 | `errors` | No | Custom error messages. Use `__field__` for placeholder substitution. |
 
 ### Named Output Ports
 
-When your `outputsSchema` uses a record (named ports) instead of an array, the editor labels each port from its schema **name** automatically — you don't set `outputLabels`. For the auto-generated help docs, provide `outputs` as an object keyed by port name:
+When your node has named output ports — a `Port<T>` record in the `TOutput` generic, or a record `outputsSchema` — the editor labels each port from its **port name** automatically; you don't set `outputLabels`. For the auto-generated help docs, provide `outputs` as an object keyed by port name:
 
 ```json
 {
@@ -96,7 +96,7 @@ export const OutputSchema = {
 ### Rules
 
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
-- **`outputLabels` is an array** — one entry per indexed output port. Named and built-in ports are labeled automatically (from the schema port names and error/complete/status).
+- **`outputLabels` is an array** — one entry per indexed output port. Named and built-in ports are labeled automatically (from their port names, and error/complete/status).
 - **`outputs` is an array** for positional outputs — even for single-output nodes, use `[{ ... }]`
 - **`outputs` is an object** for named output ports — use `{ portName: { ... } }`
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label

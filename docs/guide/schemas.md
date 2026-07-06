@@ -1,6 +1,12 @@
 # Schema Validation
 
-NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime validation on both server and client. Schemas serve two purposes: they validate data at runtime with AJV, and they provide TypeScript type inference via `Infer`.
+NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime validation on both server and client. Schemas serve two purposes: they validate data at runtime with AJV, and they render/validate the editor form.
+
+::: info Schemas do not define ports
+A node's **port topology and wiring come from its TypeScript types** — the `IONode` generics — _not_ from schemas. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs). So input/output schemas are **optional**: reach for them when you want runtime data validation, not to declare ports.
+
+If you'd rather make a schema the single source of truth for **both** validation and the type, derive the type from the schema with [`Infer`](#infer-drives-types) and feed it to the generic — the type still drives wiring, and the two can't drift.
+:::
 
 ## Defining Schemas
 
@@ -60,6 +66,50 @@ const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSch
 Note the `import type` — it is erased at build time, so it's safe. Never **value**-import a schema module into client or browser code (including component tests): the module imports `defineSchema`/`SchemaType` from `@bonsae/nrg/schema`, which pulls in TypeBox — kept out of the browser bundle by design. In component tests, resolve schemas by node `type` via `createNode({ type })` instead — see [Testing › Resolving schemas by node type](/guide/testing#resolving-schemas-by-node-type).
 
 See [Custom Form Component](/guide/creating-a-node#custom-form-component) for a full example.
+
+### Driving node types from schemas {#infer-drives-types}
+
+Because topology comes from the generics, a schema can be the single source of truth for **both** validation and the type: author the schema, derive the type with `Infer`, and pass it to the generic. The type still drives the ports and wiring; `Infer` just keeps it in lock-step with the schema so they can't drift.
+
+For a single output port, wrap the derived type in `Port<…>` inside the `TOutput` record; the same schema can validate what the port emits:
+
+```typescript
+import { IONode, type Infer, type Port } from "@bonsae/nrg/server";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+import { ConfigSchema, InputSchema } from "@/schemas/api";
+
+const OkSchema = defineSchema({ value: SchemaType.Number() }, { $id: "api:ok" });
+
+export default class Api extends IONode<
+  Infer<typeof ConfigSchema>, // config type from the schema
+  never,
+  Infer<typeof InputSchema>, // input message type from the schema
+  { ok: Port<Infer<typeof OkSchema>> } // one named "ok" port, typed from OkSchema
+> {
+  static override readonly type = "api";
+  // optional — validate what "ok" emits with the same schema:
+  static override readonly outputsSchema = { ok: OkSchema };
+
+  async input(msg: Infer<typeof InputSchema>) {
+    this.sendToPort("ok", { value: 1 }); // checked against OkSchema's type
+  }
+}
+```
+
+`Infer` also accepts a **record of schemas** and produces a named-port output map, so you can derive the whole `TOutput` — and validate it — from one place:
+
+```typescript
+const Outputs = { ok: OkSchema, err: ErrSchema };
+
+class Router extends IONode<Config, never, Input, Infer<typeof Outputs>> {
+  static override readonly outputsSchema = Outputs; // same record validates the ports
+  async input(msg: Input) {
+    this.sendToPort("ok", { value: 1 }); // "ok" | "err" typed from the record
+  }
+}
+```
+
+This is a convenience, not a requirement — plain TypeScript types (with no schema) declare topology just as well. Reach for the `Infer` form when you also want runtime validation from the same definition.
 
 ## Config Schema
 
@@ -212,7 +262,7 @@ The build system automatically extracts credential field types (text/password) f
 
 ## Input Schema
 
-Validate incoming messages before they reach your `input()` handler:
+An input schema **validates** incoming messages before they reach your `input()` handler. It is optional and does not create the input port (the `TInput` generic does) — set `validateInput = true` to turn validation on:
 
 ```typescript
 const InputSchema = defineSchema(
@@ -262,7 +312,7 @@ export default class MyNode extends IONode<Config, any, Input, Output> {
 }
 ```
 
-For nodes with multiple outputs, provide an array of schemas. The number of output ports is derived from the array length — there is no `outputs` property to set manually:
+For nodes with multiple outputs, provide an array of schemas — one per port. (Port _count_ comes from the `TOutput` generic; for a schema-only node it is derived from the array length. Either way there is no `outputs` property to set manually.)
 
 ```typescript
 export default class MyNode extends IONode<Config> {
@@ -309,6 +359,35 @@ export default class MyNode extends IONode<Config> {
 ```
 
 So `outputsSchema` takes three shapes: a single `Schema` (one port), a `Schema[]` (N positional ports), or a `Record<string, Schema>` (N named ports). See [Named Output Ports](./creating-a-node#named-output-ports) for the full treatment.
+
+## Configuring validation in the editor {#editor-schema-overrides}
+
+The static `inputSchema` / `outputsSchema` above are the node author's **default** validation schemas. A flow author can turn validation on per port and, optionally, **override** the schema for their own node instance — without touching your code.
+
+Two pieces make this work:
+
+1. **The Validate toggle.** When a node has an input or output schema, the editor's **Ports Settings** table shows a _Validate_ toggle per port. Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance (the same gate as the static `validateInput` / `validateOutput`).
+2. **The Schema editor.** To let flow authors supply their _own_ JSON Schema, add an override field to your **config** schema — `SchemaType.InputSchema()` for the input and `SchemaType.OutputSchemas()` for the outputs. This surfaces an editable **Schema** button (a Monaco JSON editor) in the Ports Settings table.
+
+```typescript
+const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    // expose an editable input-schema override (Monaco)
+    inputSchema: SchemaType.InputSchema({ default: '{ "type": "object" }' }),
+    // expose per-port output-schema overrides; only ports given a default
+    // here are overridable — port 0 is editable, port 1 stays disabled
+    outputSchemas: SchemaType.OutputSchemas({
+      default: { 0: '{ "type": "object" }' },
+    }),
+  },
+  { $id: "my-node:configs" },
+);
+```
+
+The override a flow author types is stored as a JSON-Schema **string** in `config.inputSchema` / `config.outputSchemas[port]`. At validation time NRG uses the override when present and valid, otherwise it falls back to your static `inputSchema` / `outputsSchema`. An unparseable or non-compiling override is ignored (warned once) and the static schema is used. Validation still runs only when the port's _Validate_ toggle (or the static `validateInput` / `validateOutput`) is on.
+
+![Editor: configuring input and output validation schemas](/editor-schemas.png)
 
 ## Non-data inputs & outputs {#non-data-ports}
 
