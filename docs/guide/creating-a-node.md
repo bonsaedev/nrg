@@ -901,6 +901,75 @@ Port 4: Status       (if statusPort enabled)
 
 These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorPort<TInput, TError>`, `CompletePort<TInput, TReturn>`, and `StatusPort` — the error and complete shapes are generic over the node's input message (and, for complete, `input()`'s return value), so a downstream handler sees the original message under `input`, the `source` provenance, and any custom fields. NRG feeds these into the generated `NodeTypes` registry, so the editor can type-check a wire coming off a built-in port too.
 
+#### Framework config fields {#framework-config-fields}
+
+The framework recognizes a set of config properties by name — they're available to **every** node. Each has a **framework default** (built-in ports off, context mode `carry`, return key `output`, no data validation), and, where a control is exposed, the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
+
+As a node **author you touch these only to change a default** — declare the property in your config schema and set your value on the builder's `default`. That value becomes the seeded default in the editor (which the flow author can still change), and declaring the property surfaces its editor control.
+
+| Property | Builder | Controls (framework default) |
+| --- | --- | --- |
+| `name` | `SchemaType.String` | The node's display name (default: empty) |
+| `errorPort` | `SchemaType.Boolean` | The built-in [error port](#built-in-ports) (default: off) |
+| `completePort` | `SchemaType.Boolean` | The built-in [complete port](#built-in-ports) (default: off) |
+| `statusPort` | `SchemaType.Boolean` | The built-in [status port](#built-in-ports) (default: off) |
+| `outputReturnProperties` | `SchemaType.OutputReturnProperties` | Per-port key each emitted value is wrapped under (default: `output`) |
+| `outputContextModes` | `SchemaType.OutputContextModes` | Per-port `carry` / `trace` / `reset` of the incoming message (default: `carry`) |
+| `inputSchema` | `SchemaType.InputSchema` | A flow-author-editable input data-validation schema (default: none) |
+| `outputSchemas` | `SchemaType.OutputSchemas` | Flow-author-editable per-port output data-validation schemas (default: none) |
+
+**Changing the defaults.** Add the property to your config schema with your value — one example for each:
+
+```typescript
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+
+export const ConfigsSchema = defineSchema(
+  {
+    // A default display name for new instances of this node.
+    name: SchemaType.String({ default: "HTTP request" }),
+
+    // Turn built-in ports ON by default (they are off unless you declare them).
+    errorPort: SchemaType.Boolean({ default: true }),
+    completePort: SchemaType.Boolean({ default: true }),
+    statusPort: SchemaType.Boolean({ default: false }),
+
+    // Wrap output port 0's value under `result` instead of the default `output`.
+    outputReturnProperties: SchemaType.OutputReturnProperties({
+      default: { 0: "result" },
+    }),
+
+    // Give output port 0 the `trace` context mode instead of the default `carry`.
+    // (A port you leave out of `default` stays `carry`, its column stays hidden.)
+    outputContextModes: SchemaType.OutputContextModes({
+      default: { 0: "trace" },
+    }),
+
+    // Ship a default input validation schema the flow author can override.
+    inputSchema: SchemaType.InputSchema({
+      default: JSON.stringify({
+        type: "object",
+        properties: { payload: { type: "string" } },
+        required: ["payload"],
+      }),
+    }),
+
+    // Ship a default validation schema for output port 0. Only ports given a
+    // default here are overridable by the flow author in the editor.
+    outputSchemas: SchemaType.OutputSchemas({
+      default: {
+        0: JSON.stringify({
+          type: "object",
+          properties: { result: { type: "string" } },
+        }),
+      },
+    }),
+  },
+  { $id: "http-client:config" },
+);
+```
+
+Leave a property out entirely and the node simply uses its framework default. The `validate*` toggles that pair with `inputSchema` / `outputSchemas` are added and managed by the editor's Ports Settings — you don't declare them yourself. See [configuring validation in the editor](./schemas#editor-schema-overrides) for the override flow.
+
 #### Returning a custom completion message {#returning-a-custom-completion-message}
 
 The complete port normally carries a plain "done" signal. If your `input()`
