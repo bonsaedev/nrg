@@ -137,13 +137,29 @@ class Validator {
     });
   }
 
+  // Object-keyed compile cache for `$id`-less schemas. AJV caches by `$id`; a
+  // schema without one (an ad-hoc `SchemaType.Object`, or a flow-author override
+  // a node memoizes and revalidates every message) would otherwise recompile —
+  // and accumulate — on every `compile()`. Keyed by the schema OBJECT so a reused
+  // instance compiles once; a WeakMap so the entry is collected with the schema.
+  // One per AJV (coercing vs pure) since each keeps its own compiled forms.
+  private readonly pureInlineCache = new WeakMap<
+    AnySchemaObject,
+    ValidateFunction
+  >();
+  private readonly mutateInlineCache = new WeakMap<
+    AnySchemaObject,
+    ValidateFunction
+  >();
+
   /**
-   * Compile (and cache) a validator for a schema, using AJV's own registry as the
-   * cache — keyed by the schema's `$id`. `defineSchema` requires a unique `$id`,
-   * so `getSchema($id)` returns the previously compiled validator and `compile`
-   * registers it on first use. We never write `$id` (no mutation of the caller's
-   * schema). A schema without `$id` (rare — an ad-hoc `SchemaType.Object`) simply
-   * compiles fresh each call.
+   * Compile (and cache) a validator for a schema. Schemas WITH an `$id` use AJV's
+   * own registry (`defineSchema` requires a unique `$id`, so `getSchema` returns
+   * the previously compiled validator). Schemas WITHOUT one — an ad-hoc
+   * `SchemaType.Object` or a flow-author override — are cached by object
+   * reference here, so a caller that reuses the same schema instance compiles it
+   * only once (no unbounded recompile/leak). We never write `$id` (no mutation of
+   * the caller's schema).
    *
    * @param schema - JSON Schema to validate against
    * @param mutate - `true` (default) uses the coercing instance; `false` uses the
@@ -157,8 +173,14 @@ class Validator {
     if (schema.$id) {
       const cached = ajv.getSchema(schema.$id);
       if (cached) return cached as ValidateFunction;
+      return ajv.compile(schema);
     }
-    return ajv.compile(schema);
+    const cache = mutate ? this.mutateInlineCache : this.pureInlineCache;
+    const cached = cache.get(schema);
+    if (cached) return cached;
+    const compiled = ajv.compile(schema);
+    cache.set(schema, compiled);
+    return compiled;
   }
 
   /**

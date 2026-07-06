@@ -246,6 +246,53 @@ describe("IONode", () => {
       await node.emit("input", { payload: "" }, send, done);
       expect(done.mock.calls[0][0]).toBeInstanceOf(Error);
     });
+
+    it("falls back to the static schema (warning once) on an unusable override", async () => {
+      // Valid JSON, but the $ref can't be resolved → it does not COMPILE. The
+      // node must NOT throw on every message: it warns once and validates
+      // against its static schema instead.
+      const staticInput = defineSchema(
+        { payload: SchemaType.String({ minLength: 1 }) },
+        { $id: "io-bad-override-fallback" },
+      );
+      class BadOverrideNode extends IONode {
+        static override readonly type = "bad-override";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        static override readonly validateInput = true;
+        static override readonly inputSchema = staticInput;
+        public override async input() {}
+      }
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const warnSpy = vi.spyOn(node, "warn");
+      const instance = new BadOverrideNode(
+        RED,
+        node,
+        {
+          validateInput: true,
+          inputSchema: JSON.stringify({ $ref: "#/$defs/missing" }),
+        },
+        {},
+      );
+      instance[NRG_SETUP_CLOSE_HANDLER]();
+      instance[NRG_SETUP_INPUT_HANDLER](Promise.resolve());
+
+      const send = vi.fn();
+      const done = vi.fn();
+      // Two invalid messages: each rejects against the STATIC schema (the
+      // fallback), and the bad-override warning fires exactly once (memoized),
+      // not per message.
+      await node.emit("input", { payload: "" }, send, done);
+      await node.emit("input", { payload: "" }, send, done);
+      expect(done.mock.calls[0][0]).toBeInstanceOf(Error);
+      expect(done.mock.calls[1][0]).toBeInstanceOf(Error);
+      const overrideWarnings = warnSpy.mock.calls.filter((c) =>
+        String(c[0]).includes("invalid schema override"),
+      );
+      expect(overrideWarnings).toHaveLength(1);
+    });
   });
 
   describe("send", () => {

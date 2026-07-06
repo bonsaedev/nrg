@@ -370,16 +370,20 @@ abstract class IONode<
     const NodeClass = this.constructor as typeof IONode;
     const shouldValidateInput =
       this.config.validateInput ?? NodeClass.validateInput;
-    const inputSchema = this.#effectiveInputSchema();
-    if (shouldValidateInput && inputSchema) {
-      this.node.log("Validating input");
-      this.RED.validator.validate(msg, inputSchema, {
-        // Pure predicate: never coerce or inject defaults into the live msg that
-        // continues downstream.
-        mutate: false,
-        throwOnError: true,
-      });
-      this.node.log("Input is valid");
+    // Resolve the effective schema only when validation is on, so an override is
+    // never parsed/compiled (nor warned about) for a node that isn't validating.
+    if (shouldValidateInput) {
+      const inputSchema = this.#effectiveInputSchema();
+      if (inputSchema) {
+        this.node.log("Validating input");
+        this.RED.validator.validate(msg, inputSchema, {
+          // Pure predicate: never coerce or inject defaults into the live msg
+          // that continues downstream.
+          mutate: false,
+          throwOnError: true,
+        });
+        this.node.log("Input is valid");
+      }
     }
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
@@ -461,23 +465,46 @@ abstract class IONode<
     return Object.values(raw)[port] as Schema | undefined;
   }
 
-  /** Parse a flow-author schema override (a JSON-Schema string set in the editor)
-   * into a schema object, or `undefined` when it is blank or invalid JSON. */
-  #parseConfigSchema(raw: unknown): Schema | undefined {
+  // Per-instance cache of resolved flow-author overrides, keyed by the raw JSON
+  // string (a node's config is immutable for its lifetime). `null` = the override
+  // is unusable (bad JSON, or valid JSON that does not compile) → fall back to
+  // the static schema. Memoizing keeps the SAME parsed object across messages, so
+  // the validator's object-keyed compile cache hits: no per-message JSON.parse,
+  // no per-message recompile/leak, and the warning fires exactly once.
+  readonly #overrideSchemas = new Map<string, Schema | null>();
+
+  /** Resolve a flow-author schema override (a JSON-Schema string set in the
+   * editor) to a schema object, memoized per instance. `undefined` → no override
+   * (blank / not a string), so the caller uses the node's static schema. An
+   * override that is invalid JSON, or valid JSON that does NOT compile (a typo'd
+   * keyword), also falls back to the static schema — warned once here rather than
+   * throwing on every message inside `validate()`. */
+  #resolveOverride(raw: unknown): Schema | undefined {
     if (typeof raw !== "string" || !raw.trim()) return undefined;
+    const cached = this.#overrideSchemas.get(raw);
+    if (cached !== undefined) return cached ?? undefined;
+    let resolved: Schema | null = null;
     try {
-      return JSON.parse(raw) as Schema;
-    } catch {
-      this.node.warn("Ignoring an invalid JSON schema override");
-      return undefined;
+      const parsed = JSON.parse(raw) as Schema;
+      // Compile once now so a structurally-invalid override fails closed here
+      // (warn + static fallback) instead of throwing on every message.
+      this.RED.validator.createValidator(parsed, false);
+      resolved = parsed;
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : "parse/compile error";
+      this.node.warn(
+        `Ignoring an invalid schema override (${reason}); using the node's static schema.`,
+      );
     }
+    this.#overrideSchemas.set(raw, resolved);
+    return resolved ?? undefined;
   }
 
   /** The schema used for INPUT validation: the flow-author's `config.inputSchema`
    * override, else the node author's static `inputSchema`. */
   #effectiveInputSchema(): Schema | undefined {
     return (
-      this.#parseConfigSchema(this.config.inputSchema) ??
+      this.#resolveOverride(this.config.inputSchema) ??
       (this.constructor as typeof IONode).inputSchema
     );
   }
@@ -486,7 +513,7 @@ abstract class IONode<
    * `config.outputSchemas[port]` override, else the author's static schema. */
   #effectiveOutputSchema(port: number): Schema | undefined {
     return (
-      this.#parseConfigSchema(this.config.outputSchemas?.[port]) ??
+      this.#resolveOverride(this.config.outputSchemas?.[port]) ??
       this.#outputSchemaForPort(port)
     );
   }
