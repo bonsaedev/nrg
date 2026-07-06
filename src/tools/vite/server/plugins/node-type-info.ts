@@ -1296,16 +1296,10 @@ function portTopology(info: NodeTypeInfo): PortTopology | undefined {
 }
 
 export {
-  resolveConsumerCompilerOptions,
-  createNodeTypesProgram,
   extractNodeTypes,
   extractNodeTypesFromSrc,
   writeNodeTypesJson,
-  isVacuous,
-  extractOutputs,
-  outputPortKind,
   portTopology,
-  BASE_CLASS_SLOTS,
 };
 export type {
   NodeTypeInfo,

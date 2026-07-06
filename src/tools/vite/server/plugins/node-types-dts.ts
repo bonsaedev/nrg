@@ -192,4 +192,4 @@ function writePackageDts(
   }
 }
 
-export { buildPackageDts, buildRegistryAugmentation, writePackageDts };
+export { buildPackageDts, writePackageDts };
