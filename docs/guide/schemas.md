@@ -260,6 +260,57 @@ export default class MyNode extends IONode<Config, Credentials> {
 
 The build system automatically extracts credential field types (text/password) from the schema for the Node-RED editor.
 
+## What validation does — config vs. message data {#validation-semantics}
+
+NRG validates two things very differently, on purpose.
+
+**Config, credentials, and settings are _coerced_.** These come from the editor
+form (and Node-RED settings), where every value starts life as a string. Their
+schemas run through a validator with **type coercion and defaults ON**, so values
+are converted to their declared types and any untouched field is filled from its
+`default` **before your node sees it**. That's why `this.config.retries` reads as
+the number `3` even though the form stored `"3"`, and why a field the flow author
+never touched still has its default. You never coerce config by hand — this is the
+same AJV coercion nrg has always done for the config plane.
+
+**Input and output _message data_ is not coerced — only checked.** Port validation
+runs a **pure predicate**: no coercion, no defaults, and it never rewrites the
+message. If it fails the node throws (routed to the error port when enabled); if it
+passes, the message flows through byte-for-byte. It is also **opt-in** — off unless
+you set `validateInput`/`validateOutput` or a flow author turns it on.
+
+**The port _types_ are compile-time only.** `TInput`/`TOutput` (and `Port<T>`) are
+erased at build. They drive the editor's port topology and wire type-checks, and
+they type your handler while you author, but they do **not** exist at runtime and
+do **not** convert data. So if your node needs a value in a specific runtime shape,
+convert it yourself:
+
+```typescript
+async input(msg: Input) {
+  // `msg.count` is TYPED as number for you, but at runtime it's whatever the
+  // upstream node actually sent — coerce it yourself if that matters.
+  const count = Number(msg.count);
+  // ...
+}
+```
+
+Reach for a `TypedInput` **config** field for values a flow author supplies (it
+resolves and coerces through the config plane), and reach for a port **schema**
+when you want to _reject_ malformed data at the boundary — not to convert it.
+
+### When should you add a port schema?
+
+You don't need one for topology or types — the generics already give you those. Add
+an `inputSchema` / `outputsSchema` (and turn validation on) when you want to:
+
+- **fail fast on bad data** at a trust boundary — reject a malformed message to the
+  error port instead of crashing deep in the handler; or
+- **publish a checkable contract** a flow author can tighten per instance.
+
+Skip it when the wire type is enough and you're happy to handle whatever arrives.
+Either way, remember: a port schema **validates**, it doesn't coerce or default the
+message.
+
 ## Input Schema
 
 An input schema **validates** incoming messages before they reach your `input()` handler. It is optional and does not create the input port (the `TInput` generic does) — set `validateInput = true` to turn validation on:
@@ -394,7 +445,7 @@ The override a flow author types is stored as a JSON-Schema **string** in `confi
 Not every port carries plain data. A node might emit a function, a class
 instance, a `Buffer` or stream, or a database client — or accept a message with
 non-serializable parts. JSON Schema can't describe those values, so a normal
-schema would reject or coerce them.
+schema would reject them.
 
 Declare such a value as a **named property** of an object schema and type it with
 **`SchemaType.Unsafe<T>()`**. It produces an empty schema (`{}`), so AJV passes

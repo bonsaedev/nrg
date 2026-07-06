@@ -395,6 +395,32 @@ describe("multi-output nodes", () => {
   });
 });
 
+describe("named output ports", () => {
+  it("routes to ports by name", async () => {
+    // A types-only node whose two named ports come from the `Port<T>` generics —
+    // no `outputsSchema`. The harness stamps the same topology the build injects,
+    // so `sent(name)` resolves by name (like `sendToPort` in the node).
+    //   import { IONode, type Port } from "@bonsae/nrg/server";
+    type Output = {
+      ok: Port<{ value: number }>;
+      err: Port<{ reason: string }>;
+    };
+    class Router extends IONode<Config, never, { payload: number }, Output> {
+      static override readonly type = "router";
+      async input(msg: { payload: number }) {
+        if (msg.payload > 0) this.sendToPort("ok", { value: msg.payload });
+        else this.sendToPort("err", { reason: "non-positive" });
+      }
+    }
+
+    const { node } = await createNode(Router);
+
+    await node.receive({ payload: 5 });
+    expect(node.sent("ok")[0].output).toEqual({ value: 5 });
+    expect(node.sent("err")).toHaveLength(0);
+  });
+});
+
 describe("context store", () => {
   it("should persist values across triggers", async () => {
     const { node } = await createNode(MyNode);

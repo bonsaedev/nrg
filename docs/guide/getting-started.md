@@ -32,15 +32,15 @@ If you prefer to add NRG to an existing project:
 ::: code-group
 
 ```bash [pnpm]
-pnpm add -D @bonsae/nrg node-red vue vite vitest
+pnpm add -D @bonsae/nrg node-red vue vite vitest eslint prettier
 ```
 
 ```bash [npm]
-npm install -D @bonsae/nrg node-red vue vite vitest
+npm install -D @bonsae/nrg node-red vue vite vitest eslint prettier
 ```
 
 ```bash [yarn]
-yarn add -D @bonsae/nrg node-red vue vite vitest
+yarn add -D @bonsae/nrg node-red vue vite vitest eslint prettier
 ```
 
 :::

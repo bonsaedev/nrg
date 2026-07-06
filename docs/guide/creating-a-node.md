@@ -648,6 +648,10 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 
 At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](#extending-a-published-node)). Schemas are **not** required for any of this.
 
+::: tip The generics are compile-time only
+`TInput`/`TOutput` drive the editor's ports and wire-checks and type your handler — but they're **erased at runtime**. The `msg` your `input()` receives is whatever the upstream node actually sent; the framework doesn't validate or convert it against `TInput`. If you need a value in a specific runtime shape, convert it yourself (or add an `inputSchema` to _reject_ bad data — it checks, it doesn't coerce). **Config** is the opposite: it's coerced to its schema types and defaulted before you read it. See [config vs. message data](./schemas#validation-semantics).
+:::
+
 #### Declaring output ports with `Port<T>` {#declaring-output-ports-with-port}
 
 A bare record type is ambiguous — `TOutput = { a: A; b: B }` could mean _one_ object port with fields `a`/`b`, or _two_ ports named `a`/`b`. The **`Port<T>`** marker removes the ambiguity: wrap each port's message type in `Port<…>` and NRG reads the record as **named ports**.
