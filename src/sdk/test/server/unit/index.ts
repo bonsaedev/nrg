@@ -18,6 +18,7 @@ import type {
   NamedPortsBrand,
   OutputPortNames,
   PortValue,
+  IsAny,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 interface CreateNodeOptions {
@@ -38,9 +39,6 @@ type PortMessage<T, P extends string> =
       ? PortValue<T[P]>
       : never
     : never;
-
-/** True only for `any` (distributes via the `1 & T` trick). */
-type IsAny<T> = 0 extends 1 & T ? true : false;
 
 /**
  * A single delivered port message. The default return key `"output"` holds the

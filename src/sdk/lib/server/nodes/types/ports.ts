@@ -134,6 +134,7 @@ export type {
   NamedPortsBrand,
   Port,
   PortValue,
+  IsAny,
   OutputPortNames,
   NodeSource,
   ErrorInfo,
