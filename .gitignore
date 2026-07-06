@@ -7,6 +7,8 @@ tests/.tmp/
 test-results/
 tests/fixtures/*/node_modules/
 tests/fixtures/*/dist*/
+# Node-RED user dir left behind when a fixture/e2e boots Node-RED
+.node-red/
 *.log
 .DS_Store
 .claude/
