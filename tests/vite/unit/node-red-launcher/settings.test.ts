@@ -142,6 +142,86 @@ describe("node-red-launcher/settings", () => {
       expect(callArgs.define!["import.meta.filename"]).toBeDefined();
       expect(callArgs.define!["import.meta.url"]).toBeDefined();
     });
+
+    // A `node-red.settings.ts` imports `defineNodeRedRuntimeSettings` from
+    // `@bonsae/nrg/vite`, but this file is bundled into Node-RED's runtime
+    // settings — resolving the full plugin entry would drag the dev toolchain's
+    // native deps (chokidar→fsevents, vite→lightningcss) into the bundle and
+    // break the launch. The compiler must redirect that import to nrg's
+    // dependency-free settings-helper leaf.
+    function scaffoldInstalledNrg(withLeaf: boolean): string {
+      const viteDir = path.join(
+        tmpDir,
+        "node_modules",
+        "@bonsae",
+        "nrg",
+        "vite",
+      );
+      fs.mkdirSync(viteDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, "node_modules", "@bonsae", "nrg", "package.json"),
+        JSON.stringify({
+          name: "@bonsae/nrg",
+          exports: { "./vite": "./vite/index.js" },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(viteDir, "index.js"),
+        "export const nrg = () => {};",
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, "package.json"),
+        JSON.stringify({ name: "c" }),
+      );
+      const leaf = path.join(viteDir, "define-nodered-runtime-settings.js");
+      if (withLeaf) {
+        fs.writeFileSync(
+          leaf,
+          "export const defineNodeRedRuntimeSettings = (s) => s;",
+        );
+      }
+      return leaf;
+    }
+
+    it("redirects @bonsae/nrg/vite to the settings-helper leaf", async () => {
+      vi.mocked(esbuildBuild).mockResolvedValue({} as any);
+      const leaf = scaffoldInstalledNrg(true);
+
+      const settingsPath = path.join(tmpDir, "node-red.settings.ts");
+      fs.writeFileSync(
+        settingsPath,
+        'import { defineNodeRedRuntimeSettings } from "@bonsae/nrg/vite";\n' +
+          "export default defineNodeRedRuntimeSettings({});",
+      );
+
+      await compileRuntimeSettingsFile(settingsPath, 1880);
+
+      const callArgs = vi.mocked(esbuildBuild).mock.calls[0][0];
+      expect(callArgs.plugins).toHaveLength(1);
+
+      // Invoking the plugin's onResolve confirms the redirect target.
+      let resolved: unknown;
+      const fakeBuild = {
+        onResolve: (_opts: unknown, cb: (a: { path: string }) => unknown) => {
+          resolved = cb({ path: "@bonsae/nrg/vite" });
+        },
+      };
+      callArgs.plugins![0].setup(fakeBuild as never);
+      expect(resolved).toEqual({ path: leaf });
+    });
+
+    it("registers no redirect when the installed nrg predates the leaf", async () => {
+      vi.mocked(esbuildBuild).mockResolvedValue({} as any);
+      scaffoldInstalledNrg(false);
+
+      const settingsPath = path.join(tmpDir, "node-red.settings.ts");
+      fs.writeFileSync(settingsPath, "export default {};");
+
+      await compileRuntimeSettingsFile(settingsPath, 1880);
+
+      const callArgs = vi.mocked(esbuildBuild).mock.calls[0][0];
+      expect(callArgs.plugins).toEqual([]);
+    });
   });
 
   describe("generateRuntimeSettings", () => {

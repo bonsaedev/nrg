@@ -356,7 +356,6 @@ function testSubpathsResolvable(consumerDir: string): void {
   // runtime is browser-served, and consumers only `import type` from it). So it's
   // covered by the tsc check, not this runtime-resolution probe.
   const subpaths = [
-    "@bonsae/nrg",
     "@bonsae/nrg/server",
     "@bonsae/nrg/schema",
     "@bonsae/nrg/vite",

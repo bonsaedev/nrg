@@ -379,13 +379,6 @@ function writeRuntimeManifest(): void {
 // Toolkit entries (the @bonsae/nrg surface: index, vite plugin, test utils)
 // ---------------------------------------------------------------------------
 
-function buildRootEntry() {
-  esbuildBundle("src/sdk/lib/runtime-settings.ts", {
-    outfile: "dist/toolkit/index.js",
-  });
-  console.log("✓ Built root entry → dist/toolkit/index.js");
-}
-
 function buildVitePlugin(clientAsset: string) {
   // Inject the content-hashed client filename so the plugin rewrites a
   // consumer's `@bonsae/nrg/client` import to the exact hashed URL the runtime
@@ -393,6 +386,16 @@ function buildVitePlugin(clientAsset: string) {
   esbuildBundle("src/tools/vite/index.ts", {
     outdir: "dist/toolkit/vite",
     define: { __NRG_CLIENT_ASSET__: clientAsset },
+  });
+  // Also emit the Node-RED-settings helper as a standalone, dependency-free leaf.
+  // A `node-red.settings.ts` imports `defineNodeRedRuntimeSettings` from
+  // `@bonsae/nrg/vite`, but that file is esbuild-bundled into Node-RED's runtime
+  // settings (node-red-launcher/settings.ts) — resolving the full vite entry there
+  // would drag the dev toolchain's native deps (chokidar→fsevents, vite→
+  // lightningcss) into the settings bundle and break `nrg dev`. The settings
+  // compiler resolves the import to this leaf (a bare identity helper) instead.
+  esbuildBundle("src/tools/vite/define-nodered-runtime-settings.ts", {
+    outfile: "dist/toolkit/vite/define-nodered-runtime-settings.js",
   });
   console.log("✓ Built vite plugin → dist/toolkit/vite/");
 }
@@ -609,21 +612,22 @@ function assertClientAssetWired(clientAsset: string): void {
 // ---------------------------------------------------------------------------
 
 function generateTypes() {
-  // ----- toolkit-owned surface (index, vite, test-*) -----
-  execSync(
-    `npx dts-bundle-generator -o dist/toolkit/types/index.d.ts src/sdk/lib/runtime-settings.ts ${DTS_FLAGS}`,
-    { stdio: "inherit" },
-  );
-
+  // ----- toolkit-owned surface (vite, test-*) — no bare-root `.` types -----
   execSync(
     `npx dts-bundle-generator -o dist/toolkit/types/vite.d.ts src/tools/vite/types.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },
   );
+  // vite.d.ts is generated from types.ts, so the value re-exports in vite/index.ts
+  // don't reach it — append the plugin + the Node-RED-settings helper by hand.
+  // `./server` resolves to the sibling dist/toolkit/types/server.d.ts.
   appendFileSync(
     "dist/toolkit/types/vite.d.ts",
     `
 import type { Plugin } from "vite";
+import type { NodeRedRuntimeSettings } from "./server";
 export declare function nrg(options?: NrgPluginOptions): Plugin[];
+export declare function defineNodeRedRuntimeSettings(settings: NodeRedRuntimeSettings): NodeRedRuntimeSettings;
+export type { NodeRedRuntimeSettings };
 `,
   );
 
@@ -886,8 +890,7 @@ function emitRuntimeArtifact(clientAsset: string) {
 
 async function main() {
   clean(path.resolve(ROOT, "dist")); // wipe both dist/toolkit and dist/runtime
-  // Toolkit surface.
-  buildRootEntry();
+  // Toolkit surface. (No bare-root `.` entry — @bonsae/nrg is subpath-only.)
   buildEslintConfig();
   buildSchemaEntry();
   await buildTestUtils();
