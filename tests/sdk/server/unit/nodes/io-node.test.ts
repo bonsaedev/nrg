@@ -644,6 +644,36 @@ describe("IONode", () => {
 
       expect(done.mock.calls[0][0]).toBeInstanceOf(Error);
     });
+
+    it("routes sendToPort by name via __nrgPorts (generics topology, no schema)", () => {
+      // The flagship path: a schema-free node whose named ports come from the
+      // Output generic (injected as __nrgPorts). sendToPort("err") must resolve
+      // the name through __nrgPorts.outputNames and deliver to that port — with
+      // NO outputsSchema to fall back on.
+      class GenericPorts extends IONode {
+        static override readonly type = "generic-ports-routing";
+        static override readonly category = "function";
+        static override readonly color = "#ffffff" as const;
+        static override __nrgPorts: NonNullable<typeof IONode.__nrgPorts> = {
+          inputs: 1,
+          outputs: 2,
+          outputNames: ["ok", "err"],
+        };
+        public override async input() {}
+      }
+      const RED = createRED();
+      initValidator(RED);
+      const node = createNodeRedNode();
+      const instance = new GenericPorts(RED, node, {}, {});
+
+      instance.sendToPort("err", { reason: "x" });
+
+      // Delivered as a positional array; "err" resolved to index 1 (index 0
+      // empty), wrapped under the default return key.
+      const out = (node.send as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
+      expect(out[0]).toBeUndefined();
+      expect(out[1]).toEqual({ output: { reason: "x" } });
+    });
   });
 
   describe("status", () => {
