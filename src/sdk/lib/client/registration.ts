@@ -195,7 +195,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       const newState = getNodeState(node._newState!);
       const oldState = getNodeState(node);
       const changes = getChanges(oldState, newState);
-      const changed = !!Object.keys(changes)?.length;
+      const changed = Object.keys(changes).length > 0;
       if (!changed) return false;
 
       updateConfigNodeUsers(node);

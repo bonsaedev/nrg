@@ -55,8 +55,6 @@ export function mountApp(
   // raw `node` would nest the previous `_newState` one level deeper on every
   // re-open (O(N) retained memory + clone cost across an editor session).
   const { _newState: _prevState, _app: _prevApp, ...state } = node as any;
-  void _prevState;
-  void _prevApp;
   const working = cloneDeep(state) as NodeRedNode;
   node._newState = working;
   node._app = createNodeRedVueApp(working, form, schema, features);
