@@ -24,16 +24,10 @@ interface ClientBuildOptions {
   srcDir?: string;
   /** Entry filename relative to srcDir. @default "index.ts" */
   entry?: string;
-  /** Subdirectory name for node definition files. @default "nodes" */
-  nodesSubdir?: string;
-  /** Pattern to match node definition files. */
-  nodeFilePattern?: RegExp;
   /** Global variable name for the UMD/IIFE bundle. @default "NodeRedNodes" */
   name?: string;
   /** Output format for the client bundle. @default "es" */
   format?: "es" | "iife" | "umd";
-  /** Base public path for serving resources. */
-  base?: string;
   /** Path to LICENSE file to include in the HTML output. @default "./LICENSE" */
   licensePath?: string;
   /** Directory for the editor's public static files, copied to dist/resources/. @default "./src/client/public" */

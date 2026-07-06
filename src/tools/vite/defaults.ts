@@ -22,7 +22,6 @@ const DEFAULT_RESOURCES_DIR = "./src/resources";
 const DEFAULT_CLIENT_BUILD_OPTIONS: ClientBuildOptions = {
   srcDir: "./src/client",
   entry: "index.ts",
-  nodesSubdir: "nodes",
   name: "NodeRedNodes",
   format: "es",
   licensePath: "./LICENSE",

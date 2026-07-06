@@ -218,11 +218,8 @@ export default defineConfig({
 | --- | --- | --- |
 | `srcDir` | `"./src/client"` | Source directory for client code |
 | `entry` | `"index.ts"` | Entry filename relative to `srcDir` |
-| `nodesSubdir` | `"nodes"` | Subdirectory name for node definition files |
-| `nodeFilePattern` | — | Pattern to match node definition files |
 | `name` | `"NodeRedNodes"` | Global variable name for the UMD/IIFE bundle |
 | `format` | `"es"` | Output format for the client bundle (`"es"`, `"iife"`, or `"umd"`) |
-| `base` | — | Base public path for serving resources |
 | `licensePath` | `"./LICENSE"` | Path to LICENSE file to include in the HTML output |
 | `publicDir` | `"./src/client/public"` | Directory for public static files copied to `dist/resources/` |
 | `external` | `["jquery", "node-red", "vue", "@bonsae/nrg/client"]` | Modules to treat as external (not bundled) |
