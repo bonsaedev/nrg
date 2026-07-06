@@ -101,12 +101,19 @@ const NRG_SYSTEM_FIELDS = new Set([
   "completePort",
   "statusPort",
   "validateInput",
+  "validateInputTypes",
   "validateOutput",
   "validateOutputs",
+  "validateOutputTypes",
   "outputReturnProperty",
   "outputReturnProperties",
   "outputContextMode",
   "outputContextModes",
+  // Flow-author data-validation schema overrides (per IONodeConfig) — system
+  // fields, not user Properties. Previously omitted, so they leaked into the
+  // generated help table.
+  "inputSchema",
+  "outputSchemas",
 ]);
 
 /** Fields hidden from the rendered property tables (Node-RED + nrg system). */

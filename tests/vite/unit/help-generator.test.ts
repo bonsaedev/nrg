@@ -270,6 +270,8 @@ describe("help-generator", () => {
           validateInput: { type: "boolean" },
           outputReturnProperties: { type: "object" },
           outputContextModes: { type: "object" },
+          inputSchema: { type: "string" },
+          outputSchemas: { type: "object" },
           connection: { "x-nrg-node-type": "salesforce-connection" },
           query: { type: "string" },
         },
@@ -288,6 +290,8 @@ describe("help-generator", () => {
         "validateInput",
         "outputReturnProperties",
         "outputContextModes",
+        "inputSchema",
+        "outputSchemas",
       ]) {
         expect(section).not.toContain(`<td>${f}</td>`);
       }
