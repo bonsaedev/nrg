@@ -13,7 +13,7 @@ function minifier(): Plugin {
             minify: true,
           });
           chunk.code = result.code;
-          chunk.map = null as any;
+          chunk.map = null;
         }
       }
     },
