@@ -12,3 +12,19 @@ export type {
 } from "./red";
 export { getJQueryState, createJQuery } from "./jquery";
 export type { MockJQueryState, MockJQueryElement, MockJQuery } from "./jquery";
+
+// `registerType`/`registerTypes` belong to the Node-RED editor runtime, not
+// tests — stub them so a module under test that imports one from the
+// harness-aliased `@bonsae/nrg/client` gets a clear error, not `undefined`.
+export function registerType(): never {
+  throw new Error(
+    "registerType is not available in the test harness — node registration " +
+      "happens in the Node-RED editor runtime.",
+  );
+}
+export function registerTypes(): never {
+  throw new Error(
+    "registerTypes is not available in the test harness — node registration " +
+      "happens in the Node-RED editor runtime.",
+  );
+}

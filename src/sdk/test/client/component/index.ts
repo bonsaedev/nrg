@@ -25,19 +25,8 @@ export { useFormNode } from "@/sdk/lib/client/form/composables/use-form-node";
 export { defineNode } from "@/sdk/lib/client/define-node";
 
 // `registerType`/`registerTypes` belong to the Node-RED editor runtime, not
-// tests — stub them so importing one gives a clear error, not `undefined`.
-export function registerType(): never {
-  throw new Error(
-    "registerType is not available in the test harness — node registration " +
-      "happens in the Node-RED editor runtime.",
-  );
-}
-export function registerTypes(): never {
-  throw new Error(
-    "registerTypes is not available in the test harness — node registration " +
-      "happens in the Node-RED editor runtime.",
-  );
-}
+// tests — stubbed in the shared mocks so importing one gives a clear error.
+export { registerType, registerTypes } from "../mocks";
 // ./types is the single source of truth for the harness types (it's also the
 // published declaration entry for this subpath); re-export them here so the
 // runtime entry keeps the same public surface.
