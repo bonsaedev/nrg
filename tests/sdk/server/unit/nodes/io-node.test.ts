@@ -6,6 +6,7 @@ import { createRED, createNodeRedNode } from "@mocks/red";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
+  NRG_PORTS,
 } from "@/sdk/lib/server/nodes/symbols";
 
 class TestIONode extends IONode {
@@ -116,12 +117,12 @@ describe("IONode", () => {
       class Generic extends IONode {
         static override readonly type = "generic-ports";
         static override readonly outputsSchema = SchemaType.Object({});
-        static override __nrgPorts: NonNullable<typeof IONode.__nrgPorts> = {
-          inputs: 1,
-          outputs: 2,
-          outputNames: ["ok", "failed"],
-        };
       }
+      // The build injects the topology under NRG_PORTS (non-writable); stamp it
+      // the same way here since unit tests don't run the build.
+      Object.defineProperty(Generic, NRG_PORTS, {
+        value: { inputs: 1, outputs: 2, outputNames: ["ok", "failed"] },
+      });
       expect(Generic.outputs).toBe(2); // not 1 (the single-object schema)
       expect(Generic.inputs).toBe(1);
       expect(Generic.outputPortNames).toEqual(["ok", "failed"]);
@@ -654,13 +655,11 @@ describe("IONode", () => {
         static override readonly type = "generic-ports-routing";
         static override readonly category = "function";
         static override readonly color = "#ffffff" as const;
-        static override __nrgPorts: NonNullable<typeof IONode.__nrgPorts> = {
-          inputs: 1,
-          outputs: 2,
-          outputNames: ["ok", "err"],
-        };
         public override async input() {}
       }
+      Object.defineProperty(GenericPorts, NRG_PORTS, {
+        value: { inputs: 1, outputs: 2, outputNames: ["ok", "err"] },
+      });
       const RED = createRED();
       initValidator(RED);
       const node = createNodeRedNode();

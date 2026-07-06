@@ -3,8 +3,9 @@ import path from "path";
 import type { PortTopology } from "./node-type-info";
 
 /**
- * Stamp each node's `Input`/`Output`-generic topology onto its built class as a
- * static `__nrgPorts`, so the runtime routes ports and the editor draws them
+ * Stamp each node's `Input`/`Output`-generic topology onto its built class under
+ * a locked `Symbol.for("nrg.ports")` static, so the runtime routes ports and the
+ * editor draws them
  * from the TYPES — no `outputsSchema` required (schemas become data-validation
  * only). `io-node`'s `get outputs()`/`get inputs()`/named-port resolution prefer
  * this descriptor and fall back to the schema when it is absent, so a node whose
@@ -15,7 +16,9 @@ import type { PortTopology } from "./node-type-info";
  * sees plain JS. With `keepNames` (the server build's esbuild setting) every
  * default-export form — `export default class X`, `export default defineIONode(…)`,
  * an anonymous class — is normalized to a local binding plus
- * `export { <local> as default }`; we append `<local>.__nrgPorts = {…}` after it.
+ * `export { <local> as default }`; we append
+ * `Object.defineProperty(<local>, Symbol.for("nrg.ports"), { value: {…}, … })`
+ * after it (non-writable, so it can't be accidentally clobbered).
  * Two extra shapes are handled defensively in case a future esbuild keeps
  * `export default class X {}` or a bare `export default <expr>`.
  */
@@ -38,8 +41,11 @@ function portTopologyInjector(topology: Map<string, PortTopology>): Plugin {
       }
 
       const json = JSON.stringify(ports);
+      // Symbol-keyed + locked: framework-owned, off the public string surface,
+      // and non-writable so it can't be accidentally clobbered. `Symbol.for`
+      // matches the runtime's `NRG_PORTS` across the bundle split.
       const appendStatic = (localName: string) => ({
-        code: `${code}\n${localName}.__nrgPorts = ${json};\n`,
+        code: `${code}\nObject.defineProperty(${localName}, Symbol.for("nrg.ports"), { value: ${json}, writable: false, configurable: false });\n`,
         map: null,
       });
 
@@ -72,7 +78,7 @@ function portTopologyInjector(topology: Map<string, PortTopology>): Plugin {
           const expr = code.slice(node.declaration.start, node.declaration.end);
           const replacement =
             `const __nrgDefault = ${expr};\n` +
-            `__nrgDefault.__nrgPorts = ${json};\n` +
+            `Object.defineProperty(__nrgDefault, Symbol.for("nrg.ports"), { value: ${json}, writable: false, configurable: false });\n` +
             `export { __nrgDefault as default };`;
           return {
             code:

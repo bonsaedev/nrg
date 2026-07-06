@@ -46,3 +46,16 @@ export const NRG_NODE = Symbol.for("nrg.node");
  * forgery-proof (the symbol is reproducible from its public key).
  */
 export const NRG_CONFIG_NODE = Symbol.for("nrg.configNode");
+
+/**
+ * Build-injected port-topology key. The port-topology injector stamps
+ * `Object.defineProperty(NodeClass, NRG_PORTS, { value, writable:false,
+ * configurable:false })` from the node's `Input`/`Output` generics; io-node's
+ * `inputs`/`outputs`/`outputPortNames` getters read it. `Symbol.for()` so the
+ * consumer build (which injects) and the runtime (which reads) resolve the same
+ * symbol across the bundle split — the injector emits the literal
+ * `Symbol.for("nrg.ports")`, so keep the key string in sync. Like the brands
+ * above this is NOT a security boundary; the non-writable lock only prevents an
+ * accidental clobber of a value the runtime routes ports on.
+ */
+export const NRG_PORTS = Symbol.for("nrg.ports");

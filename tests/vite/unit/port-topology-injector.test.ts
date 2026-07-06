@@ -5,7 +5,8 @@ import { portTopologyInjector } from "@/tools/vite/server/plugins/port-topology-
 
 const FILE = path.resolve("/nodes/http.ts");
 const TOPO = { inputs: 1 as const, outputs: 2, outputNames: ["ok", "err"] };
-const STAMP = `.__nrgPorts = ${JSON.stringify(TOPO)}`;
+const stamp = (local: string) =>
+  `Object.defineProperty(${local}, Symbol.for("nrg.ports"), { value: ${JSON.stringify(TOPO)}, writable: false, configurable: false })`;
 
 function run(code: string, id: string = FILE): { code: string } | undefined {
   const plugin = portTopologyInjector(new Map([[FILE, TOPO]]));
@@ -20,19 +21,19 @@ function run(code: string, id: string = FILE): { code: string } | undefined {
 describe("portTopologyInjector", () => {
   it("stamps __nrgPorts on the esbuild-normalized `export { X as default }` shape", () => {
     const out = run(`class Http extends Base {}\nexport { Http as default };`);
-    expect(out?.code).toContain(`Http${STAMP}`);
+    expect(out?.code).toContain(stamp("Http"));
   });
 
   it("stamps a named `export default class X`", () => {
     const out = run(`export default class Http extends Base {}`);
-    expect(out?.code).toContain(`Http${STAMP}`);
+    expect(out?.code).toContain(stamp("Http"));
   });
 
   it("stamps a `var d = defineIONode(...); export { d as default }` (functional form)", () => {
     const out = run(
       `var stdin_default = defineIONode({ type: "http" });\nexport { stdin_default as default };`,
     );
-    expect(out?.code).toContain(`stdin_default${STAMP}`);
+    expect(out?.code).toContain(stamp("stdin_default"));
   });
 
   it("captures a bare `export default <expr>` into a const, then stamps + re-exports", () => {
@@ -40,7 +41,7 @@ describe("portTopologyInjector", () => {
     expect(out?.code).toContain(
       `const __nrgDefault = defineIONode({ type: "http" })`,
     );
-    expect(out?.code).toContain(`__nrgDefault${STAMP}`);
+    expect(out?.code).toContain(stamp("__nrgDefault"));
     expect(out?.code).toContain(`export { __nrgDefault as default }`);
   });
 

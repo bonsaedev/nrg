@@ -56,9 +56,12 @@ describe("port topology injection (schema-free Port outputs)", () => {
   });
 
   it("stamps __nrgPorts on the built bundle from the Output generic", () => {
-    // rollup may re-space the injected object literal, so parse it (its keys are
-    // quoted → valid JSON) and compare structurally.
-    const m = bundle.match(/__nrgPorts\s*=\s*(\{[\s\S]*?\})\s*;/);
+    // The injector stamps `Object.defineProperty(Node, Symbol.for("nrg.ports"),
+    // { value: <topology>, … })`. rollup may re-space the object literal, so pull
+    // the `value` object (its keys are quoted → valid JSON) and compare it.
+    const m = bundle.match(
+      /Symbol\.for\("nrg\.ports"\)[\s\S]*?value:\s*(\{[\s\S]*?\})\s*,/,
+    );
     expect(m).toBeTruthy();
     expect(JSON.parse(m![1])).toEqual({
       inputs: 1,

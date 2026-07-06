@@ -12,7 +12,7 @@ import type {
   IONodeCredentials,
 } from "./types";
 import { setupContext } from "./context";
-import { NRG_SETUP_INPUT_HANDLER } from "./symbols";
+import { NRG_SETUP_INPUT_HANDLER, NRG_PORTS } from "./symbols";
 import type {
   OutputPortNames,
   PortValue,
@@ -52,6 +52,15 @@ const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 /** Key holding the append-only lineage of prior input messages. Visible in
  * the debug panel by design — it is the node's provenance chain. */
 const INPUT_KEY = "input";
+
+/** The build-injected port topology (see `port-topology-injector`). Framework-
+ * owned: the injector stamps it under `NRG_PORTS`, non-writable — never set from
+ * node code. When absent, the getters fall back to the `outputsSchema` shape. */
+interface NodePortsDescriptor {
+  inputs: 0 | 1;
+  outputs: number;
+  outputNames?: string[];
+}
 
 /**
  * Controls how an outgoing message carries the incoming message's context:
@@ -135,26 +144,18 @@ abstract class IONode<
   // per-port default by base-output index (missing entries default to false).
   public static readonly validateOutput: boolean | boolean[] = false;
 
-  /**
-   * Port topology derived from the node's `Input`/`Output` generics and injected
-   * by the build (`node-type-info` extraction → server inliner). When present it
-   * is the SOURCE OF TRUTH for port count/names; when absent (e.g. a legacy
-   * schema-only node, or a class read before the build injects it) the getters
-   * below fall back to computing topology from `outputsSchema`. Framework-owned,
-   * build-injected — never set this from node code.
-   */
-  public static __nrgPorts?: {
-    inputs: 0 | 1;
-    outputs: number;
-    outputNames?: string[];
-  };
+  // Build-injected port topology; framework-owned, stamped under `NRG_PORTS` by
+  // the port-topology injector (non-writable). `declare` — the value comes only
+  // from the injector, so no field initializer is emitted to race it.
+  declare public static [NRG_PORTS]?: NodePortsDescriptor;
 
   public static get inputs(): 0 | 1 {
-    return this.__nrgPorts?.inputs ?? (this.inputSchema ? 1 : 0);
+    return this[NRG_PORTS]?.inputs ?? (this.inputSchema ? 1 : 0);
   }
 
   public static get outputs(): number {
-    if (this.__nrgPorts) return this.__nrgPorts.outputs;
+    const p = this[NRG_PORTS];
+    if (p) return p.outputs;
     const s = this.outputsSchema;
     if (!s) return 0;
     if (Array.isArray(s)) return s.length;
@@ -187,7 +188,8 @@ abstract class IONode<
    * instead of guessing them from a serialized (symbol-stripped) schema.
    */
   public static get outputPortNames(): string[] | undefined {
-    if (this.__nrgPorts) return this.__nrgPorts.outputNames;
+    const p = this[NRG_PORTS];
+    if (p) return p.outputNames;
     const s = this.outputsSchema;
     if (!s || Array.isArray(s) || isSchemaLike(s)) return undefined;
     return Object.keys(s);
@@ -671,7 +673,8 @@ abstract class IONode<
    * positional/single output, or no declaration). */
   #namedPortKeys(): string[] | null {
     const NC = this.constructor as typeof IONode;
-    if (NC.__nrgPorts) return NC.__nrgPorts.outputNames ?? null;
+    const p = NC[NRG_PORTS];
+    if (p) return p.outputNames ?? null;
     const schema = NC.outputsSchema;
     if (!schema || Array.isArray(schema) || isSchemaLike(schema)) return null;
     return Object.keys(schema);
