@@ -111,9 +111,8 @@ class Validator {
    */
   private addCustomKeywords(
     ajv: Ajv,
-    keywords?: string[] | KeywordDefinition[],
+    keywords: string[] | KeywordDefinition[],
   ): void {
-    if (!keywords) return;
     keywords.forEach((keyword) => {
       ajv.addKeyword(keyword);
     });
@@ -124,10 +123,8 @@ class Validator {
    */
   private addCustomFormats(
     ajv: Ajv,
-    formats?: Record<string, RegExp | ((data: string) => boolean)>,
+    formats: Record<string, RegExp | ((data: string) => boolean)>,
   ): void {
-    if (!formats) return;
-
     Object.entries(formats).forEach(([name, validator]) => {
       if (validator instanceof RegExp) {
         ajv.addFormat(name, validator);
