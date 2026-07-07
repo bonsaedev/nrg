@@ -12,7 +12,7 @@ export default class ExampleNode extends IONode<Config, any, Input, Output> {
   static override readonly color: `#${string}` = "#a6bbcf";
   static override readonly configSchema: Schema = ConfigsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     this.send(msg);
   }
 }

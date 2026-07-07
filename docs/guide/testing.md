@@ -406,7 +406,7 @@ describe("named output ports", () => {
     };
     class Router extends IONode<Config, never, { payload: number }, Output> {
       static override readonly type = "router";
-      async input(msg: { payload: number }) {
+      override async input(msg: { payload: number }) {
         if (msg.payload > 0) this.sendToPort("ok", { value: msg.payload });
         else this.sendToPort("err", { reason: "non-positive" });
       }
@@ -449,7 +449,7 @@ describe("context store", () => {
 
 class ErrorNode extends IONode<any, any, { payload: string }> {
   static override readonly type = "error-test";
-  async input() {
+  override async input() {
     throw new Error("something broke");
   }
 }
@@ -552,7 +552,7 @@ describe("built-in emit ports", () => {
     }
     class RateLimitedNode extends IONode<any, any, { payload: string }> {
       static override readonly type = "rate-limited";
-      async input() {
+      override async input() {
         throw new RateLimitError(2000);
       }
     }
@@ -580,7 +580,7 @@ describe("built-in emit ports", () => {
     // A node whose input() returns a value:
     class ReturningNode extends IONode<any, any, { payload: string }> {
       static override readonly type = "returning";
-      async input(msg: { payload: string }) {
+      override async input(msg: { payload: string }) {
         return { id: msg.payload, ok: true };
       }
     }
@@ -739,7 +739,7 @@ import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 class Doubler extends IONode<any, any, { value: number }, { doubled: number }> {
   static override readonly type = "doubler";
-  async input(msg: { value: number }) {
+  override async input(msg: { value: number }) {
     this.send({ doubled: msg.value * 2 });
   }
 }
@@ -789,7 +789,7 @@ class Greeter extends IONode<any, any, { who: string }, { text: string }> {
     { source: SchemaType.NodeRef<Greeting>("greeting-config") },
     { $id: "greeter:config" },
   );
-  async input(msg: { who: string }) {
+  override async input(msg: { who: string }) {
     const source = this.config.source as unknown as Greeting;
     this.send({ text: `${source.greeting}, ${msg.who}` });
   }

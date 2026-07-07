@@ -361,7 +361,7 @@ The `v-model` binds the whole `{ value, type }` object; the component emits the 
 At runtime, `this.config.target` is a `TypedInput` instance with `.type`, `.value`, and `.resolve()`:
 
 ```typescript
-async input(msg: Input) {
+override async input(msg: Input) {
   const target = this.config.target;
   this.log(`Type: ${target.type}, Value: ${target.value}`);
 
@@ -739,7 +739,7 @@ export default class PortNode extends IONode<Config, never, Input, Output> {
   static override readonly category = "function";
   static override readonly color: `#${string}` = "#a6bbcf";
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     this.sendToPort("ok", { value: msg.payload.length });
     //              ^^^^ autocompletes "ok" | "err"; the value is
     //                   type-checked against that port's message type
@@ -780,7 +780,7 @@ export default class Router extends IONode<Config, any, Input, Output> {
   static override readonly type = "router";
   static override readonly configSchema: Schema = ConfigsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     try {
       const result = await process(msg);
       // Type-safe: the value must match the "success" port's type
@@ -1034,7 +1034,7 @@ port. Returning nothing (or `undefined`) keeps the plain signal, so this is
 backward-compatible.
 
 ```typescript
-async input(msg: Input): Promise<Summary> {
+override async input(msg: Input): Promise<Summary> {
   const results = await Promise.all(this.collect(msg));
   // continues on the complete port as
   //   { ...msg, output: <summary>, complete: { source } }
@@ -1066,7 +1066,7 @@ class RateLimitError extends Error {
   }
 }
 
-async input(msg: Input) {
+override async input(msg: Input) {
   throw new RateLimitError(2000);
   // error port: { ...msg, error: { name: "RateLimitError", message: "rate limited",
   //                                retryAfterMs: 2000, source } }

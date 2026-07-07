@@ -96,7 +96,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly color: `#${string}` = "#ffffff";
   static readonly configSchema: Schema = ConfigsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     this.send({ text: `${this.config.prefix}: ${msg.payload}` });
   }
 }

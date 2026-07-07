@@ -88,7 +88,7 @@ export default class Api extends IONode<
 > {
   static override readonly type = "api";
 
-  async input(msg: Infer<typeof InputSchema>) {
+  override async input(msg: Infer<typeof InputSchema>) {
     this.sendToPort("ok", { value: 1 }); // typed from the "ok" port's Port<T>
   }
 }
@@ -100,7 +100,7 @@ export default class Api extends IONode<
 const Outputs = { ok: OkSchema, err: ErrSchema };
 
 class Router extends IONode<Config, never, Input, Infer<typeof Outputs>> {
-  async input(msg: Input) {
+  override async input(msg: Input) {
     this.sendToPort("ok", { value: 1 }); // "ok" | "err" typed from the record
   }
 }
@@ -254,7 +254,7 @@ export default class MyNode extends IONode<Config, Credentials> {
   static readonly configSchema: Schema = ConfigsSchema;
   static readonly credentialsSchema: Schema = CredentialsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     const apiKey = this.credentials?.apiKey;
     // ...
   }
@@ -290,7 +290,7 @@ do **not** convert data. So if your node needs a value in a specific runtime sha
 convert it yourself:
 
 ```typescript
-async input(msg: Input) {
+override async input(msg: Input) {
   // `msg.count` is TYPED as number for you, but at runtime it's whatever the
   // upstream node actually sent — coerce it yourself if that matters.
   const count = Number(msg.count);
@@ -419,7 +419,7 @@ export default class OpenConnection extends IONode<Config, any, Input, Output> {
   static override readonly type = "db-open";
   static override readonly configSchema: Schema = ConfigsSchema;
 
-  async input() {
+  override async input() {
     this.send({ connection: pool, rowCount: 0 }); // pool passes through intact
   }
 }
@@ -446,7 +446,7 @@ export default class FetchStream extends IONode<Config, any, { url: string }, Ou
   static override readonly type = "fetch-stream";
   static override readonly configSchema: Schema = ConfigsSchema;
 
-  async input(msg: { url: string }) {
+  override async input(msg: { url: string }) {
     const res = await fetch(msg.url);
     // Send the Readable itself — the wire moves the STREAM object, not its
     // bytes. A downstream node receives this exact instance and can `.pipe()` it.
@@ -541,7 +541,7 @@ const SettingsSchema = defineSchema(
 export default class MyNode extends IONode<Config, any, Input, any, Settings> {
   static readonly settingsSchema: Schema = SettingsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     const endpoint = this.settings.apiEndpoint;
     // ...
   }

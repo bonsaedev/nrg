@@ -75,7 +75,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly color: `#${string}` = "#FFFFFF";
   static readonly configSchema: Schema = ConfigsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     this.send({ uppercased: msg.payload.toUpperCase() });
   }
 }
@@ -135,7 +135,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly type = "my-node";
   static readonly configSchema: Schema = ConfigsSchema;
 
-  async input(msg: Input) {
+  override async input(msg: Input) {
     // msg.paylaod → compile error: Property 'paylaod' does not exist
     // this.config.server → typed as RemoteServer instance
     // this.config.name → typed as string
@@ -179,7 +179,7 @@ import { someUtil } from 'esm-only-package';
 export default class MyNode extends IONode {
   static readonly type = "my-node";
 
-  async input(msg: { payload: unknown }) {
+  override async input(msg: { payload: unknown }) {
     const result = someUtil(msg.payload);
     this.send({ result });
   }
@@ -317,7 +317,7 @@ this.on('input', function(msg, send, done) {
 An async method. `done()` is called automatically when it returns or rejects.
 
 ```typescript
-async input(msg: Input) {
+override async input(msg: Input) {
   this.send({ uppercased: msg.payload.toUpperCase() });
 }
 ```
