@@ -903,13 +903,13 @@ store, so there's nothing to serialize it against.
 
 By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure their scope separately — so these events never appear in the visual data flow.
 
-NRG lets you add explicit output ports for these events. When enabled, errors, completions, and status changes are sent through wires like any other message, keeping the flow visible and debuggable.
+NRG turns these into explicit output ports. When a port is enabled, errors, completions, and status changes are sent through wires like any other message, keeping the flow visible and debuggable.
 
-This feature is **opt-in per node**. Built-in ports only appear in the editor when you add the corresponding boolean properties to your config schema. If you don't add them, nothing changes.
+**You don't declare these in your schema.** The framework injects the `errorPort`, `completePort`, and `statusPort` controls into **every** IONode's config, so a **Lifecycle Output Ports** section (see [The editor form](#the-editor-form)) with an Error / Complete / Status toggle renders on every node automatically. Each defaults to **off**, and the **flow author** enables the ones they want, per node instance — that toggle value is what makes the port appear. Nothing in your schema controls whether a port renders.
 
-#### Adding built-in ports to your schema
+#### Changing a default
 
-Add any combination of `errorPort`, `completePort`, and `statusPort` to your config schema:
+The only reason to name one of these in your config schema is to change its **default** for your node type. Declare just that field with the default you want; the framework merges your value over its own:
 
 ```typescript
 export const ConfigsSchema = defineSchema(
@@ -918,16 +918,15 @@ export const ConfigsSchema = defineSchema(
     url: SchemaType.String({ default: "" }),
     // ... your node-specific config
 
-    // Opt-in to built-in ports (all optional — add only the ones you need)
-    errorPort: SchemaType.Boolean({ default: false }),
-    completePort: SchemaType.Boolean({ default: false }),
-    statusPort: SchemaType.Boolean({ default: false }),
+    // Default the error port ON for this node type (framework default is off).
+    // The flow author can still toggle it off per instance.
+    errorPort: SchemaType.Boolean({ default: true }),
   },
   { $id: "my-node:config" }
 );
 ```
 
-The framework detects these properties by name. When present, toggle switches appear in the editor under a **Lifecycle Output Ports** section (see [The editor form](#the-editor-form)). Users can enable or disable each port independently.
+Declaring it does **not** add or gate the port — the toggle is always there; you're only seeding what it starts as.
 
 #### How it works
 
