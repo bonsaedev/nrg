@@ -72,7 +72,7 @@ export const InputSchema = defineSchema(
 );
 
 export const OutputSchema = defineSchema(
-  { payload: SchemaType.String() },
+  { text: SchemaType.String() },
   { $id: "my-node:output" },
 );
 ```
@@ -88,7 +88,7 @@ import { ConfigsSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = { payload: string };
-type Output = { payload: string };
+type Output = { text: string };
 
 export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly type = "my-node";
@@ -97,7 +97,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly configSchema: Schema = ConfigsSchema;
 
   async input(msg: Input) {
-    this.send({ payload: `${this.config.prefix}: ${msg.payload}` });
+    this.send({ text: `${this.config.prefix}: ${msg.payload}` });
   }
 }
 ```
@@ -183,7 +183,7 @@ describe("my-node", () => {
     await node.receive({ payload: "world" });
 
     expect(node.sent(0)).toEqual([
-      { payload: "world", output: { payload: "hello: world" } },
+      { payload: "world", output: { text: "hello: world" } },
     ]);
   });
 });
@@ -235,8 +235,8 @@ describe("my-node (integration)", () => {
 
     await node.receive({ payload: "world" });
 
-    const out = (await node.read()) as { output: { payload: string } };
-    expect(out.output.payload).toBe("hello: world");
+    const out = (await node.read()) as { output: { text: string } };
+    expect(out.output.text).toBe("hello: world");
   });
 });
 ```

@@ -76,7 +76,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly configSchema: Schema = ConfigsSchema;
 
   async input(msg: Input) {
-    this.send({ payload: msg.payload.toUpperCase() });
+    this.send({ uppercased: msg.payload.toUpperCase() });
   }
 }
 ```
@@ -181,7 +181,7 @@ export default class MyNode extends IONode {
 
   async input(msg: { payload: unknown }) {
     const result = someUtil(msg.payload);
-    this.send({ payload: result });
+    this.send({ result });
   }
 }
 ```
@@ -318,7 +318,7 @@ An async method. `done()` is called automatically when it returns or rejects.
 
 ```typescript
 async input(msg: Input) {
-  this.send({ payload: msg.payload.toUpperCase() });
+  this.send({ uppercased: msg.payload.toUpperCase() });
 }
 ```
 
@@ -349,7 +349,7 @@ Async, typed, one line.
 
 ```typescript
 const result: string = await this.config.target.resolve(msg);
-this.send({ payload: result });
+this.send({ result });
 ```
 
 ## Config Node References

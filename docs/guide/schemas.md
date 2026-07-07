@@ -430,6 +430,37 @@ The build reads the `Output` generic, so the generated node help renders the
 `number` — recovered from the source at build time, with nothing to keep in sync
 by hand.
 
+The wire carries the **actual object**, not a copy — the framework never
+deep-clones `output`, so a live stream or an HTTP request/response travels the
+wire and works downstream unchanged. A node can emit a `Readable` on a typed
+port:
+
+```typescript
+import { IONode, type Port } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
+import { Readable } from "node:stream";
+
+type Output = { body: Port<Readable> };
+
+export default class FetchStream extends IONode<Config, any, { url: string }, Output> {
+  static override readonly type = "fetch-stream";
+  static override readonly configSchema: Schema = ConfigsSchema;
+
+  async input(msg: { url: string }) {
+    const res = await fetch(msg.url);
+    // Send the Readable itself — the wire moves the STREAM object, not its
+    // bytes. A downstream node receives this exact instance and can `.pipe()` it.
+    this.sendToPort("body", Readable.fromWeb(res.body!));
+  }
+}
+```
+
+`Port<Readable>` type-checks the wire in the editor — it only connects to a node
+whose input accepts a `Readable`. The same pattern carries an HTTP request/
+response pair (`{ req: Port<IncomingMessage>; res: Port<ServerResponse> }`), a
+`Buffer`, a socket, or any class instance: nrg nodes compose like typed function
+calls that pass real objects around, not just JSON hand-offs.
+
 If you additionally want **runtime data validation** on the data fields (via the
 `SchemaType.OutputSchemas()` config control — see
 [Configuring validation in the editor](#editor-schema-overrides)), JSON Schema

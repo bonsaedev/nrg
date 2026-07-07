@@ -239,7 +239,7 @@ describe("my-node", () => {
     // send() wraps the result under the return key (`output`) and carries the
     // incoming msg's fields, so the captured msg is the input plus `output`.
     expect(node.sent(0)).toEqual([
-      { payload: "hello", output: { payload: "HELLO" } },
+      { payload: "hello", output: { uppercased: "HELLO" } },
     ]);
     expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
   });
@@ -306,7 +306,7 @@ describe("credentials", () => {
 
     await node.receive({ payload: "test" });
     expect(node.sent(0)).toEqual([
-      { payload: "test", output: { payload: "authenticated" } },
+      { payload: "test", output: { result: "authenticated" } },
     ]);
   });
 });
@@ -319,7 +319,7 @@ describe("settings", () => {
 
     await node.receive({});
     // receive({}) carries no fields, so the wrapped msg is just `output`.
-    expect(node.sent(0)).toEqual([{ output: { payload: 3000 } }]);
+    expect(node.sent(0)).toEqual([{ output: { timeout: 3000 } }]);
   });
 });
 
@@ -328,7 +328,7 @@ describe("TypedInput", () => {
   //
   //   async input(msg) {
   //     const value = await this.config.target.resolve(msg);
-  //     this.send({ payload: value });
+  //     this.send({ value });
   //   }
 
   it("should resolve msg property via TypedInput", async () => {
@@ -338,7 +338,7 @@ describe("TypedInput", () => {
 
     await node.receive({ payload: "from-msg" });
     expect(node.sent(0)).toEqual([
-      { payload: "from-msg", output: { payload: "from-msg" } },
+      { payload: "from-msg", output: { value: "from-msg" } },
     ]);
   });
 
@@ -348,7 +348,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ output: { payload: "hello" } }]);
+    expect(node.sent(0)).toEqual([{ output: { value: "hello" } }]);
   });
 
   it("should resolve number via TypedInput", async () => {
@@ -357,7 +357,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ output: { payload: 42 } }]);
+    expect(node.sent(0)).toEqual([{ output: { value: 42 } }]);
   });
 });
 
@@ -386,10 +386,10 @@ describe("multi-output nodes", () => {
     await node.receive({ payload: 30 });
 
     expect(node.sent(0)).toEqual([
-      { payload: 75, output: { payload: 75, label: "above" } },
+      { payload: 75, output: { value: 75, label: "above" } },
     ]);
     expect(node.sent(1)).toEqual([
-      { payload: 30, output: { payload: 30, label: "below" } },
+      { payload: 30, output: { value: 30, label: "below" } },
     ]);
   });
 });
@@ -428,8 +428,8 @@ describe("context store", () => {
     await node.receive({});
 
     expect(node.sent(0)).toEqual([
-      { output: { payload: 1 } },
-      { output: { payload: 2 } },
+      { output: { count: 1 } },
+      { output: { count: 2 } },
     ]);
   });
 
@@ -442,7 +442,7 @@ describe("context store", () => {
     await node.receive({});
 
     // ...then assert what the node read/wrote
-    expect(node.sent(0)).toEqual([{ output: { payload: 11 } }]);
+    expect(node.sent(0)).toEqual([{ output: { count: 11 } }]);
     expect(await node.context.flow!.get("count")).toBe(11);
   });
 });
@@ -470,7 +470,7 @@ describe("i18n", () => {
     const { node } = await createNode(MyNode);
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ output: { payload: "my-node.greeting" } }]);
+    expect(node.sent(0)).toEqual([{ output: { greeting: "my-node.greeting" } }]);
   });
 });
 
@@ -478,7 +478,7 @@ describe("named output ports (sendToPort)", () => {
   // Given a node whose two named ports come from a `Port<T>` Output generic:
   //
   //   type Output = {
-  //     success: Port<{ payload: string }>;
+  //     success: Port<{ result: string }>;
   //     failure: Port<{ error: string }>;
   //   };
   //   class Router extends IONode<Config, any, Input, Output> { ... }
@@ -490,7 +490,7 @@ describe("named output ports (sendToPort)", () => {
 
     await node.receive({ payload: 75 });
     expect(node.sent("success")).toEqual([
-      { payload: 75, output: { payload: "passed" } },
+      { payload: 75, output: { result: "passed" } },
     ]);
     expect(node.sent("failure")).toHaveLength(0);
   });
