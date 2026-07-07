@@ -173,10 +173,10 @@ Instantiate your node with mocked Node-RED internals and exercise its full lifec
 ```typescript
 // vitest.server.unit.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/server/unit/config";
+import { nrg } from "@bonsae/nrg/test/server/unit/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/server/unit/**/*.test.ts"],
@@ -213,10 +213,10 @@ Boot a real, headless Node-RED runtime, deploy your nodes, and drive them with r
 ```typescript
 // vitest.server.integration.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/server/integration/config";
+import { nrg } from "@bonsae/nrg/test/server/integration/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/server/integration/**/*.test.ts"],
@@ -265,10 +265,10 @@ Test client-side TypeScript logic (validation, utilities) with mocked `RED` and 
 ```typescript
 // vitest.client.unit.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/unit/config";
+import { nrg } from "@bonsae/nrg/test/client/unit/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/client/unit/**/*.test.ts"],
@@ -296,10 +296,10 @@ Test your Vue editor components with mocked Node-RED globals. Components that us
 ```typescript
 // vitest.client.component.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/component/config";
+import { nrg } from "@bonsae/nrg/test/client/component/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/client/component/**/*.test.ts"],
@@ -352,11 +352,11 @@ Drive the real editor in a live Node-RED instance with Playwright — schema-dri
 ```typescript
 // vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/e2e/config";
+import { nrg } from "@bonsae/nrg/test/client/e2e/config";
 
 export default defineConfig({
   test: {
-    ...defaultConfig,
+    ...nrg,
     globalSetup: "tests/client/e2e/global-setup.ts",
     include: ["tests/client/e2e/**/*.test.ts"],
   },

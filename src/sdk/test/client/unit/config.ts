@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export const defaultConfig = {
+export const nrg = {
   esbuild: {
     tsconfigRaw: "{}",
   },

@@ -1,7 +1,7 @@
 // Default vitest config for a consumer's client e2e tests. The e2e global setup
 // boots a real Node-RED instance that Playwright drives. Use it directly:
-// `export default defineConfig(defaultConfig)`.
-export const defaultConfig = {
+// `export default defineConfig(nrg)`.
+export const nrg = {
   test: {
     testTimeout: 60_000,
     hookTimeout: 120_000,

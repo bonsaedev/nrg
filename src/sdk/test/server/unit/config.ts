@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export const defaultConfig = {
+export const nrg = {
   resolve: {
     alias: {
       // More specific first: `@/schemas/*` → the consumer's shared schemas.

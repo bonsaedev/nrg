@@ -5,7 +5,7 @@ import path from "node:path";
  * module-level singletons, so each test file boots its own runtime in its own
  * forked process and files run one at a time.
  */
-export const defaultConfig = {
+export const nrg = {
   resolve: {
     alias: {
       // More specific first: `@/schemas/*` → the consumer's shared schemas.

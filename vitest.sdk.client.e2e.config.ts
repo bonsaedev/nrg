@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { defaultConfig } from "./src/sdk/test/client/e2e/config";
+import { nrg } from "./src/sdk/test/client/e2e/config";
 
 export default defineConfig({
   resolve: {
@@ -16,7 +16,7 @@ export default defineConfig({
     },
   },
   test: {
-    ...defaultConfig.test,
+    ...nrg.test,
     include: ["tests/sdk/client/e2e/**/*.test.ts"],
     globalSetup: ["tests/sdk/client/e2e/global-setup.ts"],
   },

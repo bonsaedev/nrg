@@ -3,7 +3,7 @@ import { createNode } from "@bonsae/nrg/test/server/unit";
 import ExampleNode from "../../src/server/nodes/example";
 
 // Runs the PUBLISHED server-unit toolkit (createNode) against a real node, from a
-// packed install — exercises the shipped `defaultConfig`, the subpath exports,
+// packed install — exercises the shipped `nrg` config, the subpath exports,
 // the include glob and the `@` alias, in a plain Node env (no browser flake).
 describe("example-node (server-unit smoke)", () => {
   it("echoes its input through the packed createNode helper", async () => {

@@ -2,7 +2,7 @@ import path from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
 
-export const defaultConfig = {
+export const nrg = {
   plugins: [vue()],
   esbuild: {
     tsconfigRaw: "{}",

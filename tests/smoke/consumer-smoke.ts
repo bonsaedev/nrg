@@ -312,7 +312,7 @@ function testEsmBoot(consumerDir: string): void {
 // --- Test: server-unit vitest tier (runs the published toolkit) -----------
 
 // The other checks cover tsc/build/dev + the integration ESM boot. This runs an
-// actual `createNode` unit test through the packed toolkit's vitest defaultConfig
+// actual `createNode` unit test through the packed toolkit's vitest `nrg` config
 // — exercising the shipped `@bonsae/nrg/test/server/unit` bytes, the config
 // subpath, and the include glob, in a plain Node env (no browser, no flake).
 function testServerUnitTier(consumerDir: string): void {

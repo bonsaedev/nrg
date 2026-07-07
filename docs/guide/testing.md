@@ -132,10 +132,10 @@ No additional dependencies needed — NRG provides the test utilities and mocks.
 ```typescript
 // vitest.server.unit.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/server/unit/config";
+import { nrg } from "@bonsae/nrg/test/server/unit/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/server/unit/**/*.test.ts"],
@@ -144,7 +144,7 @@ export default mergeConfig(
 );
 ```
 
-The `defaultConfig` provides:
+The `nrg` config provides:
 
 - `testTimeout: 30_000`
 - `@` alias pointing to `src/` in your project root
@@ -641,10 +641,10 @@ Integration tests embed whatever `node-red` your project has installed — the l
 ```typescript
 // vitest.server.integration.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/server/integration/config";
+import { nrg } from "@bonsae/nrg/test/server/integration/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/server/integration/**/*.test.ts"],
@@ -653,7 +653,7 @@ export default mergeConfig(
 );
 ```
 
-The `defaultConfig` provides:
+The `nrg` config provides:
 
 - a default `include` of `tests/server/integration/**/*.test.ts` — its own folder, separate from the unit tier's `tests/server/unit`
 - `testTimeout: 30_000` and `hookTimeout: 30_000` (booting a runtime takes longer than a unit test)
@@ -897,10 +897,10 @@ pnpm add -D vitest happy-dom
 ```typescript
 // vitest.client.unit.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/unit/config";
+import { nrg } from "@bonsae/nrg/test/client/unit/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/client/unit/**/*.test.ts"],
@@ -909,7 +909,7 @@ export default mergeConfig(
 );
 ```
 
-The `defaultConfig` provides:
+The `nrg` config provides:
 
 - `testTimeout: 30_000`
 - `environment: "happy-dom"` for `window`, `document`, and other browser globals
@@ -1002,10 +1002,10 @@ NRG ships `@vitejs/plugin-vue` as a direct dependency; `@vitest/browser-playwrig
 ```typescript
 // vitest.client.component.config.ts
 import { defineConfig, mergeConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/component/config";
+import { nrg } from "@bonsae/nrg/test/client/component/config";
 
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/client/component/**/*.test.ts"],
@@ -1014,7 +1014,7 @@ export default mergeConfig(
 );
 ```
 
-The `defaultConfig` provides:
+The `nrg` config provides:
 
 - Vue plugin (`@vitejs/plugin-vue`)
 - Playwright browser provider with chromium, firefox, and webkit instances
@@ -1031,7 +1031,7 @@ To test on a single browser only, override the `browser.instances` array:
 
 ```typescript
 export default mergeConfig(
-  defaultConfig,
+  nrg,
   defineConfig({
     test: {
       include: ["tests/client/component/**/*.test.ts"],
@@ -1321,19 +1321,19 @@ pnpm add -D vitest
 ```typescript
 // vitest.client.e2e.config.ts
 import { defineConfig } from "vitest/config";
-import { defaultConfig } from "@bonsae/nrg/test/client/e2e/config";
+import { nrg } from "@bonsae/nrg/test/client/e2e/config";
 
 export default defineConfig({
-  ...defaultConfig,
+  ...nrg,
   test: {
-    ...defaultConfig.test,
+    ...nrg.test,
     globalSetup: "tests/client/e2e/global-setup.ts",
     include: ["tests/client/e2e/**/*.test.ts"],
   },
 });
 ```
 
-The `defaultConfig` provides:
+The `nrg` config provides:
 
 - `testTimeout: 60_000`
 - `hookTimeout: 120_000`
