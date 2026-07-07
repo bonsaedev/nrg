@@ -1320,17 +1320,18 @@ pnpm add -D vitest
 
 ```typescript
 // vitest.client.e2e.config.ts
-import { defineConfig } from "vitest/config";
+import { defineConfig, mergeConfig } from "vitest/config";
 import { nrg } from "@bonsae/nrg/test/client/e2e/config";
 
-export default defineConfig({
-  ...nrg,
-  test: {
-    ...nrg.test,
-    globalSetup: "tests/client/e2e/global-setup.ts",
-    include: ["tests/client/e2e/**/*.test.ts"],
-  },
-});
+export default mergeConfig(
+  nrg,
+  defineConfig({
+    test: {
+      globalSetup: "tests/client/e2e/global-setup.ts",
+      include: ["tests/client/e2e/**/*.test.ts"],
+    },
+  }),
+);
 ```
 
 The `nrg` config provides:
