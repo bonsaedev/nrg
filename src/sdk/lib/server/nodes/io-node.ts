@@ -392,20 +392,20 @@ abstract class IONode<
     this.node.log("Output is valid");
   }
 
-  // Per-instance cache of resolved flow-author overrides, keyed by the raw JSON
-  // string (a node's config is immutable for its lifetime). `null` = the override
-  // is unusable (bad JSON, or valid JSON that does not compile) → fall back to
-  // the static schema. Memoizing keeps the SAME parsed object across messages, so
+  // Per-instance cache of resolved data-validation schemas, keyed by the raw JSON
+  // string (a node's config is immutable for its lifetime). `null` = the string
+  // is unusable (bad JSON, or valid JSON that does not compile) → the boundary is
+  // not validated. Memoizing keeps the SAME parsed object across messages, so
   // the validator's object-keyed compile cache hits: no per-message JSON.parse,
   // no per-message recompile/leak, and the warning fires exactly once.
   readonly #overrideSchemas = new Map<string, Schema | null>();
 
-  /** Resolve a flow-author schema override (a JSON-Schema string set in the
-   * editor) to a schema object, memoized per instance. `undefined` → no override
-   * (blank / not a string), so the caller uses the node's static schema. An
-   * override that is invalid JSON, or valid JSON that does NOT compile (a typo'd
-   * keyword), also falls back to the static schema — warned once here rather than
-   * throwing on every message inside `validate()`. */
+  /** Resolve a data-validation schema (a JSON-Schema string from config — the
+   * author default, overridable by the flow author in the editor) to a schema
+   * object, memoized per instance. `undefined` → no schema (blank / not a
+   * string), so the boundary is not validated. A string that is invalid JSON, or
+   * valid JSON that does NOT compile (a typo'd keyword), also yields `undefined`
+   * — warned once here rather than throwing on every message inside `validate()`. */
   #resolveOverride(raw: unknown): Schema | undefined {
     if (typeof raw !== "string" || !raw.trim()) return undefined;
     const cached = this.#overrideSchemas.get(raw);
@@ -413,14 +413,14 @@ abstract class IONode<
     let resolved: Schema | null = null;
     try {
       const parsed = JSON.parse(raw) as Schema;
-      // Compile once now so a structurally-invalid override fails closed here
-      // (warn + static fallback) instead of throwing on every message.
+      // Compile once now so a structurally-invalid schema fails closed here
+      // (warn + skip validation) instead of throwing on every message.
       this.RED.validator.createValidator(parsed, false);
       resolved = parsed;
     } catch (e) {
       const reason = e instanceof Error ? e.message : "parse/compile error";
       this.node.warn(
-        `Ignoring an invalid schema override (${reason}); using the node's static schema.`,
+        `Ignoring an invalid data-validation schema (${reason}); skipping validation.`,
       );
     }
     this.#overrideSchemas.set(raw, resolved);
@@ -520,7 +520,7 @@ abstract class IONode<
 
   /**
    * Send a message to a specific output port by index or name.
-   * Custom named ports are resolved from `outputsSchema` when it is a record.
+   * Named ports are resolved from the node's named `Port<T>` Output generic.
    * Numeric indices refer to the base output ports (0-based).
    *
    * Built-in ports (`"error"`, `"complete"`, `"status"`) are managed by the
@@ -549,7 +549,7 @@ abstract class IONode<
           ? `sendToPort("${port}") — unknown output port. Valid named ports: ${keys
               .map((n) => `"${n}"`)
               .join(", ")}.`
-          : `sendToPort("${port}") — this node has no named output ports. Make outputsSchema a record of named schemas, or send to a numeric port index.`,
+          : `sendToPort("${port}") — this node has no named output ports. Declare named ports with a Port<T> record in the node's Output generic, or send to a numeric port index.`,
       );
     }
     const idx = portIndex ?? 0;

@@ -391,17 +391,6 @@ describe("help-generator", () => {
           apiKey: { type: "string", format: "password", default: "" },
         },
       },
-      inputSchema: {
-        properties: {
-          payload: { type: "string" },
-        },
-      },
-      outputsSchema: {
-        properties: {
-          payload: { type: "object" },
-          status: { type: "number" },
-        },
-      },
     };
 
     it("includes description as first paragraph wrapped in p tag", () => {
@@ -425,169 +414,24 @@ describe("help-generator", () => {
       expect(doc).toContain("<th>Default</th>");
     });
 
-    it("generates Input section without Default column", () => {
-      const doc = generateHelpDoc(
-        mockNodeClass,
-        { input: { payload: "Payload" } },
-        enUS,
-      );
-
-      const inputSection = doc.substring(doc.indexOf("<h3>Input</h3>"));
-      const outputStart = inputSection.indexOf("<h3>Output</h3>");
-      const inputOnly =
-        outputStart > 0 ? inputSection.substring(0, outputStart) : inputSection;
-
-      expect(inputOnly).toContain("<h3>Input</h3>");
-      expect(inputOnly).not.toContain("<th>Default</th>");
-    });
-
-    it("generates Output section without Default column", () => {
-      const doc = generateHelpDoc(
-        mockNodeClass,
-        { outputs: [{ payload: "Result", status: "Status code" }] },
-        enUS,
-      );
-
-      const outputSection = doc.substring(doc.indexOf("<h3>Output</h3>"));
-
-      expect(outputSection).toContain("<h3>Output</h3>");
-      expect(outputSection).not.toContain("<th>Default</th>");
-    });
-
-    it("translates all section titles", () => {
+    it("translates the schema-driven section titles", () => {
       const doc = generateHelpDoc(
         mockNodeClass,
         {
           description: "Descrição do nó.",
           configs: { url: "URL" },
           credentials: { apiKey: "Chave" },
-          input: { payload: "Entrada" },
-          outputs: [{ payload: "Saída" }],
         },
         ptBR,
       );
 
       expect(doc).toContain("<h3>Propriedades</h3>");
       expect(doc).toContain("<h3>Credenciais</h3>");
-      expect(doc).toContain("<h3>Entrada</h3>");
-      expect(doc).toContain("<h3>Saída</h3>");
-    });
-
-    it("handles multi-port outputs", () => {
-      const multiOutputNode = {
-        ...mockNodeClass,
-        outputsSchema: [
-          { properties: { payload: { type: "object" } } },
-          { properties: { error: { type: "string" } } },
-        ],
-      };
-
-      const doc = generateHelpDoc(
-        multiOutputNode,
-        {
-          outputs: [{ payload: "Success" }, { error: "Error message" }],
-        },
-        enUS,
-      );
-
-      expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>Port 1</h4>");
-      expect(doc).toContain("<h4>Port 2</h4>");
-    });
-
-    it("handles record-based named output ports", () => {
-      const namedOutputNode = {
-        ...mockNodeClass,
-        outputsSchema: {
-          success: { properties: { payload: { type: "string" } } },
-          failure: { properties: { reason: { type: "string" } } },
-        },
-      };
-
-      const doc = generateHelpDoc(
-        namedOutputNode,
-        {
-          outputs: {
-            success: { payload: "Result" },
-            failure: { reason: "Error reason" },
-          } as any,
-        },
-        enUS,
-      );
-
-      expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>success</h4>");
-      expect(doc).toContain("<h4>failure</h4>");
-    });
-
-    it("handles record outputs without labels", () => {
-      const namedOutputNode = {
-        ...mockNodeClass,
-        outputsSchema: {
-          success: { properties: { payload: { type: "string" } } },
-          failure: { properties: { reason: { type: "string" } } },
-        },
-      };
-
-      const doc = generateHelpDoc(namedOutputNode, {}, enUS);
-
-      expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>success</h4>");
-      expect(doc).toContain("<h4>failure</h4>");
     });
 
     it("returns empty string when no schemas or labels exist", () => {
       const doc = generateHelpDoc({}, {}, enUS);
       expect(doc).toBe("");
-    });
-
-    it("skips array output ports that produce empty sections", () => {
-      const node = {
-        outputsSchema: [
-          { properties: { id: { type: "string" } } },
-          { properties: { type: { type: "string" } } },
-        ],
-      };
-
-      const doc = generateHelpDoc(node, {}, enUS);
-      expect(doc).not.toContain("Outputs");
-    });
-
-    it("skips record output ports that produce empty sections", () => {
-      const node = {
-        outputsSchema: {
-          first: { properties: { id: { type: "string" } } },
-          second: { properties: { type: { type: "string" } } },
-        },
-      };
-
-      const doc = generateHelpDoc(node, {}, enUS);
-      expect(doc).not.toContain("Outputs");
-    });
-
-    it("skips single output when section is empty", () => {
-      const node = {
-        outputsSchema: {
-          type: "object",
-          properties: { id: { type: "string" } },
-        },
-      };
-
-      const doc = generateHelpDoc(node, {}, enUS);
-      expect(doc).not.toContain("Output");
-    });
-
-    it("skips input section when schema has only system fields", () => {
-      const node = {
-        inputSchema: {
-          properties: { id: { type: "string" }, type: { type: "string" } },
-        },
-      };
-
-      const doc = generateHelpDoc(node, {}, enUS);
-      // No Input *section* (the schema is all system fields). The Capabilities
-      // table may still mention "Input ports", so target the section header.
-      expect(doc).not.toContain("<h3>Input</h3>");
     });
 
     it("omits sections for missing schemas", () => {
@@ -603,50 +447,6 @@ describe("help-generator", () => {
       expect(doc).not.toContain("<h3>Credentials</h3>");
       expect(doc).not.toContain("<h3>Input</h3>");
       expect(doc).not.toContain("<h3>Output</h3>");
-    });
-
-    it("surfaces parser-recovered Unsafe<T>() types for inputs and outputs", () => {
-      // Schemas carry $ids; the parser map (built from source Unsafe<T>() args)
-      // is keyed by $id. generateHelpDoc looks each property up and renders T in
-      // the Type column for the input AND the output port.
-      const node = {
-        inputSchema: {
-          $id: "demo:in",
-          properties: { onTick: { description: "called per message" } },
-          required: ["onTick"],
-        },
-        outputsSchema: {
-          $id: "demo:out",
-          properties: { connection: { description: "open pool" } },
-          required: ["connection"],
-        },
-      };
-      const unsafeTypes = new Map<string, Record<string, string>>([
-        ["demo:in", { onTick: "MessageHandler" }],
-        ["demo:out", { connection: "Connection" }],
-      ]);
-
-      const doc = generateHelpDoc(node, {}, enUS, unsafeTypes);
-
-      expect(doc).toContain("<h3>Input</h3>");
-      expect(doc).toContain("<td>MessageHandler</td>");
-      expect(doc).toContain("<h3>Output</h3>");
-      expect(doc).toContain("<td>Connection</td>");
-    });
-
-    it("leaves the Type cell blank when no parser map is provided", () => {
-      // Discriminating: the type only appears via the parser map, never by
-      // accident — a bare Unsafe<T>() output with no map renders an empty cell.
-      const node = {
-        outputsSchema: {
-          $id: "demo:out2",
-          properties: { connection: { description: "open pool" } },
-          required: ["connection"],
-        },
-      };
-      const doc = generateHelpDoc(node, {}, enUS);
-      expect(doc).toContain("<h3>Output</h3>");
-      expect(doc).toContain("<td>connection</td><td></td>");
     });
   });
 

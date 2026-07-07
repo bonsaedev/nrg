@@ -429,9 +429,10 @@ describe("help-generator — type-driven rendering", () => {
     });
   });
 
-  // (f) Fallback: with nodeTypes undefined, the output is schema-driven exactly
-  // as before — no regression relative to omitting the argument entirely.
-  describe("(f) schema-driven fallback (no regression)", () => {
+  // (f) Fallback: with nodeTypes undefined (e.g. dev, no node-types.json), the
+  // config/credentials/settings sections still render from their schemas. Input
+  // and output sections are type-only — they have no schema fallback.
+  describe("(f) schema-driven fallback for config/credentials/settings", () => {
     const nodeClass = {
       type: "n",
       configSchema: {
@@ -444,8 +445,6 @@ describe("help-generator — type-driven rendering", () => {
       credentialsSchema: {
         properties: { apiKey: { type: "string", format: "password" } },
       },
-      inputSchema: { properties: { payload: { type: "string" } } },
-      outputsSchema: { properties: { result: { type: "object" } } },
     };
 
     it("passing nodeTypes: undefined is identical to omitting the argument", () => {
@@ -464,7 +463,7 @@ describe("help-generator — type-driven rendering", () => {
       expect(withUndefined).toBe(withoutArg);
     });
 
-    it("renders every schema-driven section with the schema Type column", () => {
+    it("renders config/credentials from schema, but no type-only Input/Output", () => {
       const doc = generateHelpDoc(
         nodeClass,
         { configs: { host: "Host" } },
@@ -475,12 +474,12 @@ describe("help-generator — type-driven rendering", () => {
 
       expect(doc).toContain("<h3>Properties</h3>");
       expect(doc).toContain("<h3>Credentials</h3>");
-      expect(doc).toContain("<h3>Input</h3>");
-      expect(doc).toContain("<h3>Output</h3>");
       // Type column comes from the schema (no TS types provided)
       expect(doc).toContain("<td>host</td>");
       expect(doc).toContain("<td>string</td>");
-      expect(doc).toContain("<td>result</td><td>object</td>");
+      // Input/Output are type-driven only — without nodeTypes, no such sections.
+      expect(doc).not.toContain("<h3>Input</h3>");
+      expect(doc).not.toContain("<h3>Output</h3>");
       // No Complete section without nodeTypes.complete
       expect(doc).not.toContain("Complete");
     });

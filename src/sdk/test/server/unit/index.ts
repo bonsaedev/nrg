@@ -52,9 +52,9 @@ type WrappedPort<V, TInput> = { output: V } & (unknown extends TInput
 
 /**
  * The positional fan-out the runtime delivers for one emission — one wrapped
- * slot per declared base output port, derived from the node's output type:
- * - a tuple `outputsSchema` → a precise positional tuple (`[i][0]`, `[i][1]`, …);
- * - a single `outputsSchema` → a one-slot tuple (`[i][0]`);
+ * slot per declared base output port, derived from the node's `Output` generic:
+ * - a tuple `Output` → a precise positional tuple (`[i][0]`, `[i][1]`, …);
+ * - a single `Output` → a one-slot tuple (`[i][0]`);
  * - a named-port record → a sound per-port union (use `sent(name)` for precise
  *   named access — record key order is not recoverable at the type level).
  *
@@ -230,9 +230,9 @@ function attachHelpers<T>(
         // positional slot beyond the declared ports.
         const builtin = builtinPortIndex(node, port);
         if (builtin !== undefined) return builtin === -1 ? [] : pluck(builtin);
-        // Custom named ports: resolve via the class getter, which prefers the
-        // type-derived names (injected `__nrgPorts`) and falls back to a record
-        // `outputsSchema` — so a types-only `Port<T>` node resolves by name too.
+        // Custom named ports: resolve via the class getter, which reads the
+        // type-derived names (injected `__nrgPorts`) — so a types-only `Port<T>`
+        // node resolves by name.
         const names = (NodeClass as { outputPortNames?: string[] })
           .outputPortNames;
         const idx = names?.indexOf(port) ?? -1;
@@ -292,9 +292,9 @@ async function createNode<T extends NodeClass>(
   } = options;
 
   // Behave like a built node: stamp the type-derived port topology the build
-  // would inject, so a types-only node (no outputsSchema) routes its base and
-  // built-in error/complete/status ports at the right indices. No-op for a node
-  // that already carries it or whose ports come from a schema. (port-topology.ts)
+  // would inject, so a types-only node routes its base and built-in
+  // error/complete/status ports at the right indices. No-op for a node that
+  // already carries it or has no type-derived ports. (port-topology.ts)
   ensurePortTopology(NodeClass);
 
   // Extract config node instances passed directly in config values

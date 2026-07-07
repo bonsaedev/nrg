@@ -8,7 +8,6 @@ import type { RED, NodeRedNode } from "./red";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
 import { NrgError } from "../shared/errors";
-import { Kind } from "../shared/schemas";
 import {
   getCredentialsFromSchema,
   getSettingsFromSchema,
@@ -113,9 +112,9 @@ async function registerType(RED: RED, NodeClass: NodeConstructor) {
 }
 
 /**
- * Every schema a node declares, flattened with a role label. `outputsSchema` may
- * be a single schema, a positional array, or a named record — each output port
- * carries its own schema, so all are collected individually.
+ * Every schema a node declares (config, credentials, settings), flattened with a
+ * role label. Input/output data-validation schemas are config-driven (JSON-string
+ * fields in config), not static class props, so they're not collected here.
  */
 function collectNodeSchemas(
   NodeClass: NodeConstructor,
@@ -130,20 +129,6 @@ function collectNodeSchemas(
   add("config", NodeClass.configSchema);
   add("credentials", NodeClass.credentialsSchema);
   add("settings", NodeClass.settingsSchema);
-  add("input", NodeClass.inputSchema);
-
-  const outputs = NodeClass.outputsSchema;
-  if (Array.isArray(outputs)) {
-    outputs.forEach((schema, i) => add(`output[${i}]`, schema));
-  } else if (outputs && typeof outputs === "object" && !(Kind in outputs)) {
-    // Named-port record (`{ success, failure }`): the record itself carries no
-    // TypeBox `Kind` — only its per-port schema values do.
-    for (const [port, schema] of Object.entries(outputs)) {
-      add(`output.${port}`, schema);
-    }
-  } else {
-    add("output", outputs);
-  }
 
   return found;
 }

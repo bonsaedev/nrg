@@ -88,10 +88,8 @@ interface NodeRedNode {
   completePort?: boolean;
   statusPort?: boolean;
   /**
-   * Per-port output settings, indexed by base-output port. `validateOutputs` is
-   * injected (empty) when the node has an outputsSchema; `outputReturnProperties`
-   * and `outputContextModes` are author-declared (SchemaType.*) — present only
-   * when the node opts into per-port return keys / context modes. Read at
+   * Per-port output settings, indexed by base-output port. All three are
+   * framework config fields merged into every IONode's config schema; read at
    * runtime by IONode.
    */
   validateOutputs?: Record<number, boolean>;
@@ -169,24 +167,13 @@ interface RuntimeNodeDefinition extends NodeDefinition {
   defaults?: NodeDefaults;
   credentials?: NodeCredentials;
   /**
-   * Names of the base output ports when `outputsSchema` is a record of named
-   * ports, in declaration order; absent for single/positional outputs. Resolved
-   * server-side by the inliner so the editor never guesses port names from the
-   * serialized schema.
+   * Names of the base output ports (from the node's named `Port<T>` Output
+   * generic), in declaration order; absent for single/positional outputs.
+   * Resolved server-side by the inliner so the editor never guesses port names.
    */
   outputPortNames?: string[];
   configSchema?: JsonSchemaObject;
   credentialsSchema?: JsonSchemaObject;
-  inputSchema?: JsonSchemaObject;
-  /**
-   * Single port, positional ports, or named ports (key = port name).
-   * Not constrained to object schemas: with returnProperty the raw sent
-   * value is validated, so results may be any schema shape.
-   */
-  outputsSchema?:
-    | JsonPropertySchema
-    | JsonPropertySchema[]
-    | Record<string, JsonPropertySchema>;
 }
 
 interface NodeDefaults {

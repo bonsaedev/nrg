@@ -13,9 +13,9 @@ import { NRG_PORTS } from "@/sdk/lib/server/nodes/symbols";
  * its TypeScript generics. The production build stamps it onto the class under
  * `Symbol.for("nrg.ports")` via a vite plugin (see
  * tools/vite/server/plugins/port-topology-injector.ts) using the extractor in
- * node-type-info.ts. Un-built source carries no such static, and the runtime's
- * `outputsSchema` fallback is going away (schemas are validation-only), so a
- * types-only node would report 0 ports in tests. The server test harnesses call
+ * node-type-info.ts. Un-built source carries no such static, and there is no
+ * schema fallback (schemas are validation-only), so a types-only node would
+ * report 0 ports in tests. The server test harnesses call
  * {@link ensurePortTopology} to run the SAME extraction and stamp the SAME static,
  * so `createNode` (unit) and `startRuntime` (integration) route ports — including
  * the built-in error/complete/status ports — exactly as the built node does.
@@ -57,13 +57,13 @@ function getPortTopologyMap(srcDir?: string): Record<string, PortTopology> {
       if (topo) map[info.type] = topo;
     }
   } catch (err) {
-    // Best-effort: a node whose topology can't be type-derived keeps the
-    // runtime's outputsSchema fallback, so we never fail a test here. But a
-    // genuine throw (an fs error, or an extractor bug on some exotic type) zeroes
-    // topology for EVERY node in this dir — surface it so that shows up as a
-    // traceable warning, not a silent wall of confusing zero-port test failures.
+    // Best-effort: a node whose topology can't be type-derived just reports 0
+    // ports (there is no schema fallback), so a single node never fails a test
+    // here. But a genuine throw (an fs error, or an extractor bug on some exotic
+    // type) zeroes topology for EVERY node in this dir — surface it so that shows
+    // up as a traceable warning, not a silent wall of confusing zero-port failures.
     console.warn(
-      `[nrg] port-topology extraction failed for ${dir}; types-only nodes will fall back to schema topology:`,
+      `[nrg] port-topology extraction failed for ${dir}; types-only nodes will report 0 ports:`,
       err,
     );
   }
@@ -74,8 +74,8 @@ function getPortTopologyMap(srcDir?: string): Record<string, PortTopology> {
 /**
  * Stamp one source node class with its build-time `__nrgPorts` topology, unless
  * it already carries it (a built node, or a prior stamp) or its topology can't
- * be type-derived (a schema-only node — the runtime falls back to
- * `outputsSchema`). Idempotent and safe on ConfigNode/Node (which have no ports).
+ * be type-derived (an untyped node — it stays at 0 ports; there is no schema
+ * fallback). Idempotent and safe on ConfigNode/Node (which have no ports).
  */
 function ensurePortTopology(
   NodeClass: { type?: string },

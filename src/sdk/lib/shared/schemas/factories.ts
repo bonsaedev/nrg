@@ -265,10 +265,9 @@ function OutputSchemas(
 
 /**
  * Declares the `inputSchema` config property: the input port's DATA-VALIDATION
- * schema override, a JSON-Schema string a flow author edits in the editor.
- * Declaring it exposes the input Schema editor (enabled when Validate Data is on
- * for the input). The effective input schema is the flow-author override, else
- * this default, else the node's static `inputSchema`.
+ * schema, a JSON-Schema string a flow author edits in the editor. Declaring it
+ * exposes the input Schema editor (enabled when Validate Data is on for the
+ * input). The effective input schema is the flow-author value, else this default.
  */
 function InputSchema(options?: NrgSchemaOptions & { default?: string }) {
   return BaseType.String({

@@ -85,9 +85,9 @@ async function startRuntime(options: StartRuntimeOptions): Promise<Runtime> {
   });
 
   // Behave like built nodes: stamp each source class with the type-derived port
-  // topology the production build injects, so a types-only node (no outputsSchema)
-  // registers with the right port count/names. No-op for already-stamped or
-  // schema-topology nodes. (see ../port-topology)
+  // topology the production build injects, so a types-only node registers with
+  // the right port count/names. No-op for already-stamped nodes or nodes with no
+  // type-derived ports. (see ../port-topology)
   ensurePortTopologyAll(options.nodes);
 
   // register node types through the same path production uses. The cast tracks

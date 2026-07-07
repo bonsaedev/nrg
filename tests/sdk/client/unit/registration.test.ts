@@ -362,7 +362,6 @@ describe("registerType — output ports (context modes)", () => {
     await register({
       type: "ctx-array-node",
       category: "function",
-      outputsSchema: [{}, {}],
       outputs: 2,
     });
 

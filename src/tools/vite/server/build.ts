@@ -169,7 +169,8 @@ module.exports = function (RED) {
     // Emit the prod type consumers from the types extracted up front (reused, so
     // tsc runs once): node-types.json for the client help generator, and
     // index.d.ts for the editor connection-type surface (inheritable classes +
-    // the NodeTypes wiring registry). Dev docs fall back to schema.
+    // the NodeTypes wiring registry). In dev these aren't emitted, so help docs
+    // show only the config/credentials schemas (no typed input/output sections).
     if (!buildContext.isDev) {
       writeNodeTypesJson(infos, buildContext.outDir);
       if (types) {

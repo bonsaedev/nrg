@@ -845,9 +845,9 @@ function extractOutputs(
   ctx?: LocalDeclCtx,
 ): NodeOutputPort[] | undefined {
   // An explicit `unknown` output declares ONE untyped output port — a node that
-  // emits arbitrary data (a passthrough, a dynamic REST/query result) without a
-  // schema. Only a truly-absent output (`any`/`void`/`never`/`undefined`) yields
-  // no port; `any` stays "unspecified" and falls back to the schema.
+  // emits arbitrary data (a passthrough, a dynamic REST/query result). A
+  // truly-absent output (`any`/`void`/`never`/`undefined`) yields no port: `any`
+  // stays "unspecified", so the node is inert (there is no schema fallback).
   const isUnknown = (outputType.flags & ts.TypeFlags.Unknown) !== 0;
   if (!isUnknown && isVacuous(checker, outputType)) return undefined;
 

@@ -7,7 +7,6 @@ import type {
   NodeTypeInfo,
   NodeFieldInfo,
   NodeRoleType,
-  NodeOutputPort,
 } from "../../server/plugins/node-type-info";
 import { nodeDefsPath, nodeTypesPath } from "../../utils";
 import { logger } from "../../logger";
@@ -123,7 +122,9 @@ function isHiddenField(name: string): boolean {
 
 interface SchemaSectionOptions {
   title: string;
-  schema: any;
+  /** Optional: type-driven sections (input/output) render from `typeFields`
+   * alone; the schema, when present, only enriches config/credentials/settings. */
+  schema?: any;
   t: HelpTranslations;
   labels?: Record<string, string>;
   heading?: string;
@@ -248,22 +249,6 @@ function loadNodeLabels(labelPath: string): NodeLabels {
   }
 }
 
-/** The enrichment schema for one output port, from the node's outputsSchema. */
-function outputSchemaForPort(
-  outputsSchema: any,
-  port: NodeOutputPort,
-  index: number,
-): any {
-  if (!outputsSchema) return undefined;
-  if (port.name !== undefined) {
-    return !Array.isArray(outputsSchema) && typeof outputsSchema === "object"
-      ? outputsSchema[port.name]
-      : undefined;
-  }
-  if (Array.isArray(outputsSchema)) return outputsSchema[index];
-  return outputsSchema; // single object output
-}
-
 /**
  * Render a role that is either an object (a field table) or a primitive/union
  * (a single typed line). Returns "" when there is nothing to show.
@@ -315,8 +300,7 @@ function generateCapabilitiesSection(
 ): string {
   if (nodeTypes?.kind === "config" || def.category === "config") return "";
 
-  const hasInput =
-    (def.inputs ?? 0) > 0 || !!nodeTypes?.input || !!def.inputSchema;
+  const hasInput = (def.inputs ?? 0) > 0 || !!nodeTypes?.input;
   const outputCount =
     nodeTypes?.outputs?.length ??
     (typeof def.outputs === "number" ? def.outputs : 0);
@@ -401,11 +385,10 @@ function generateHelpDoc(
   if (settingsSection) lines.push(settingsSection);
 
   // Input — no Default column
-  if (nodeClass.inputSchema || nodeTypes?.input) {
+  if (nodeTypes?.input) {
     const inputSection = generateSchemaSection({
       title: t.sections.input,
-      schema: nodeClass.inputSchema,
-      typeFields: nodeTypes?.input?.fields,
+      typeFields: nodeTypes.input.fields,
       t,
       labels: labels.input,
       includeDefault: false,
@@ -414,13 +397,11 @@ function generateHelpDoc(
     if (inputSection) lines.push(inputSection);
   }
 
-  // Output(s) — type-driven (shape-aware) when available, else schema-driven.
+  // Output(s) — type-driven (shape-aware) from the node's Output generic.
   if (nodeTypes?.outputs?.length) {
-    const os = nodeClass.outputsSchema;
     const ports = nodeTypes.outputs;
     if (ports.length === 1 && ports[0].name === undefined) {
       const section = roleSection(t.sections.output, ports[0].role, t, {
-        schema: outputSchemaForPort(os, ports[0], 0),
         labels: labels.outputs?.[0],
       });
       if (section) lines.push(section);
@@ -432,7 +413,6 @@ function generateHelpDoc(
             ? (labels.outputs as any)?.[port.name]
             : labels.outputs?.[i];
           return roleSection(title, port.role, t, {
-            schema: outputSchemaForPort(os, port, i),
             labels: portLabels,
             heading: "####",
           });
@@ -443,62 +423,6 @@ function generateHelpDoc(
           `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
         );
       }
-    }
-  } else if (nodeClass.outputsSchema) {
-    const os = nodeClass.outputsSchema;
-    if (Array.isArray(os)) {
-      const portSections: string[] = [];
-      os.forEach((schema: any, i: number) => {
-        const title = `${t.sections.port} ${i + 1}`;
-        const portPropLabels = labels.outputs?.[i];
-        const section = generateSchemaSection({
-          title,
-          schema,
-          t,
-          labels: portPropLabels,
-          heading: "####",
-          includeDefault: false,
-          unsafeTypes,
-        });
-        if (section) portSections.push(section);
-      });
-      if (portSections.length) {
-        lines.push(
-          `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
-        );
-      }
-    } else if (!("type" in os || "properties" in os)) {
-      // Record of named port schemas: { portName: Schema, ... }
-      const portSections: string[] = [];
-      for (const [portName, schema] of Object.entries(os)) {
-        const portPropLabels = (labels.outputs as any)?.[portName];
-        const section = generateSchemaSection({
-          title: portName,
-          schema: schema as any,
-          t,
-          labels: portPropLabels,
-          heading: "####",
-          includeDefault: false,
-          unsafeTypes,
-        });
-        if (section) portSections.push(section);
-      }
-      if (portSections.length) {
-        lines.push(
-          `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
-        );
-      }
-    } else {
-      const outputPropLabels = labels.outputs?.[0];
-      const section = generateSchemaSection({
-        title: t.sections.output,
-        schema: os,
-        t,
-        labels: outputPropLabels,
-        includeDefault: false,
-        unsafeTypes,
-      });
-      if (section) lines.push(section);
     }
   }
 
@@ -536,8 +460,9 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
       // bundle. A production build rewrites that bundle's imports to
       // @bonsae/nrg-runtime (a publish-only package absent at author build
       // time), so importing it throws MODULE_NOT_FOUND and would silently drop
-      // every node's help. The JSON carries `type` + all four schemas — the only
-      // fields generateHelpDoc reads. (Server and client share this outDir.)
+      // every node's help. The JSON carries `type` + the config/credentials/
+      // settings schemas — the schema fields generateHelpDoc reads (input/output
+      // sections come from the TS types). (Server and client share this outDir.)
       const defsFile = nodeDefsPath(outDir);
       let nodeDefs: any[];
       try {

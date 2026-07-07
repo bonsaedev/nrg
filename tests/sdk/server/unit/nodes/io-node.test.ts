@@ -198,7 +198,7 @@ describe("IONode", () => {
 
       const overrideWarnings = node
         .warned()
-        .filter((w) => String(w).includes("invalid schema override"));
+        .filter((w) => String(w).includes("invalid data-validation schema"));
       expect(overrideWarnings).toHaveLength(1);
     });
   });

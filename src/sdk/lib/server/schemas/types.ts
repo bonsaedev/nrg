@@ -46,7 +46,7 @@ type ResolvedStatic<T> =
  * Infers the TypeScript type from a schema or a record of schemas.
  *
  * - Single schema: `Infer<typeof MySchema>` → the inferred message type
- * - Record of schemas: `Infer<typeof outputsSchema>` → `{ portName: InferredType }`
+ * - Record of schemas: `Infer<typeof PortsSchema>` → `{ portName: InferredType }`
  *   port map, tagged with {@link NamedPortsBrand} so named-port routing is sound.
  *
  * The record form produces a simple mapped type that resolves eagerly,

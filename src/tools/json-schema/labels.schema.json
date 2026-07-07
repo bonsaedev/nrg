@@ -55,7 +55,7 @@
         },
         { "$ref": "#/$defs/portLabelMap" }
       ],
-      "description": "Per-port output labels. Use an array (matching outputsSchema order; a single output uses a one-element array) for positional outputs, or an object keyed by port name for named outputs."
+      "description": "Per-port output labels. Use an array (matching the Output tuple order; a single output uses a one-element array) for positional outputs, or an object keyed by port name for named outputs."
     },
     "errors": {
       "$ref": "#/$defs/labelMap",

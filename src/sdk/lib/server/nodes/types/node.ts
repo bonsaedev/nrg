@@ -1,4 +1,3 @@
-import type { TSchema } from "../../../shared/schemas";
 import type { Schema } from "../../../shared/schemas";
 import type { RED, NodeRedNode } from "../../red";
 
@@ -35,12 +34,6 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   readonly configSchema?: Schema;
   readonly credentialsSchema?: Schema;
   readonly settingsSchema?: Schema;
-  readonly inputSchema?: Schema;
-  // any schema shape: the raw sent value (per output port) is validated,
-  // and results are frequently non-objects
-  readonly outputsSchema?: TSchema | TSchema[] | Record<string, TSchema>;
-  readonly validateInput?: boolean;
-  readonly validateOutput?: boolean | boolean[];
   readonly name: string;
   registered?(RED: RED): void | Promise<void>;
   validateSettings(RED: RED): void;

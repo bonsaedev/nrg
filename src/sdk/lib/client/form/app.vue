@@ -593,7 +593,7 @@ export default defineComponent({
           ? this.localNode.outputs
           : null;
       // Base = total minus the enabled lifecycle ports when the count is
-      // consistent; otherwise fall back to the static, schema-derived count
+      // consistent; otherwise fall back to the node's declared `outputs` count
       // (e.g. a flow that toggled a lifecycle port without updating `outputs`).
       const base =
         total !== null && total >= builtins
