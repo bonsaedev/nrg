@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+import { spawn } from "node:child_process";
 import detect from "detect-port";
 import getPort from "get-port";
 import treeKill from "tree-kill";

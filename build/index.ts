@@ -1,4 +1,4 @@
-import { execSync, execFileSync } from "child_process";
+import { execSync, execFileSync } from "node:child_process";
 import {
   mkdirSync,
   copyFileSync,
@@ -10,11 +10,11 @@ import {
   existsSync,
   renameSync,
   rmSync,
-} from "fs";
-import { createHash } from "crypto";
-import { builtinModules } from "module";
-import path from "path";
-import { fileURLToPath } from "url";
+} from "node:fs";
+import { createHash } from "node:crypto";
+import { builtinModules } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
 

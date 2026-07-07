@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "node:fs";
 import { retry } from "../async-utils";
 import { NodeRedStartError } from "../errors";
 import { Logger } from "../logger";

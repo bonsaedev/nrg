@@ -33,6 +33,23 @@ export default typescriptEslint.config(
           prefer: "type-imports",
         },
       ],
+      // Node built-ins must use the `node:` protocol (unambiguous, ESM-correct).
+      // Only flags real import statements — generated-code strings are untouched.
+      // The shared-plane block below overrides this for src/sdk/lib/shared (which
+      // imports no built-ins anyway, staying browser-safe).
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^(assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|timers|tls|trace_events|tty|url|util|v8|vm|worker_threads|zlib)(/.*)?$",
+              message:
+                "Import Node built-ins with the `node:` protocol (e.g. `node:fs`).",
+            },
+          ],
+        },
+      ],
     },
   },
   {

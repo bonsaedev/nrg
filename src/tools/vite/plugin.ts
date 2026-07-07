@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import path from "path";
+import path from "node:path";
 import type { NrgPluginOptions } from "./types";
 import {
   DEFAULT_CLIENT_BUILD_OPTIONS,

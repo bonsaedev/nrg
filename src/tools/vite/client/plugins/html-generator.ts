@@ -1,7 +1,7 @@
 import type { Plugin } from "vite";
 import mime from "mime-types";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 function htmlGenerator(options: {
   packageName: string;

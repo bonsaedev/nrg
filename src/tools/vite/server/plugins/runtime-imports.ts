@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 // Built nodes import nrg's entries from the dev package (@bonsae/nrg) at author
 // time, but the shipped node must depend on the standalone runtime package —

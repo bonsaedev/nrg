@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { build as buildServer } from "@/tools/vite/server/build";
 import { build as buildClient } from "@/tools/vite/client/build";
 import { NodeRedLauncher } from "@/tools/vite/node-red-launcher";

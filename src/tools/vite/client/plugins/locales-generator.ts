@@ -1,6 +1,6 @@
 import type { Plugin } from "vite";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { merge } from "es-toolkit";
 
 function localesGenerator(options: {

@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 
 /**
  * Default vitest config for the server integration tier. Node-RED uses

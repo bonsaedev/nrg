@@ -1,9 +1,9 @@
-import { exec } from "child_process";
-import { randomUUID } from "crypto";
-import { createRequire } from "module";
-import fs from "fs";
-import os from "os";
-import path from "path";
+import { exec } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { NodeRedStartError } from "../errors";
 import type { ResolveNodeRedOptions } from "./types";
 

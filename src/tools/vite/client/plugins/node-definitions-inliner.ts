@@ -1,6 +1,6 @@
 import type { Plugin } from "vite";
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 import mime from "mime-types";
 import { nodeDefsPath } from "../../utils";
 import { logger } from "../../logger";

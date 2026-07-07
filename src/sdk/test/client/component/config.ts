@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
 

@@ -1,5 +1,5 @@
-import type { Http2ServerRequest } from "http2";
-import type { EventEmitter } from "events";
+import type { Http2ServerRequest } from "node:http2";
+import type { EventEmitter } from "node:events";
 import type { Express, RequestHandler } from "express";
 import type { INode } from "./nodes";
 import type { Validator } from "../shared/validator";

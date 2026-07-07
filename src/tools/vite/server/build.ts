@@ -1,7 +1,7 @@
 import type { InlineConfig } from "vite";
 import { build as viteBuild } from "vite";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { BuildError } from "../errors";
 import { logger } from "../logger";
 import type { ServerBuildOptions, BuildContext } from "../types";

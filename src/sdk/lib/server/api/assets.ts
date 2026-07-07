@@ -1,6 +1,6 @@
-import path from "path";
-import fs from "fs";
-import { createRequire } from "module";
+import path from "node:path";
+import fs from "node:fs";
+import { createRequire } from "node:module";
 import type { NodeRedExpressApp, NodeRedRequestHandler } from "../red";
 
 // The content-hashed editor client filename (e.g. "nrg.a1b2c3d4.js"), inlined at

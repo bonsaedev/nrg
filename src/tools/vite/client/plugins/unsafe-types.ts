@@ -22,8 +22,8 @@
  */
 
 import ts from "typescript";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 /** Maps each schema's `$id` to `{ propertyName: typeArgumentText }`. */
 export type UnsafeTypeMap = Map<string, Record<string, string>>;

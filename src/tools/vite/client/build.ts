@@ -1,8 +1,8 @@
 import type { Plugin, InlineConfig } from "vite";
 import { build as viteBuild } from "vite";
 import vue from "@vitejs/plugin-vue";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { BuildError } from "../errors";
 import { logger } from "../logger";
 import { clientCacheDir } from "../utils";

@@ -1,8 +1,8 @@
-import { builtinModules, createRequire } from "module";
-import fs from "fs";
-import os from "os";
-import path from "path";
-import { pathToFileURL } from "url";
+import { builtinModules, createRequire } from "node:module";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
 import type { PluginBuild } from "esbuild";
 import type { Logger } from "../logger";

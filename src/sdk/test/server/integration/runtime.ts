@@ -1,8 +1,8 @@
-import http from "http";
-import os from "os";
-import fs from "fs";
-import path from "path";
-import { createRequire } from "module";
+import http from "node:http";
+import os from "node:os";
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
 // Registration must bind to the SAME nrg copy the consumer's nodes extend, so
 // the `instanceof Node` identity check inside registerType passes. Import the
 // package's public server entry (resolved to the host project's installed nrg);
