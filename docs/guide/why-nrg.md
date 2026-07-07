@@ -93,8 +93,6 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly category = "my-category";
   static readonly color: `#${string}` = "#FFFFFF";
   static readonly configSchema: Schema = ConfigsSchema;
-  static readonly inputSchema: Schema = InputSchema;
-  static readonly outputsSchema: Schema = OutputSchema;
 
   async input(msg: Input) {
     this.send({ payload: msg.payload.toUpperCase() });
@@ -107,7 +105,7 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
 > Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
 
 ::: tip
-You never set `inputs`/`outputs` by hand. Port topology comes from the node's **types** — the `IONode` input/output generics (a plain-JS or schema-only node instead derives ports from its `inputSchema`/`outputsSchema`). See [Inputs and Outputs](./creating-a-node#inputs-and-outputs).
+You never set `inputs`/`outputs` by hand. Port topology comes from the node's **types** — the `IONode` input/output generics. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs).
 :::
 
 ```typescript

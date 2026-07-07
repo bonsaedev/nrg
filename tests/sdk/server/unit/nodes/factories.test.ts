@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import {
   defineIONode,
   defineConfigNode,
@@ -10,12 +11,37 @@ import { Node } from "@/sdk/lib/server/nodes/node";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { initValidator } from "@/sdk/lib/server/validation";
 import { createRED, createNodeRedNode } from "@mocks/red";
+import { createNode } from "@/sdk/test/server/unit";
+import DefaultsIO from "../fixtures/factories-test/defaults-io";
+import CustomIO from "../fixtures/factories-test/custom-io";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
 } from "@/sdk/lib/server/nodes/symbols";
 
+// The port-count assertions below cover types-first functional-API nodes whose
+// topology (input/output port counts) lives ONLY in the generics passed to
+// `defineIONode` — there is no inputSchema/outputsSchema fallback anymore. Point
+// the type extractor at the fixture tree so `createNode` stamps the same
+// `__nrgPorts` the production build would inject; without it these nodes would
+// report 0 ports.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../fixtures/factories-test", import.meta.url),
+);
+
 describe("defineIONode", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
   it("should create a class with the correct static type", () => {
     const Node = defineIONode({
       type: "test-io",
@@ -24,54 +50,27 @@ describe("defineIONode", () => {
     expect(Node.type).toBe("test-io");
   });
 
-  it("should set default static properties", () => {
-    const Node = defineIONode({
-      type: "defaults-io",
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
-      input() {},
-    });
-    expect(Node.category).toBe("function");
-    expect(Node.color).toBe("#a6bbcf");
-    expect(Node.inputs).toBe(1);
-    expect(Node.outputs).toBe(1);
-    expect(Node.validateInput).toBe(false);
-    expect(Node.validateOutput).toBe(false);
+  it("derives default metadata and one input/output port from the generics", async () => {
+    // No category/color set → the factory's defaults apply; the single input and
+    // single output port come from the `Input`/`Output` generics (topology
+    // injected by createNode, exactly as the build would stamp it).
+    const { node } = await createNode(DefaultsIO);
+    expect(DefaultsIO.category).toBe("function");
+    expect(DefaultsIO.color).toBe("#a6bbcf");
+    expect(DefaultsIO.inputs).toBe(1);
+    expect(DefaultsIO.outputs).toBe(1);
+    expect(node.baseOutputs).toBe(1);
   });
 
-  it("should derive inputs and outputs from schemas", () => {
-    const Node = defineIONode({
-      type: "custom-io",
-      category: "network",
-      color: "#ff6633",
-      align: "right",
-      outputsSchema: [
-        SchemaType.Object({}),
-        SchemaType.Object({}),
-        SchemaType.Object({}),
-      ],
-      validateInput: true,
-      validateOutput: true,
-      input() {},
-    });
-    expect(Node.category).toBe("network");
-    expect(Node.color).toBe("#ff6633");
-    expect(Node.inputs).toBe(0);
-    expect(Node.outputs).toBe(3);
-    expect(Node.align).toBe("right");
-    expect(Node.validateInput).toBe(true);
-    expect(Node.validateOutput).toBe(true);
-  });
-
-  it("should accept a per-port boolean[] validateOutput", () => {
-    const Node = defineIONode({
-      type: "per-port-io",
-      outputsSchema: [SchemaType.Object({}), SchemaType.Object({})],
-      validateOutput: [true, false],
-      input() {},
-    });
-    expect(Node.outputs).toBe(2);
-    expect(Node.validateOutput).toEqual([true, false]);
+  it("derives inputs and outputs from the generics and keeps custom metadata", async () => {
+    // `never` input → 0 input ports; a 3-element tuple output → 3 output ports.
+    // Custom category/color/align are kept by the factory.
+    await createNode(CustomIO);
+    expect(CustomIO.category).toBe("network");
+    expect(CustomIO.color).toBe("#ff6633");
+    expect(CustomIO.align).toBe("right");
+    expect(CustomIO.inputs).toBe(0);
+    expect(CustomIO.outputs).toBe(3);
   });
 
   it("should set a readable class name from the type", () => {
@@ -91,28 +90,16 @@ describe("defineIONode", () => {
       { key: SchemaType.String({ format: "password" }) },
       { $id: "define-io-creds" },
     );
-    const inputSchema = defineSchema(
-      { payload: SchemaType.String() },
-      { $id: "define-io-input" },
-    );
-    const outputSchema = defineSchema(
-      { result: SchemaType.String() },
-      { $id: "define-io-output" },
-    );
 
     const Node = defineIONode({
       type: "schemas-io",
       configSchema,
       credentialsSchema: credsSchema,
-      inputSchema,
-      outputsSchema: outputSchema,
       input() {},
     });
 
     expect(Node.configSchema).toBe(configSchema);
     expect(Node.credentialsSchema).toBe(credsSchema);
-    expect(Node.inputSchema).toBe(inputSchema);
-    expect(Node.outputsSchema).toBe(outputSchema);
   });
 
   it("should call input handler with the correct this context", async () => {

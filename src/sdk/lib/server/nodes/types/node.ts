@@ -43,7 +43,6 @@ interface NodeConstructor<T = any, TConfig = any, TCredentials = any> {
   readonly validateOutput?: boolean | boolean[];
   readonly name: string;
   registered?(RED: RED): void | Promise<void>;
-  register(RED: RED): void | Promise<void>;
   validateSettings(RED: RED): void;
   new (
     RED: RED,

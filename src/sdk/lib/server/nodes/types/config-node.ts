@@ -1,4 +1,4 @@
-import type { TSchema } from "../../../shared/schemas";
+import type { Schema } from "../../../shared/schemas";
 import type { RED } from "../../red";
 import type { ConfigNode } from "../config-node";
 import type {
@@ -8,7 +8,6 @@ import type {
   NodeContextScope,
   NodeContextStore,
 } from "./node";
-import type { InferOr } from "../../schemas/types";
 import type { ConfigNodeBrand } from "../../../shared/schemas/types";
 
 type ConfigNodeContextScope = Exclude<NodeContextScope, "flow">;
@@ -26,10 +25,10 @@ type ConfigNodeContext = {
 };
 
 type BoundConfigNode<
-  TC extends TSchema | undefined,
-  TCr extends TSchema | undefined,
-  TS extends TSchema | undefined,
-> = ConfigNode<InferOr<TC, any>, InferOr<TCr, any>, InferOr<TS, any>>;
+  TConfig = any,
+  TCredentials = any,
+  TSettings = any,
+> = ConfigNode<TConfig, TCredentials, TSettings>;
 
 /** Public instance interface for config nodes. Implemented by {@link ConfigNode}. */
 interface IConfigNode<TConfig = any, TCredentials = any, TSettings = any>
@@ -42,22 +41,22 @@ interface IConfigNode<TConfig = any, TCredentials = any, TSettings = any>
 }
 
 interface ConfigNodeDefinition<
-  TConfigSchema extends TSchema | undefined = undefined,
-  TCredsSchema extends TSchema | undefined = undefined,
-  TSettingsSchema extends TSchema | undefined = undefined,
+  TConfig = any,
+  TCredentials = any,
+  TSettings = any,
 > {
   type: string;
 
-  configSchema?: TConfigSchema;
-  credentialsSchema?: TCredsSchema;
-  settingsSchema?: TSettingsSchema;
+  configSchema?: Schema;
+  credentialsSchema?: Schema;
+  settingsSchema?: Schema;
 
   registered?(RED: RED): void | Promise<void>;
   created?(
-    this: BoundConfigNode<TConfigSchema, TCredsSchema, TSettingsSchema>,
+    this: BoundConfigNode<TConfig, TCredentials, TSettings>,
   ): void | Promise<void>;
   closed?(
-    this: BoundConfigNode<TConfigSchema, TCredsSchema, TSettingsSchema>,
+    this: BoundConfigNode<TConfig, TCredentials, TSettings>,
     removed?: boolean,
   ): void | Promise<void>;
 }

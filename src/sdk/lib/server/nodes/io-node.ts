@@ -1,6 +1,6 @@
-import { Kind, type TSchema, type Schema } from "../../shared/schemas";
+import type { Schema } from "../../shared/schemas";
 import type { RED, NodeRedNode } from "../red";
-import { Node, lockField } from "./node";
+import { Node } from "./node";
 import { NrgError } from "../../shared/errors";
 import type {
   HexColor,
@@ -34,19 +34,6 @@ interface InputInvocation {
   errorEmitted?: boolean;
 }
 
-/**
- * Type guard for an `outputsSchema` shape — a single schema, an array of
- * schemas, a record of named schemas, or `undefined`. Narrows to a single
- * {@link TSchema} (true only when `obj` carries the TypeBox `Kind` symbol, i.e.
- * it is one schema rather than an array/record). `TSchema` (not `Schema`/
- * `TObject`) because a single output port may be a non-object schema.
- */
-function isSchemaLike(
-  obj: TSchema | TSchema[] | Record<string, TSchema> | undefined,
-): obj is TSchema {
-  return obj != null && typeof obj === "object" && Kind in obj;
-}
-
 const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /** Key holding the append-only lineage of prior input messages. Visible in
@@ -55,7 +42,7 @@ const INPUT_KEY = "input";
 
 /** The build-injected port topology (see `port-topology-injector`). Framework-
  * owned: the injector stamps it under `NRG_PORTS`, non-writable — never set from
- * node code. When absent, the getters fall back to the `outputsSchema` shape. */
+ * node code. It is the ONLY source of a node's ports (TS types → topology). */
 interface NodePortsDescriptor {
   inputs: 0 | 1;
   outputs: number;
@@ -84,13 +71,13 @@ export type ContextMode = "carry" | "trace" | "reset";
  * Every node has a return key (`"output"` by default): the value passed to
  * `send()` is merged into the incoming message at that key
  * (`{ ...msg, [returnKey]: result }`), so upstream properties propagate. By
- * default the context is carried without growing; declaring
- * `outputContextModes` in the `configSchema` lets the flow author pick `trace`
- * (keep the full prior message under `input` as a recoverable provenance chain)
- * or `reset` per port. The return key, output validation, and context mode all
- * resolve per output port; declaring `outputReturnProperties` in the
- * `configSchema` sets per-port default keys and lets the flow author pick a key
- * other than `output` per port — it does not change that a return key always
+ * default the context is carried without growing; the flow author can pick
+ * `trace` (keep the full prior message under `input` as a recoverable provenance
+ * chain) or `reset` per port in the editor. The return key, output validation,
+ * and context mode all resolve per output port; the framework exposes an editable
+ * return-property and context-mode control on every node, and declaring
+ * `outputReturnProperties` / `outputContextModes` in the `configSchema` only
+ * changes each port's default — it does not change that a return key always
  * exists. `this.send(x)` always means "x is the result", never "x is the whole
  * message".
  *
@@ -132,67 +119,29 @@ abstract class IONode<
 {
   public static readonly align?: "left" | "right";
   public static readonly color: HexColor;
-  public static readonly inputSchema?: Schema;
-  // outputsSchema accepts any schema shape: the raw sent value (per port) is
-  // validated, and results are frequently non-objects.
-  public static readonly outputsSchema?:
-    | TSchema
-    | TSchema[]
-    | Record<string, TSchema>;
-  public static readonly validateInput: boolean = false;
-  // A single boolean applies to every output port; a boolean[] sets the
-  // per-port default by base-output index (missing entries default to false).
-  public static readonly validateOutput: boolean | boolean[] = false;
 
   // Build-injected port topology; framework-owned, stamped under `NRG_PORTS` by
   // the port-topology injector (non-writable). `declare` — the value comes only
   // from the injector, so no field initializer is emitted to race it.
   declare public static [NRG_PORTS]?: NodePortsDescriptor;
 
+  // Port topology is TS-types-only: the build extracts a node's `Input`/`Output`
+  // generics and stamps them under `NRG_PORTS`. There is no schema fallback.
   public static get inputs(): 0 | 1 {
-    return this[NRG_PORTS]?.inputs ?? (this.inputSchema ? 1 : 0);
+    return this[NRG_PORTS]?.inputs ?? 0;
   }
 
   public static get outputs(): number {
-    const p = this[NRG_PORTS];
-    if (p) return p.outputs;
-    const s = this.outputsSchema;
-    if (!s) return 0;
-    if (Array.isArray(s)) return s.length;
-    if (isSchemaLike(s)) return 1;
-    // Record of named ports — validate keys
-    const keys = Object.keys(s);
-    for (const key of keys) {
-      if (/^\d+$/.test(key)) {
-        throw new NrgError(
-          `outputsSchema record key "${key}" in ${this.type} looks numeric. ` +
-            `Use descriptive string names (e.g. "success", "failure") to avoid ` +
-            `JavaScript object key ordering issues.`,
-        );
-      }
-      if (key === "error" || key === "complete" || key === "status") {
-        throw new NrgError(
-          `outputsSchema record key "${key}" in ${this.type} is reserved for built-in ports. ` +
-            `Use a different name (e.g. "failed" instead of "error").`,
-        );
-      }
-    }
-    return keys.length;
+    return this[NRG_PORTS]?.outputs ?? 0;
   }
 
   /**
-   * The names of the base output ports when `outputsSchema` is a record of
-   * named ports (`{ success, failure }`), in declaration order — otherwise
-   * `undefined` (a single schema or a positional array). Resolved here, where
-   * TypeBox's `Kind` symbol is intact, so the editor reads the names directly
-   * instead of guessing them from a serialized (symbol-stripped) schema.
+   * The names of the base output ports for a named-port node (`Port<T>` record
+   * in the `Output` generic), in declaration order — otherwise `undefined` (a
+   * single or positional output). Read straight off the injected topology.
    */
   public static get outputPortNames(): string[] | undefined {
-    const p = this[NRG_PORTS];
-    if (p) return p.outputNames;
-    const s = this.outputsSchema;
-    if (!s || Array.isArray(s) || isSchemaLike(s)) return undefined;
-    return Object.keys(s);
+    return this[NRG_PORTS]?.outputNames;
   }
 
   /**
@@ -232,15 +181,11 @@ abstract class IONode<
       return setupContext(target, store);
     };
 
-    lockField(
-      this,
-      "context",
-      Object.assign(resolve, {
-        node: setupContext(context),
-        flow: setupContext(context.flow),
-        global: setupContext(context.global),
-      }),
-    );
+    this.context = Object.assign(resolve, {
+      node: setupContext(context),
+      flow: setupContext(context.flow),
+      global: setupContext(context.global),
+    });
 
     // Validate any per-port return keys up front.
     const outputReturnProperties = this.config.outputReturnProperties;
@@ -369,9 +314,7 @@ abstract class IONode<
   }
 
   async #input(msg: TInput, store: InputInvocation) {
-    const NodeClass = this.constructor as typeof IONode;
-    const shouldValidateInput =
-      this.config.validateInput ?? NodeClass.validateInput;
+    const shouldValidateInput = this.config.validateInput ?? false;
     // Resolve the effective schema only when validation is on, so an override is
     // never parsed/compiled (nor warned about) for a node that isn't validating.
     if (shouldValidateInput) {
@@ -433,18 +376,11 @@ abstract class IONode<
 
   /**
    * Per-port output validation. A port validates when its flow-author flag
-   * (`config.validateOutputs[port]`) — or the node's static `validateOutput`
-   * fallback — is on and a schema exists for that port. The static fallback is
-   * a single boolean (all ports) or a boolean[] (per-port, by base index).
+   * (`config.validateOutputs[port]`, whose default the node author seeds in the
+   * config schema) is on and a schema exists for that port.
    */
   #validatePort(value: unknown, port: number) {
-    const NodeClass = this.constructor as typeof IONode;
-    const staticFlag = NodeClass.validateOutput;
-    const staticForPort = Array.isArray(staticFlag)
-      ? (staticFlag[port] ?? false)
-      : staticFlag;
-    const configured = this.config.validateOutputs?.[port];
-    if (!(configured ?? staticForPort)) return;
+    if (!this.config.validateOutputs?.[port]) return;
 
     const schema = this.#effectiveOutputSchema(port);
     if (!schema) return;
@@ -455,16 +391,6 @@ abstract class IONode<
       throwOnError: true,
     });
     this.node.log("Output is valid");
-  }
-
-  /** Resolves the output schema for a base-output port: array → `[port]`,
-   * record → the port-th value, single schema → itself. */
-  #outputSchemaForPort(port: number): Schema | undefined {
-    const raw = (this.constructor as typeof IONode).outputsSchema;
-    if (!raw) return undefined;
-    if (Array.isArray(raw)) return raw[port] as Schema | undefined;
-    if (isSchemaLike(raw)) return raw as Schema;
-    return Object.values(raw)[port] as Schema | undefined;
   }
 
   // Per-instance cache of resolved flow-author overrides, keyed by the raw JSON
@@ -502,28 +428,23 @@ abstract class IONode<
     return resolved ?? undefined;
   }
 
-  /** The schema used for INPUT validation: the flow-author's `config.inputSchema`
-   * override, else the node author's static `inputSchema`. */
+  /** The schema used for INPUT validation: the `config.inputSchema` field (the
+   * node author's default, overridable by the flow author). Data-validation
+   * schemas are config-driven only — there is no static schema. */
   #effectiveInputSchema(): Schema | undefined {
-    return (
-      this.#resolveOverride(this.config.inputSchema) ??
-      (this.constructor as typeof IONode).inputSchema
-    );
+    return this.#resolveOverride(this.config.inputSchema);
   }
 
-  /** The schema used for OUTPUT validation on a port: the flow-author's
-   * `config.outputSchemas[port]` override, else the author's static schema. */
+  /** The schema used for OUTPUT validation on a port: the `config.outputSchemas`
+   * field for that port (author default, flow-author-overridable). */
   #effectiveOutputSchema(port: number): Schema | undefined {
-    return (
-      this.#resolveOverride(this.config.outputSchemas?.[port]) ??
-      this.#outputSchemaForPort(port)
-    );
+    return this.#resolveOverride(this.config.outputSchemas?.[port]);
   }
 
   /**
    * The return key for an output port — `"output"` unless a custom one is set
-   * via `outputReturnProperties[port]` (author default and/or flow-author
-   * override, only possible when the node declares `outputReturnProperties`).
+   * via `outputReturnProperties[port]` (the node author's declared default and/or
+   * the flow author's per-port override, which the editor always allows).
    * `this.send(x)` always means "x is the value at this port's return key",
    * never "x is the whole outgoing message".
    */
@@ -537,8 +458,8 @@ abstract class IONode<
 
   /**
    * Resolves the context mode for a base-output port from the flow author's
-   * per-port config (`config.outputContextModes[port]`, written by the editor
-   * when the node declares `outputContextModes`), falling back to `"carry"`.
+   * per-port config (`config.outputContextModes[port]`, which the editor lets the
+   * flow author set on any port), falling back to `"carry"`.
    */
   #resolveContextMode(port: number): ContextMode {
     return this.config.outputContextModes?.[port] ?? "carry";
@@ -669,15 +590,11 @@ abstract class IONode<
   }
 
   /** The declared named output ports (from the injected `Output`-generic
-   * topology, or a record `outputsSchema`), or null when the node has none (a
+   * topology's `Port<T>` record), or null when the node has none (a
    * positional/single output, or no declaration). */
   #namedPortKeys(): string[] | null {
     const NC = this.constructor as typeof IONode;
-    const p = NC[NRG_PORTS];
-    if (p) return p.outputNames ?? null;
-    const schema = NC.outputsSchema;
-    if (!schema || Array.isArray(schema) || isSchemaLike(schema)) return null;
-    return Object.keys(schema);
+    return NC[NRG_PORTS]?.outputNames ?? null;
   }
 
   #getNamedPortIndex(name: string): number | null {

@@ -1,0 +1,16 @@
+import { IONode } from "@/sdk/lib/server";
+
+// The Output generic is untyped (`any` → vacuous), so this node has NO output
+// port even though its topology IS stamped (its typed Input gives one input
+// port). Proves the output count comes from the `Output` generic, not from
+// stamping alone.
+type Input = { payload?: unknown };
+
+class NoOutputs extends IONode<any, any, Input, any> {
+  static override readonly type = "no-outputs";
+  static override readonly category = "function";
+
+  override async input(_msg: Input) {}
+}
+
+export default NoOutputs;

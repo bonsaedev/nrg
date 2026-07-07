@@ -1,24 +1,32 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
-import { defineIONode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
-const Counter = defineIONode({
-  type: "ctx-counter",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "ctx-counter:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input() {
-    const n = (await this.context.flow.get<number>("count")) ?? 0;
-    await this.context.flow.set("count", n + 1);
-    this.send({ count: n + 1 });
-  },
-});
+// The node under test is TYPES-ONLY (no inputSchema/outputsSchema); its port
+// topology lives only in its generics. In un-built source there is no
+// `__nrgPorts` static, so without the harness's build-equivalent injection the
+// node would report 0 outputs. Point the extractor at the fixture tree so
+// `createNode` stamps the real topology — the same way
+// `port-topology-injection.test.ts` does.
+import Counter from "./fixtures/context-helper-test/ctx-counter";
+
+const FIXTURE_DIR = fileURLToPath(
+  new URL("./fixtures/context-helper-test", import.meta.url),
+);
 
 describe("createNode context helper", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
   it("presets and asserts flow context", async () => {
     const { node } = await createNode(Counter);
 

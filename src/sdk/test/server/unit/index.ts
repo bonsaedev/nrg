@@ -8,7 +8,6 @@ import type { MockRED } from "./mocks";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
-  type InputWireable,
 } from "@/sdk/lib/server/nodes/symbols";
 import type { NodeContextStore } from "@/sdk/lib/server/nodes/types/node";
 import type {
@@ -192,9 +191,9 @@ function attachHelpers<T>(
     statusCalls.push(status);
   });
 
-  // `context` is intentionally omitted — it's a locked, readable own property on
-  // the node itself (see `lockField`), so it stays intact through Object.assign
-  // (which can't write it) and is already exposed on the returned node.
+  // `context` is intentionally omitted — it's already set as an own property on
+  // the node itself, so leaving it out of this `Object.assign` source keeps the
+  // real context intact and exposed on the returned node.
   const helpers: Omit<TestNodeHelpers, "context"> = {
     async receive(msg: any): Promise<void> {
       const sendFn = vi.fn((outMsg: any) => {
@@ -366,7 +365,12 @@ async function createNode<T extends NodeClass>(
   // where the wire handler surfaces it through `done(err)`).
   const createdPromise = Promise.resolve(node.created?.());
   node[NRG_SETUP_CLOSE_HANDLER]();
-  (node as InputWireable)[NRG_SETUP_INPUT_HANDLER]?.(createdPromise);
+  if (
+    NRG_SETUP_INPUT_HANDLER in node &&
+    typeof node[NRG_SETUP_INPUT_HANDLER] === "function"
+  ) {
+    node[NRG_SETUP_INPUT_HANDLER](createdPromise);
+  }
   let error: unknown;
   await createdPromise.catch((err) => {
     error = err;

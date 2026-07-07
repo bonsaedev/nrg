@@ -200,7 +200,7 @@ Every node returned by `createNode` has these helpers:
 | `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
 | `node.sent()`          | All raw emissions — each is a positional array, one slot per output port (so `node.sent()[i][0]` is the first port of emission `i`). Use `sent(port)` / `sent(name)` to read one port directly. |
 | `node.sent(port)`      | The per-port message for a specific output port (numeric index) — one level out of the positional array, still wrapped under the return key (`output`)                                          |
-| `node.sent(name)`      | The per-port message for a named output port — resolved from the node's typed `Port<T>` names or a record `outputsSchema` — still wrapped under the return key (`output`). Built-in `"error"`/`"complete"`/`"status"` ports resolve by name too. |
+| `node.sent(name)`      | The per-port message for a named output port — resolved from the node's typed `Port<T>` names — still wrapped under the return key (`output`). Built-in `"error"`/`"complete"`/`"status"` ports resolve by name too. |
 | `node.statuses()`      | All `status()` calls                                                                                                                                                                            |
 | `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`)                                                                                                                       |
 | `node.warned()`        | Warning messages                                                                                                                                                                                |
@@ -212,8 +212,7 @@ Every node returned by `createNode` has these helpers:
 ```typescript
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
-import { defineIONode } from "@bonsae/nrg/server";
-import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+import { defineIONode, IONode, type Port } from "@bonsae/nrg/server";
 import MyNode from "../../../src/server/nodes/my-node";
 import Splitter from "../../../src/server/nodes/splitter";
 import Router from "../../../src/server/nodes/router";
@@ -449,10 +448,8 @@ describe("context store", () => {
 });
 
 describe("error handling", () => {
-  const ErrorNode = defineIONode({
+  const ErrorNode = defineIONode<any, any, { payload: string }>({
     type: "error-test",
-    inputSchema: SchemaType.Object({}),
-    outputsSchema: SchemaType.Object({}),
     async input() {
       throw new Error("something broke");
     },
@@ -479,10 +476,13 @@ describe("i18n", () => {
 
 describe("factory API", () => {
   it("should work with defineIONode", async () => {
-    const FactoryNode = defineIONode({
+    const FactoryNode = defineIONode<
+      any,
+      any,
+      { payload: string },
+      { payload: string }
+    >({
       type: "factory-node",
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
       input(msg) {
         this.send({ payload: msg.payload.toUpperCase() });
       },
@@ -497,12 +497,13 @@ describe("factory API", () => {
 });
 
 describe("named output ports (sendToPort)", () => {
-  // Given a node with named outputsSchema:
+  // Given a node whose two named ports come from a `Port<T>` Output generic:
   //
-  //   static readonly outputsSchema = {
-  //     success: defineSchema({ payload: SchemaType.String() }),
-  //     failure: defineSchema({ error: SchemaType.String() }),
+  //   type Output = {
+  //     success: Port<{ payload: string }>;
+  //     failure: Port<{ error: string }>;
   //   };
+  //   class Router extends IONode<Config, any, Input, Output> { ... }
 
   it("should route messages to named ports", async () => {
     const { node } = await createNode(Router, {
@@ -529,27 +530,17 @@ describe("named output ports (sendToPort)", () => {
 });
 
 describe("built-in emit ports", () => {
-  // Built-in error, complete, and status ports are **opt-in**, not automatic.
-  // A node only gets them when it declares the matching boolean flags in its
-  // config schema and the flow author (or test) turns them on — see the
-  // lifecycle output ports section of the node guide:
-  // /guide/creating-a-node#lifecycle-output-ports.
-  //
-  //   const EmitConfig = defineSchema(
-  //     {
-  //       errorPort: SchemaType.Boolean({ default: false }),
-  //       completePort: SchemaType.Boolean({ default: false }),
-  //       statusPort: SchemaType.Boolean({ default: false }),
-  //     },
-  //     { $id: "my-node:config" },
-  //   );
-  //
-  // The example nodes below add `EmitConfig` to their `configSchema`, and each
-  // test passes `config: { errorPort: true, ... }` to `createNode` to enable the
-  // port it asserts on. With the flag off, `node.sent("error")` returns `[]`.
+  // The built-in error, complete, and status ports are available on EVERY
+  // IONode — the framework injects the `errorPort`/`completePort`/`statusPort`
+  // config flags into every node, so a node does NOT declare anything to get
+  // them. A test just turns one on by passing the flag to `createNode`, e.g.
+  // `config: { errorPort: true }`. With the flag off (or omitted) the port isn't
+  // there, so `node.sent("error")` returns `[]`. Declaring one of these in a
+  // node's own configSchema is unnecessary — it only overrides the framework
+  // default (off). See /guide/creating-a-node#lifecycle-output-ports.
 
   it("should emit to error port when enabled and input throws", async () => {
-    // ErrorNode declares EmitConfig in its configSchema (see comment above).
+    // ErrorNode declares no port config — the `errorPort` flag alone enables it.
     const { node } = await createNode(ErrorNode, {
       config: { errorPort: true },
     });
@@ -572,8 +563,7 @@ describe("built-in emit ports", () => {
   });
 
   it("should carry a thrown custom error's fields under error", async () => {
-    // A node (with EmitConfig in its configSchema) that throws a custom
-    // Error subclass:
+    // A node that throws a custom Error subclass:
     class RateLimitError extends Error {
       retryAfterMs: number;
       constructor(retryAfterMs: number) {
@@ -582,18 +572,8 @@ describe("built-in emit ports", () => {
         this.retryAfterMs = retryAfterMs;
       }
     }
-    const RateLimitedNode = defineIONode({
+    const RateLimitedNode = defineIONode<any, any, { payload: string }>({
       type: "rate-limited",
-      configSchema: defineSchema(
-        {
-          errorPort: SchemaType.Boolean({ default: false }),
-          completePort: SchemaType.Boolean({ default: false }),
-          statusPort: SchemaType.Boolean({ default: false }),
-        },
-        { $id: "rate-limited:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
       input() {
         throw new RateLimitError(2000);
       },
@@ -619,19 +599,9 @@ describe("built-in emit ports", () => {
   });
 
   it("should ride the value returned by input() on the complete port", async () => {
-    // A node (with EmitConfig in its configSchema) whose input() returns a value:
-    const ReturningNode = defineIONode({
+    // A node whose input() returns a value:
+    const ReturningNode = defineIONode<any, any, { payload: string }>({
       type: "returning",
-      configSchema: defineSchema(
-        {
-          errorPort: SchemaType.Boolean({ default: false }),
-          completePort: SchemaType.Boolean({ default: false }),
-          statusPort: SchemaType.Boolean({ default: false }),
-        },
-        { $id: "returning:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
       input(msg) {
         return { id: msg.payload, ok: true };
       },
@@ -789,12 +759,10 @@ import {
 import { defineIONode, ConfigNode } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
-const Doubler = defineIONode({
+const Doubler = defineIONode<any, any, { value: number }, { doubled: number }>({
   type: "doubler",
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
   async input(msg) {
-    this.send({ doubled: (msg as { value: number }).value * 2 });
+    this.send({ doubled: msg.value * 2 });
   },
 });
 
@@ -837,17 +805,15 @@ class Greeting extends ConfigNode {
   }
 }
 
-const Greeter = defineIONode({
+const Greeter = defineIONode<any, any, { who: string }, { text: string }>({
   type: "greeter",
   configSchema: defineSchema(
     { source: SchemaType.NodeRef<Greeting>("greeting-config") },
     { $id: "greeter:config" },
   ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
   async input(msg) {
     const source = this.config.source as unknown as Greeting;
-    this.send({ text: `${source.greeting}, ${(msg as { who: string }).who}` });
+    this.send({ text: `${source.greeting}, ${msg.who}` });
   },
 });
 

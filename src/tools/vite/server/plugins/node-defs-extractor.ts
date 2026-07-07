@@ -7,6 +7,7 @@ import {
   getDefaultsFromSchema,
   getCredentialsFromSchema,
 } from "../../../../sdk/lib/shared/schemas/utils";
+import { mergeConfigDefaults } from "../../../../sdk/lib/server/schemas/config-defaults";
 
 /**
  * Loads the freshly built server bundle and returns its default export (the
@@ -66,24 +67,28 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
     if (!type) continue;
     nodeTypes.push(type);
 
-    const configSchema = NodeClass.configSchema ?? null;
+    // Every IONode carries the built-in IONode config (name + lifecycle port
+    // toggles + per-port return-property / context-mode + data validation)
+    // whether or not it declares those fields — so the editor's Ports Settings
+    // section renders on all of them, and declaring a field only overrides its
+    // default. Config nodes have no ports, so they're left as-is (detected by the
+    // absence of the IONode `outputs` getter, which config nodes don't define).
+    const isIONode = typeof NodeClass.outputs === "number";
+    const configSchema = isIONode
+      ? mergeConfigDefaults(NodeClass.configSchema, `nrg:${type}:config`)
+      : (NodeClass.configSchema ?? null);
     const credentialsSchema = NodeClass.credentialsSchema ?? null;
-    const inputSchema = NodeClass.inputSchema ?? null;
-    const outputsSchema = NodeClass.outputsSchema ?? null;
 
+    // Data-validation config (`inputSchema`/`outputSchemas`/`validateInput`/
+    // `validateOutputs`) is merged into the config schema for every IONode, so
+    // its defaults come straight from `getDefaultsFromSchema` — no
+    // special injection here. Only the design-time wire type-check flags are
+    // added, gated on the node actually having a typed input / typed outputs.
     const defaults = getDefaultsFromSchema(configSchema);
-    if (defaults && inputSchema) {
-      defaults.validateInput = { required: false, value: false };
-      // Design-time: type-check wires into this input (editor wire check).
+    if (defaults && NodeClass.inputs > 0) {
       defaults.validateInputTypes = { required: false, value: false };
     }
-    if (defaults && outputsSchema) {
-      // Per-port output validation flags, keyed by base-output port index and
-      // empty until the flow author ticks a row in the Outputs table. Read at
-      // runtime by IONode. Return Property / Context Mode columns are
-      // author-declared in the schema, so their defaults come from there.
-      defaults.validateOutputs = { required: false, value: {} };
-      // Design-time per-port type-check flags (editor wire check).
+    if (defaults && NodeClass.outputs > 0) {
       defaults.validateOutputTypes = { required: false, value: {} };
     }
     const credentials = getCredentialsFromSchema(credentialsSchema);
@@ -103,8 +108,6 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
       // Resolved server-side (TypeBox Kind intact) so the editor labels named
       // output ports without guessing from the serialized schema.
       outputPortNames: NodeClass.outputPortNames ?? undefined,
-      inputSchema,
-      outputsSchema,
     };
   }
 

@@ -6,10 +6,11 @@ import { nodeDefsPath } from "../../../src/tools/vite/utils";
 import type { ServerBuildOptions } from "../../../src/tools/vite/types";
 
 // End-to-end proof that a node's PORT TOPOLOGY comes from its `Input`/`Output`
-// generics — no `outputsSchema`. The build extracts the generics, derives the
+// generics — never a schema. The build extracts the generics, derives the
 // `__nrgPorts` descriptor, and the injector stamps it onto the built class; the
-// runtime routes and the editor draws ports from THAT. A legacy schema-only node
-// (no generics) is left untouched and keeps computing topology from its schema.
+// runtime routes and the editor draws ports from THAT. Named `Port<T>` keys stamp
+// named ports; a tuple stamps positional ports; a node with NO Input/Output
+// generics is inert (0/0) and never injected — there is no schema fallback.
 
 const BASIC = path.resolve(__dirname, "../../fixtures/basic-node");
 
@@ -55,37 +56,45 @@ describe("port topology injection (schema-free Port outputs)", () => {
     if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
   });
 
-  it("stamps __nrgPorts on the built bundle from the Output generic", () => {
-    // The injector stamps `Object.defineProperty(Node, Symbol.for("nrg.ports"),
-    // { value: <topology>, … })`. rollup may re-space the object literal, so pull
-    // the `value` object (its keys are quoted → valid JSON) and compare it.
-    const m = bundle.match(
-      /Symbol\.for\("nrg\.ports"\)[\s\S]*?value:\s*(\{[\s\S]*?\})\s*,/,
-    );
-    expect(m).toBeTruthy();
-    expect(JSON.parse(m![1])).toEqual({
+  it("stamps __nrgPorts on the built bundle from a named-Port Output generic", () => {
+    // The injector stamps `Object.defineProperty(<Class>, Symbol.for("nrg.ports"),
+    // { value: <topology>, … })` on every typed node. Classes are minified to a
+    // single letter, so collect EVERY stamp (its keys are quoted → valid JSON) and
+    // assert port-node's named topology is among them.
+    const stamps = [
+      ...bundle.matchAll(
+        /Symbol\.for\("nrg\.ports"\),\s*\{\s*value:\s*(\{[\s\S]*?\})\s*,/g,
+      ),
+    ].map((m) => JSON.parse(m[1]));
+    expect(stamps).toContainEqual({
       inputs: 1,
       outputs: 2,
       outputNames: ["ok", "err"],
     });
   });
 
-  it("node-defs derives the port topology from the generic (no outputsSchema)", () => {
+  it("node-defs derives the port topology from the generic (no output schema field)", () => {
     expect(defs["port-node"].inputs).toBe(1);
     expect(defs["port-node"].outputs).toBe(2);
     expect(defs["port-node"].outputPortNames).toEqual(["ok", "err"]);
-    // it declares NO output schema — topology is purely from the type.
-    expect(defs["port-node"].outputsSchema).toBeNull();
+    // Topology is purely from the type — the extractor emits no output-schema field.
+    expect(defs["port-node"].outputsSchema).toBeUndefined();
   });
 
-  it("a schema-only node (no generics) is NOT injected and keeps its schema topology", () => {
-    // router-node: bare `extends IONode` + outputsSchema { success, failure } →
-    // no typed generics → portTopology is undefined → not injected → the runtime
-    // getter falls back to the schema. Proves generic-injection and the schema
-    // fallback coexist in one build.
-    expect(defs["router-node"].outputs).toBe(2);
-    expect(defs["router-node"].outputPortNames).toEqual(["success", "failure"]);
-    // router-node declares its ports via schema, not generics:
-    expect(defs["router-node"].outputsSchema).not.toBeNull();
+  it("stamps positional ports from a tuple Output generic (no names)", () => {
+    // second-node: `type Output = [unknown, unknown]` → two positional ports with
+    // no names. The descriptor carries the count but omits outputNames.
+    expect(defs["second-node"].inputs).toBe(1);
+    expect(defs["second-node"].outputs).toBe(2);
+    expect(defs["second-node"].outputPortNames).toBeUndefined();
+  });
+
+  it("leaves a node with NO Input/Output generics inert (0/0) — no schema fallback", () => {
+    // test-node: `extends IONode<Config, Credentials>` with no Input/Output types →
+    // portTopology is undefined → not injected → the runtime getters report 0/0.
+    // Proves topology comes ONLY from generics; schemas never fill in ports.
+    expect(defs["test-node"].inputs).toBe(0);
+    expect(defs["test-node"].outputs).toBe(0);
+    expect(defs["test-node"].outputPortNames).toBeUndefined();
   });
 });

@@ -1,135 +1,30 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { startRuntime, type Runtime } from "@/sdk/test/server/integration";
-import { defineIONode, ConfigNode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import Doubler from "../unit/fixtures/runtime-integration/int-doubler";
+import Greeting from "../unit/fixtures/runtime-integration/greeting-config";
+import Greeter from "../unit/fixtures/runtime-integration/greeter";
+import Repeater from "../unit/fixtures/runtime-integration/repeater";
+import Relay from "../unit/fixtures/runtime-integration/relay";
+import Secured from "../unit/fixtures/runtime-integration/secured";
+import Counter from "../unit/fixtures/runtime-integration/counter";
+import Deferred from "../unit/fixtures/runtime-integration/deferred-emit";
 
-const Doubler = defineIONode({
-  type: "int-doubler",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "int-doubler:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input(msg) {
-    this.send({ doubled: (msg as Record<string, number>).value * 2 });
-  },
-});
-
-class Greeting extends ConfigNode {
-  static override readonly type = "greeting-config";
-  static override readonly configSchema = defineSchema(
-    {
-      name: SchemaType.String({ default: "" }),
-      greeting: SchemaType.String({ default: "hi" }),
-    },
-    { $id: "greeting-config:config" },
-  );
-  get greeting(): string {
-    return (this.config as { greeting: string }).greeting;
-  }
-}
-
-const Greeter = defineIONode({
-  type: "greeter",
-  configSchema: defineSchema(
-    {
-      name: SchemaType.String({ default: "" }),
-      source: SchemaType.NodeRef<Greeting>("greeting-config", {}),
-    },
-    { $id: "greeter:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input(msg) {
-    const source = this.config.source as unknown as Greeting;
-    this.send({
-      text: `${source.greeting}, ${(msg as Record<string, string>).who}`,
-    });
-  },
-});
-
-const Repeater = defineIONode({
-  type: "repeater",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "repeater:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Any(),
-  async input(msg) {
-    const count = (msg as Record<string, number>).count;
-    for (let i = 0; i < count; i++) this.send({ i });
-  },
-});
-
-const Relay = defineIONode({
-  type: "relay",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "relay:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input() {
-    this.send({ relayed: true });
-  },
-});
-
-// echoes its credentials, to verify they reach the deployed node
-const Secured = defineIONode({
-  type: "secured",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "secured:config" },
-  ),
-  credentialsSchema: defineSchema(
-    { token: SchemaType.String({ default: "" }) },
-    { $id: "secured:credentials" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input() {
-    this.send({ token: this.credentials?.token });
-  },
-});
-
-// increments a flow-context counter on every message
-const Counter = defineIONode({
-  type: "counter",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "counter:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input() {
-    const n = (await this.context.flow.get<number>("count")) ?? 0;
-    await this.context.flow.set("count", n + 1);
-    this.send({ count: n + 1 });
-  },
-});
-
-// Emits only AFTER an awaited macrotask (20ms). A single event-loop tick can't
-// see the emission — receive() must settle on the node's done().
-const Deferred = defineIONode({
-  type: "deferred-emit",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "deferred-emit:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input(msg) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    this.send({ echoed: (msg as Record<string, unknown>).value });
-  },
-});
+// The fixture nodes are TYPES-ONLY (no inputSchema/outputsSchema); their port
+// topology lives only in their generics. Point the extractor at the fixture tree
+// so startRuntime stamps the build-time topology and the deployed nodes register
+// with the right port count — exactly as a built node would (see port-topology).
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../unit/fixtures/runtime-integration", import.meta.url),
+);
 
 describe("server integration runtime", () => {
   let runtime: Runtime;
+  let prevSrc: string | undefined;
 
   beforeAll(async () => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
     runtime = await startRuntime({
       nodes: [
         Doubler,
@@ -146,6 +41,8 @@ describe("server integration runtime", () => {
 
   afterAll(async () => {
     await runtime.stop();
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
   });
 
   // Kept FIRST on purpose: Node-RED drops inline credentials on the very first

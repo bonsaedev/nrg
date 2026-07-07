@@ -1,4 +1,4 @@
-import type { TSchema } from "../../../shared/schemas";
+import type { Schema } from "../../../shared/schemas";
 import type { BUILTIN_PORT_KEYS } from "../../../shared/constants";
 import type { RED } from "../../red";
 import type { IONode } from "../io-node";
@@ -9,7 +9,6 @@ import type {
   NodeContextStore,
   NodeContextScope,
 } from "./node";
-import type { InferOr, InferOutputs } from "../../schemas/types";
 import type { OutputPortNames, PortValue } from "./ports";
 
 type IONodeContextScope = NodeContextScope;
@@ -73,22 +72,12 @@ type IONodeContext = {
 type HexColor = `#${string}`;
 
 type BoundIONode<
-  TC extends TSchema | undefined,
-  TCr extends TSchema | undefined,
-  TS extends TSchema | undefined,
-  TIn extends TSchema | undefined,
-  TOut extends
-    | TSchema
-    | readonly TSchema[]
-    | Record<string, TSchema>
-    | undefined,
-> = IONode<
-  InferOr<TC, any>,
-  InferOr<TCr, any>,
-  InferOr<TIn, any>,
-  InferOutputs<TOut>,
-  InferOr<TS, any>
->;
+  TConfig = any,
+  TCredentials = any,
+  TInput = any,
+  TOutput = any,
+  TSettings = any,
+> = IONode<TConfig, TCredentials, TInput, TOutput, TSettings>;
 
 /** Public instance interface for IO nodes. Implemented by {@link IONode}. */
 interface IIONode<
@@ -122,63 +111,38 @@ interface IIONode<
 }
 
 interface IONodeDefinition<
-  TConfigSchema extends TSchema | undefined = undefined,
-  TCredsSchema extends TSchema | undefined = undefined,
-  TSettingsSchema extends TSchema | undefined = undefined,
-  TInputSchema extends TSchema | undefined = undefined,
-  TOutputsSchema extends
-    | TSchema
-    | readonly TSchema[]
-    | Record<string, TSchema>
-    | undefined = undefined,
+  TConfig = any,
+  TCredentials = any,
+  TInput = any,
+  TOutput = any,
+  TSettings = any,
 > {
   type: string;
   category?: string;
   color?: HexColor;
   align?: "left" | "right";
 
-  configSchema?: TConfigSchema;
-  credentialsSchema?: TCredsSchema;
-  settingsSchema?: TSettingsSchema;
-  inputSchema?: TInputSchema;
-  outputsSchema?: TOutputsSchema;
-
-  validateInput?: boolean;
-  /** A single boolean validates every output port; a boolean[] sets per-port
-   * defaults by base-output index (missing entries default to false). */
-  validateOutput?: boolean | boolean[];
+  // Runtime schemas: config drives the editor form + config validation;
+  // credentials/settings likewise. Port topology and `msg`/`send` typing come
+  // from the TInput/TOutput generics, NOT from these — input/output data
+  // validation is declared in the config schema (`inputSchema`/`outputSchemas`).
+  configSchema?: Schema;
+  credentialsSchema?: Schema;
+  settingsSchema?: Schema;
 
   registered?(RED: RED): void | Promise<void>;
   created?(
-    this: BoundIONode<
-      TConfigSchema,
-      TCredsSchema,
-      TSettingsSchema,
-      TInputSchema,
-      TOutputsSchema
-    >,
+    this: BoundIONode<TConfig, TCredentials, TInput, TOutput, TSettings>,
   ): void | Promise<void>;
   closed?(
-    this: BoundIONode<
-      TConfigSchema,
-      TCredsSchema,
-      TSettingsSchema,
-      TInputSchema,
-      TOutputsSchema
-    >,
+    this: BoundIONode<TConfig, TCredentials, TInput, TOutput, TSettings>,
     removed?: boolean,
   ): void | Promise<void>;
   // A returned value (when not `undefined`) rides the complete port under
   // `output`; `void`/no return keeps the plain completion signal.
   input?(
-    this: BoundIONode<
-      TConfigSchema,
-      TCredsSchema,
-      TSettingsSchema,
-      TInputSchema,
-      TOutputsSchema
-    >,
-    msg: InferOr<TInputSchema, any>,
+    this: BoundIONode<TConfig, TCredentials, TInput, TOutput, TSettings>,
+    msg: TInput,
   ): unknown;
 }
 

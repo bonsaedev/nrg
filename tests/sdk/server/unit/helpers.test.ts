@@ -1,212 +1,43 @@
-import { describe, it, expect } from "vitest";
-import {
-  IONode,
-  ConfigNode,
-  defineIONode,
-  defineConfigNode,
-  type Infer,
-  type RED,
-} from "@/sdk/lib/server";
-import {
-  defineSchema,
-  SchemaType,
-  type Schema,
-} from "@/sdk/lib/shared/schemas";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
+import { defineIONode, defineConfigNode } from "@/sdk/lib/server";
+import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createNode } from "@/sdk/test/server/unit";
 
-// --- Test fixtures ---
+// The nodes under test are TYPES-ONLY (no inputSchema/outputsSchema); their port
+// topology lives only in their generics. In un-built source there is no
+// `__nrgPorts` static, so without the harness's build-equivalent injection a node
+// would report 0 outputs (and a multi-output node's ports would collapse). Point
+// the extractor at the fixture tree so `createNode` stamps the real topology —
+// the same way `port-topology-injection.test.ts` does.
+import TestConfigNode from "./fixtures/helpers-test/test-config";
+import TestIONode from "./fixtures/helpers-test/test-io";
+import TestSplitter from "./fixtures/helpers-test/test-splitter";
+import TestBroadcaster from "./fixtures/helpers-test/test-broadcaster";
+import TestCredNode from "./fixtures/helpers-test/test-cred";
+import TestErrorNode from "./fixtures/helpers-test/test-error";
+import TestContextNode from "./fixtures/helpers-test/test-context";
+import TestI18nNode from "./fixtures/helpers-test/test-i18n";
+import TestSettingsNode from "./fixtures/helpers-test/test-settings";
+import FactoryIONode from "./fixtures/helpers-test/factory-io";
 
-const TestConfigSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "test-config" }),
-    host: SchemaType.String({ default: "localhost" }),
-    port: SchemaType.Number({ default: 8080 }),
-  },
-  { $id: "test-helpers:config" },
+const FIXTURE_DIR = fileURLToPath(
+  new URL("./fixtures/helpers-test", import.meta.url),
 );
 
-type TestConfig = Infer<typeof TestConfigSchema>;
+let prevSrc: string | undefined;
 
-class TestConfigNode extends ConfigNode<TestConfig> {
-  static override readonly type = "test-config";
-  static override readonly configSchema: Schema = TestConfigSchema;
+beforeAll(() => {
+  prevSrc = process.env.NRG_SERVER_SRC;
+  process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+});
 
-  override async created() {
-    this.log("config node created");
-  }
-}
+afterAll(() => {
+  if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+  else process.env.NRG_SERVER_SRC = prevSrc;
+});
 
-const TestIOSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "test-io" }),
-    server: SchemaType.NodeRef<TestConfigNode>("test-config"),
-    greeting: SchemaType.String({ default: "hello" }),
-  },
-  { $id: "test-helpers:io-config" },
-);
-
-type TestIOConfig = Infer<typeof TestIOSchema>;
-
-class TestIONode extends IONode<TestIOConfig> {
-  static override readonly type = "test-io";
-  static override readonly category = "function";
-  static override readonly configSchema: Schema = TestIOSchema;
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
-  static registeredCalled = false;
-
-  static override async registered(RED: RED) {
-    TestIONode.registeredCalled = true;
-    RED.log.info("test-io registered");
-  }
-
-  override async created() {
-    this.log("io node created");
-  }
-
-  override async input(msg: any) {
-    const greeting = this.config.greeting;
-    this.send({ payload: `${greeting} ${msg.payload}` });
-    this.status({ fill: "green", text: "ok" });
-  }
-
-  override async closed() {
-    this.log("io node closed");
-  }
-}
-
-const SplitterSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "splitter" }),
-    threshold: SchemaType.Number({ default: 50 }),
-  },
-  { $id: "test-helpers:splitter-config" },
-);
-
-class TestSplitter extends IONode {
-  static override readonly type = "test-splitter";
-  static override readonly category = "function";
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema[] = [
-    SchemaType.Object({}),
-    SchemaType.Object({}),
-  ];
-  static override readonly configSchema: Schema = SplitterSchema;
-
-  override async input(msg: any) {
-    if (msg.payload > this.config.threshold) {
-      this.send([{ payload: msg.payload, label: "above" }, null]);
-    } else {
-      this.send([null, { payload: msg.payload, label: "below" }]);
-    }
-  }
-}
-
-class TestBroadcaster extends IONode {
-  static override readonly type = "test-broadcaster";
-  static override readonly category = "function";
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema[] = [
-    SchemaType.Object({}),
-    SchemaType.Object({}),
-  ];
-
-  override async input(msg: any) {
-    this.send([
-      { payload: msg.payload, port: 0 },
-      { payload: msg.payload, port: 1 },
-    ]);
-  }
-}
-
-const CredentialNodeSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "cred-node" }),
-    endpoint: SchemaType.TypedInput<string>(),
-  },
-  { $id: "test-helpers:cred-config" },
-);
-
-const CredentialSchema = defineSchema(
-  {
-    apiKey: SchemaType.Optional(SchemaType.String({ default: "" })),
-  },
-  { $id: "test-helpers:cred-creds" },
-);
-
-type CredConfig = Infer<typeof CredentialNodeSchema>;
-type CredCreds = Infer<typeof CredentialSchema>;
-
-class TestCredNode extends IONode<CredConfig, CredCreds> {
-  static override readonly type = "test-cred";
-  static override readonly category = "function";
-  static override readonly configSchema: Schema = CredentialNodeSchema;
-  static override readonly credentialsSchema: Schema = CredentialSchema;
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
-
-  override async input(msg: any) {
-    const key = this.credentials?.apiKey;
-    if (!key) {
-      this.warn("no api key");
-      return;
-    }
-    const resolved = await this.config.endpoint.resolve(msg);
-    this.send({ payload: resolved, auth: key });
-  }
-}
-
-class TestErrorNode extends IONode {
-  static override readonly type = "test-error";
-  static override readonly category = "function";
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-
-  override async input(_msg: any) {
-    throw new Error("something broke");
-  }
-}
-
-class TestContextNode extends IONode {
-  static override readonly type = "test-context";
-  static override readonly category = "function";
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
-
-  override async created() {
-    await this.context.node.set("counter", 0);
-    await this.context.flow.set("sharedKey", "flow-value");
-    await this.context.global.set("globalKey", "global-value");
-  }
-
-  override async input(msg: any) {
-    const scope = msg.scope as string;
-    if (scope === "flow") {
-      const val = await this.context.flow.get<string>("sharedKey");
-      this.send({ payload: val });
-    } else if (scope === "global") {
-      const val = await this.context.global.get<string>("globalKey");
-      this.send({ payload: val });
-    } else {
-      const count = (await this.context.node.get<number>("counter")) ?? 0;
-      await this.context.node.set("counter", count + 1);
-      this.send({ payload: count + 1 });
-    }
-  }
-}
-
-class TestI18nNode extends IONode {
-  static override readonly type = "test-i18n";
-  static override readonly category = "function";
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
-
-  override async input(_msg: any) {
-    const label = this.i18n("greeting");
-    this.send({ payload: label });
-  }
-}
-
-// --- Factory API fixtures ---
+// --- Inline fixtures: no ports, no removed statics — nothing to type-extract. ---
 
 const FactoryConfigSchema = defineSchema(
   {
@@ -224,51 +55,6 @@ const FactoryConfigNode = defineConfigNode({
     this.log("factory config created");
   },
 });
-
-const FactoryIOSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "factory-io" }),
-    prefix: SchemaType.String({ default: ">" }),
-  },
-  { $id: "test-helpers:factory-io-config" },
-);
-
-const FactoryIONode = defineIONode({
-  type: "factory-io",
-  category: "function",
-  configSchema: FactoryIOSchema,
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-
-  created() {
-    this.log("factory io created");
-  },
-
-  input(msg: any) {
-    this.send({ payload: `${this.config.prefix} ${msg.payload}` });
-  },
-});
-
-// --- Settings fixture ---
-
-const SettingsSchema = defineSchema(
-  {
-    timeout: SchemaType.Number({ default: 5000, exportable: true }),
-  },
-  { $id: "test-helpers:settings" },
-);
-
-class TestSettingsNode extends IONode {
-  static override readonly type = "test-settings";
-  static override readonly category = "function";
-  static override readonly settingsSchema: Schema = SettingsSchema;
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
-
-  override async input(_msg: any) {
-    this.send({ payload: this.settings.timeout });
-  }
-}
 
 // --- Tests ---
 

@@ -13,8 +13,7 @@ import type { NodeFeatures } from "@/sdk/lib/client/types";
 // unconditional; Validate TYPES needs plugin + node opt-in.
 
 const INPUT_FEATURES: NodeFeatures = {
-  hasInputSchema: true,
-  hasOutputSchema: false,
+  hasInput: true,
   outputPorts: [],
 };
 
@@ -96,8 +95,7 @@ describe("Validate Types gate (plugin installed AND node offers it)", () => {
 });
 
 const OUTPUT_FEATURES: NodeFeatures = {
-  hasInputSchema: false,
-  hasOutputSchema: true,
+  hasInput: false,
   outputPorts: [{ index: 0, label: "out" }],
 };
 
@@ -117,7 +115,12 @@ function renderOutputForm(offersTypeValidation: boolean) {
       node: node as any,
       schema: {
         type: "object",
-        properties: { name: { type: "string" } },
+        properties: {
+          name: { type: "string" },
+          // Framework-merged into every IONode in production; here it makes the
+          // per-port Validate Data column render (asserted unconditional below).
+          outputSchemas: { type: "object", default: {} },
+        },
         required: ["name"],
         additionalProperties: true,
       },

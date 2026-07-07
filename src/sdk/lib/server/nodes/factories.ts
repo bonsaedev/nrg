@@ -1,7 +1,5 @@
-import type { TSchema, Schema } from "../../shared/schemas";
-import { Kind } from "../../shared/schemas";
+import type { Schema } from "../../shared/schemas";
 import { markNonValidatable } from "../../shared/schemas/factories";
-import type { InferOr, InferOutputs } from "../schemas/types";
 import type { RED } from "../red";
 import type {
   IONodeDefinition,
@@ -20,27 +18,13 @@ import { ConfigNode } from "./config-node";
  * a non-JSON type (Function, …) is stripped for AJV regardless of how the schema
  * was authored. `defineSchema` already did this, so it's a no-op there
  * (idempotent). Runs once at class-definition time — before every validation
- * path (register/settings, construct-time config/creds/input, send-time output).
- * `outputsSchema` is a single schema, a positional tuple, or a record of named
- * ports; `Kind` (present only on a schema) discriminates the single case from a
- * plain port record — the same test io-node uses.
+ * path (register/settings, construct-time config/creds). Input/output data
+ * validation schemas live in the config schema, so they're covered by the config
+ * entry here.
  */
-function normalizeSchemas(
-  schemas: Array<Schema | undefined>,
-  outputsSchema?: Schema | Schema[] | Record<string, Schema>,
-): void {
+function normalizeSchemas(schemas: Array<Schema | undefined>): void {
   for (const schema of schemas) {
     if (schema) markNonValidatable(schema);
-  }
-  if (!outputsSchema) return;
-  if (Array.isArray(outputsSchema)) {
-    for (const schema of outputsSchema) markNonValidatable(schema);
-  } else if (Kind in outputsSchema) {
-    markNonValidatable(outputsSchema as Schema);
-  } else {
-    for (const schema of Object.values(outputsSchema)) {
-      markNonValidatable(schema);
-    }
   }
 }
 
@@ -63,40 +47,20 @@ function normalizeSchemas(
  * ```
  */
 function defineIONode<
-  TConfigSchema extends TSchema | undefined = undefined,
-  TCredsSchema extends TSchema | undefined = undefined,
-  TSettingsSchema extends TSchema | undefined = undefined,
-  TInputSchema extends TSchema | undefined = undefined,
-  // `const` so an inline array literal (`outputsSchema: [A, B]`) infers as a
-  // tuple rather than a widened `TSchema[]`, giving precise positional output
-  // typing without the author needing `as const`.
-  const TOutputsSchema extends
-    | TSchema
-    | readonly TSchema[]
-    | Record<string, TSchema>
-    | undefined = undefined,
+  TConfig = any,
+  TCredentials = any,
+  TInput = any,
+  TOutput = any,
+  TSettings = any,
 >(
-  def: IONodeDefinition<
-    TConfigSchema,
-    TCredsSchema,
-    TSettingsSchema,
-    TInputSchema,
-    TOutputsSchema
-  >,
-): NodeConstructor<
-  IIONode<
-    InferOr<TConfigSchema, any>,
-    InferOr<TCredsSchema, any>,
-    InferOr<TInputSchema, any>,
-    InferOutputs<TOutputsSchema>
-  >
-> {
+  def: IONodeDefinition<TConfig, TCredentials, TInput, TOutput, TSettings>,
+): NodeConstructor<IIONode<TConfig, TCredentials, TInput, TOutput, TSettings>> {
   const NodeClass = class extends IONode<
-    InferOr<TConfigSchema, any>,
-    InferOr<TCredsSchema, any>,
-    InferOr<TInputSchema, any>,
-    InferOutputs<TOutputsSchema>,
-    InferOr<TSettingsSchema, any>
+    TConfig,
+    TCredentials,
+    TInput,
+    TOutput,
+    TSettings
   > {
     static override readonly type: string = def.type;
     static override readonly category: string = def.category ?? "function";
@@ -104,32 +68,17 @@ function defineIONode<
     static override readonly align = def.align;
 
     static override readonly configSchema: Schema | undefined =
-      def.configSchema as Schema | undefined;
+      def.configSchema;
     static override readonly credentialsSchema: Schema | undefined =
-      def.credentialsSchema as Schema | undefined;
+      def.credentialsSchema;
     static override readonly settingsSchema: Schema | undefined =
-      def.settingsSchema as Schema | undefined;
-    static override readonly inputSchema: Schema | undefined =
-      def.inputSchema as Schema | undefined;
-    static override readonly outputsSchema:
-      | Schema
-      | Schema[]
-      | Record<string, Schema>
-      | undefined = def.outputsSchema as
-      | Schema
-      | Schema[]
-      | Record<string, Schema>
-      | undefined;
-    static override readonly validateInput: boolean =
-      def.validateInput ?? false;
-    static override readonly validateOutput: boolean | boolean[] =
-      def.validateOutput ?? false;
+      def.settingsSchema;
 
     static override registered(RED: RED) {
       return def.registered?.(RED);
     }
 
-    override async input(msg: InferOr<TInputSchema, any>) {
+    override async input(msg: TInput) {
       if (def.input) return def.input.call(this as any, msg);
     }
 
@@ -149,23 +98,14 @@ function defineIONode<
     configurable: true,
   });
 
-  normalizeSchemas(
-    [
-      NodeClass.configSchema,
-      NodeClass.credentialsSchema,
-      NodeClass.settingsSchema,
-      NodeClass.inputSchema,
-    ],
-    NodeClass.outputsSchema,
-  );
+  normalizeSchemas([
+    NodeClass.configSchema,
+    NodeClass.credentialsSchema,
+    NodeClass.settingsSchema,
+  ]);
 
   return NodeClass as unknown as NodeConstructor<
-    IIONode<
-      InferOr<TConfigSchema, any>,
-      InferOr<TCredsSchema, any>,
-      InferOr<TInputSchema, any>,
-      InferOutputs<TOutputsSchema>
-    >
+    IIONode<TConfig, TCredentials, TInput, TOutput, TSettings>
   >;
 }
 
@@ -181,28 +121,18 @@ function defineIONode<
  * });
  * ```
  */
-function defineConfigNode<
-  TConfigSchema extends TSchema | undefined = undefined,
-  TCredsSchema extends TSchema | undefined = undefined,
-  TSettingsSchema extends TSchema | undefined = undefined,
->(
-  def: ConfigNodeDefinition<TConfigSchema, TCredsSchema, TSettingsSchema>,
-): NodeConstructor<
-  IConfigNode<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
-> {
-  const NodeClass = class extends ConfigNode<
-    InferOr<TConfigSchema, any>,
-    InferOr<TCredsSchema, any>,
-    InferOr<TSettingsSchema, any>
-  > {
+function defineConfigNode<TConfig = any, TCredentials = any, TSettings = any>(
+  def: ConfigNodeDefinition<TConfig, TCredentials, TSettings>,
+): NodeConstructor<IConfigNode<TConfig, TCredentials>> {
+  const NodeClass = class extends ConfigNode<TConfig, TCredentials, TSettings> {
     static override readonly type: string = def.type;
 
     static override readonly configSchema: Schema | undefined =
-      def.configSchema as Schema | undefined;
+      def.configSchema;
     static override readonly credentialsSchema: Schema | undefined =
-      def.credentialsSchema as Schema | undefined;
+      def.credentialsSchema;
     static override readonly settingsSchema: Schema | undefined =
-      def.settingsSchema as Schema | undefined;
+      def.settingsSchema;
 
     static override registered(RED: RED) {
       return def.registered?.(RED);
@@ -231,7 +161,7 @@ function defineConfigNode<
   ]);
 
   return NodeClass as unknown as NodeConstructor<
-    IConfigNode<InferOr<TConfigSchema, any>, InferOr<TCredsSchema, any>>
+    IConfigNode<TConfig, TCredentials>
   >;
 }
 

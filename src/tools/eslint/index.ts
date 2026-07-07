@@ -173,6 +173,14 @@ const nodeConventions = {
   },
 };
 
+// Pin the TS parser root so typescript-eslint never has to *infer* it. When a
+// consumer dev-links `@bonsae/nrg` (a symlinked node_modules entry), the IDE's
+// single ESLint instance sees files under BOTH the consumer root and the nrg
+// repo root, and inference throws "multiple candidate TSConfigRootDirs are
+// present". `process.cwd()` is the consumer root where ESLint runs — correct
+// for a consumer and for the nrg repo itself.
+const tsconfigRootDir = process.cwd();
+
 /**
  * The complete, drop-in NRG flat config. Blocks are ordered so later ones win,
  * which is also what lets a consumer override any default by appending a block
@@ -195,6 +203,7 @@ const nrg = typescriptEslint.config(
       globals: { ...globals["shared-node-browser"] },
       parserOptions: {
         parser: typescriptEslint.parser,
+        tsconfigRootDir,
       },
     },
     rules: {
@@ -218,7 +227,10 @@ const nrg = typescriptEslint.config(
   {
     files: ["src/client/**/*.ts", "tests/client/**/*.ts"],
     plugins: { "@typescript-eslint": typescriptEslint.plugin },
-    languageOptions: { parser: typescriptEslint.parser },
+    languageOptions: {
+      parser: typescriptEslint.parser,
+      parserOptions: { tsconfigRootDir },
+    },
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",

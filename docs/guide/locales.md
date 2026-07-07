@@ -205,8 +205,8 @@ For local development or when using a linked package, use the local path instead
 When a node type has **no manual doc** in `src/resources/locales/docs/{type}/{lang}.md` or `.html`, the build system auto-generates help documentation from:
 
 1. **`description`** from the label file — shown at the top of the help panel
-2. **Schema properties** — rendered as an HTML table with Property, Label, Type, Required, Default, and Description columns
-3. **Port labels** — from `outputLabels`/`inputLabels` on the node class
+2. **Schema properties** — rendered as an HTML table with Label, Property, Type, Required, Default, and Description columns
+3. **Port labels** — from the `input` and `outputs` fields in the label file
 
 ### How it works
 
@@ -239,23 +239,23 @@ The generated help panel shows:
 
 > **Properties**
 >
-> | Property | Label | Type | Required | Default | Description |
+> | Label | Property | Type | Required | Default | Description |
 > | --- | --- | --- | --- | --- | --- |
-> | threshold | Threshold | number | Yes | 50 | Numeric threshold |
+> | Threshold | threshold | number | Yes | 50 | Numeric threshold |
 >
 > **Input**
 >
-> | Property | Label | Type | Required | Default | Description |
-> | --- | --- | --- | --- | --- | --- |
-> | payload | Payload | number | Yes | | Numeric value |
+> | Label | Property | Type | Required | Description |
+> | --- | --- | --- | --- | --- |
+> | Payload | payload | number | Yes | Numeric value |
 >
 > **Outputs**
 >
 > *Port 1*
 >
-> | Property | Label | ... |
+> | Label | Property | ... |
 > | --- | --- | --- |
-> | payload | Value | ... |
+> | Value | payload | ... |
 
 ## Manual Help Docs
 

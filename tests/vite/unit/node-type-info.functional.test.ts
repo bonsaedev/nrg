@@ -62,19 +62,17 @@ function portField(info: NodeTypeInfo, portIndex: number, name: string) {
 describe("extractNodeTypes — functional API", () => {
   it("recovers config/input/output roles from a defineIONode node", () => {
     const [node] = extract(`
-      import { defineIONode } from "@bonsae/nrg/server";
+      import { defineIONode, type Infer } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       const Config = defineSchema(
         { name: SchemaType.String(), retries: SchemaType.Number() },
         { $id: "fn:config" },
       );
-      const Input = defineSchema({ payload: SchemaType.String() }, { $id: "fn:input" });
-      const Output = defineSchema({ result: SchemaType.String() }, { $id: "fn:output" });
-      export default defineIONode({
+      type Input = { payload: string };
+      type Output = { result: string };
+      export default defineIONode<Infer<typeof Config>, any, Input, Output>({
         type: "fn",
         configSchema: Config,
-        inputSchema: Input,
-        outputsSchema: Output,
         input(msg) {
           return { done: true, count: 1 };
         },
@@ -107,17 +105,15 @@ describe("extractNodeTypes — functional API", () => {
     expect(field(node, "complete", "count")?.type).toBe("number");
   });
 
-  it("splits a named-port outputsSchema record into named ports", () => {
+  it("splits a named-port Output type into named ports", () => {
     const [node] = extract(`
-      import { defineIONode } from "@bonsae/nrg/server";
-      import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-      const Outputs = {
-        success: defineSchema({ payload: SchemaType.String() }, { $id: "fn:s" }),
-        failure: defineSchema({ error: SchemaType.String() }, { $id: "fn:f" }),
+      import { defineIONode, type Port } from "@bonsae/nrg/server";
+      type Output = {
+        success: Port<{ payload: string }>;
+        failure: Port<{ error: string }>;
       };
-      export default defineIONode({
+      export default defineIONode<any, any, unknown, Output>({
         type: "fn",
-        outputsSchema: Outputs,
         input() {},
       });
     `);
@@ -130,15 +126,12 @@ describe("extractNodeTypes — functional API", () => {
     );
   });
 
-  it("splits a positional (tuple) outputsSchema into positional ports", () => {
+  it("splits a positional (tuple) Output type into positional ports", () => {
     const [node] = extract(`
       import { defineIONode } from "@bonsae/nrg/server";
-      import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-      const A = defineSchema({ a: SchemaType.String() }, { $id: "fn:a" });
-      const B = defineSchema({ b: SchemaType.Number() }, { $id: "fn:b" });
-      export default defineIONode({
+      type Output = [{ a: string }, { b: number }];
+      export default defineIONode<any, any, unknown, Output>({
         type: "fn",
-        outputsSchema: [A, B],
         input() {},
       });
     `);
@@ -150,13 +143,13 @@ describe("extractNodeTypes — functional API", () => {
 
   it("recovers a defineConfigNode node (config only, no io roles)", () => {
     const [node] = extract(`
-      import { defineConfigNode } from "@bonsae/nrg/server";
+      import { defineConfigNode, type Infer } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       const Config = defineSchema(
         { host: SchemaType.String(), port: SchemaType.Number() },
         { $id: "cfg:config" },
       );
-      export default defineConfigNode({
+      export default defineConfigNode<Infer<typeof Config>>({
         type: "cfg",
         configSchema: Config,
       });
@@ -171,10 +164,10 @@ describe("extractNodeTypes — functional API", () => {
 
   it("resolves the `const N = defineIONode(...); export default N` form", () => {
     const [node] = extract(`
-      import { defineIONode } from "@bonsae/nrg/server";
+      import { defineIONode, type Infer } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       const Config = defineSchema({ name: SchemaType.String() }, { $id: "fn:config" });
-      const Node = defineIONode({ type: "fn", configSchema: Config, input() {} });
+      const Node = defineIONode<Infer<typeof Config>>({ type: "fn", configSchema: Config, input() {} });
       export default Node;
     `);
     expect(node?.type).toBe("fn");

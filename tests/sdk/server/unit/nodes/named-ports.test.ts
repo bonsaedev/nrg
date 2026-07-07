@@ -1,86 +1,73 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
-import { defineIONode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import NamedTwoPorts from "../fixtures/named-ports-test/named-two-ports";
+import NamedSinglePort from "../fixtures/named-ports-test/named-single-port";
+import NamedEmitSuccess from "../fixtures/named-ports-test/named-emit-success";
+import NamedEmitFailure from "../fixtures/named-ports-test/named-emit-failure";
+import NamedEmitIndex from "../fixtures/named-ports-test/named-emit-index";
+import NamedEmitOob from "../fixtures/named-ports-test/named-emit-oob";
+import NamedEmitArray from "../fixtures/named-ports-test/named-emit-array";
+import NamedEmitArrayNull from "../fixtures/named-ports-test/named-emit-array-null";
 
-const SuccessSchema = defineSchema(
-  { payload: SchemaType.String() },
-  { $id: "named-test:success" },
+// The fixture nodes are TYPES-ONLY: their port topology (count + named-port
+// names) lives only in their `Output` generics (a `Port<T>` record, a single
+// object, or a positional tuple) — there is no outputsSchema. Point the topology
+// extractor at the fixture tree so `createNode` stamps `__nrgPorts` exactly as
+// the build would, and named/positional ports resolve like a built node's.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../fixtures/named-ports-test", import.meta.url),
 );
 
-const FailureSchema = defineSchema(
-  { payload: SchemaType.Object({ reason: SchemaType.String() }) },
-  { $id: "named-test:failure" },
-);
-
-const ConfigSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "" }),
-    errorPort: SchemaType.Boolean({ default: false }),
-    completePort: SchemaType.Boolean({ default: false }),
-    statusPort: SchemaType.Boolean({ default: false }),
+// JSON-Schema strings a flow author would set in the editor. Data validation is
+// config-schema-driven now (no static output schemas): a port validates when its
+// `validateOutputs[index]` flag is on and `outputSchemas[index]` supplies a
+// schema.
+const successJSON = JSON.stringify({
+  type: "object",
+  properties: { payload: { type: "string" } },
+  required: ["payload"],
+});
+const failureJSON = JSON.stringify({
+  type: "object",
+  properties: {
+    payload: {
+      type: "object",
+      properties: { reason: { type: "string" } },
+      required: ["reason"],
+    },
   },
-  { $id: "named-test:config" },
-);
+  required: ["payload"],
+});
 
 describe("named output ports", () => {
-  describe("outputs count", () => {
-    it("counts record keys as output ports", async () => {
-      const Node = defineIONode({
-        type: "named-count-test",
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input() {},
-      });
+  let prevSrc: string | undefined;
 
-      const { node } = await createNode(Node, {});
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
+  describe("outputs count", () => {
+    it("counts named-port record keys as output ports", async () => {
+      const { node } = await createNode(NamedTwoPorts, {});
       expect(node.baseOutputs).toBe(2);
     });
 
-    it("counts single schema as one output", async () => {
-      const Node = defineIONode({
-        type: "single-count-test",
-        outputsSchema: SuccessSchema,
-        async input() {},
-      });
-
-      const { node } = await createNode(Node, {});
+    it("counts a single object output as one output", async () => {
+      const { node } = await createNode(NamedSinglePort, {});
       expect(node.baseOutputs).toBe(1);
     });
-
-    it("throws on numeric record keys", () => {
-      const NC = defineIONode({
-        type: "numeric-key-test",
-        outputsSchema: { "0": SuccessSchema, "1": FailureSchema },
-        async input() {},
-      }) as unknown as { outputs: number };
-      expect(() => NC.outputs).toThrow(/numeric/i);
-    });
-
-    it.each(["error", "complete", "status"])(
-      "throws on reserved port name '%s'",
-      (name) => {
-        const NC = defineIONode({
-          type: `reserved-name-${name}-test`,
-          outputsSchema: { [name]: SuccessSchema },
-          async input() {},
-        }) as any;
-        expect(() => NC.outputs).toThrow(/reserved/i);
-      },
-    );
   });
 
   describe("sendToPort with named ports", () => {
     it("sends to named port by string", async () => {
-      const Node = defineIONode({
-        type: "named-send-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input(msg) {
-          this.sendToPort("success", { payload: "ok" });
-        },
-      });
-
-      const { node } = await createNode(Node, {
+      const { node } = await createNode(NamedEmitSuccess, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
@@ -91,16 +78,7 @@ describe("named output ports", () => {
     });
 
     it("sends to second named port", async () => {
-      const Node = defineIONode({
-        type: "named-send-second-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input() {
-          this.sendToPort("failure", { payload: { reason: "bad" } });
-        },
-      });
-
-      const { node } = await createNode(Node, {
+      const { node } = await createNode(NamedEmitFailure, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
@@ -113,16 +91,7 @@ describe("named output ports", () => {
     });
 
     it("sends to named port alongside builtin ports", async () => {
-      const Node = defineIONode({
-        type: "named-with-builtin-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input() {
-          this.sendToPort("success", { payload: "ok" });
-        },
-      });
-
-      const { node } = await createNode(Node, {
+      const { node } = await createNode(NamedEmitSuccess, {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
@@ -132,19 +101,12 @@ describe("named output ports", () => {
     });
 
     it("throws for an unknown named port instead of silently dropping", async () => {
-      const Node = defineIONode({
-        type: "named-unknown-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input() {},
-      });
-
-      const { node } = await createNode(Node, {
+      const { node } = await createNode(NamedTwoPorts, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
       // The type gate (OutputPortNames) is compile-time only; a JS author
-      // reaching a stale name (here via an `as any` bypass) must fail loudly,
+      // reaching a stale name (here via an `as` bypass) must fail loudly,
       // not vanish.
       expect(() =>
         (node as { sendToPort: (p: string, m: unknown) => void }).sendToPort(
@@ -155,15 +117,8 @@ describe("named output ports", () => {
       expect(node.sent()).toHaveLength(0);
     });
 
-    it("throws when the node has no named ports (single/absent schema)", async () => {
-      const Node = defineIONode({
-        type: "named-none-test",
-        configSchema: ConfigSchema,
-        outputsSchema: SuccessSchema,
-        async input() {},
-      });
-
-      const { node } = await createNode(Node, {
+    it("throws when the node has no named ports (single/absent output)", async () => {
+      const { node } = await createNode(NamedSinglePort, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
@@ -176,16 +131,7 @@ describe("named output ports", () => {
     });
 
     it("numeric index beyond baseOutputs creates sparse send", async () => {
-      const Node = defineIONode({
-        type: "named-oob-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema },
-        async input() {
-          this.sendToPort(5, { payload: "oob" });
-        },
-      });
-
-      const { node } = await createNode(Node, {
+      const { node } = await createNode(NamedEmitOob, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
@@ -195,17 +141,8 @@ describe("named output ports", () => {
       expect(node.sent(0)).toEqual([]);
     });
 
-    it("sends by numeric index with record schema", async () => {
-      const Node = defineIONode({
-        type: "named-numeric-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        async input() {
-          this.sendToPort(0, { payload: "by-index" });
-        },
-      });
-
-      const { node } = await createNode(Node, {
+    it("sends by numeric index with a named-port node", async () => {
+      const { node } = await createNode(NamedEmitIndex, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
@@ -215,20 +152,16 @@ describe("named output ports", () => {
     });
   });
 
-  describe("send() with record schema validation", () => {
-    it("validates per-port when validateOutput is enabled", async () => {
-      const Node = defineIONode({
-        type: "named-validate-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        validateOutput: true,
-        async input() {
-          this.send([{ payload: "valid" }, null] as any);
+  describe("send() with per-port output validation", () => {
+    it("validates per-port when validateOutputs is enabled", async () => {
+      const { node } = await createNode(NamedEmitArray, {
+        config: {
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
+          validateOutputs: { 0: true, 1: true },
+          outputSchemas: { 0: successJSON, 1: failureJSON },
         },
-      });
-
-      const { node } = await createNode(Node, {
-        config: { errorPort: false, completePort: false, statusPort: false },
       });
 
       await node.receive({});
@@ -237,19 +170,15 @@ describe("named output ports", () => {
       expect(sent).toHaveLength(1);
     });
 
-    it("skips null ports during record validation", async () => {
-      const Node = defineIONode({
-        type: "named-validate-null-test",
-        configSchema: ConfigSchema,
-        outputsSchema: { success: SuccessSchema, failure: FailureSchema },
-        validateOutput: true,
-        async input() {
-          this.send([null, { payload: { reason: "test" } }] as any);
+    it("skips null ports during per-port validation", async () => {
+      const { node } = await createNode(NamedEmitArrayNull, {
+        config: {
+          errorPort: false,
+          completePort: false,
+          statusPort: false,
+          validateOutputs: { 0: true, 1: true },
+          outputSchemas: { 0: successJSON, 1: failureJSON },
         },
-      });
-
-      const { node } = await createNode(Node, {
-        config: { errorPort: false, completePort: false, statusPort: false },
       });
 
       await node.receive({});

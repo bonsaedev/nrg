@@ -21,7 +21,7 @@
       <!-- Input — a single Validate Data row, rendered as a table so it matches
            the Outputs / Lifecycle Output Ports sections (muted headers) instead
            of a bright toggle label that outweighs the section title. -->
-      <div v-if="features.hasInputSchema" class="nrg-subsection">
+      <div v-if="features.hasInput" class="nrg-subsection">
         <div class="nrg-subsection-title">
           {{ resolveLabel("sections.input", "Input") }}
         </div>
@@ -129,7 +129,7 @@
       </div>
 
       <!-- Outputs -->
-      <div v-if="showOutputs && outputRows.length" class="nrg-subsection">
+      <div v-if="showOutputs" class="nrg-subsection">
         <div class="nrg-subsection-title">
           {{ resolveLabel("sections.outputs", "Outputs") }}
         </div>
@@ -142,7 +142,7 @@
               <th class="nrg-outputs-label">
                 {{ resolveLabel("outputs.label", "Label") }}
               </th>
-              <th class="nrg-outputs-flag">
+              <th v-if="hasOutputValidation" class="nrg-outputs-flag">
                 {{ resolveLabel("outputs.validate", "Validate Data") }}
               </th>
               <th v-if="hasOutputSchemas" class="nrg-outputs-flag">
@@ -169,7 +169,7 @@
             <tr v-for="port in outputRows" :key="port.index">
               <td class="nrg-outputs-index">{{ port.index }}</td>
               <td class="nrg-outputs-label">{{ port.label }}</td>
-              <td class="nrg-outputs-flag">
+              <td v-if="hasOutputValidation" class="nrg-outputs-flag">
                 <NodeRedToggle
                   :model-value="validateOutputFor(port.index)"
                   :aria-label="`${resolveLabel('outputs.validate', 'Validate Data')} — ${port.label}`"
@@ -182,10 +182,7 @@
                 <button
                   type="button"
                   class="red-ui-button red-ui-button-small nrg-outputs-schema-btn"
-                  :disabled="
-                    !outputSchemaEnabled(port.index) ||
-                    !validateOutputFor(port.index)
-                  "
+                  :disabled="!validateOutputFor(port.index)"
                   :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${port.label}`"
                   @click="openOutputSchemaEditor(port.index)"
                 >
@@ -226,7 +223,6 @@
                 <select
                   class="nrg-outputs-context"
                   :value="contextModeFor(port.index)"
-                  :disabled="!contextModeEnabled(port.index)"
                   @change="
                     (e) =>
                       setContextMode(
@@ -560,13 +556,25 @@ export default defineComponent({
     hasBuiltinPorts(): boolean {
       return this.hasErrorPort || this.hasCompletePort || this.hasStatusPort;
     },
+    /**
+     * The Validate Data column / per-port Schema button. The framework merges
+     * `outputSchemas` into every IONode, so this is true whenever the node has
+     * output ports — data validation is a framework control that always renders.
+     */
+    hasOutputValidation(): boolean {
+      return this.hasOutputSchemas;
+    },
+    /**
+     * Show the Outputs subsection whenever the node has output ports (topology
+     * from its TYPES). The framework injects every per-port control (Validate
+     * Data, Return Property, Context Mode) into every IONode, so a node with
+     * output ports always has something to configure.
+     */
     showOutputs(): boolean {
-      return this.features.hasOutputSchema;
+      return this.outputRows.length > 0;
     },
     showPortsSettings(): boolean {
-      return (
-        this.features.hasInputSchema || this.showOutputs || this.hasBuiltinPorts
-      );
+      return this.features.hasInput || this.showOutputs || this.hasBuiltinPorts;
     },
     /**
      * Base output ports to render in the Outputs table. Reactive: a node with
@@ -632,17 +640,19 @@ export default defineComponent({
   beforeMount() {
     // Per-port output maps: give each node its own objects (the injected
     // defaults may be shared {} references) so edits don't leak across nodes.
-    if (this.features.hasOutputSchema) {
-      for (const key of [
-        "validateOutputs",
-        "validateOutputTypes",
-        "outputContextModes",
-        "outputReturnProperties",
-        "outputSchemas",
-      ] as const) {
-        const existing = this.localNode[key];
-        this.localNode[key] =
-          existing && typeof existing === "object" ? { ...existing } : {};
+    // Clone whichever maps the node actually declares — not gated on a runtime
+    // `outputsSchema`, since a types-first node can declare `outputContextModes`
+    // / `outputReturnProperties` (etc.) with no output schema at all.
+    for (const key of [
+      "validateOutputs",
+      "validateOutputTypes",
+      "outputContextModes",
+      "outputReturnProperties",
+      "outputSchemas",
+    ] as const) {
+      const existing = this.localNode[key];
+      if (existing && typeof existing === "object") {
+        this.localNode[key] = { ...existing };
       }
     }
 
@@ -786,11 +796,9 @@ export default defineComponent({
       }
       this.localNode.outputReturnProperties = next;
     },
-    /** Whether the flow author may edit this port's mode — true only when the
-     * node author declared a schema default for it; otherwise it is locked. */
-    contextModeEnabled(index: number): boolean {
-      return this.authorContextModeDefaults[index] !== undefined;
-    },
+    /** The mode shown for a port: the flow author's saved choice, else the node
+     * author's declared default, else `carry`. Every port's dropdown is always
+     * editable — the flow author can pick any mode regardless of declaration. */
     contextModeFor(index: number): string {
       return (
         this.localNode.outputContextModes?.[index] ??
@@ -803,11 +811,6 @@ export default defineComponent({
         ...(this.localNode.outputContextModes ?? {}),
         [index]: value,
       };
-    },
-    /** Whether this port's data-validation schema may be overridden — true only
-     * when the node author declared a default for it; otherwise it is locked. */
-    outputSchemaEnabled(index: number): boolean {
-      return this.authorOutputSchemaDefaults[index] !== undefined;
     },
     /** The effective schema string for a port: the flow-author override, else the
      * author default, else empty. */

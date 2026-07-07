@@ -7,35 +7,14 @@ import type {
   NodeConfig,
   NodeConstructor,
   NodeCredentials,
-  NodeSettings,
 } from "./types";
 import { setupConfigProxy } from "./proxy";
-import { getCredentialsFromSchema } from "../../shared/schemas/utils";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
   NRG_NODE,
-  type InputWireable,
 } from "./symbols";
 import { NrgError } from "../../shared/errors";
-
-/** Module-scoped cache for validated settings, keyed by constructor. */
-const cachedSettingsMap = new WeakMap<typeof Node, unknown>();
-
-/**
- * Define `key` on `obj` as a read-only, non-configurable OWN property. Consumer
- * subclasses then can't reassign it (throws), re-declare it as a field (throws),
- * or override it with a getter (the own property shadows the prototype accessor).
- * Used for the framework-owned node state (RED / node / context / config).
- */
-function lockField(obj: object, key: string, value: unknown): void {
-  Object.defineProperty(obj, key, {
-    value,
-    writable: false,
-    configurable: false,
-    enumerable: true,
-  });
-}
 
 /**
  * Abstract base class for all NRG nodes. Provides lifecycle hooks, config
@@ -66,6 +45,11 @@ abstract class Node<
   public static readonly configSchema?: Schema;
   public static readonly credentialsSchema?: Schema;
   public static readonly settingsSchema?: Schema;
+  // Per-type settings, resolved from `RED.settings` and validated once by
+  // `validateSettings` at registration; the instance `settings` getter returns
+  // it. It's *assigned* (never mutated in place), so every node type gets its
+  // own value with no cross-subclass sharing — a plain static, no cache needed.
+  protected static resolvedSettings?: Record<string, unknown>;
 
   public static registered?(RED: RED): void | Promise<void>;
 
@@ -77,6 +61,9 @@ abstract class Node<
     const properties = this.settingsSchema.properties;
     const settings: Record<string, unknown> = {};
 
+    // Gather each setting from Node-RED's flat settings namespace into the
+    // schema shape. AJV can't do this — it doesn't know the `<camelCaseType><Key>`
+    // convention (e.g. `myNodeApiEndpoint` -> `apiEndpoint`).
     for (const key of Object.keys(properties)) {
       const settingKey = prefix + key.charAt(0).toUpperCase() + key.slice(1);
       const value = RED.settings[settingKey];
@@ -86,120 +73,34 @@ abstract class Node<
       }
     }
 
-    // NOTE: assign defaults manually to avoid ajv errors for non json types (eg. Function, Constructor)
+    // The one default AJV can't inject: non-validatable fields (Function,
+    // Constructor, ...) have their `type` stripped and their `default` moved to
+    // `_default` by markNonValidatable, so AJV skips them. Must run BEFORE
+    // validate — `required` is still enforced for these fields, so the value has
+    // to be present by the time AJV checks. (JSON defaults are handled by AJV's
+    // useDefaults during validate below, which likewise satisfies `required`.)
     for (const [key, prop] of Object.entries(properties) as [
       string,
       Record<string, unknown>,
     ][]) {
-      if (settings[key] === undefined) {
-        // NOTE: here I need to use _default when it is a non validatable type (eg. Function, Constructor...)
-        const defaultValue = prop.default ?? prop._default;
-        if (defaultValue !== undefined) {
-          settings[key] = defaultValue;
-        }
+      if (settings[key] === undefined && prop._default !== undefined) {
+        settings[key] = prop._default;
       }
     }
 
+    // Coerces types and injects JSON defaults in place (mutate defaults to true
+    // -> the coercing AJV with useDefaults), then validates.
     RED.validator.validate(settings, this.settingsSchema, {
       throwOnError: true,
     });
 
-    cachedSettingsMap.set(this, settings);
-
+    this.resolvedSettings = settings;
     RED.log.info("Settings are valid");
-  }
-
-  static #buildSettings(NC: typeof Node): NodeSettings | undefined {
-    if (!NC.settingsSchema) return;
-
-    const settings: NodeSettings = {};
-    const prefix = NC.type.replace(/-./g, (x) => x[1].toUpperCase());
-    for (const [key, prop] of Object.entries(NC.settingsSchema.properties)) {
-      const settingKey = prefix + key.charAt(0).toUpperCase() + key.slice(1);
-      settings[settingKey] = {
-        value: prop.default,
-        exportable: prop.exportable ?? false,
-      };
-    }
-    return settings;
-  }
-
-  /**
-   * Registers this node class with Node-RED. Handles instance creation,
-   * event handler wiring, settings validation, and the user's registered() hook.
-   */
-  static async register(RED: RED) {
-    const NodeClass = this as unknown as NodeConstructor;
-
-    if (NodeClass.color && !/^#[0-9A-Fa-f]{6}$/.test(NodeClass.color)) {
-      throw new NrgError(
-        `Invalid color "${NodeClass.color}" for ${NodeClass.type}: must be a 6-digit hex color like "#a6bbcf" (shorthand "#abc" is not accepted).`,
-      );
-    }
-
-    RED.nodes.registerType(
-      NodeClass.type,
-      function (this: NodeRedNode, config: Record<string, any>) {
-        RED.nodes.createNode(this, config);
-        const node = new NodeClass(RED, this, config, this.credentials);
-        // NOTE: save node instance inside node-red's node so that the proxy can resolve it lazily.
-        // Non-writable to prevent accidental clobbering by other code in the process.
-        Object.defineProperty(this, "_node", {
-          value: node,
-          writable: false,
-          configurable: false,
-          enumerable: false,
-        });
-
-        // NOTE: created promise must be here because we only want it to start after the whole object creation chain has been completed: child -> IONode -> Node -> IONode -> child -> done
-        const createdPromise = Promise.resolve(node.created?.()).catch(
-          (error: unknown) => {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            this.error("Error during created hook: " + message);
-            throw error;
-          },
-        );
-        // Surface a failed created() as an error status, not just a log. A node
-        // with inputs also reports the failure per-input via done(), but an
-        // input-less node has no handler awaiting createdPromise, so without
-        // this its created() rejection would be logged once and otherwise
-        // silently swallowed while the node stays registered.
-        createdPromise.catch(() => {
-          this.status({ fill: "red", shape: "ring", text: "created() failed" });
-        });
-
-        node[NRG_SETUP_CLOSE_HANDLER]();
-        // Only IONode wires an input handler; a plain Node/ConfigNode has none.
-        (node as InputWireable)[NRG_SETUP_INPUT_HANDLER]?.(createdPromise);
-      },
-      {
-        credentials: NodeClass.credentialsSchema
-          ? getCredentialsFromSchema(NodeClass.credentialsSchema)
-          : {},
-        settings: Node.#buildSettings(this),
-      },
-    );
-
-    NodeClass.validateSettings(RED);
-    // Isolation contract: a failing `registered()` hook is logged at error level
-    // and swallowed, NOT rethrown. Registration runs one shared loop over every
-    // node class in the package (see registerTypes), so rethrowing here would
-    // abort registration of all *other* node types in the same package. The hook
-    // is for optional one-time setup; a node whose hook fails still registers.
-    try {
-      await Promise.resolve(NodeClass.registered?.(RED));
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      RED.log.error(
-        `Error during registered hook for ${NodeClass.type}: ${message}`,
-      );
-    }
   }
 
   protected readonly RED!: RED;
   protected readonly node!: NodeRedNode;
-  protected readonly context!: ConfigNodeContext | IONodeContext;
+  protected context!: ConfigNodeContext | IONodeContext;
   public readonly config!: NodeConfig<TConfig>;
 
   readonly #timers = new Set<NodeJS.Timeout>();
@@ -211,12 +112,8 @@ abstract class Node<
     config: NodeConfig<TConfig>,
     credentials: NodeCredentials<TCredentials>,
   ) {
-    // Framework state — locked as non-writable/non-configurable OWN properties so
-    // consumer subclasses can neither reassign nor override them (a re-declared
-    // field throws; an overriding getter is shadowed by the own property). See
-    // `_node` above for the same guard on the Node-RED side.
-    lockField(this, "RED", RED);
-    lockField(this, "node", node);
+    this.RED = RED;
+    this.node = node;
 
     const constructor = this.constructor as typeof Node;
     if (constructor.configSchema) {
@@ -236,16 +133,16 @@ abstract class Node<
         );
       }
     }
-    lockField(
-      this,
-      "config",
-      setupConfigProxy({
-        RED,
-        node,
-        config,
-        schema: constructor.configSchema,
-      }),
-    );
+    // The proxy resolves NodeRef/TypedInput fields, so its type is
+    // `ResolvedStatic<NodeConfig<…>>`; `config` is declared as the logical
+    // `NodeConfig<…>`. `lockField` erased this gap via its `unknown` value param;
+    // now that it's a plain assignment, state the narrowing explicitly.
+    this.config = setupConfigProxy({
+      RED,
+      node,
+      config,
+      schema: constructor.configSchema,
+    }) as NodeConfig<TConfig>;
 
     if (constructor.credentialsSchema && credentials) {
       this.node.log("Validating credentials");
@@ -369,10 +266,8 @@ abstract class Node<
 
   public get settings(): TSettings {
     const constructor = this.constructor as typeof Node;
-    return (
-      (cachedSettingsMap.get(constructor) as TSettings) ?? ({} as TSettings)
-    );
+    return (constructor.resolvedSettings as TSettings) ?? ({} as TSettings);
   }
 }
 
-export { Node, lockField };
+export { Node };

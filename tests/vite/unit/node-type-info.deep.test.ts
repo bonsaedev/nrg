@@ -439,7 +439,7 @@ describe("extractNodeTypes — class resolution edge cases (deep)", () => {
     const [node] = extract(`
       import { defineIONode } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-      export default defineIONode({
+      export default defineIONode<{ a: string }>({
         type: "fn-node",
         color: "#ffffff",
         configSchema: defineSchema({ a: SchemaType.String() }, { $id: "fn:c" }),

@@ -566,6 +566,90 @@ export type Credentials = Infer<typeof CredentialsSchema>;
 export type Settings = Infer<typeof SettingsSchema>;
 ```
 
+#### One source of truth for input/output shapes {#infer-input-output}
+
+`Infer` isn't just for config. Whenever a hand-written `Input`/`Output` type is a
+plain-data shape that a schema could describe, you're maintaining the same shape
+twice. Derive the type from the schema instead — the schema becomes the single
+source of truth, and you get runtime validation for free.
+
+Take a SOQL query node. It emits the query result on one output port, so authors
+often hand-write the port type:
+
+```typescript
+// The Output type spells out a shape a schema could describe just as well:
+type Output = {
+  records: Record<string, unknown>[];
+  totalSize: number;
+  done: boolean;
+};
+```
+
+That type is compile-time only — it draws the port and type-checks wires, but the
+framework never validates what you actually `send()`, and the editor has no
+`Output` shape to show. Describe the shape once as a schema and let the type fall
+out of it:
+
+```typescript
+// src/shared/schemas/soql.ts
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+
+export const OutputSchema = defineSchema(
+  {
+    records: SchemaType.Array(
+      SchemaType.Record(SchemaType.String(), SchemaType.Unknown()),
+    ),
+    totalSize: SchemaType.Number(),
+    done: SchemaType.Boolean(),
+  },
+  { $id: "soql:output" },
+);
+```
+
+```typescript
+// src/server/nodes/soql.ts
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { OutputSchema } from "@/schemas/soql";
+
+type Output = Infer<typeof OutputSchema>; // { records: Record<string, unknown>[]; totalSize: number; done: boolean }
+
+export default class Soql extends IONode<Config, any, Input, Output> {
+  static override readonly type = "soql";
+  static override readonly configSchema = ConfigsSchema;
+  // The output port and its type come from the `Output` generic above.
+  // ...
+}
+```
+
+Deriving from the schema keeps one description in one place:
+
+1. **No duplication** — change the shape in one place; the type follows, and the
+   editor has an `Output` shape to show.
+2. **A schema to validate against** — the same shape can back per-port runtime
+   data validation, which is a **config-schema framework control**
+   (`SchemaType.OutputSchemas`), never a static on the class. See
+   [Configuring validation in the editor](./schemas#editor-schema-overrides).
+
+The `Output` type is what draws the port and type-checks wires; runtime data
+validation is optional and layered on separately. See
+[The editor form](#the-editor-form) for exactly what surfaces each section.
+
+::: tip Same with the functional API
+[`defineIONode`](#defineionode) takes the same `Output` generic; pass it and the
+handler's `msg` and `send()` are typed from it — you just don't annotate `msg`:
+
+```typescript
+export default defineIONode<Config, any, Input, Output>({
+  type: "soql",
+  configSchema: ConfigsSchema,
+  async input(msg) {
+    // msg: Input; this.send(...) checked against Output — both from the generics
+  },
+});
+```
+
+:::
+
 ## Define the Node
 
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
@@ -624,7 +708,7 @@ export default class MyNode extends IONode<
 }
 ```
 
-Want runtime data validation on top? Add a static `inputSchema` / `outputsSchema` (they validate message data — they don't define the ports). See [Schema Validation](./schemas).
+Want runtime data validation on top? That's a **config-schema framework control** (`SchemaType.InputSchema` / `SchemaType.OutputSchemas`) — it validates message data, it doesn't define the ports, and it is never a static on the class. See [Schema Validation](./schemas).
 
 ### Inputs and Outputs
 
@@ -649,7 +733,7 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](#extending-a-published-node)). Schemas are **not** required for any of this.
 
 ::: tip The generics are compile-time only
-`TInput`/`TOutput` drive the editor's ports and wire-checks and type your handler — but they're **erased at runtime**. The `msg` your `input()` receives is whatever the upstream node actually sent; the framework doesn't validate or convert it against `TInput`. If you need a value in a specific runtime shape, convert it yourself (or add an `inputSchema` to _reject_ bad data — it checks, it doesn't coerce). **Config** is the opposite: it's coerced to its schema types and defaulted before you read it. See [config vs. message data](./schemas#validation-semantics).
+`TInput`/`TOutput` drive the editor's ports and wire-checks and type your handler — but they're **erased at runtime**. The `msg` your `input()` receives is whatever the upstream node actually sent; the framework doesn't validate or convert it against `TInput`. If you need a value in a specific runtime shape, convert it yourself (or turn on input data validation — a config-schema control — to _reject_ bad data: it checks, it doesn't coerce). **Config** is the opposite: it's coerced to its schema types and defaulted before you read it. See [config vs. message data](./schemas#validation-semantics).
 :::
 
 #### Declaring output ports with `Port<T>` {#declaring-output-ports-with-port}
@@ -685,62 +769,48 @@ This node ships **no `inputSchema` or `outputsSchema`** — its one input port a
 - `sendToPort(name, value)` autocompletes the port name and checks `value` against that port's `Port<T>`. You can also send by numeric index (`sendToPort(0, …)`), in record order.
 - `Port` is a **type-only** marker (erased at runtime), exported from `@bonsae/nrg/server`.
 
-#### Schema-driven topology (functional API & JavaScript) {#schema-driven-topology}
+#### The functional API uses the same generics {#schema-driven-topology}
 
-The generics are TypeScript-only. When a node declares **no** typed `TInput`/`TOutput`, NRG falls back to deriving topology from its schemas instead:
+Topology is **types-only** — the build extracts a node's `Input`/`Output` generics and stamps the port count and names straight from them. There is **no** schema fallback: an input/output data-validation schema never creates or names a port.
 
-| Declaration | Result |
-| --- | --- |
-| `inputSchema` present | 1 input port |
-| `inputSchema` absent | 0 input ports |
-| `outputsSchema` is a single schema | 1 output port |
-| `outputsSchema` is an array of N schemas | N positional ports |
-| `outputsSchema` is a record `{ name: schema }` | N named ports |
-| `outputsSchema` absent | 0 output ports |
-
-The [functional API](#functional-api) infers its generics from the schemas you pass, so `defineIONode` gets the same typed topology automatically — a record `outputsSchema` there yields named ports with typed `sendToPort()`. See [Per-port output typing](#per-port-output-typing).
+The [functional API](#functional-api) takes the very same generics as the class form — `defineIONode<Config, any, Input, Output>({ ... })` — so `defineIONode` derives its topology from `Input`/`Output` exactly like a class, including named ports from a `Port<T>` record and typed `sendToPort()`. See [Per-port output typing](#per-port-output-typing).
 
 ::: tip JavaScript authors
-Generics are a TypeScript feature, so a plain-JS node can't declare topology through types — declare it through **schemas** instead (a static `inputSchema` and `outputsSchema`: single, array, or named record), which the runtime reads for both topology and validation. Type extraction runs only over `.ts` at build time; there is no `allowJs` extraction today, so JS nodes always use the schema path.
+Generics are a TypeScript feature, and type extraction runs only over `.ts` at build time (there is no `allowJs` extraction today), so a plain-JS node can't declare typed topology. Author your nodes in TypeScript to get ports from the `Input`/`Output` generics.
 :::
 
 For ports that carry **non-data** values (a function, class instance, `Buffer`, stream, or connection), a plain type already works — there is nothing to validate. If you _do_ write an output schema, use `SchemaType.Unsafe<T>()` to type such a field without validating it. See [Non-data inputs & outputs](/guide/schemas#non-data-ports).
 
 #### Named Output Ports
 
-You get named output ports two ways: a `Port<T>` record in the `TOutput` generic (above), or — on the schema/functional path — a **record** `outputsSchema` (string keys → schemas). Either way, port names appear as labels in the editor and `sendToPort()` gets full autocomplete and per-port type safety. The `defineIONode` example below uses the record `outputsSchema` form:
+You get named output ports from a `Port<T>` record in the `Output` generic — in the class form (above) or the functional form. Port names appear as labels in the editor and `sendToPort()` gets full autocomplete and per-port type safety. The `defineIONode` example below passes an `Output` generic whose keys are `Port<T>` markers:
 
 ```typescript
-const SuccessSchema = defineSchema(
-  { ok: SchemaType.Literal(true), id: SchemaType.String() },
-  { $id: "router:success" },
-);
+import { defineIONode, type Port } from "@bonsae/nrg/server";
 
-const FailureSchema = defineSchema(
-  { reason: SchemaType.String() },
-  { $id: "router:failure" },
-);
+type Success = { ok: true; id: string };
+type Failure = { reason: string };
+type Output = { success: Port<Success>; failure: Port<Failure> };
 
-export default defineIONode({
+export default defineIONode<Config, any, Input, Output>({
   type: "router",
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: { success: SuccessSchema, failure: FailureSchema },
+  configSchema: ConfigsSchema,
 
   async input(msg) {
     try {
       const result = await process(msg);
-      // Type-safe: the value must match SuccessSchema
+      // Type-safe: the value must match the "success" port's type
       this.sendToPort("success", { ok: true, id: result.id });
       //              ^^^^^^^^^ autocompletes: "success" | "failure"
     } catch (err) {
-      // Type-safe: the value must match FailureSchema
+      // Type-safe: the value must match the "failure" port's type
       this.sendToPort("failure", { reason: String(err) });
     }
   },
 });
 ```
 
-You can also send by numeric index — port order follows the record key insertion order:
+You can also send by numeric index — port order follows the `Output` record's key order:
 
 ```typescript
 this.sendToPort(0, msg); // same as sendToPort("success", msg)
@@ -748,26 +818,26 @@ this.sendToPort(1, msg); // same as sendToPort("failure", msg)
 ```
 
 Positional `send()` with a tuple — each element is a port's value or `null` —
-**type-checks only with an array-based `outputsSchema`** (where `TOutput` is a
-tuple):
+**type-checks only with a tuple `Output`** (where `TOutput` is a tuple like
+`[Success, Failure]`):
 
 ```typescript
-// outputsSchema: [SuccessSchema, FailureSchema]
+// type Output = [Success, Failure]
 this.send([successMsg, null]); // send to port 0
 this.send([null, failureMsg]); // send to port 1
 ```
 
-With a **record/named** `outputsSchema`, `send()` expects the inferred object
-map (`{ success, failure }`), so the positional `[msg, null]` array form is a
-TypeScript error even though it still works at runtime. For named ports prefer
-`this.sendToPort("success", msg)`.
+With a **record/named** `Output` (`{ success: Port<…>; failure: Port<…> }`),
+`send()` expects the object map (`{ success, failure }`), so the positional
+`[msg, null]` array form is a TypeScript error even though it still works at
+runtime. For named ports prefer `this.sendToPort("success", msg)`.
 
 ::: tip When to use named ports
 Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `sendToPort()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
 :::
 
 ::: warning Reserved port names
-The names `"error"`, `"complete"`, and `"status"` are reserved for built-in ports and cannot be used as keys in `outputsSchema`. Use descriptive alternatives like `"failed"` instead of `"error"`. `sendToPort()` only works with user-defined output ports — built-in ports are managed by the framework through `this.status()`, `this.error()`, and automatic completion.
+The names `"error"`, `"complete"`, and `"status"` are reserved for built-in ports and cannot be used as port names (keys in the `Output` record). Use descriptive alternatives like `"failed"` instead of `"error"`. `sendToPort()` only works with user-defined output ports — built-in ports are managed by the framework through `this.status()`, `this.error()`, and automatic completion.
 :::
 
 ### Static Properties
@@ -779,8 +849,6 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 | `color` | Yes | Node color in hex format (e.g., `"#a6bbcf"`) |
 | `configSchema` | No | TypeBox schema for config validation |
 | `credentialsSchema` | No | TypeBox schema for credential fields |
-| `inputSchema` | No | Optional **data-validation** schema for incoming messages. Topology comes from the `TInput` generic; a JS/schema-only node instead derives its input port from this schema's presence. |
-| `outputsSchema` | No | Optional **data-validation** schema(s) for outgoing values — a single schema, an array (positional ports), or a named record. Topology comes from `TOutput`; a schema-only node derives its ports from this shape. |
 | `settingsSchema` | No | Schema for Node-RED runtime settings |
 | `align` | No | `"left"` or `"right"` alignment |
 
@@ -903,16 +971,18 @@ These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorP
 
 #### Framework config fields {#framework-config-fields}
 
-The framework recognizes a set of config properties by name — they're available to **every** node. Each has a **framework default** (built-in ports off, context mode `carry`, return key `output`, no data validation), and, where a control is exposed, the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
+The framework recognizes a set of config properties by name. Six of them — `name`, the three lifecycle ports, `outputReturnProperties`, and `outputContextModes` — are **injected into every IONode's config schema by the build**, so their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, context mode `carry`, return key `output`), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
 
-As a node **author you touch these only to change a default** — declare the property in your config schema and set your value on the builder's `default`. That value becomes the seeded default in the editor (which the flow author can still change), and declaring the property surfaces its editor control.
+As a node **author you declare one of these only to change its default** — add the property to your config schema and set your value on the builder's `default`. That value becomes the seeded default in the editor (which the flow author can still change); declaring does **not** change whether the control appears — it always does.
+
+The last two rows below are the exception. `inputSchema` and `outputSchemas` are **opt-in** — they are _not_ injected, so declaring one is what exposes its flow-author data-validation editor. Leave them out and no input/output schema editor appears.
 
 | Property | Builder | Controls (framework default) |
 | --- | --- | --- |
 | `name` | `SchemaType.String` | The node's display name (default: empty) |
-| `errorPort` | `SchemaType.Boolean` | The built-in [error port](#built-in-ports) (default: off) |
-| `completePort` | `SchemaType.Boolean` | The built-in [complete port](#built-in-ports) (default: off) |
-| `statusPort` | `SchemaType.Boolean` | The built-in [status port](#built-in-ports) (default: off) |
+| `errorPort` | `SchemaType.Boolean` | The built-in [error port](#lifecycle-output-ports) (default: off) |
+| `completePort` | `SchemaType.Boolean` | The built-in [complete port](#lifecycle-output-ports) (default: off) |
+| `statusPort` | `SchemaType.Boolean` | The built-in [status port](#lifecycle-output-ports) (default: off) |
 | `outputReturnProperties` | `SchemaType.OutputReturnProperties` | Per-port key each emitted value is wrapped under (default: `output`) |
 | `outputContextModes` | `SchemaType.OutputContextModes` | Per-port `carry` / `trace` / `reset` of the incoming message (default: `carry`) |
 | `inputSchema` | `SchemaType.InputSchema` | A flow-author-editable input data-validation schema (default: none) |
@@ -938,8 +1008,9 @@ export const ConfigsSchema = defineSchema(
       default: { 0: "result" },
     }),
 
-    // Give output port 0 the `trace` context mode instead of the default `carry`.
-    // (A port you leave out of `default` stays `carry`, its column stays hidden.)
+    // Seed output port 0's dropdown to `trace` instead of `carry`. (Every port's
+    // Context Mode dropdown is always editable by the flow author; `default` only
+    // changes which value a port starts on — ports you leave out start on `carry`.)
     outputContextModes: SchemaType.OutputContextModes({
       default: { 0: "trace" },
     }),
@@ -1041,14 +1112,14 @@ const ConfigsSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigsSchema>;
+type Input = Record<string, unknown>; // one input port
+type Output = unknown; // one (untyped) output port
 
-export default class HttpClient extends IONode<Config> {
+export default class HttpClient extends IONode<Config, any, Input, Output> {
   static override readonly type = "http-client";
   static override readonly configSchema: Schema = ConfigsSchema;
-  static override readonly inputSchema: Schema = SchemaType.Object({});
-  static override readonly outputsSchema: Schema = SchemaType.Object({});
 
-  override async input(msg: Record<string, unknown>) {
+  override async input(msg: Input) {
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
     const response = await fetch(this.config.url);
     this.status({ fill: "green", shape: "dot", text: "done" });
@@ -1069,17 +1140,39 @@ NRG generates the node's edit dialog from your schema — you don't write any HT
 
 ![The generated editor form](/editor-form.png)
 
-- **Ports Settings**
-  - **Input** — a _Validate_ toggle when the node declares an `inputSchema`.
-  - **Outputs** — a per-port table (one row per base output port) with the following columns:
-    - **Validate** — checks the sent value against that port's schema.
-    - **Return Property** — shown only when the schema declares [`outputReturnProperties`](./schemas#overriding-the-return-key); sets each port's return key (default `output`).
-    - **Context Mode** — shown only when the schema declares [`outputContextModes`](./schemas#context-modes); picks how each configurable output carries the incoming message (ports without a declared default stay locked to `carry`).
+- **Ports Settings** — rendered on **every** IONode (config nodes never get it). Its subsections:
+  - **Outputs** — a per-port table, one row per base output port. The **rows** come from the node's **types** (its port topology); the columns are framework controls:
+    - **Return Property** — each port's return key (default `output`). Always available.
+    - **Context Mode** — how each port carries the incoming message. The column is always shown and **every port's dropdown is editable**; the node author's [`outputContextModes` default](#framework-config-fields) only sets which value each port starts on (ports without one start on `carry`). See [`outputContextModes`](./schemas#context-modes).
+    - **Validate Data** (+ **Schema**) — **opt-in**: shown only when the author declared per-port [`outputSchemas`](./schemas#editor-schema-overrides) (a `SchemaType.OutputSchemas` config field). Checks the sent value against that port's schema.
 
     The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
-- **Lifecycle Output Ports** — _Error_, _Complete_, and _Status_ toggles, shown for whichever [lifecycle output ports](#lifecycle-output-ports) the schema declares.
+  - **Lifecycle Output Ports** — _Error_, _Complete_, and _Status_ toggles, on every node (off by default). Enabling one adds that output port. See [lifecycle output ports](#lifecycle-output-ports).
+  - **Input** — a _Validate Data_ toggle, **opt-in**: shown only when the author declared an [`inputSchema`](./schemas#editor-schema-overrides) (a `SchemaType.InputSchema` config field) to validate incoming messages against.
 
-Each help line links to the relevant docs. Sections only appear when there is something to configure — a node with no input/output schema and no built-in ports shows just its fields.
+Each help line links to the relevant docs.
+
+::: tip What's always there vs. opt-in
+Two different mechanisms are at play:
+
+- **Ports come from your types.** `TInput` / `TOutput` (or the schemas
+  `defineIONode` infers them from) draw the ports on the canvas and the rows in
+  the Outputs table.
+- **The framework injects its config fields into every IONode.** The build
+  spreads `name`, the three lifecycle-port toggles, `outputReturnProperties`, and
+  `outputContextModes` into every node's config schema — so those controls render
+  on **every** node whether or not you declared them. Declaring one only
+  [changes its default](#framework-config-fields).
+
+So a **types-first node like a SOQL query** — one output port from its `Output`
+type, no runtime validation schemas, no declared port config — still shows the
+full Ports Settings section: the lifecycle toggles, a Return Property field, and
+a Context Mode dropdown. The only **opt-in** pieces are the data-validation
+editors: the **Validate Data** column appears only with an
+[`outputSchemas`](./schemas#editor-schema-overrides) config field, and the
+**Input** subsection only with an [`inputSchema`](./schemas#editor-schema-overrides)
+config field (both `SchemaType.*` controls). Config nodes get none of this.
+:::
 
 ## Register the Node
 
@@ -1512,18 +1605,20 @@ Config nodes have `category` set to `"config"` and expose:
 
 ## Functional API
 
-As an alternative to extending classes, NRG provides a functional API for defining nodes. Instead of writing a class with static properties, generics, and `Infer` types, you pass a plain object and get full type inference automatically.
+As an alternative to extending classes, NRG provides a functional API for defining nodes. You pass a plain object instead of writing a class body. You declare the **same generics** either way (`<Config, any, Input, Output>` — see [Inputs and Outputs](#inputs-and-outputs)); the functional form just swaps the class syntax for an object literal and types your handler's `msg` for you.
 
 ### Why use it?
 
-- **Less boilerplate** — no `static readonly` declarations, no `Infer<typeof Schema>` type exports, no generic parameters
-- **Automatic type inference** — `this.config`, `this.credentials`, `this.settings`, `msg`, and `this.send()` are all typed from the schemas you pass in, without explicit type annotations
-- **Same runtime behavior** — the functions return a class that extends `IONode` or `ConfigNode`, so everything works exactly the same: validation, proxy, lifecycle hooks, registration
+- **Less ceremony** — an object literal instead of a class body: no `extends`, no `static override readonly` on every field.
+- **`msg` typed for you** — you pass the same `<Config, any, Input, Output>` generics, but the handler's `msg`, `this.config`, and `this.send()` come typed from them automatically, so you never annotate `input(msg: Input)` (and can't mistype it).
+- **Same runtime behavior** — the functions return a class that extends `IONode` or `ConfigNode`, so everything works exactly the same: validation, proxy, lifecycle hooks, registration.
+
+It does **not** save you the generics or infer types from your schemas — port topology and `msg`/`send` typing come from the generics, not the schemas, exactly as with a class.
 
 ### `defineIONode`
 
 ```typescript
-import { defineIONode } from "@bonsae/nrg/server";
+import { defineIONode, type Infer } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
@@ -1558,18 +1653,19 @@ const OutputSchema = defineSchema(
   { $id: "api-client:output" },
 );
 
-export default defineIONode({
+type Config = Infer<typeof ConfigsSchema>;
+type Input = Infer<typeof InputSchema>;
+type Output = Infer<typeof OutputSchema>;
+
+export default defineIONode<Config, any, Input, Output>({
   type: "api-client",
   category: "network",
   color: "#ff6633",
   configSchema: ConfigsSchema,
   credentialsSchema: CredentialsSchema,
-  inputSchema: InputSchema,
-  outputsSchema: OutputSchema,
-  validateInput: true,
 
   async input(msg) {
-    // msg.payload.userId is typed as string — no annotations needed
+    // msg.payload.userId is typed from the Input generic — no annotations needed
     const { userId } = msg.payload;
 
     // this.config.url is string, this.config.retries is number
@@ -1639,7 +1735,7 @@ Config nodes created with `defineConfigNode` automatically have `category` set t
 Nodes created with `defineIONode` and `defineConfigNode` work with `NodeRef` the same way as class-based nodes. The referenced config node is fully typed:
 
 ```typescript
-import { defineIONode } from "@bonsae/nrg/server";
+import { defineIONode, type Infer } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 import type MyBroker from "./my-broker";
 
@@ -1651,12 +1747,13 @@ const ConfigsSchema = defineSchema(
   { $id: "my-subscriber:configs" },
 );
 
-export default defineIONode({
+type Config = Infer<typeof ConfigsSchema>;
+
+export default defineIONode<Config>({
   type: "my-subscriber",
   category: "network",
   color: "#d8bfd8",
   configSchema: ConfigsSchema,
-  outputsSchema: SchemaType.Object({}),
 
   created() {
     const broker = this.config.broker;
@@ -1672,24 +1769,18 @@ export default defineIONode({
 
 For nodes with multiple outputs, you have two options for type-safe per-port messaging:
 
-**Named ports (recommended)** — use a record-based `outputsSchema` for `sendToPort()` with autocomplete and per-port types:
+**Named ports (recommended)** — a `Port<T>` record in the `Output` generic gives `sendToPort()` autocomplete and per-port types:
 
 ```typescript
-const SuccessSchema = defineSchema(
-  { ok: SchemaType.Literal(true), id: SchemaType.String() },
-  { $id: "router:success" },
-);
+import { defineIONode, type Port } from "@bonsae/nrg/server";
 
-const FailedSchema = defineSchema(
-  { ok: SchemaType.Literal(false), reason: SchemaType.String() },
-  { $id: "router:failed" },
-);
+type Success = { ok: true; id: string };
+type Failed = { ok: false; reason: string };
+type Output = { success: Port<Success>; failed: Port<Failed> };
 
-export default defineIONode({
+export default defineIONode<Config, any, Input, Output>({
   type: "router",
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: { success: SuccessSchema, failed: FailedSchema },
-  validateOutput: true,
+  configSchema: ConfigsSchema,
 
   async input(msg) {
     try {
@@ -1702,14 +1793,14 @@ export default defineIONode({
 });
 ```
 
-**Array with `as const`** — use an indexed array for tuple typing on `this.send()`:
+**Positional ports** — a tuple `Output` generic gives tuple typing on `this.send()`:
 
 ```typescript
-export default defineIONode({
+type Output = [Success, Failed];
+
+export default defineIONode<Config, any, Input, Output>({
   type: "router",
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: [SuccessSchema, FailedSchema] as const,
-  validateOutput: true,
+  configSchema: ConfigsSchema,
 
   async input(msg) {
     try {
@@ -1723,7 +1814,7 @@ export default defineIONode({
 });
 ```
 
-`validateOutput` also accepts a `boolean[]` to set the default **per port** by index (e.g. `validateOutput: [true, false]` validates port 0 but not port 1); a single `boolean` applies to every port. The flow author can override any port from the editor's Outputs table; those **Validate** toggles reflect only per-instance overrides and start unchecked, so a port's author default still applies at runtime until it's explicitly toggled off.
+Runtime data validation is separate from the port types shown here: it's a **config-schema framework control** (`SchemaType.OutputSchemas` for per-port output schemas, `SchemaType.InputSchema` for input), toggled per port by the flow author in the editor's Outputs table — never a static on the node. See [Configuring validation in the editor](./schemas#editor-schema-overrides).
 
 ::: warning Arrow functions
 Don't use arrow functions for `input`, `created`, or `closed` handlers. Arrow functions don't bind `this`, so `this.config`, `this.send()`, etc. would be `undefined` at runtime. TypeScript won't catch this — it's the same constraint as Vue's Options API.
@@ -1745,13 +1836,14 @@ async input(msg) {
 
 | | Class (`extends IONode`) | Functional (`defineIONode`) |
 | --- | --- | --- |
-| Type inference | Manual — `Infer<typeof Schema>`, generic parameters | Automatic — inferred from schema props |
-| Boilerplate | More — static properties, type exports | Less — plain object |
-| Custom methods | Yes — add methods to the class | No — only lifecycle hooks |
-| Inheritance | Yes — extend other node classes | No — fixed base class |
-| Mixins/decorators | Yes | No |
+| Generics | `<Config, any, Input, Output>` on the class | the **same** `<Config, any, Input, Output>` on the call |
+| Syntax | class body + `static override readonly` fields | one object literal |
+| `msg` typing | you annotate `input(msg: Input)` | typed from the generic — no annotation |
+| Custom methods | Yes — add methods to the class | No — only the lifecycle hooks |
+| Inheritance / [extend a published node](#extending-a-published-node) | Yes | No — fixed base class |
+| Mixins / decorators / `#private` fields | Yes | No |
 
-Both approaches produce the same runtime behavior. Choose based on your needs — the functional API trades flexibility for less boilerplate, while classes give you full control over the node's structure.
+Both take the **same generics** and produce identical runtime behavior — the functional form isn't "fewer types," it's an object literal with your handler `msg` typed for you. Reach for a **class** when you need custom methods, to extend a published node, or private fields; otherwise it's a style preference.
 
 ### Extending a published node
 

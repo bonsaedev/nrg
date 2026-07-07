@@ -1,72 +1,50 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
-import { defineIONode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import EmitTest from "../fixtures/emit-ports-test/emit-test";
+import LogErrorTest from "../fixtures/emit-ports-test/log-error-test";
+import MultiStatusTest from "../fixtures/emit-ports-test/multi-status-test";
+import SendToPortGuardError from "../fixtures/emit-ports-test/sendtoport-guard-error-test";
+import SendToPortGuardComplete from "../fixtures/emit-ports-test/sendtoport-guard-complete-test";
+import SendToPortGuardStatus from "../fixtures/emit-ports-test/sendtoport-guard-status-test";
+import SendToPortNumeric from "../fixtures/emit-ports-test/sendtoport-numeric-test";
+import SendToPortStatus from "../fixtures/emit-ports-test/sendtoport-status-test";
+import TruncateTest from "../fixtures/emit-ports-test/truncate-test";
+import SimpleTest from "../fixtures/emit-ports-test/simple-test";
+import ReturnComplete from "../fixtures/emit-ports-test/return-complete-test";
+import VoidComplete from "../fixtures/emit-ports-test/void-complete-test";
 
-const ConfigSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "" }),
-    errorPort: SchemaType.Boolean({ default: false }),
-    completePort: SchemaType.Boolean({ default: false }),
-    statusPort: SchemaType.Boolean({ default: false }),
-  },
-  { $id: "emit-test:config" },
+// The fixture nodes are TYPES-ONLY (no inputSchema/outputsSchema); their port
+// topology lives only in their generics. Point the extractor at the fixture tree
+// so createNode stamps the same `__nrgPorts` the production build would inject —
+// otherwise a types-only node reports 0 ports and its built-in error/complete/
+// status ports collapse onto the data-port index.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../fixtures/emit-ports-test", import.meta.url),
 );
 
-// A custom Error subclass carrying extra data, as a node author would build.
-class CustomError extends Error {
-  code: string;
-  retryable: boolean;
-  detail: { attempt: number };
-  constructor(message: string) {
-    super(message);
-    this.name = "CustomError";
-    this.code = "E_CUSTOM";
-    this.retryable = true;
-    this.detail = { attempt: 2 };
-  }
-}
-
-const TestNode = defineIONode({
-  type: "emit-test",
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  configSchema: ConfigSchema,
-
-  async input(msg) {
-    const payload = (msg as Record<string, unknown>).payload;
-    if (payload === "error") {
-      throw new Error("Test error");
-    }
-    if (payload === "custom-error") {
-      throw new CustomError("Custom failure");
-    }
-    if (payload === "throw-primitive") {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw "boom";
-    }
-    if (payload === "explicit-error") {
-      this.error("Explicit error", msg);
-      return;
-    }
-    if (payload === "error-then-throw") {
-      // A node that logs/routes the error via error(msg) AND then throws must
-      // still produce exactly ONE error-port message (not two).
-      this.error("Logged then threw", msg);
-      throw new Error("Logged then threw");
-    }
-    if (payload === "status") {
-      this.status({ fill: "green", shape: "dot", text: "ok" });
-      return;
-    }
-    this.send(msg);
-  },
-});
+const guardNodes = {
+  error: SendToPortGuardError,
+  complete: SendToPortGuardComplete,
+  status: SendToPortGuardStatus,
+} as const;
 
 describe("emit ports", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
   describe("port index calculation", () => {
     it("has only base output when all built-in port flags are false", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -79,7 +57,7 @@ describe("emit ports", () => {
     });
 
     it("adds one port when error is enabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: true,
           completePort: false,
@@ -91,7 +69,7 @@ describe("emit ports", () => {
     });
 
     it("adds three ports when all built-in port flags are enabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: true,
           completePort: true,
@@ -103,7 +81,7 @@ describe("emit ports", () => {
     });
 
     it("adds two ports when only complete and status are enabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: true,
@@ -117,7 +95,7 @@ describe("emit ports", () => {
 
   describe("sent() built-in port resolution", () => {
     it("resolves error/complete/status slots with all built-in ports enabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: { errorPort: true, completePort: true, statusPort: true },
       });
 
@@ -132,7 +110,7 @@ describe("emit ports", () => {
     });
 
     it("returns [] for a built-in port that is disabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
@@ -146,7 +124,7 @@ describe("emit ports", () => {
 
   describe("error port", () => {
     it("sends exactly one message to error port on explicit error() call", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: true,
           completePort: false,
@@ -166,7 +144,7 @@ describe("emit ports", () => {
     });
 
     it("emits exactly one error-port message (with name) when error(msg) is called AND the call throws", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
@@ -182,7 +160,7 @@ describe("emit ports", () => {
     });
 
     it("carries a thrown custom error's own properties under msg.error", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
@@ -203,7 +181,7 @@ describe("emit ports", () => {
     });
 
     it("falls back to name 'Error' and a generic message for a non-Error throw", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
@@ -220,7 +198,7 @@ describe("emit ports", () => {
     });
 
     it("does not send to error port when disabled but still logs error", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -240,7 +218,7 @@ describe("emit ports", () => {
 
   describe("status port", () => {
     it("sends exactly one message to status port on status() call", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -260,7 +238,7 @@ describe("emit ports", () => {
     });
 
     it("does not send to status port when disabled but still updates UI status", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -279,7 +257,7 @@ describe("emit ports", () => {
 
   describe("error port details", () => {
     it("includes source metadata in error message", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: true,
           completePort: false,
@@ -298,18 +276,7 @@ describe("emit ports", () => {
     });
 
     it("does not send to error port when msg is not provided", async () => {
-      const NodeWithLogError = defineIONode({
-        type: "log-error-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
-        configSchema: ConfigSchema,
-        async input() {
-          // error() without msg — should not send to error port
-          this.error("Log only error");
-        },
-      });
-
-      const { node } = await createNode(NodeWithLogError, {
+      const { node } = await createNode(LogErrorTest, {
         config: {
           errorPort: true,
           completePort: false,
@@ -325,7 +292,7 @@ describe("emit ports", () => {
 
   describe("status port details", () => {
     it("includes source metadata in status message", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -345,19 +312,7 @@ describe("emit ports", () => {
     });
 
     it("emits multiple messages for multiple status calls", async () => {
-      const MultiStatusNode = defineIONode({
-        type: "multi-status-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
-        configSchema: ConfigSchema,
-        async input() {
-          this.status({ fill: "green", shape: "dot", text: "step 1" });
-          this.status({ fill: "green", shape: "dot", text: "step 2" });
-          this.status({ fill: "green", shape: "dot", text: "step 3" });
-        },
-      });
-
-      const { node } = await createNode(MultiStatusNode, {
+      const { node } = await createNode(MultiStatusTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -377,7 +332,7 @@ describe("emit ports", () => {
 
   describe("only status port enabled", () => {
     it("adds one port when only status is enabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: false,
@@ -391,7 +346,7 @@ describe("emit ports", () => {
 
   describe("only complete port enabled", () => {
     it("adds one port when only complete is enabled", async () => {
-      const { node } = await createNode(TestNode, {
+      const { node } = await createNode(EmitTest, {
         config: {
           errorPort: false,
           completePort: true,
@@ -404,20 +359,10 @@ describe("emit ports", () => {
   });
 
   describe("sendToPort", () => {
-    it.each(["error", "complete", "status"])(
+    it.each(["error", "complete", "status"] as const)(
       "throws when called with built-in port '%s'",
       async (port) => {
-        const GuardNode = defineIONode({
-          type: `sendtoport-guard-${port}-test`,
-          inputSchema: SchemaType.Object({}),
-          outputsSchema: SchemaType.Object({}),
-          configSchema: ConfigSchema,
-          async input() {
-            (this as any).sendToPort(port, { payload: "test" });
-          },
-        });
-
-        const { node } = await createNode(GuardNode, {
+        const { node } = await createNode(guardNodes[port], {
           config: {
             errorPort: true,
             completePort: true,
@@ -432,17 +377,7 @@ describe("emit ports", () => {
     );
 
     it("sends to a numeric port index", async () => {
-      const SendToPortNode = defineIONode({
-        type: "sendtoport-numeric-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
-        configSchema: ConfigSchema,
-        async input() {
-          this.sendToPort(0, "record");
-        },
-      });
-
-      const { node } = await createNode(SendToPortNode, {
+      const { node } = await createNode(SendToPortNumeric, {
         config: {
           errorPort: false,
           completePort: false,
@@ -463,17 +398,7 @@ describe("emit ports", () => {
     });
 
     it("sends to status port via status() method", async () => {
-      const SendToPortNode = defineIONode({
-        type: "sendtoport-status-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
-        configSchema: ConfigSchema,
-        async input() {
-          this.status({ fill: "green", shape: "dot", text: "working" });
-        },
-      });
-
-      const { node } = await createNode(SendToPortNode, {
+      const { node } = await createNode(SendToPortStatus, {
         config: {
           errorPort: false,
           completePort: false,
@@ -499,22 +424,7 @@ describe("emit ports", () => {
       // (totalOutputs is 4). Sending more values than base ports must truncate
       // to baseOutputs so a stray value can never land in an error/status slot.
       // (completePort is left off so its automatic emission doesn't add noise.)
-      const TruncateNode = defineIONode({
-        type: "truncate-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: [SchemaType.Object({}), SchemaType.Object({})],
-        configSchema: ConfigSchema,
-        async input() {
-          (this as any).send([
-            { payload: "port-0" },
-            { payload: "port-1" },
-            { payload: "should-be-dropped" },
-            { payload: "also-dropped" },
-          ]);
-        },
-      });
-
-      const { node } = await createNode(TruncateNode, {
+      const { node } = await createNode(TruncateTest, {
         config: {
           errorPort: true,
           completePort: false,
@@ -545,17 +455,8 @@ describe("emit ports", () => {
   });
 
   describe("no built-in port flags in schema", () => {
-    const SimpleNode = defineIONode({
-      type: "simple-test",
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
-      async input(msg) {
-        this.send(msg);
-      },
-    });
-
     it("works normally without built-in port flags", async () => {
-      const { node } = await createNode(SimpleNode, {});
+      const { node } = await createNode(SimpleTest, {});
 
       await node.receive({ payload: "hello" });
 
@@ -567,17 +468,7 @@ describe("emit ports", () => {
 
   describe("input() return value on the complete port", () => {
     it("rides the complete port under output when input() returns a value", async () => {
-      const ReturnNode = defineIONode({
-        type: "return-complete-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
-        configSchema: ConfigSchema,
-        async input() {
-          return { sum: 42 };
-        },
-      });
-
-      const { node } = await createNode(ReturnNode, {
+      const { node } = await createNode(ReturnComplete, {
         config: { completePort: true },
       });
       await node.receive({ payload: "go" });
@@ -588,17 +479,7 @@ describe("emit ports", () => {
     });
 
     it("keeps the plain completion signal (no output) when input() returns nothing", async () => {
-      const VoidNode = defineIONode({
-        type: "void-complete-test",
-        inputSchema: SchemaType.Object({}),
-        outputsSchema: SchemaType.Object({}),
-        configSchema: ConfigSchema,
-        async input() {
-          // no return
-        },
-      });
-
-      const { node } = await createNode(VoidNode, {
+      const { node } = await createNode(VoidComplete, {
         config: { completePort: true },
       });
       await node.receive({ payload: "go" });

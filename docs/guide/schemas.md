@@ -87,29 +87,26 @@ export default class Api extends IONode<
   { ok: Port<Infer<typeof OkSchema>> } // one named "ok" port, typed from OkSchema
 > {
   static override readonly type = "api";
-  // optional — validate what "ok" emits with the same schema:
-  static override readonly outputsSchema = { ok: OkSchema };
 
   async input(msg: Infer<typeof InputSchema>) {
-    this.sendToPort("ok", { value: 1 }); // checked against OkSchema's type
+    this.sendToPort("ok", { value: 1 }); // typed from the "ok" port's Port<T>
   }
 }
 ```
 
-`Infer` also accepts a **record of schemas** and produces a named-port output map, so you can derive the whole `TOutput` — and validate it — from one place:
+`Infer` also accepts a **record of schemas** and produces a named-port output map, so you can derive the whole `TOutput` from one place:
 
 ```typescript
 const Outputs = { ok: OkSchema, err: ErrSchema };
 
 class Router extends IONode<Config, never, Input, Infer<typeof Outputs>> {
-  static override readonly outputsSchema = Outputs; // same record validates the ports
   async input(msg: Input) {
     this.sendToPort("ok", { value: 1 }); // "ok" | "err" typed from the record
   }
 }
 ```
 
-This is a convenience, not a requirement — plain TypeScript types (with no schema) declare topology just as well. Reach for the `Infer` form when you also want runtime validation from the same definition.
+This is a convenience, not a requirement — plain TypeScript types (with no schema) declare topology just as well. Reach for the `Infer` form to keep a port's type in lock-step with a schema.
 
 ## Config Schema
 
@@ -138,8 +135,8 @@ this.send(result)
 So upstream context propagates automatically. By default (`carry` mode) the
 context flows through without growing; opt into `trace` mode to also keep the
 full prior message under **`input`** as a recoverable **provenance trail**
-(`msg.input.output`…) — see [Context modes](#context-modes). `outputsSchema`
-describes the result value (output validation runs before the merge).
+(`msg.input.output`…) — see [Context modes](#context-modes). Output data
+validation, when enabled, runs on the result value before the merge.
 
 This means a node sets only `output` — it does not set arbitrary top-level
 message properties. Multi-value results go under `output` as one object:
@@ -154,10 +151,12 @@ onto the property the core node expects.
 
 #### Custom return properties per port {#overriding-the-return-key}
 
-Every output port's return key is `"output"`. Declaring `outputReturnProperties`
-lets the node author set a different default **per port** — and surfaces an
-editable **Return Property** column in the editor's Outputs table so flow authors
-can override each port's key:
+Every output port's return key is `"output"`. The editor's Outputs table always
+shows an editable **Return Property** column for every IONode — the framework
+injects `outputReturnProperties` into every node — so flow authors can override
+each port's key. Declaring `outputReturnProperties` in your own schema doesn't
+make the column appear; it lets the node **author** change the default **per
+port**:
 
 ```typescript
 const ConfigsSchema = defineSchema(
@@ -189,15 +188,16 @@ configured by the flow author in the editor's **Outputs** table:
 
 `send()` and `sendToPort()` take no mode argument — how each output carries the
 incoming context is resolved **per port** from config, falling back to `carry`.
-`carry` is both the default and the floor; to let the flow author choose a
-different mode per port, declare `outputContextModes`:
+The flow author can always pick a mode for **any** port in the editor. Declaring
+`outputContextModes` only lets the node **author** change a port's starting value
+(its seeded default):
 
 ```typescript
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
-    // port 0 is configurable (its dropdown is seeded to `trace`); every other
-    // port stays locked to `carry`
+    // port 0's dropdown starts on `trace` instead of `carry`; every other port
+    // starts on `carry`. All ports remain editable by the flow author either way.
     outputContextModes: SchemaType.OutputContextModes({
       default: { 0: "trace" },
     }),
@@ -206,12 +206,13 @@ const ConfigsSchema = defineSchema(
 );
 ```
 
-This surfaces a **Context Mode** column in the editor's Outputs table. A port
-**with** a declared default renders an editable dropdown seeded to that value; a
-port **without** one renders `carry`, disabled — the author opts each port in by
-giving it a default:
+The **Context Mode** column is always present in the editor's Outputs table (for
+any node with output ports — the framework injects `outputContextModes`), and
+**every port's dropdown is editable**. A port with a declared default is simply
+seeded to that value; a port without one is seeded to `carry`. Declaring
+`outputContextModes` does not enable or lock any port — it only changes the seed:
 
-![The Outputs table's Context Mode column — ports 0 and 1 have schema defaults so their dropdowns are editable; port 2 has none and is locked to carry, disabled](/context-modes.png)
+![The Outputs table's Context Mode column — every port has an editable dropdown; ports with a declared default are seeded to it, others to carry](/context-modes.png)
 
 The three modes:
 
@@ -225,8 +226,10 @@ The three modes:
 - **reset**: the outgoing message is only the result — use for source nodes that
   intentionally start a fresh context.
 
-Without `outputContextModes`, every port resolves to `carry` and the column is
-hidden. Named-port sends (`sendToPort`) resolve the same per-port mode by index.
+Without a declared `outputContextModes`, every port is seeded to `carry` — but its
+dropdown is still editable and the column is still shown whenever the node has
+output ports. Named-port sends (`sendToPort`) resolve the same per-port mode by
+index.
 
 The framework never deep-clones (so streams, Buffers, and class instances pass
 through intact); Node-RED's runtime clones messages 2..N on fan-out, so parallel
@@ -277,7 +280,8 @@ same AJV coercion nrg has always done for the config plane.
 runs a **pure predicate**: no coercion, no defaults, and it never rewrites the
 message. If it fails the node throws (routed to the error port when enabled); if it
 passes, the message flows through byte-for-byte. It is also **opt-in** — off unless
-you set `validateInput`/`validateOutput` or a flow author turns it on.
+the node exposes an input/output validation schema (a `SchemaType.InputSchema` /
+`SchemaType.OutputSchemas` config field) and the port's _Validate_ toggle is on.
 
 **The port _types_ are compile-time only.** `TInput`/`TOutput` (and `Port<T>`) are
 erased at build. They drive the editor's port topology and wire type-checks, and
@@ -300,8 +304,9 @@ when you want to _reject_ malformed data at the boundary — not to convert it.
 
 ### When should you add a port schema?
 
-You don't need one for topology or types — the generics already give you those. Add
-an `inputSchema` / `outputsSchema` (and turn validation on) when you want to:
+You don't need one for topology or types — the generics already give you those.
+Expose an input/output validation schema (a `SchemaType.InputSchema` /
+`SchemaType.OutputSchemas` config field, and turn validation on) when you want to:
 
 - **fail fast on bad data** at a trust boundary — reject a malformed message to the
   error port instead of crashing deep in the handler; or
@@ -311,122 +316,78 @@ Skip it when the wire type is enough and you're happy to handle whatever arrives
 Either way, remember: a port schema **validates**, it doesn't coerce or default the
 message.
 
-## Input Schema
+## Input Data Validation
 
-An input schema **validates** incoming messages before they reach your `input()` handler. It is optional and does not create the input port (the `TInput` generic does) — set `validateInput = true` to turn validation on:
-
-```typescript
-const InputSchema = defineSchema(
-  {
-    payload: SchemaType.String(),
-    topic: SchemaType.Optional(SchemaType.String()),
-  },
-  { $id: "my-node:input" }
-);
-
-export default class MyNode extends IONode<Config, any, Input> {
-  static readonly inputSchema: Schema = InputSchema;
-  static readonly validateInput = true;
-
-  async input(msg: Input) {
-    // msg.payload is guaranteed to be a string here
-  }
-}
-```
-
-Set `validateInput = true` on the class to enable validation. Invalid messages throw an error.
-
-## Output Schema
-
-Validate outgoing messages when `this.send()` is called:
+Input validation **checks** incoming messages before they reach your `input()` handler. It does not create the input port (the `Input` generic does), and it is **not** a static on the class — it's a **config-schema framework control**. Expose it by adding a `SchemaType.InputSchema()` field to your config schema: you seed a default JSON Schema, and the flow author can override it and turn the per-instance _Validate_ toggle on.
 
 ```typescript
-const OutputSchema = defineSchema(
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
+
+export const ConfigsSchema = defineSchema(
   {
-    payload: SchemaType.Object({
-      result: SchemaType.String(),
-      timestamp: SchemaType.Number(),
+    name: SchemaType.String({ default: "" }),
+    // seed a default input-validation schema (Monaco-editable by the flow author)
+    inputSchema: SchemaType.InputSchema({
+      default: JSON.stringify({
+        type: "object",
+        properties: { payload: { type: "string" } },
+        required: ["payload"],
+      }),
     }),
   },
-  { $id: "my-node:output" }
+  { $id: "my-node:configs" }
 );
-
-export default class MyNode extends IONode<Config, any, Input, Output> {
-  static readonly outputsSchema: Schema = OutputSchema;
-  static readonly validateOutput = true;
-
-  async input(msg: Input) {
-    this.send({
-      payload: { result: "ok", timestamp: Date.now() },
-    });
-  }
-}
 ```
 
-For nodes with multiple outputs, provide an array of schemas — one per port. (Port _count_ comes from the `TOutput` generic; for a schema-only node it is derived from the array length. Either way there is no `outputs` property to set manually.)
+Validation runs when the flow author turns on the port's _Validate_ toggle (which sets `config.validateInput`). Invalid messages throw an error — routed to the error port when it's enabled. Validation is a **pure predicate**: it never coerces or defaults the message.
+
+## Output Data Validation
+
+Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**. Expose per-port output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):
 
 ```typescript
-export default class MyNode extends IONode<Config> {
-  static readonly outputsSchema: Schema[] = [SuccessSchema, FailedSchema];
-  static readonly validateOutput = true;
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
-  async input(msg: Input) {
-    try {
-      // Send to first output
-      this.send([{ payload: "success" }, null]);
-    } catch {
-      // Send to second output
-      this.send([null, { payload: "failed" }]);
-    }
-  }
-}
+export const ConfigsSchema = defineSchema(
+  {
+    name: SchemaType.String({ default: "" }),
+    // seed a default validation schema for output port 0
+    outputSchemas: SchemaType.OutputSchemas({
+      default: {
+        0: JSON.stringify({
+          type: "object",
+          properties: {
+            result: { type: "string" },
+            timestamp: { type: "number" },
+          },
+        }),
+      },
+    }),
+  },
+  { $id: "my-node:configs" }
+);
 ```
 
-`validateOutput` is `boolean | boolean[]`. A single boolean validates **every** output port; a `boolean[]` sets the default **per port**, indexed by base-output position (missing entries default to `false`). This lets a node validate the data ports while leaving a non-data or best-effort port unchecked:
+A port validates when the flow author turns on its _Validate_ toggle (which sets `config.validateOutputs[port]`) and a schema exists for that port. Only ports you seed a default for are overridable in the editor. Validation is a pure predicate — it never coerces or defaults the outgoing value.
 
-```typescript
-export default class MyNode extends IONode<Config> {
-  static readonly outputsSchema: Schema[] = [ResultSchema, DebugSchema];
-  // validate port 0 (result), leave port 1 (debug) unchecked
-  static readonly validateOutput = [true, false];
-}
-```
-
-Either way, the flow author can override any port from the node's **Outputs** table in the editor, and that per-instance choice takes precedence over the author default. The editor's **Validate** checkbox reflects only a per-instance override, not the author's default — so a box can show unchecked while the port still validates. The author's `validateOutput` default stays in effect until the flow author checks the box to turn it off.
-
-For **named output ports**, provide a record instead of an array — each key becomes a port, its name shows as the editor label, and `sendToPort()` gets per-port type safety and autocomplete:
-
-```typescript
-export default class MyNode extends IONode<Config> {
-  static readonly outputsSchema = {
-    success: SuccessSchema,
-    failure: FailureSchema,
-  };
-
-  async input(msg: Input) {
-    this.sendToPort("success", { payload: "ok" });
-  }
-}
-```
-
-So `outputsSchema` takes three shapes: a single `Schema` (one port), a `Schema[]` (N positional ports), or a `Record<string, Schema>` (N named ports). See [Named Output Ports](./creating-a-node#named-output-ports) for the full treatment.
+Port **count and names** come from the `Output` generic, not from these schemas — a single type is one port, a `Port<T>` record is named ports, a tuple is positional ports. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs) and [Named Output Ports](./creating-a-node#named-output-ports).
 
 ## Configuring validation in the editor {#editor-schema-overrides}
 
-The static `inputSchema` / `outputsSchema` above are the node author's **default** validation schemas. A flow author can turn validation on per port and, optionally, **override** the schema for their own node instance — without touching your code.
+Input and output data validation is a **config-schema framework control** — never a static on the class. You expose it by adding a `SchemaType.InputSchema()` / `SchemaType.OutputSchemas()` field to your **config** schema; the `default` you seed is the node author's default validation schema, and the flow author can override it per instance and turn validation on — without touching your code.
 
 Two pieces make this work:
 
-1. **The Validate toggle.** When a node has an input or output schema, the editor's **Ports Settings** table shows a _Validate_ toggle per port. Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance (the same gate as the static `validateInput` / `validateOutput`).
-2. **The Schema editor.** To let flow authors supply their _own_ JSON Schema, add an override field to your **config** schema — `SchemaType.InputSchema()` for the input and `SchemaType.OutputSchemas()` for the outputs. This surfaces an editable **Schema** button (a Monaco JSON editor) in the Ports Settings table.
+1. **The Validate toggle.** When a node exposes an input or output schema field, the editor's **Ports Settings** table shows a _Validate_ toggle per port. Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance.
+2. **The Schema editor.** `SchemaType.InputSchema()` (input) and `SchemaType.OutputSchemas()` (outputs) surface an editable **Schema** button (a Monaco JSON editor) in the Ports Settings table, seeded with the `default` you provide.
 
 ```typescript
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
-    // expose an editable input-schema override (Monaco)
+    // expose an editable input-validation schema (Monaco), seeded with a default
     inputSchema: SchemaType.InputSchema({ default: '{ "type": "object" }' }),
-    // expose per-port output-schema overrides; only ports given a default
+    // expose per-port output-validation schemas; only ports given a default
     // here are overridable — port 0 is editable, port 1 stays disabled
     outputSchemas: SchemaType.OutputSchemas({
       default: { 0: '{ "type": "object" }' },
@@ -436,7 +397,7 @@ const ConfigsSchema = defineSchema(
 );
 ```
 
-The override a flow author types is stored as a JSON-Schema **string** in `config.inputSchema` / `config.outputSchemas[port]`. At validation time NRG uses the override when present and valid, otherwise it falls back to your static `inputSchema` / `outputsSchema`. An unparseable or non-compiling override is ignored (warned once) and the static schema is used. Validation still runs only when the port's _Validate_ toggle (or the static `validateInput` / `validateOutput`) is on.
+The schema a flow author types is stored as a JSON-Schema **string** in `config.inputSchema` / `config.outputSchemas[port]`; NRG uses it when present and valid. An unparseable or non-compiling schema is ignored (warned once). Validation still runs only when the port's _Validate_ toggle is on.
 
 ![Editor: configuring input and output validation schemas](/editor-schemas.png)
 
@@ -444,24 +405,45 @@ The override a flow author types is stored as a JSON-Schema **string** in `confi
 
 Not every port carries plain data. A node might emit a function, a class
 instance, a `Buffer` or stream, or a database client — or accept a message with
-non-serializable parts. JSON Schema can't describe those values, so a normal
-schema would reject them.
+non-serializable parts. A port's **type** comes from the `Input`/`Output`
+generic, so a non-data value just needs a plain type — there is nothing to
+validate:
 
-Declare such a value as a **named property** of an object schema and type it with
-**`SchemaType.Unsafe<T>()`**. It produces an empty schema (`{}`), so AJV passes
-any runtime value through while `Infer` still resolves the field to `T`. `T` is
-erased at runtime, but the build reads the `<T>` you wrote straight from the
-source, so the generated node help still shows it in the **Type** column — you
-write the type just once:
+```typescript
+import { IONode } from "@bonsae/nrg/server";
+
+type Connection = { query(sql: string): Promise<unknown[]> };
+type Output = { connection: Connection; rowCount: number };
+
+export default class OpenConnection extends IONode<Config, any, Input, Output> {
+  static override readonly type = "db-open";
+  static override readonly configSchema: Schema = ConfigsSchema;
+
+  async input() {
+    this.send({ connection: pool, rowCount: 0 }); // pool passes through intact
+  }
+}
+```
+
+The build reads the `Output` generic, so the generated node help renders the
+**Output** table with `connection` typed as `Connection` and `rowCount` as
+`number` — recovered from the source at build time, with nothing to keep in sync
+by hand.
+
+If you additionally want **runtime data validation** on the data fields (via the
+`SchemaType.OutputSchemas()` config control — see
+[Configuring validation in the editor](#editor-schema-overrides)), JSON Schema
+can't describe a non-data value, so a normal schema would reject it. Type such a
+field with **`SchemaType.Unsafe<T>()`**: it produces an empty schema (`{}`), so
+AJV passes any runtime value through while the data fields alongside it validate
+normally:
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
-type Connection = { query(sql: string): Promise<unknown[]> };
-
 const OutputSchema = defineSchema(
   {
-    // non-data: typed as Connection, never validated — but still documented
+    // non-data: never validated — AJV passes it through
     connection: SchemaType.Unsafe<Connection>({
       description: "Open pool connection, passed downstream",
     }),
@@ -470,26 +452,10 @@ const OutputSchema = defineSchema(
   },
   { $id: "db-open:output" }
 );
-
-export default class OpenConnection extends IONode<Config, any, Input, Output> {
-  static readonly outputsSchema: Schema = OutputSchema;
-  static readonly validateOutput = true;
-
-  async input() {
-    this.send({ connection: pool, rowCount: 0 }); // pool passes through intact
-  }
-}
 ```
 
-The generated node help then renders the **Output** table with `connection`
-typed as `Connection` and `rowCount` as `number [min: 0]`, so the port's
-TypeScript type is visible to anyone reading the node's docs — recovered from the
-source at build time, with nothing to keep in sync by hand.
-
-For that recovery to work, keep `Unsafe<T>()` as a **named property** of a schema
-built with `defineSchema` — its `$id` is how the build links the type it read
-from `<T>` back to the property. The same applies to `inputSchema` for non-data
-inputs.
+Keep `Unsafe<T>()` as a **named property** of a schema built with `defineSchema`.
+The same applies to an input-validation schema for non-data inputs.
 
 ::: warning Config-node references and typed inputs are NOT `Unsafe` cases
 Don't reach for `Unsafe` here — these have first-class builders the editor and

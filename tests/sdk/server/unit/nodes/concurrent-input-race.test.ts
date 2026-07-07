@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
-import { defineIONode } from "@/sdk/lib/server/nodes";
-import { SchemaType } from "@/sdk/lib/shared/schemas";
+import RacyIo, {
+  configureRacyIo,
+} from "../fixtures/concurrent-input-race-test/racy-io";
 
 /**
  * Guards the per-invocation context scope in io-node.ts (the `inputInvocation`
@@ -20,36 +22,38 @@ import { SchemaType } from "@/sdk/lib/shared/schemas";
  * calls serialize; calling `receive()` WITHOUT awaiting reproduces real
  * Node-RED's overlapping delivery. A shared gate makes the interleaving
  * deterministic. Before the fix, the first assertion below was `"B"`.
+ *
+ * The racy node is a types-only fixture (`racy-io.ts`): its ports come from its
+ * generics, so the harness must type-extract topology from the fixture tree —
+ * point `NRG_SERVER_SRC` at it. The per-test gate/started array are injected via
+ * `configureRacyIo`, the seam that replaces the original inline closure.
  */
-
-function gatedRacyNode(started: string[], gate: Promise<void>) {
-  return defineIONode({
-    type: "racy-io",
-    inputSchema: SchemaType.Object({}),
-    outputsSchema: SchemaType.Object({}),
-    async input(msg) {
-      const id = (msg as { id: string }).id;
-      started.push(id);
-      await gate; // park here while the next input arrives
-      // the VALUE carries the id from this call's closure (always correct);
-      // the carried context comes from the per-invocation `inputInvocation`
-      // store — pre-fix it came from a shared instance field and crossed.
-      this.send({ echoedId: id });
-    },
-  });
-}
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../fixtures/concurrent-input-race-test", import.meta.url),
+);
 
 describe("io-node concurrent-input race", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
   it("keeps each input's carried context independent under overlap (per-invocation scope)", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {
       release = r;
     });
     const started: string[] = [];
+    configureRacyIo({ started, gate });
 
-    const { node } = await createNode(gatedRacyNode(started, gate), {
-      config: {},
-    });
+    const { node } = await createNode(RacyIo, { config: {} });
 
     // Two overlapping inputs — NOT awaited, mirroring real Node-RED, which
     // delivers msg B before msg A's handler (and its done()) has finished.
@@ -87,10 +91,9 @@ describe("io-node concurrent-input race", () => {
     // With each input fully drained before the next (gate already open), there
     // is no overlap, so context would be correct even without per-call scoping.
     const started: string[] = [];
-    const { node } = await createNode(
-      gatedRacyNode(started, Promise.resolve()),
-      { config: {} },
-    );
+    configureRacyIo({ started, gate: Promise.resolve() });
+
+    const { node } = await createNode(RacyIo, { config: {} });
 
     await node.receive({ id: "A", payload: "a" });
     await node.receive({ id: "B", payload: "b" });

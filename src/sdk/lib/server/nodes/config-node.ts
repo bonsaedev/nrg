@@ -1,5 +1,5 @@
 import type { RED, NodeRedNode } from "../red";
-import { Node, lockField } from "./node";
+import { Node } from "./node";
 import { NRG_CONFIG_NODE } from "./symbols";
 import type {
   ConfigNodeConfig,
@@ -58,14 +58,10 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
       return setupContext(target, store);
     };
 
-    lockField(
-      this,
-      "context",
-      Object.assign(resolve, {
-        node: setupContext(context),
-        global: setupContext(context.global),
-      }),
-    );
+    this.context = Object.assign(resolve, {
+      node: setupContext(context),
+      global: setupContext(context.global),
+    });
   }
 
   get userIds(): string[] {

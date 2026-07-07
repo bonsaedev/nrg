@@ -1,6 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { NrgError } from "@/sdk/lib/shared/errors";
 import { createRED } from "@mocks/red";
+import { createNode } from "@/sdk/test/server/unit";
+import WithInput from "./fixtures/register-type-test/with-input";
+import WithoutInput from "./fixtures/register-type-test/without-input";
+import SingleOutput from "./fixtures/register-type-test/single-output";
+import MultiOutputs from "./fixtures/register-type-test/multi-outputs";
+import NoOutputs from "./fixtures/register-type-test/no-outputs";
 
 async function getModules() {
   const { Node, IONode, ConfigNode } = await import("@/sdk/lib/server/nodes");
@@ -9,7 +16,27 @@ async function getModules() {
   return { Node, IONode, ConfigNode, registerType, registerTypes };
 }
 
+// Port topology is TYPES-ONLY: a node's input/output ports come from its
+// `Input`/`Output` generics, stamped as `__nrgPorts` by the build. The fixture
+// nodes below carry no schema topology, so point the extractor at their source
+// tree — `createNode` then stamps the same topology the build would inject.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("./fixtures/register-type-test", import.meta.url),
+);
+
 describe("registerType validation", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
   it("should throw NrgError when class does not extend Node", async () => {
     const { registerType } = await getModules();
     const RED = createRED();
@@ -72,49 +99,23 @@ describe("registerType validation", () => {
     );
   });
 
-  it("should derive inputs from inputSchema presence", async () => {
-    const { IONode } = await getModules();
-    const { SchemaType } = await import("@/sdk/lib/shared/schemas");
-
-    class WithInput extends IONode {
-      static override readonly type = "with-input";
-      static override readonly category = "function";
-      static override readonly inputSchema = SchemaType.Object({});
-    }
-
-    class WithoutInput extends IONode {
-      static override readonly type = "without-input";
-      static override readonly category = "function";
-    }
+  it("should derive inputs from the Input generic", async () => {
+    // `createNode` stamps the build-time topology (from the fixture source),
+    // after which the static getter reflects the type-derived input count: a
+    // typed `Input` generic gives one input port, an untyped one gives none.
+    await createNode(WithInput);
+    await createNode(WithoutInput);
 
     expect(WithInput.inputs).toBe(1);
     expect(WithoutInput.inputs).toBe(0);
   });
 
-  it("should derive outputs from outputsSchema", async () => {
-    const { IONode } = await getModules();
-    const { SchemaType } = await import("@/sdk/lib/shared/schemas");
-
-    class SingleOutput extends IONode {
-      static override readonly type = "single-output";
-      static override readonly category = "function";
-      static override readonly outputsSchema = SchemaType.Object({});
-    }
-
-    class MultiOutputs extends IONode {
-      static override readonly type = "multi-outputs";
-      static override readonly category = "function";
-      static override readonly outputsSchema = [
-        SchemaType.Object({}),
-        SchemaType.Object({}),
-        SchemaType.Object({}),
-      ];
-    }
-
-    class NoOutputs extends IONode {
-      static override readonly type = "no-outputs";
-      static override readonly category = "function";
-    }
+  it("should derive outputs from the Output generic", async () => {
+    // A single object output → one port, a positional tuple → one port per
+    // element, an untyped `Output` → none. All read off the injected topology.
+    await createNode(SingleOutput);
+    await createNode(MultiOutputs);
+    await createNode(NoOutputs);
 
     expect(SingleOutput.outputs).toBe(1);
     expect(MultiOutputs.outputs).toBe(3);
@@ -186,14 +187,16 @@ describe("registerTypes schema $id enforcement", () => {
     const { SchemaType } = await import("@/sdk/lib/shared/schemas");
     const RED = createRED();
 
-    class EmptyInputNode extends IONode {
-      static override readonly type = "empty-input-node";
+    class EmptyConfigNode extends IONode {
+      static override readonly type = "empty-config-node";
       static override readonly category = "function";
       static override readonly color = "#a6bbcf";
-      static override readonly inputSchema = SchemaType.Object({});
+      // An empty schema (no properties, no $id) is a valid pass-through — it
+      // must NOT trigger the "properties but no $id" warning.
+      static override readonly configSchema = SchemaType.Object({});
     }
 
-    await registerTypes([EmptyInputNode] as any)(RED);
+    await registerTypes([EmptyConfigNode] as any)(RED);
 
     const warnedAboutId = (RED.log.warn as any).mock.calls.some(
       (args: unknown[]) =>

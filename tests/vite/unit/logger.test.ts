@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@clack/prompts", () => ({
   intro: vi.fn(),
   outro: vi.fn(),
-  spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
+  spinner: () => ({ start: vi.fn(), stop: vi.fn(), error: vi.fn() }),
   log: {
     step: vi.fn(),
     success: vi.fn(),
@@ -117,6 +117,39 @@ describe("Logger", () => {
       expect(clackLogger.log.error).toHaveBeenCalledWith("failed");
       expect(consoleSpy).toHaveBeenCalledWith(cause);
       consoleSpy.mockRestore();
+    });
+
+    it("ends a running spinner with the error glyph instead of a stray log line", () => {
+      const log = new Logger({ name: "test" });
+      const spinner = (log as any).spinner;
+      log.startSpinner("Building");
+      log.error("Rebuild failed");
+      // The failure is drawn *by* the spinner (error glyph), not a separate
+      // log.error line that would leave the spinner dangling.
+      expect(spinner.error).toHaveBeenCalledWith("Rebuild failed");
+      expect(clackLogger.log.error).not.toHaveBeenCalled();
+    });
+
+    it("still surfaces the cause when a spinner is running", () => {
+      const log = new Logger({ name: "test" });
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const cause = new Error("root cause");
+      log.startSpinner("Building");
+      log.error("Rebuild failed", cause);
+      expect(consoleSpy).toHaveBeenCalledWith(cause);
+      consoleSpy.mockRestore();
+    });
+
+    it("logs a plain error line once the spinner has been stopped", () => {
+      const log = new Logger({ name: "test" });
+      const spinner = (log as any).spinner;
+      log.startSpinner("Building");
+      log.stopSpinner("Built");
+      log.error("later failure");
+      expect(clackLogger.log.error).toHaveBeenCalledWith("later failure");
+      expect(spinner.error).not.toHaveBeenCalled();
     });
   });
 

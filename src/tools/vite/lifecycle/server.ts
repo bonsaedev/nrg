@@ -80,12 +80,18 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       }
       logger.success("Ready");
     } catch (error) {
+      // Surface the underlying cause — the Rollup/esbuild error with its file,
+      // line, and code frame — not just the wrapper's generic message. (The
+      // production `buildPlugin` already does this; the dev path had dropped it.)
       if (error instanceof BuildError) {
-        logger.error(`Rebuild failed: ${error.message}`);
+        logger.error(`Rebuild failed: ${error.message}`, error.cause);
       } else if (error instanceof NodeRedStartError) {
-        logger.error("Failed to restart Node-RED");
+        logger.error("Failed to restart Node-RED", error.cause);
       } else {
-        logger.error(`Unexpected error: ${(error as Error).message}`);
+        logger.error(
+          `Unexpected error: ${(error as Error).message}`,
+          error as Error,
+        );
       }
 
       throw error;
@@ -93,7 +99,10 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       isStarting = false;
 
       if (pendingStart) {
-        start(false);
+        // Re-run for the change that landed mid-build. Not awaited, so swallow
+        // its rejection here — it self-logs, and an uncaught one would surface
+        // as a bare Node "UnhandledPromiseRejection".
+        void start(false).catch(() => {});
       }
     }
   };
@@ -208,7 +217,9 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       });
 
       const debounceBeforeStart = debounce(
-        () => start(false),
+        // Not awaited by the debouncer — swallow the rejection (it self-logs)
+        // so a failed rebuild doesn't bubble up as an "UnhandledPromiseRejection".
+        () => void start(false).catch(() => {}),
         nodeRedLauncher.restartDelay ?? 1000,
       );
 

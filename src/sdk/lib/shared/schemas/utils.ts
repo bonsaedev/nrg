@@ -77,4 +77,25 @@ function getCredentialsFromSchema(
   return result;
 }
 
-export { getDefaultsFromSchema, getCredentialsFromSchema };
+function getSettingsFromSchema(
+  schema: TObject | null | undefined,
+  nodeType: string,
+): Record<string, { value: unknown; exportable: boolean }> {
+  const settings: Record<string, { value: unknown; exportable: boolean }> = {};
+  if (!schema?.properties) return settings;
+  const prefix = nodeType.replace(/-./g, (x) => x[1].toUpperCase());
+  for (const [key, prop] of Object.entries(schema.properties)) {
+    const settingKey = prefix + key.charAt(0).toUpperCase() + key.slice(1);
+    settings[settingKey] = {
+      value: prop.default,
+      exportable: prop.exportable ?? false,
+    };
+  }
+  return settings;
+}
+
+export {
+  getDefaultsFromSchema,
+  getCredentialsFromSchema,
+  getSettingsFromSchema,
+};

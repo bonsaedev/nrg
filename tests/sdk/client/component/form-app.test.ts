@@ -8,8 +8,7 @@ import { createNode } from "@/sdk/test/client/component";
 import type { NodeFeatures } from "@/sdk/lib/client/types";
 
 const NO_FEATURES: NodeFeatures = {
-  hasInputSchema: false,
-  hasOutputSchema: false,
+  hasInput: false,
   outputPorts: [],
 };
 
@@ -74,13 +73,12 @@ function toggleFor(container: HTMLElement, label: string): HTMLElement {
 }
 
 describe("app shell — input validation", () => {
-  test("renders the Validate toggle when an input schema is declared", () => {
+  test("renders the Validate Data toggle when the node has an input port", () => {
     const { component } = renderApp({
       configs: { name: "x" },
       schema: nameSchema(),
       features: {
-        hasInputSchema: true,
-        hasOutputSchema: false,
+        hasInput: true,
         outputPorts: [],
       },
     });
@@ -92,8 +90,7 @@ describe("app shell — input validation", () => {
       configs: { name: "x", validateInput: false },
       schema: nameSchema(),
       features: {
-        hasInputSchema: true,
-        hasOutputSchema: false,
+        hasInput: true,
         outputPorts: [],
       },
     });
@@ -173,12 +170,52 @@ describe("app shell — built-in port toggles", () => {
   });
 });
 
+// The build's extractor spreads the framework fields into EVERY IONode's config
+// schema, so the editor renders the whole Ports Settings section even for a node
+// that declared none of them (the SOQL-node case). This asserts the client end of
+// that contract: given the merged schema, the full section renders.
+describe("app shell — framework config fields (extractor-merged, always present)", () => {
+  const frameworkSchema = () =>
+    nameSchema({
+      errorPort: { type: "boolean", default: false },
+      completePort: { type: "boolean", default: false },
+      statusPort: { type: "boolean", default: false },
+      outputReturnProperties: { type: "object", default: {} },
+      outputContextModes: { type: "object", default: {} },
+    });
+
+  test("renders Lifecycle + Return Property + Context Mode from a merged schema the node didn't declare", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: frameworkSchema(),
+      // No input port; one output port — ports come from types only.
+      features: {
+        hasInput: false,
+        outputPorts: [{ index: 0, label: "out" }],
+      },
+    });
+
+    // Lifecycle Output Ports — all three toggles.
+    expect(toggleFor(component.container, "Error Port")).toBeTruthy();
+    expect(toggleFor(component.container, "Complete Port")).toBeTruthy();
+    expect(toggleFor(component.container, "Status Port")).toBeTruthy();
+
+    // Outputs subsection — Return Property + Context Mode columns, but NO
+    // Validate Data column (nothing declares an output schema to validate).
+    const headers = Array.from(
+      component.container.querySelectorAll(".nrg-outputs thead th"),
+    ).map((th) => th.textContent?.trim());
+    expect(headers).toContain("Return Property");
+    expect(headers).toContain("Context Mode");
+    expect(headers).not.toContain("Validate Data");
+  });
+});
+
 describe("app shell — Outputs table", () => {
   const OUT_FEATURES = (
     ports: { index: number; label: string }[],
   ): NodeFeatures => ({
-    hasInputSchema: false,
-    hasOutputSchema: true,
+    hasInput: false,
     outputPorts: ports,
   });
 
@@ -186,9 +223,9 @@ describe("app shell — Outputs table", () => {
   const RETURN_SCHEMA = () =>
     nameSchema({ outputReturnProperties: { type: "object", default: {} } });
 
-  // schema that opts into the per-port Context Mode column; `def` is the
-  // author's per-port default map — a port present here is editable, others
-  // render `carry`, disabled.
+  // schema declaring `outputContextModes`; `def` is the author's per-port default
+  // map — a port present here seeds to its value, others seed to `carry`. Every
+  // port's dropdown is editable regardless.
   const CONTEXT_SCHEMA = (def: Record<number, string> = {}) =>
     nameSchema({ outputContextModes: { type: "object", default: def } });
 
@@ -260,9 +297,11 @@ describe("app shell — Outputs table", () => {
   });
 
   test("the validate toggle writes validateOutputs[port]", async () => {
+    // The Validate Data column renders when the config schema declares
+    // `outputSchemas` (framework-merged into every IONode in production).
     const { node, component } = renderApp({
       configs: { name: "x" },
-      schema: nameSchema(),
+      schema: nameSchema({ outputSchemas: { type: "object", default: {} } }),
       features: OUT_FEATURES([{ index: 0, label: "out" }]),
     });
     const checkbox = component.container.querySelector(
@@ -308,9 +347,9 @@ describe("app shell — Outputs table", () => {
     });
   });
 
-  test("locks a port with no schema default to carry (disabled)", () => {
-    // only port 0 has a default — port 1 is locked to carry
-    const { component } = renderApp({
+  test("every port's Context Mode dropdown is editable; the declared default only seeds the value", async () => {
+    // only port 0 has a declared default — port 1 has none, but is still editable
+    const { node, component } = renderApp({
       configs: { name: "x", outputContextModes: { 0: "trace" } },
       schema: CONTEXT_SCHEMA({ 0: "trace" }),
       features: OUT_FEATURES([
@@ -322,12 +361,19 @@ describe("app shell — Outputs table", () => {
       "select.nrg-outputs-context",
     );
     expect(selects.length).toBe(2);
-    // port 0: editable, seeded to its declared default
+    // Neither port is locked — the flow author can pick any mode on any port.
     expect(selects[0].disabled).toBe(false);
+    expect(selects[1].disabled).toBe(false);
+    // Seeds: port 0 from its declared default, port 1 falls back to `carry`.
     expect(selects[0].value).toBe("trace");
-    // port 1: locked to carry
-    expect(selects[1].disabled).toBe(true);
     expect(selects[1].value).toBe("carry");
+
+    // A port with no declared default is still writable.
+    selects[1].value = "reset";
+    selects[1].dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(node.outputContextModes).toEqual({ 0: "trace", 1: "reset" });
+    });
   });
 
   test("grows and shrinks the rows when the node's output count changes (dynamic outputs)", async () => {
@@ -390,6 +436,98 @@ describe("app shell — Outputs table", () => {
       expect(
         component.container.querySelectorAll(".nrg-outputs tbody tr").length,
       ).toBe(1);
+    });
+  });
+});
+
+// A types-first node (like the SOQL node) gets its output ports from its TYPES.
+// The Outputs subsection surfaces whenever the node has output ports; declaring
+// `outputReturnProperties` / `outputContextModes` in its config schema adds
+// those columns. The Validate Data column stays hidden unless the config schema
+// declares `outputSchemas` to validate against.
+describe("app shell — Outputs table (types-first, no output schema)", () => {
+  const TYPES_FIRST_FEATURES = (
+    ports: { index: number; label: string }[],
+  ): NodeFeatures => ({
+    hasInput: false,
+    outputPorts: ports,
+  });
+
+  test("renders the Outputs section when the schema declares Return Property, even with no output schema", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema({
+        outputReturnProperties: { type: "object", default: {} },
+      }),
+      features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
+    });
+    expect(component.container.querySelector(".nrg-outputs")).not.toBeNull();
+    expect(component.container.textContent).toContain("Return Property");
+  });
+
+  test("renders the Outputs section when the schema declares Context Mode, even with no output schema", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema({
+        outputContextModes: { type: "object", default: { 0: "carry" } },
+      }),
+      features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
+    });
+    const headers = Array.from(
+      component.container.querySelectorAll(".nrg-outputs thead th"),
+    ).map((th) => th.textContent?.trim());
+    expect(headers).toContain("Context Mode");
+  });
+
+  test("hides the Validate Data column when there is no output schema to validate against", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema({
+        outputReturnProperties: { type: "object", default: {} },
+      }),
+      features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
+    });
+    const headers = Array.from(
+      component.container.querySelectorAll(".nrg-outputs thead th"),
+    ).map((th) => th.textContent?.trim());
+    expect(headers).not.toContain("Validate Data");
+  });
+
+  test("renders the Outputs table (Port + Label only) even when the node declares no output controls", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
+    });
+    // The Outputs section now renders whenever the node has output ports.
+    expect(component.container.querySelector(".nrg-outputs")).not.toBeNull();
+    // ...but only the always-present Port + Label columns — no optional controls.
+    const headers = Array.from(
+      component.container.querySelectorAll(".nrg-outputs thead th"),
+    ).map((th) => th.textContent?.trim());
+    expect(headers).not.toContain("Validate Data");
+    expect(headers).not.toContain("Return Property");
+    expect(headers).not.toContain("Context Mode");
+    expect(
+      component.container.querySelector(".nrg-outputs tbody tr")?.textContent,
+    ).toContain("out");
+  });
+
+  test("gives each node its own outputContextModes map (no cross-node leak)", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x", outputContextModes: { 0: "trace" } },
+      schema: nameSchema({
+        outputContextModes: { type: "object", default: { 0: "trace" } },
+      }),
+      features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
+    });
+    const select = component.container.querySelector(
+      "select.nrg-outputs-context",
+    ) as HTMLSelectElement;
+    select.value = "reset";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(node.outputContextModes).toEqual({ 0: "reset" });
     });
   });
 });

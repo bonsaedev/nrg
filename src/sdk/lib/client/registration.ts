@@ -180,8 +180,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
         baseOutputs,
       );
       const features: NodeFeatures = {
-        hasInputSchema: !!nodeDefinition.inputSchema,
-        hasOutputSchema: !!nodeDefinition.outputsSchema,
+        hasInput: (nodeDefinition.inputs ?? 0) > 0,
         outputPorts,
       };
       mountApp(this, form, validationSchema, features, appContainerId);

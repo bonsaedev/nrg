@@ -10,6 +10,11 @@ export class Logger {
   private readonly name: string;
   private readonly prefix?: string;
   private readonly spinner = clackLogger.spinner();
+  // Tracks whether `spinner` is mid-run so `error()` can end it with the error
+  // glyph instead of leaving it dangling: a running clack spinner traps
+  // `unhandledRejection`/`uncaughtException` and prints its own generic
+  // "Something went wrong" over the real failure.
+  private spinnerActive = false;
 
   constructor(options: LoggerOptions) {
     this.name = options.name;
@@ -41,7 +46,16 @@ export class Logger {
   }
 
   error(message: string, cause?: Error): void {
-    clackLogger.log.error(this.format(message));
+    const text = this.format(message);
+    // If a spinner is running, end it *as* the error (glyph + deregistered
+    // traps) rather than printing a separate line and abandoning the spinner —
+    // that abandonment is what surfaces the useless "Something went wrong".
+    if (this.spinnerActive) {
+      this.spinner.error(text);
+      this.spinnerActive = false;
+    } else {
+      clackLogger.log.error(text);
+    }
     if (cause) {
       console.error(cause);
     }
@@ -76,10 +90,12 @@ export class Logger {
 
   startSpinner(message: string): void {
     this.spinner.start(this.format(message));
+    this.spinnerActive = true;
   }
 
   stopSpinner(message: string): void {
     this.spinner.stop(this.format(message));
+    this.spinnerActive = false;
   }
 
   child(prefix: string): Logger {

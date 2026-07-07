@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Node } from "@/sdk/lib/server/nodes/node";
+import { registerType } from "@/sdk/lib/server/registration";
 import { initValidator } from "@/sdk/lib/server/validation";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
@@ -34,27 +35,6 @@ describe("Node", () => {
       expect(() => {
         instance.config.name = "changed";
       }).toThrow();
-    });
-
-    it("locks RED/node/config so consumer code cannot reassign or redefine them", () => {
-      const RED = createRED();
-      initValidator(RED);
-      const node = createNodeRedNode();
-      const instance = new ConcreteNode(RED, node, { name: "test" }, {});
-
-      // Non-writable — a consumer reassignment throws.
-      expect(() => Object.assign(instance, { RED: {} })).toThrow(TypeError);
-      expect(() => Object.assign(instance, { node: {} })).toThrow(TypeError);
-      expect(() => Object.assign(instance, { config: {} })).toThrow(TypeError);
-
-      // Non-configurable — can't be redefined, so a subclass can't override it
-      // with its own field or getter.
-      expect(() => {
-        Object.defineProperty(instance, "config", {
-          value: {},
-          configurable: true,
-        });
-      }).toThrow(TypeError);
     });
 
     it("should validate config when configSchema is defined", () => {
@@ -325,7 +305,7 @@ describe("Node", () => {
     it("should not pass settings when no settingsSchema", async () => {
       const RED = createRED();
       initValidator(RED);
-      await ConcreteNode.register(RED);
+      await registerType(RED, ConcreteNode);
 
       const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
       expect(registerCall[2].settings).toBeUndefined();
@@ -351,7 +331,7 @@ describe("Node", () => {
 
       const RED = createRED();
       initValidator(RED);
-      await SettingsNode.register(RED);
+      await registerType(RED, SettingsNode);
 
       const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
       expect(registerCall[2].settings).toEqual({
@@ -377,7 +357,7 @@ describe("Node", () => {
 
       const RED = createRED();
       initValidator(RED);
-      await HyphenNode.register(RED);
+      await registerType(RED, HyphenNode);
 
       const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
       expect(registerCall[2].settings).toHaveProperty("myCustomNodeTimeout");
@@ -495,7 +475,7 @@ describe("Node", () => {
 
       const RED = createRED();
       initValidator(RED);
-      await FailingCreatedNode.register(RED);
+      await registerType(RED, FailingCreatedNode);
 
       const constructorFn = vi.mocked(RED.nodes.registerType).mock.calls[0][1];
       const nodeRedNode = createNodeRedNode();

@@ -1,10 +1,18 @@
 import type { NodeConstructor } from "./nodes";
-import { NRG_NODE } from "./nodes/symbols";
-import type { RED } from "./red";
+import {
+  NRG_NODE,
+  NRG_SETUP_CLOSE_HANDLER,
+  NRG_SETUP_INPUT_HANDLER,
+} from "./nodes/symbols";
+import type { RED, NodeRedNode } from "./red";
 import { initValidator } from "./validation";
 import { initRoutes } from "./api";
 import { NrgError } from "../shared/errors";
 import { Kind } from "../shared/schemas";
+import {
+  getCredentialsFromSchema,
+  getSettingsFromSchema,
+} from "../shared/schemas/utils";
 
 /**
  * Registers a custom node with Node-RED.
@@ -29,7 +37,78 @@ async function registerType(RED: RED, NodeClass: NodeConstructor) {
     throw new NrgError("type must be provided when registering the node");
   }
 
-  await NodeClass.register(RED);
+  if (NodeClass.color && !/^#[0-9A-Fa-f]{6}$/.test(NodeClass.color)) {
+    throw new NrgError(
+      `Invalid color "${NodeClass.color}" for ${NodeClass.type}: must be a 6-digit hex color like "#a6bbcf" (shorthand "#abc" is not accepted).`,
+    );
+  }
+
+  RED.nodes.registerType(
+    NodeClass.type,
+    function (this: NodeRedNode, config: Record<string, unknown>) {
+      RED.nodes.createNode(this, config);
+      const node = new NodeClass(RED, this, config, this.credentials);
+      // NOTE: save node instance inside node-red's node so that the proxy can resolve it lazily.
+      // Non-writable to prevent accidental clobbering by other code in the process.
+      Object.defineProperty(this, "_node", {
+        value: node,
+        writable: false,
+        configurable: false,
+        enumerable: false,
+      });
+
+      // NOTE: created promise must be here because we only want it to start after the whole object creation chain has been completed: child -> IONode -> Node -> IONode -> child -> done
+      const createdPromise = Promise.resolve(node.created?.()).catch(
+        (error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          this.error("Error during created hook: " + message);
+          throw error;
+        },
+      );
+      // Surface a failed created() as an error status, not just a log. A node
+      // with inputs also reports the failure per-input via done(), but an
+      // input-less node has no handler awaiting createdPromise, so without
+      // this its created() rejection would be logged once and otherwise
+      // silently swallowed while the node stays registered.
+      createdPromise.catch(() => {
+        this.status({ fill: "red", shape: "ring", text: "created() failed" });
+      });
+
+      node[NRG_SETUP_CLOSE_HANDLER]();
+      // Only IONode wires an input handler; a plain Node/ConfigNode has none.
+      if (
+        NRG_SETUP_INPUT_HANDLER in node &&
+        typeof node[NRG_SETUP_INPUT_HANDLER] === "function"
+      ) {
+        node[NRG_SETUP_INPUT_HANDLER](createdPromise);
+      }
+    },
+    {
+      credentials: NodeClass.credentialsSchema
+        ? getCredentialsFromSchema(NodeClass.credentialsSchema)
+        : undefined,
+      settings: NodeClass.settingsSchema
+        ? getSettingsFromSchema(NodeClass.settingsSchema, NodeClass.type)
+        : undefined,
+    },
+  );
+
+  NodeClass.validateSettings(RED);
+  // Isolation contract: a failing `registered()` hook is logged at error level
+  // and swallowed, NOT rethrown. Registration runs one shared loop over every
+  // node class in the package (see registerTypes), so rethrowing here would
+  // abort registration of all *other* node types in the same package. The hook
+  // is for optional one-time setup; a node whose hook fails still registers.
+  try {
+    await Promise.resolve(NodeClass.registered?.(RED));
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    RED.log.error(
+      `Error during registered hook for ${NodeClass.type}: ${message}`,
+    );
+  }
+
   RED.log.debug(`Type registered: ${NodeClass.type}`);
 }
 

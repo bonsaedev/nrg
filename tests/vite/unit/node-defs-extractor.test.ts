@@ -92,4 +92,68 @@ describe("extractNodeDefinitions", () => {
     const written = JSON.parse(fs.readFileSync(nodeDefsPath(outDir), "utf-8"));
     expect(written).toEqual({ nodeTypes: [], definitions: {} });
   });
+
+  const FRAMEWORK_KEYS = [
+    "name",
+    "errorPort",
+    "completePort",
+    "statusPort",
+    "outputReturnProperties",
+    "outputContextModes",
+  ];
+
+  it("injects the framework config fields into an IONode that declares none of them", async () => {
+    // An IONode is detected by the numeric `outputs` getter. This node declares
+    // only `query` — no lifecycle ports, no return/context config.
+    writeBundle([
+      {
+        type: "io-node",
+        category: "function",
+        configSchema: {
+          $id: "io-node:config",
+          properties: { query: { default: "" } },
+        },
+        inputs: 1,
+        outputs: 1,
+      },
+    ]);
+
+    await extractNodeDefinitions(outDir);
+    const written = JSON.parse(fs.readFileSync(nodeDefsPath(outDir), "utf-8"));
+    const def = written.definitions["io-node"];
+
+    // The author field survives, and every framework field is now present in
+    // both the emitted schema and the editor defaults — with no declaration.
+    expect(Object.keys(def.configSchema.properties)).toContain("query");
+    for (const key of FRAMEWORK_KEYS) {
+      expect(Object.keys(def.configSchema.properties)).toContain(key);
+      expect(def.defaults[key]).toBeDefined();
+    }
+    // Lifecycle ports default OFF.
+    expect(def.defaults.errorPort.value).toBe(false);
+  });
+
+  it("does NOT inject the framework port fields into a config node (no ports)", async () => {
+    // A config node has no `outputs` getter, so it must be left untouched.
+    writeBundle([
+      {
+        type: "cfg-node",
+        category: "config",
+        configSchema: {
+          $id: "cfg-node:config",
+          properties: { host: { default: "" } },
+        },
+        // no `inputs`/`outputs`
+      },
+    ]);
+
+    await extractNodeDefinitions(outDir);
+    const written = JSON.parse(fs.readFileSync(nodeDefsPath(outDir), "utf-8"));
+    const def = written.definitions["cfg-node"];
+
+    expect(Object.keys(def.configSchema.properties)).toEqual(["host"]);
+    for (const key of ["errorPort", "completePort", "statusPort"]) {
+      expect(def.configSchema.properties[key]).toBeUndefined();
+    }
+  });
 });

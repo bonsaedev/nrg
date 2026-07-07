@@ -13,14 +13,6 @@ export const NRG_SETUP_CLOSE_HANDLER = Symbol.for("nrg.setupCloseHandler");
 export const NRG_SETUP_INPUT_HANDLER = Symbol.for("nrg.setupInputHandler");
 
 /**
- * Shape of a node that wires an `input` handler (IONode). A plain `Node`/`ConfigNode`
- * has none, so the registrar and test harness optional-dispatch it via this type.
- */
-export interface InputWireable {
-  [NRG_SETUP_INPUT_HANDLER]?(createdPromise: Promise<void>): void;
-}
-
-/**
  * Runtime NRG-node brand: stamped on the base `Node` class (`static [NRG_NODE] =
  * true`) and checked by `defineModule` at runtime. `Symbol.for()` — NOT a `unique
  * symbol` — so the guard reads it across the toolkit/runtime/test bundle split via

@@ -209,8 +209,10 @@ interface NodeCredentials {
 }
 
 interface NodeFeatures {
-  hasInputSchema: boolean;
-  hasOutputSchema: boolean;
+  /** Whether the node has an input port (from its types). Gates the Input
+   * subsection — data validation is a framework control that always renders
+   * inside it, so there is no separate "has input schema" flag. */
+  hasInput: boolean;
   /**
    * Base output ports (excludes built-in error/complete/status), in port-index
    * order. Drives the per-port context-mode rows in the Outputs subsection.

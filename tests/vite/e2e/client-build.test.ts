@@ -134,13 +134,13 @@ describe("client build", () => {
 
   it("should inline node inputs and outputs", () => {
     expect(bundleContent).toContain("inputs:1");
-    expect(bundleContent).toContain("outputs:1");
+    expect(bundleContent).toContain("outputs:2");
   });
 
   it("should inline server-resolved named output port names", () => {
-    // router-node has a named-ports outputsSchema { success, failure }; the
-    // inliner reads the class's outputPortNames getter (Kind symbol intact) so
-    // the editor labels the ports without guessing from the serialized schema
+    // router-node's Output generic declares two named Port keys { success,
+    // failure }; the build extracts them into outputPortNames so the editor
+    // labels the ports without guessing from a serialized schema
     expect(bundleContent).toContain("outputPortNames");
     expect(bundleContent).toContain("success");
     expect(bundleContent).toContain("failure");

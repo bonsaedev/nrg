@@ -1,70 +1,43 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
-import { defineIONode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import PlainNode from "../fixtures/return-property-test/assign-plain";
+import OverridableNode from "../fixtures/return-property-test/assign-overridable";
+import ArrayResultNode from "../fixtures/return-property-test/assign-array-result";
+import ModeNode from "../fixtures/return-property-test/assign-mode";
+import ValidatedArray from "../fixtures/return-property-test/assign-validated-array";
+import CustomDefault from "../fixtures/return-property-test/assign-custom-default";
+import MultiReturn from "../fixtures/return-property-test/assign-multi-return";
+import MultiNode from "../fixtures/return-property-test/assign-multi";
+import NamedNode from "../fixtures/return-property-test/assign-named";
+import BuiltinNode from "../fixtures/return-property-test/assign-builtin";
+import ValidatedNode from "../fixtures/return-property-test/assign-validated";
+import LateNode, {
+  releaseLateGate,
+} from "../fixtures/return-property-test/assign-late";
+import PpValidateNode from "../fixtures/return-property-test/assign-pp-validate";
+import MultiModeNode from "../fixtures/return-property-test/ctx-multi";
+import NamedModeNode from "../fixtures/return-property-test/ctx-named";
 
-// Every node has a return key ("output" by default) whether or not it
-// declares outputReturnProperties — declaring it only lets the flow author set
-// a custom key per output port in the editor.
-const PlainNode = defineIONode({
-  type: "assign-plain",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "assign-plain:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input(msg) {
-    this.send({ doubled: (msg as Record<string, number>).value * 2 });
-  },
+// The fixture nodes are TYPES-ONLY (no inputSchema/outputsSchema); their port
+// topology lives only in their generics. Un-built source carries no `__nrgPorts`
+// static, so without the harness's build-equivalent injection they would report 0
+// ports and the return-property/context-mode routing would collapse. Point the
+// extractor at the fixture tree so createNode stamps the real topology.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../fixtures/return-property-test", import.meta.url),
+);
+
+let prevSrc: string | undefined;
+
+beforeAll(() => {
+  prevSrc = process.env.NRG_SERVER_SRC;
+  process.env.NRG_SERVER_SRC = FIXTURE_DIR;
 });
 
-const OverridableNode = defineIONode({
-  type: "assign-overridable",
-  configSchema: defineSchema(
-    {
-      name: SchemaType.String({ default: "" }),
-      outputReturnProperties: SchemaType.OutputReturnProperties(),
-    },
-    { $id: "assign-overridable:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input(msg) {
-    this.send({ doubled: (msg as Record<string, number>).value * 2 });
-  },
-});
-
-const ArrayResultNode = defineIONode({
-  type: "assign-array-result",
-  configSchema: defineSchema(
-    { name: SchemaType.String({ default: "" }) },
-    { $id: "assign-array-result:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Any(),
-  async input(msg) {
-    const size = (msg as Record<string, unknown>).size as number;
-    this.send(Array.from({ length: size }, (_, i) => ({ id: i })));
-  },
-});
-
-// Sends a fixed result; the context mode is resolved per port from the
-// flow-author config (`outputContextModes`), falling back to "carry".
-const ModeNode = defineIONode({
-  type: "assign-mode",
-  configSchema: defineSchema(
-    {
-      name: SchemaType.String({ default: "" }),
-      outputContextModes: SchemaType.OutputContextModes(),
-    },
-    { $id: "assign-mode:config" },
-  ),
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Any(),
-  async input() {
-    this.send("R");
-  },
+afterAll(() => {
+  if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+  else process.env.NRG_SERVER_SRC = prevSrc;
 });
 
 describe("returnProperty / output convention", () => {
@@ -124,22 +97,15 @@ describe("returnProperty / output convention", () => {
     });
   });
 
-  it("treats arrays as the value when validateOutput is enabled", async () => {
-    const ValidatedArray = defineIONode({
-      type: "assign-validated-array",
-      configSchema: defineSchema(
-        { name: SchemaType.String({ default: "" }) },
-        { $id: "assign-validated-array:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Any(),
-      validateOutput: true,
-      async input(msg) {
-        const size = (msg as Record<string, unknown>).size as number;
-        this.send(Array.from({ length: size }, (_, i) => ({ id: i })));
+  it("treats arrays as the value when output validation is enabled", async () => {
+    // Output validation is a framework control: turn on the per-port flag and
+    // supply the port's JSON schema via config (no static outputsSchema exists).
+    const { node } = await createNode(ValidatedArray, {
+      config: {
+        validateOutputs: { 0: true },
+        outputSchemas: { 0: JSON.stringify({ type: "array" }) },
       },
     });
-    const { node } = await createNode(ValidatedArray);
     await node.receive({ size: 1 });
 
     expect(node.sent(0)[0]).toEqual({
@@ -162,24 +128,6 @@ describe("returnProperty / output convention", () => {
   });
 
   it("supports a node-defined default return property per port", async () => {
-    const CustomDefault = defineIONode({
-      type: "assign-custom-default",
-      configSchema: defineSchema(
-        {
-          name: SchemaType.String({ default: "" }),
-          outputReturnProperties: SchemaType.OutputReturnProperties({
-            default: { 0: "data" },
-          }),
-        },
-        { $id: "assign-custom-default:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
-      async input() {
-        this.send("ok");
-      },
-    });
-
     const { node } = await createNode(CustomDefault);
     await node.receive({ a: 1 });
 
@@ -199,22 +147,6 @@ describe("returnProperty / output convention", () => {
   });
 
   it("resolves a custom return property per port on a multi-output node", async () => {
-    const MultiReturn = defineIONode({
-      type: "assign-multi-return",
-      configSchema: defineSchema(
-        {
-          name: SchemaType.String({ default: "" }),
-          outputReturnProperties: SchemaType.OutputReturnProperties(),
-        },
-        { $id: "assign-multi-return:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: [SchemaType.Any(), SchemaType.Any()],
-      async input() {
-        this.send(["A", "B"] as never);
-      },
-    });
-
     const { node } = await createNode(MultiReturn, {
       // port 0 -> "ok", port 1 unset -> "output"
       config: { outputReturnProperties: { 0: "ok" } },
@@ -226,19 +158,6 @@ describe("returnProperty / output convention", () => {
   });
 
   it("wraps each slot of a multi-port send without sharing the top-level object", async () => {
-    const MultiNode = defineIONode({
-      type: "assign-multi",
-      configSchema: defineSchema(
-        { name: SchemaType.String({ default: "" }) },
-        { $id: "assign-multi:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: [SchemaType.Object({}), SchemaType.Object({})],
-      async input() {
-        this.send(["first", null, "ignored-extra"] as never);
-      },
-    });
-
     const { node } = await createNode(MultiNode);
     await node.receive({ keep: 1 });
 
@@ -255,22 +174,6 @@ describe("returnProperty / output convention", () => {
   });
 
   it("wraps named-port sends", async () => {
-    const NamedNode = defineIONode({
-      type: "assign-named",
-      configSchema: defineSchema(
-        { name: SchemaType.String({ default: "" }) },
-        { $id: "assign-named:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: {
-        success: SchemaType.Object({}),
-        failure: SchemaType.Object({}),
-      },
-      async input() {
-        this.sendToPort("success", { ok: true });
-      },
-    });
-
     const { node } = await createNode(NamedNode);
     await node.receive({ traceId: "x" });
 
@@ -339,26 +242,6 @@ describe("returnProperty / output convention", () => {
   });
 
   it("built-in complete/error ports carry input but not the return key", async () => {
-    const BuiltinNode = defineIONode({
-      type: "assign-builtin",
-      configSchema: defineSchema(
-        {
-          name: SchemaType.String({ default: "" }),
-          errorPort: SchemaType.Boolean({ default: false }),
-          completePort: SchemaType.Boolean({ default: false }),
-        },
-        { $id: "assign-builtin:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
-      async input(msg) {
-        if ((msg as Record<string, unknown>).boom) {
-          throw new Error("kaboom");
-        }
-        this.send("fine");
-      },
-    });
-
     const { node } = await createNode(BuiltinNode, {
       config: { errorPort: true, completePort: true },
     });
@@ -381,26 +264,22 @@ describe("returnProperty / output convention", () => {
   });
 
   it("validates the RAW sent value, not the wrapped message", async () => {
-    const ValidatedNode = defineIONode({
-      type: "assign-validated",
-      configSchema: defineSchema(
-        { name: SchemaType.String({ default: "" }) },
-        { $id: "assign-validated:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object(
-        { doubled: SchemaType.Number() },
-        { $id: "assign-validated:output" },
-      ),
-      validateOutput: true,
-      async input(msg) {
-        this.send({ doubled: (msg as { value: number }).value * 2 });
+    // Enable per-port output validation via config and supply the port schema:
+    // the RAW sent value `{ doubled }` is validated, not the wrapped message
+    // (whose extra top-level props the schema doesn't know).
+    const { node } = await createNode(ValidatedNode, {
+      config: {
+        validateOutputs: { 0: true },
+        outputSchemas: {
+          0: JSON.stringify({
+            type: "object",
+            properties: { doubled: { type: "number" } },
+            required: ["doubled"],
+            additionalProperties: false,
+          }),
+        },
       },
     });
-
-    const { node } = await createNode(ValidatedNode);
-    // raw value { doubled: number } passes the schema even though the
-    // wrapped message has extra top-level props the schema doesn't know
     await node.receive({ value: 4, extra: "kept" });
     expect(node.sent(0)[0]).toEqual({
       value: 4,
@@ -410,29 +289,11 @@ describe("returnProperty / output convention", () => {
   });
 
   it("a detached async send carries its scheduling input's context", async () => {
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-
-    const LateNode = defineIONode({
-      type: "assign-late",
-      configSchema: defineSchema(
-        { name: SchemaType.String({ default: "" }) },
-        { $id: "assign-late:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object({}),
-      async input(msg) {
-        if ((msg as Record<string, unknown>).fire) {
-          void gate.then(() => this.send("late"));
-        }
-      },
-    });
-
     const { node } = await createNode(LateNode);
     // seq:1 schedules the deferred send; seq:2 arrives before the gate fires.
     await node.receive({ fire: true, seq: 1 });
     await node.receive({ seq: 2 });
-    release();
+    releaseLateGate();
     await new Promise((resolve) => setImmediate(resolve));
 
     // The deferred send belongs to the input that scheduled it (seq:1) — its
@@ -455,74 +316,32 @@ describe("returnProperty / output convention", () => {
   });
 
   it("validates a port only when its validate flag is on", async () => {
-    const Node = defineIONode({
-      type: "assign-pp-validate",
-      configSchema: defineSchema(
-        { name: SchemaType.String({ default: "" }) },
-        { $id: "assign-pp-validate:config" },
-      ),
-      inputSchema: SchemaType.Object({}),
-      outputsSchema: SchemaType.Object(
-        { n: SchemaType.Number() },
-        { $id: "assign-pp-validate:out" },
-      ),
-      async input(msg) {
-        this.send({ n: (msg as Record<string, unknown>).n } as never);
-      },
-    });
-
     // no per-port flag -> a bad value passes through unvalidated
-    const a = await createNode(Node);
+    const a = await createNode(PpValidateNode);
     await a.node.receive({ n: "bad" });
     expect(a.node.sent(0)[0]).toEqual({ n: "bad", output: { n: "bad" } });
 
-    // validateOutputs[0] = true -> the bad value is rejected
-    const b = await createNode(Node, {
-      config: { validateOutputs: { 0: true } },
+    // validateOutputs[0] = true (+ a port schema) -> the bad value is rejected
+    const b = await createNode(PpValidateNode, {
+      config: {
+        validateOutputs: { 0: true },
+        outputSchemas: {
+          0: JSON.stringify({
+            type: "object",
+            properties: { n: { type: "number" } },
+            required: ["n"],
+          }),
+        },
+      },
     });
     await expect(b.node.receive({ n: "bad" })).rejects.toThrow();
   });
 });
 
-// The flow author's per-port `outputContextModes` config (written by the editor
-// when the node declares OutputContextModes) selects each port's mode.
-// Resolution falls back to "carry" for any port the config does not set.
+// The flow author's per-port `outputContextModes` config (a framework control on
+// every IONode) selects each port's mode. Resolution falls back to "carry" for
+// any port the config does not set.
 describe("context-mode per-port resolution", () => {
-  // Multi-output node: one value per port, so each port's resolved mode can be
-  // asserted independently.
-  const MultiModeNode = defineIONode({
-    type: "ctx-multi",
-    configSchema: defineSchema(
-      {
-        name: SchemaType.String({ default: "" }),
-        outputContextModes: SchemaType.OutputContextModes(),
-      },
-      { $id: "ctx-multi:config" },
-    ),
-    inputSchema: SchemaType.Object({}),
-    outputsSchema: [SchemaType.Any(), SchemaType.Any()],
-    async input() {
-      this.send(["A", "B"] as never);
-    },
-  });
-
-  // Named-output node: sends to "failure" (index 1).
-  const NamedModeNode = defineIONode({
-    type: "ctx-named",
-    configSchema: defineSchema(
-      {
-        name: SchemaType.String({ default: "" }),
-        outputContextModes: SchemaType.OutputContextModes(),
-      },
-      { $id: "ctx-named:config" },
-    ),
-    inputSchema: SchemaType.Object({}),
-    outputsSchema: { success: SchemaType.Any(), failure: SchemaType.Any() },
-    async input() {
-      this.sendToPort("failure", { ok: false });
-    },
-  });
-
   it("uses the configured mode for a port", async () => {
     const { node } = await createNode(ModeNode, {
       config: { outputContextModes: { 0: "trace" } },

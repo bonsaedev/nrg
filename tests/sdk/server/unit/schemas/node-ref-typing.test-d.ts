@@ -1,51 +1,27 @@
-import { defineIONode, ConfigNode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import { describe, it, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
+import { SchemaType } from "@/sdk/lib/shared/schemas";
+import { createNode } from "@/sdk/test/server/unit";
 import type { Infer as ServerInfer } from "@/sdk/lib/server/schemas/types";
 import type { Infer as ClientInfer } from "@/sdk/lib/client/types";
+import NodeRefProbe, {
+  BrokerConfig,
+  ConfigSchema,
+} from "../fixtures/node-ref-typing-test/node-ref-probe";
 
-// These nodes + functions are never executed. They exist so `tsc` (run via
+// These proofs are never executed — they exist so `tsc` (run via
 // `pnpm validate:tsc`) proves the unified `SchemaType.NodeRef<T>("type")` form
 // keeps server IntelliSense (the field resolves to the referenced node
 // *instance*) while the client resolves the same field to the node-id `string`.
-// The runtime arg is just the `type` string — no server class value is imported.
-
-// A config node (must extend ConfigNode — NodeRef<T> now constrains T to a
-// config node) with distinguishing instance members the probe reaches for.
-class BrokerConfig extends ConfigNode {
-  static override readonly type = "broker-config";
-  readonly isBroker = true as const;
-  connect(): void {}
-}
-
-const ConfigSchema = defineSchema(
-  {
-    // instance-type generic — the canonical (and only) authoring form: a class
-    // name in type position is its instance type.
-    broker: SchemaType.NodeRef<BrokerConfig>("broker-config"),
-    // no generic — untyped reference (ConfigNodeBrand), still a valid node ref
-    anyRef: SchemaType.NodeRef("broker-config"),
-    name: SchemaType.String(),
-  },
-  { $id: "node-ref-probe:configs" },
+// The runtime arg to `NodeRef` is just the `type` string.
+//
+// The server-plane `this.config.broker` → instance proof lives INSIDE the fixture
+// node's `input()`; the node is TYPES-ONLY (its topology comes from the generics,
+// not a schema). Point the topology extractor at the fixture tree so `createNode`
+// behaves exactly as the build does — mirroring the sibling port-topology proofs.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("../fixtures/node-ref-typing-test", import.meta.url),
 );
-
-// --- server plane: `this.config.<ref>` is the node INSTANCE -----------------
-const Probe = defineIONode({
-  type: "node-ref-probe",
-  configSchema: ConfigSchema,
-  inputSchema: SchemaType.Object({}),
-  outputsSchema: SchemaType.Object({}),
-  async input() {
-    // Instance members are visible — this is the IntelliSense we must keep.
-    this.config.broker.connect();
-    const flag: true = this.config.broker.isBroker;
-    void flag;
-    // @ts-expect-error the server ref is the instance, not a node-id string
-    const bad: string = this.config.broker;
-    void bad;
-  },
-});
-void Probe;
 
 // --- server plane via `Infer` ----------------------------------------------
 type ServerConfig = ServerInfer<typeof ConfigSchema>;
@@ -83,3 +59,25 @@ function constraintProof() {
   SchemaType.NodeRef<{ host: string }>("broker-config");
 }
 void constraintProof;
+
+describe("NodeRef server/client plane typing (types-first node)", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
+  // The server-plane `this.config.<ref>` → instance proof lives inside the
+  // fixture's `input()`; instantiating it here mirrors the sibling topology
+  // tests (the deep proof is verified by `tsc` compiling the fixture).
+  it("keeps `this.config.<ref>` typed as the config-node instance", async () => {
+    const { node } = await createNode(NodeRefProbe);
+    void node;
+  });
+});

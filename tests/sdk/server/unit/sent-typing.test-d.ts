@@ -1,176 +1,119 @@
+import { describe, it, beforeAll, afterAll } from "vitest";
+import { fileURLToPath } from "url";
 import { createNode } from "@/sdk/test/server/unit";
-import { defineIONode } from "@/sdk/lib/server/nodes";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import TdSingle from "./fixtures/sent-typing-test/td-single";
+import TdTuple from "./fixtures/sent-typing-test/td-tuple";
+import TdRecord from "./fixtures/sent-typing-test/td-record";
+import TdPrimitivePorts from "./fixtures/sent-typing-test/td-primitive-ports";
+import TdSingleObjOfObj from "./fixtures/sent-typing-test/td-single-obj-of-obj";
+import TdAnyOutput from "./fixtures/sent-typing-test/td-any-output";
 
-// These nodes + functions are never executed. They exist so `tsc` (run via
-// `pnpm validate:tsc`) verifies that `node.sent()` is typed positionally from
-// the node's declared output — with no casts and no `any` in the assertions.
+// These proofs are never executed — they exist so `tsc` (run via `pnpm
+// validate:tsc`) verifies that `node.sent()` is typed positionally from the
+// node's declared Input/Output generics, with no casts and no `any` in the
+// assertions.
+//
+// Each fixture node is TYPES-ONLY: its ports come purely from its generics
+// (there is no inputSchema/outputsSchema fallback anymore). In un-built source
+// there is no `__nrgPorts` static, so point the topology extractor at the fixture
+// tree — exactly as the build does — so `createNode` stamps the real topology.
+const FIXTURE_DIR = fileURLToPath(
+  new URL("./fixtures/sent-typing-test", import.meta.url),
+);
 
-// --- single output ---------------------------------------------------------
-const SingleNode = defineIONode({
-  type: "td-single",
-  inputSchema: defineSchema(
-    { in: SchemaType.String() },
-    { $id: "sent-typing.test-d:1" },
-  ),
-  outputsSchema: defineSchema(
-    { id: SchemaType.String() },
-    { $id: "sent-typing.test-d:2" },
-  ),
-  async input() {
-    this.send({ id: "x" });
-  },
+describe("sent() positional typing (from the node's Input/Output generics)", () => {
+  let prevSrc: string | undefined;
+
+  beforeAll(() => {
+    prevSrc = process.env.NRG_SERVER_SRC;
+    process.env.NRG_SERVER_SRC = FIXTURE_DIR;
+  });
+
+  afterAll(() => {
+    if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
+    else process.env.NRG_SERVER_SRC = prevSrc;
+  });
+
+  // --- single output -------------------------------------------------------
+  it("types a single output positionally at sent()[i][0]", async () => {
+    const { node } = await createNode(TdSingle);
+    // sent()[emission][port].output is the declared output value
+    const id: string = node.sent()[0][0].output.id;
+    void id;
+    // @ts-expect-error output.id is a string, not a number
+    const bad: number = node.sent()[0][0].output.id;
+    void bad;
+  });
+
+  // --- tuple (positional) multi-output -------------------------------------
+  it("types a tuple output positionally at sent()[i][0] / [i][1]", async () => {
+    const { node } = await createNode(TdTuple);
+    const a: string = node.sent()[0][0].output.a;
+    const b: number = node.sent()[0][1].output.b;
+    void a;
+    void b;
+    // @ts-expect-error port 1 holds { b: number }, it has no `a`
+    const bad: string = node.sent()[0][1].output.a;
+    void bad;
+  });
+
+  // --- named-port (record) multi-output ------------------------------------
+  it("types named ports precisely via sent(name)", async () => {
+    const { node } = await createNode(TdRecord);
+    // named access is precise (record key order is not type-recoverable, so this
+    // is the precise per-port accessor)
+    const ok: string = node.sent("success")[0].output.ok;
+    const err: number = node.sent("failure")[0].output.err;
+    void ok;
+    void err;
+    // Anti-`any` guard: if the record-port output ever widens to `any` (the
+    // failure mode of a brand/resolver regression) the positive assertions above
+    // still compile, so pin a type mismatch that only breaks when it's precise.
+    // @ts-expect-error output.ok is a string, not a number
+    const badOk: number = node.sent("success")[0].output.ok;
+    void badOk;
+    // @ts-expect-error "missing" is not a declared port
+    node.sent("missing");
+    // @ts-expect-error named-port nodes emit via sendToPort; send(map) is unsound
+    node.send({ success: { ok: "y" }, failure: { err: 1 } });
+  });
+
+  // --- M1(a): a record with PRIMITIVE-valued ports stays fully addressable --
+  // (the old structural gate `Record<string, Record<string, any>>` let one
+  // primitive port de-type the whole record → names became unaddressable).
+  it("keeps primitive-valued named ports addressable", async () => {
+    const { node } = await createNode(TdPrimitivePorts);
+    const ok: string = node.sent("success")[0].output;
+    const err: number = node.sent("failure")[0].output;
+    void ok;
+    void err;
+    // @ts-expect-error "success" carries a string message, not a number
+    node.sendToPort("success", 1);
+    // @ts-expect-error "missing" is not a declared port
+    node.sendToPort("missing", "x");
+  });
+
+  // --- M1(b): a single object-of-objects output must NOT expose its fields as
+  //     ports (the old gate matched it as a record → fake, silently-dropped ports).
+  it("treats a single object-of-objects output as ONE port", async () => {
+    const { node } = await createNode(TdSingleObjOfObj);
+    // it is ONE output port (port 0), addressed by send()/index — not by field.
+    const v: number = node.sent()[0][0].output.meta.v;
+    void v;
+    // @ts-expect-error "meta" is a field of the single output, not an output port
+    node.sendToPort("meta", { v: 1 });
+  });
+
+  // --- M1(d): an untyped output (Output = any) stays permissive: any port
+  //     name/index and any message.
+  it("stays permissive for an untyped (any) output", async () => {
+    const { node } = await createNode(TdAnyOutput);
+    // The read side stays permissive too: sent(name) and sent(index) are both
+    // allowed (each message is `any`), mirroring sendToPort — `sent` uses the same
+    // `OutputPortNames` as the runtime, so there's no stricter test-only variant.
+    const byName = node.sent("whatever")[0]?.output;
+    const byIndex = node.sent(3)[0]?.output;
+    void byName;
+    void byIndex;
+  });
 });
-
-async function singleProof() {
-  const { node } = await createNode(SingleNode);
-  // sent()[emission][port].output is the declared output value
-  const id: string = node.sent()[0][0].output.id;
-  void id;
-  // @ts-expect-error output.id is a string, not a number
-  const bad: number = node.sent()[0][0].output.id;
-  void bad;
-}
-void singleProof;
-
-// --- tuple (positional) multi-output ---------------------------------------
-const TupleNode = defineIONode({
-  type: "td-tuple",
-  // no `as const` — the `const` type parameter on defineIONode makes this
-  // inline array infer as a tuple, so positional output typing stays precise.
-  outputsSchema: [
-    defineSchema({ a: SchemaType.String() }, { $id: "sent-typing.test-d:3" }),
-    defineSchema({ b: SchemaType.Number() }, { $id: "sent-typing.test-d:4" }),
-  ],
-  async input() {
-    this.send([{ a: "x" }, { b: 1 }]);
-  },
-});
-
-async function tupleProof() {
-  const { node } = await createNode(TupleNode);
-  const a: string = node.sent()[0][0].output.a;
-  const b: number = node.sent()[0][1].output.b;
-  void a;
-  void b;
-  // @ts-expect-error port 1 holds { b: number }, it has no `a`
-  const bad: string = node.sent()[0][1].output.a;
-  void bad;
-}
-void tupleProof;
-
-// --- named-port (record) multi-output --------------------------------------
-const RecordNode = defineIONode({
-  type: "td-record",
-  outputsSchema: {
-    success: defineSchema(
-      { ok: SchemaType.String() },
-      { $id: "sent-typing.test-d:5" },
-    ),
-    failure: defineSchema(
-      { err: SchemaType.Number() },
-      { $id: "sent-typing.test-d:6" },
-    ),
-  },
-  async input() {
-    this.sendToPort("success", { ok: "y" });
-  },
-});
-
-async function recordProof() {
-  const { node } = await createNode(RecordNode);
-  // named access is precise (record key order is not type-recoverable, so this
-  // is the precise per-port accessor)
-  const ok: string = node.sent("success")[0].output.ok;
-  const err: number = node.sent("failure")[0].output.err;
-  void ok;
-  void err;
-  // Anti-`any` guard: if the record-port output ever widens to `any` (the
-  // failure mode of a brand/resolver regression) the positive assertions above
-  // still compile, so pin a type mismatch that only breaks when it's precise.
-  // @ts-expect-error output.ok is a string, not a number
-  const badOk: number = node.sent("success")[0].output.ok;
-  void badOk;
-  // @ts-expect-error "missing" is not a declared port
-  node.sent("missing");
-  // @ts-expect-error named-port nodes emit via sendToPort; send(map) is unsound
-  node.send({ success: { ok: "y" }, failure: { err: 1 } });
-}
-void recordProof;
-
-// --- M1(a): a record with PRIMITIVE-valued ports stays fully addressable -----
-// (the old structural gate `Record<string, Record<string, any>>` let one
-// primitive port de-type the whole record → names became unaddressable).
-const PrimitivePortsNode = defineIONode({
-  type: "td-primitive-ports",
-  outputsSchema: {
-    success: SchemaType.String(),
-    failure: SchemaType.Number(),
-  },
-  async input() {
-    this.sendToPort("success", "ok");
-    this.sendToPort("failure", 1);
-  },
-});
-
-async function primitivePortsProof() {
-  const { node } = await createNode(PrimitivePortsNode);
-  const ok: string = node.sent("success")[0].output;
-  const err: number = node.sent("failure")[0].output;
-  void ok;
-  void err;
-  // @ts-expect-error "success" carries a string message, not a number
-  node.sendToPort("success", 1);
-  // @ts-expect-error "missing" is not a declared port
-  node.sendToPort("missing", "x");
-}
-void primitivePortsProof;
-
-// --- M1(b): a single object-of-objects output must NOT expose its fields as
-//     ports (the old gate matched it as a record → fake, silently-dropped ports).
-const SingleObjectOfObjects = defineIONode({
-  type: "td-single-obj-of-obj",
-  outputsSchema: defineSchema(
-    {
-      meta: SchemaType.Object({ v: SchemaType.Number() }),
-      data: SchemaType.Object({ n: SchemaType.String() }),
-    },
-    { $id: "sent-typing.test-d:7" },
-  ),
-  async input() {
-    this.send({ meta: { v: 1 }, data: { n: "x" } });
-  },
-});
-
-async function singleObjectProof() {
-  const { node } = await createNode(SingleObjectOfObjects);
-  // it is ONE output port (port 0), addressed by send()/index — not by field.
-  const v: number = node.sent()[0][0].output.meta.v;
-  void v;
-  // @ts-expect-error "meta" is a field of the single output, not an output port
-  node.sendToPort("meta", { v: 1 });
-}
-void singleObjectProof;
-
-// --- M1(d): an untyped output (no outputsSchema → TOutput = any) stays
-//     permissive: any port name/index and any message.
-const AnyOutputNode = defineIONode({
-  type: "td-any-output",
-  async input() {
-    this.sendToPort("whatever", { anything: true });
-    this.sendToPort(3, 123);
-    this.send({ free: "form" });
-  },
-});
-
-async function anyOutputProof() {
-  const { node } = await createNode(AnyOutputNode);
-  // The read side stays permissive too: sent(name) and sent(index) are both
-  // allowed (each message is `any`), mirroring sendToPort — `sent` uses the same
-  // `OutputPortNames` as the runtime, so there's no stricter test-only variant.
-  const byName = node.sent("whatever")[0]?.output;
-  const byIndex = node.sent(3)[0]?.output;
-  void byName;
-  void byIndex;
-}
-void anyOutputProof;
