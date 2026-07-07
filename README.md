@@ -65,7 +65,7 @@ export default defineConfig({
 });
 ```
 
-**src/shared/schemas/my-node.ts**
+**src/shared/schemas/http-request.ts**
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -73,57 +73,63 @@ import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 export const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "" }),
-    prefix: SchemaType.String({ default: "hello" }),
+    baseUrl: SchemaType.String(),
   },
-  { $id: "my-node:configs" },
+  { $id: "http-request:configs" },
 );
 
-export const InputSchema = defineSchema(
-  { payload: SchemaType.String() },
-  { $id: "my-node:input" },
-);
-
-export const OutputSchema = defineSchema(
-  { text: SchemaType.String() },
-  { $id: "my-node:output" },
+// The input message shape — the input port is typed from this same schema.
+export const RequestSchema = defineSchema(
+  { path: SchemaType.String() },
+  { $id: "http-request:request" },
 );
 ```
 
-**src/server/nodes/my-node.ts**
+**src/server/nodes/http-request.ts**
 
 Define a node by extending `IONode`. Port topology comes from the `Input`/`Output` type generics; the config schema drives the editor form and validation:
 
 ```typescript
-import { IONode, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer, type Port } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
-import { ConfigsSchema } from "@/schemas/my-node";
+import { Readable } from "node:stream";
+import { ConfigsSchema, RequestSchema } from "@/schemas/http-request";
 
 type Config = Infer<typeof ConfigsSchema>;
-type Input = { payload: string };
-type Output = { text: string };
+type Input = Infer<typeof RequestSchema>; // ← input type inferred from a schema
 
-export default class MyNode extends IONode<Config, never, Input, Output> {
-  static readonly type = "my-node";
-  static readonly category = "function";
-  static readonly color: `#${string}` = "#ffffff";
+// Two NAMED output ports. `body` carries a live Readable — a non-data value, so
+// it needs only a type, never a schema; the wire moves the stream itself.
+type Output = {
+  body: Port<Readable>; // ← named port, non-data, no schema
+  failed: Port<{ status: number; message: string }>;
+};
+
+export default class HttpRequest extends IONode<Config, never, Input, Output> {
+  static readonly type = "http-request";
   static readonly configSchema: Schema = ConfigsSchema;
 
   override async input(msg: Input) {
-    this.send({ text: `${this.config.prefix}: ${msg.payload}` });
+    const res = await fetch(`${this.config.baseUrl}${msg.path}`);
+    if (!res.ok) {
+      this.sendToPort("failed", { status: res.status, message: res.statusText });
+      return;
+    }
+    this.sendToPort("body", Readable.fromWeb(res.body!)); // the stream, not its bytes
   }
 }
 ```
 
-> The `@/schemas` alias resolves to `src/shared/schemas`, so nodes can import their schemas with `@/schemas/my-node` instead of a relative path. It's shipped in NRG's base tsconfig, build, and test configs — no setup required.
+> The `@/schemas` alias resolves to `src/shared/schemas`, so nodes can import their schemas with `@/schemas/http-request` instead of a relative path. It's shipped in NRG's base tsconfig, build, and test configs — no setup required.
 
 **src/server/index.ts**
 
 ```typescript
 import { defineModule } from "@bonsae/nrg/server";
-import MyNode from "./nodes/my-node";
+import HttpRequest from "./nodes/http-request";
 
 export default defineModule({
-  nodes: [MyNode],
+  nodes: [HttpRequest],
 });
 ```
 
