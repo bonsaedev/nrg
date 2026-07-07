@@ -1,6 +1,4 @@
-import type { Schema } from "../../../shared/schemas";
 import type { BUILTIN_PORT_KEYS } from "../../../shared/constants";
-import type { RED } from "../../red";
 import type { IONode } from "../io-node";
 import type {
   INode,
@@ -38,11 +36,11 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> & {
     outputReturnProperties?: Record<number, string>;
     /** Per-port context modes, keyed by base-output port index. */
     outputContextModes?: Record<number, "carry" | "trace" | "reset">;
-    /** Flow-author input data-validation schema override (JSON Schema string);
-     * overwrites the node's static `inputSchema` at validation time. */
+    /** Flow-author input data-validation schema (JSON Schema string), applied
+     * when `validateInput` is on. */
     inputSchema?: string;
-    /** Flow-author per-port output data-validation schema overrides (JSON Schema
-     * strings), keyed by base-output port index; overwrite the static schema. */
+    /** Flow-author per-port output data-validation schemas (JSON Schema
+     * strings), keyed by base-output port index. */
     outputSchemas?: Record<number, string>;
   };
 
@@ -70,14 +68,6 @@ type IONodeContext = {
  * The real gate is the `/^#[0-9A-Fa-f]{6}$/` check in `Node.register`.
  */
 type HexColor = `#${string}`;
-
-type BoundIONode<
-  TConfig = any,
-  TCredentials = any,
-  TInput = any,
-  TOutput = any,
-  TSettings = any,
-> = IONode<TConfig, TCredentials, TInput, TOutput, TSettings>;
 
 /** Public instance interface for IO nodes. Implemented by {@link IONode}. */
 interface IIONode<
@@ -110,50 +100,12 @@ interface IIONode<
   ): void;
 }
 
-interface IONodeDefinition<
-  TConfig = any,
-  TCredentials = any,
-  TInput = any,
-  TOutput = any,
-  TSettings = any,
-> {
-  type: string;
-  category?: string;
-  color?: HexColor;
-  align?: "left" | "right";
-
-  // Runtime schemas: config drives the editor form + config validation;
-  // credentials/settings likewise. Port topology and `msg`/`send` typing come
-  // from the TInput/TOutput generics, NOT from these — input/output data
-  // validation is declared in the config schema (`inputSchema`/`outputSchemas`).
-  configSchema?: Schema;
-  credentialsSchema?: Schema;
-  settingsSchema?: Schema;
-
-  registered?(RED: RED): void | Promise<void>;
-  created?(
-    this: BoundIONode<TConfig, TCredentials, TInput, TOutput, TSettings>,
-  ): void | Promise<void>;
-  closed?(
-    this: BoundIONode<TConfig, TCredentials, TInput, TOutput, TSettings>,
-    removed?: boolean,
-  ): void | Promise<void>;
-  // A returned value (when not `undefined`) rides the complete port under
-  // `output`; `void`/no return keeps the plain completion signal.
-  input?(
-    this: BoundIONode<TConfig, TCredentials, TInput, TOutput, TSettings>,
-    msg: TInput,
-  ): unknown;
-}
-
 export type {
-  BoundIONode,
   HexColor,
   IIONode,
   IONodeConfig,
   IONodeContext,
   IONodeContextScope,
   IONodeCredentials,
-  IONodeDefinition,
   IONodeStatus,
 };

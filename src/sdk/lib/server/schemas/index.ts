@@ -6,4 +6,4 @@
 // Server-side schema-inference resolution types. (The built-in port message
 // types + `Port` markers moved to nodes/types/ports — node vocabulary, not
 // schema.)
-export type { Infer, InferOr, InferOutputs, ResolvedStatic } from "./types";
+export type { Infer, ResolvedStatic } from "./types";

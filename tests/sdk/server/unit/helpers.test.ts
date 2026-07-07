@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "url";
-import { defineIONode, defineConfigNode } from "@/sdk/lib/server";
-import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
+import { IONode } from "@/sdk/lib/server";
 import { createNode } from "@/sdk/test/server/unit";
 
 // The nodes under test are TYPES-ONLY (no inputSchema/outputsSchema); their port
@@ -19,7 +18,6 @@ import TestErrorNode from "./fixtures/helpers-test/test-error";
 import TestContextNode from "./fixtures/helpers-test/test-context";
 import TestI18nNode from "./fixtures/helpers-test/test-i18n";
 import TestSettingsNode from "./fixtures/helpers-test/test-settings";
-import FactoryIONode from "./fixtures/helpers-test/factory-io";
 
 const FIXTURE_DIR = fileURLToPath(
   new URL("./fixtures/helpers-test", import.meta.url),
@@ -35,25 +33,6 @@ beforeAll(() => {
 afterAll(() => {
   if (prevSrc === undefined) delete process.env.NRG_SERVER_SRC;
   else process.env.NRG_SERVER_SRC = prevSrc;
-});
-
-// --- Inline fixtures: no ports, no removed statics — nothing to type-extract. ---
-
-const FactoryConfigSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "factory-config" }),
-    url: SchemaType.String({ default: "https://example.com" }),
-  },
-  { $id: "test-helpers:factory-config" },
-);
-
-const FactoryConfigNode = defineConfigNode({
-  type: "factory-config",
-  configSchema: FactoryConfigSchema,
-
-  created() {
-    this.log("factory config created");
-  },
 });
 
 // --- Tests ---
@@ -389,32 +368,6 @@ describe("i18n", () => {
   });
 });
 
-describe("factory API (defineIONode / defineConfigNode)", () => {
-  it("should work with defineIONode", async () => {
-    const { node } = await createNode(FactoryIONode);
-
-    expect(node.logged("info")).toContain("factory io created");
-    await node.receive({ payload: "hello" });
-    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "> hello" }]);
-  });
-
-  it("should work with defineConfigNode", async () => {
-    const { node } = await createNode(FactoryConfigNode);
-
-    expect(node.logged("info")).toContain("factory config created");
-    expect(node.config.url).toBe("https://example.com");
-  });
-
-  it("should support config overrides with factory nodes", async () => {
-    const { node } = await createNode(FactoryIONode, {
-      config: { prefix: ">>" },
-    });
-
-    await node.receive({ payload: "test" });
-    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: ">> test" }]);
-  });
-});
-
 describe("settings", () => {
   it("should resolve settings from RED.settings", async () => {
     const { node } = await createNode(TestSettingsNode, {
@@ -435,12 +388,12 @@ describe("settings", () => {
   describe("created() failure semantics", () => {
     it("does NOT reject when created() throws; exposes it as the result error", async () => {
       const boom = new Error("created boom");
-      const Failing = defineIONode({
-        type: "created-fails",
-        async created() {
+      class Failing extends IONode {
+        static override readonly type = "created-fails";
+        override async created() {
           throw boom;
-        },
-      });
+        }
+      }
 
       // Production constructs the node regardless (it surfaces the error on the
       // first input via done); createNode mirrors that — it resolves, not rejects.
@@ -450,12 +403,12 @@ describe("settings", () => {
     });
 
     it("result error is undefined when created() succeeds", async () => {
-      const Ok = defineIONode({
-        type: "created-ok",
-        async created() {
+      class Ok extends IONode {
+        static override readonly type = "created-ok";
+        override async created() {
           /* no-op */
-        },
-      });
+        }
+      }
       const { error } = await createNode(Ok);
       expect(error).toBeUndefined();
     });

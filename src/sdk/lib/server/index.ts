@@ -1,13 +1,7 @@
 export { defineModule } from "./module";
 export type { ModuleDefinition } from "./module";
 export { registerType, registerTypes } from "./registration";
-export {
-  Node,
-  IONode,
-  ConfigNode,
-  defineIONode,
-  defineConfigNode,
-} from "./nodes";
+export { Node, IONode, ConfigNode } from "./nodes";
 export type { ContextMode } from "./nodes";
 export type { NodeConstructor, INode, IIONode, IConfigNode } from "./nodes";
 export { NrgError } from "../shared/errors";

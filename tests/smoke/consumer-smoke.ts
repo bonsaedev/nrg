@@ -279,9 +279,9 @@ function testEsmBoot(consumerDir: string): void {
   const probe = path.join(consumerDir, "__nrg_esm_smoke.mjs");
   fs.writeFileSync(
     probe,
-    `import { defineIONode } from "@bonsae/nrg/server";\n` +
+    `import { IONode } from "@bonsae/nrg/server";\n` +
       `import { startRuntime } from "@bonsae/nrg/test/server/integration";\n` +
-      `const Probe = defineIONode({ type: "nrg-smoke-probe", input(msg) { this.send?.(msg); } });\n` +
+      `class Probe extends IONode { static type = "nrg-smoke-probe"; async input(msg) { this.send?.(msg); } }\n` +
       `const rt = await startRuntime({ nodes: [Probe] });\n` +
       `await rt.stop();\n` +
       `console.log("ESM_BOOT_OK");\n`,

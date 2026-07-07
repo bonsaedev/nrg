@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defineModule, defineIONode } from "@/sdk/lib/server";
+import { defineModule, IONode } from "@/sdk/lib/server";
 
 // Two nrg-authored packages can run in one Node-RED. If they pin the SAME nrg
 // version, the runtime is hoisted to a single instance (shared classes/ALS). If
@@ -12,10 +12,13 @@ import { defineModule, defineIONode } from "@/sdk/lib/server";
 
 describe("cross-version node identity", () => {
   it("brands node classes with the GLOBAL registered symbol, not a unique one", () => {
-    const Node = defineIONode({ type: "xv-node", input() {} });
+    class XvNode extends IONode {
+      static override readonly type = "xv-node";
+      override async input() {}
+    }
     // An independent lookup — what a DIFFERENT nrg instance/version would use.
     const foreignBrand = Symbol.for("nrg.node");
-    expect((Node as unknown as Record<symbol, unknown>)[foreignBrand]).toBe(
+    expect((XvNode as unknown as Record<symbol, unknown>)[foreignBrand]).toBe(
       true,
     );
   });

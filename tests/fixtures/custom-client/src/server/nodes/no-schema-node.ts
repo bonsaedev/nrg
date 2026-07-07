@@ -1,6 +1,7 @@
-import { defineIONode } from "@bonsae/nrg/server";
+import { IONode } from "@bonsae/nrg/server";
 
-export default defineIONode({
-  type: "no-schema-node",
-  async input() {},
-});
+export default class NoSchemaNode extends IONode {
+  static override readonly type = "no-schema-node";
+
+  async input() {}
+}

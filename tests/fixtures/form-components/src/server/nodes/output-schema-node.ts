@@ -1,4 +1,5 @@
-import { defineIONode, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema } from "@/schemas/output-schema-node";
 
 type Config = Infer<typeof ConfigsSchema>;
@@ -10,10 +11,16 @@ type Config = Infer<typeof ConfigsSchema>;
 type Input = Record<string, unknown>;
 type Output = [unknown, unknown];
 
-export default defineIONode<Config, any, Input, Output>({
-  type: "output-schema-node",
-  configSchema: ConfigsSchema,
-  async input(msg) {
+export default class OutputSchemaNode extends IONode<
+  Config,
+  any,
+  Input,
+  Output
+> {
+  static override readonly type = "output-schema-node";
+  static override readonly configSchema: Schema = ConfigsSchema;
+
+  async input(msg: Input) {
     this.send([msg, null]);
-  },
-});
+  }
+}

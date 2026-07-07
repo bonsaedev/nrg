@@ -29,18 +29,16 @@ describe("portTopologyInjector", () => {
     expect(out?.code).toContain(stamp("Http"));
   });
 
-  it("stamps a `var d = defineIONode(...); export { d as default }` (functional form)", () => {
+  it("stamps a `var d = class {}; export { d as default }` (esbuild var form)", () => {
     const out = run(
-      `var stdin_default = defineIONode({ type: "http" });\nexport { stdin_default as default };`,
+      `var stdin_default = class extends Base {};\nexport { stdin_default as default };`,
     );
     expect(out?.code).toContain(stamp("stdin_default"));
   });
 
   it("captures a bare `export default <expr>` into a const, then stamps + re-exports", () => {
-    const out = run(`export default defineIONode({ type: "http" });`);
-    expect(out?.code).toContain(
-      `const __nrgDefault = defineIONode({ type: "http" })`,
-    );
+    const out = run(`export default (class extends Base {});`);
+    expect(out?.code).toContain(`const __nrgDefault = class extends Base {}`);
     expect(out?.code).toContain(stamp("__nrgDefault"));
     expect(out?.code).toContain(`export { __nrgDefault as default }`);
   });

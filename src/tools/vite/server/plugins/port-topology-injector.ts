@@ -5,18 +5,16 @@ import type { PortTopology } from "./node-type-info";
 /**
  * Stamp each node's `Input`/`Output`-generic topology onto its built class under
  * a locked `Symbol.for("nrg.ports")` static, so the runtime routes ports and the
- * editor draws them
- * from the TYPES — no `outputsSchema` required (schemas become data-validation
- * only). `io-node`'s `get outputs()`/`get inputs()`/named-port resolution prefer
- * this descriptor and fall back to the schema when it is absent, so a node whose
- * generics are untyped is left untouched (`portTopology` returns `undefined` for
- * those, and the map has no entry).
+ * editor draws them from the TYPES — schemas are data-validation only.
+ * `io-node`'s `get outputs()`/`get inputs()`/named-port resolution read this
+ * descriptor exclusively; a node whose generics are untyped is left untouched
+ * (`portTopology` returns `undefined` for those, the map has no entry, and the
+ * node is inert — there is no schema fallback).
  *
  * Runs `post`, after vite:esbuild strips TypeScript, so `this.parse` (acorn)
- * sees plain JS. With `keepNames` (the server build's esbuild setting) every
- * default-export form — `export default class X`, `export default defineIONode(…)`,
- * an anonymous class — is normalized to a local binding plus
- * `export { <local> as default }`; we append
+ * sees plain JS. With `keepNames` (the server build's esbuild setting) the
+ * default-export class — `export default class X` or an anonymous class — is
+ * normalized to a local binding plus `export { <local> as default }`; we append
  * `Object.defineProperty(<local>, Symbol.for("nrg.ports"), { value: {…}, … })`
  * after it (non-writable, so it can't be accidentally clobbered).
  * Two extra shapes are handled defensively in case a future esbuild keeps

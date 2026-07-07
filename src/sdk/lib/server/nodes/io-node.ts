@@ -104,8 +104,7 @@ export type ContextMode = "carry" | "trace" | "reset";
  * NOTE: the positional generics all default to `any`, so a transposed order
  * (e.g. swapping `TInput`/`TOutput`) is silently accepted and mis-types
  * `input()`/`send()`. Settings sits at position **5** here but position **3** on
- * {@link Node}/{@link ConfigNode}. Prefer `defineIONode`, which infers these by
- * name from your schemas and avoids ordering entirely.
+ * {@link Node}/{@link ConfigNode}.
  */
 abstract class IONode<
   TConfig = any,

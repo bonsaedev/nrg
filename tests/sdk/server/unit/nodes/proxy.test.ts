@@ -1,14 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
 import { setupConfigProxy } from "@/sdk/lib/server/nodes/proxy";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
-import { defineConfigNode } from "@/sdk/lib/server/nodes/factories";
+import { ConfigNode } from "@/sdk/lib/server/nodes/config-node";
 import type TypedInput from "@/sdk/lib/server/typed-input";
 import { NrgError } from "@/sdk/lib/shared/errors";
 import { NRG_NODE, NRG_CONFIG_NODE } from "@/sdk/lib/server/nodes/symbols";
 import { createRED, createNodeRedNode } from "@mocks/red";
 
-const RemoteServer = defineConfigNode({ type: "remote-server" });
-const SomeNode = defineConfigNode({ type: "something" });
+class RemoteServer extends ConfigNode {
+  static override readonly type = "remote-server";
+}
+class SomeNode extends ConfigNode {
+  static override readonly type = "something";
+}
 
 describe("setupConfigProxy", () => {
   describe("node reference resolution", () => {

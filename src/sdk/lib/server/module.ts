@@ -10,9 +10,8 @@ interface ModuleDefinition {
 /**
  * Declares the nodes that make up a Node-RED module. The returned object is used
  * as the default export of `src/server/index.ts`. Only nrg node classes — those
- * extending {@link Node}/IONode/ConfigNode or built with defineIONode/
- * defineConfigNode — are accepted, enforced by a runtime guard that checks the
- * private `NRG_NODE` symbol every nrg node class carries.
+ * extending {@link Node}/IONode/ConfigNode — are accepted, enforced by a runtime
+ * guard that checks the private `NRG_NODE` symbol every nrg node class carries.
  *
  * @example
  * ```ts
@@ -26,7 +25,7 @@ function defineModule(definition: ModuleDefinition): ModuleDefinition {
     if (!(NodeClass as unknown as Record<symbol, unknown>)[NRG_NODE]) {
       const name = (NodeClass as { name?: string })?.name || String(NodeClass);
       throw new NrgError(
-        `defineModule: "${name}" is not an nrg node class — extend IONode/ConfigNode or use defineIONode/defineConfigNode.`,
+        `defineModule: "${name}" is not an nrg node class — extend IONode/ConfigNode.`,
       );
     }
   }

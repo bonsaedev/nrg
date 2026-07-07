@@ -60,17 +60,4 @@ type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
         : never;
     } & NamedPortsBrand;
 
-type InferOr<T, Fallback> = T extends TSchema ? Infer<T> : Fallback;
-
-// The record branch delegates to `Infer<T>` (a single producer of the branded
-// named-port map) so both `defineIONode` (via this alias) and class authors (via
-// `Infer<typeof outputs>` directly) tag named-port outputs identically.
-type InferOutputs<T> = T extends readonly TSchema[]
-  ? { [K in keyof T]: T[K] extends TSchema ? Infer<T[K]> : never }
-  : T extends TSchema
-    ? Infer<T>
-    : T extends Record<string, TSchema>
-      ? Infer<T>
-      : any;
-
-export type { Infer, InferOr, InferOutputs, ResolvedStatic };
+export type { Infer, ResolvedStatic };

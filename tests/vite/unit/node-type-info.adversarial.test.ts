@@ -327,21 +327,6 @@ describe("adversarial — node discovery gaps", () => {
     expect(nodes.map((n) => n.type)).toEqual(["n"]);
   });
 
-  it("extracts a functional defineIONode node", () => {
-    const [node] = extract(`
-      import { defineIONode } from "@bonsae/nrg/server";
-      import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-      export default defineIONode<{ a: string }>({
-        type: "fn",
-        configSchema: defineSchema({ a: SchemaType.String() }, { $id: "n:c" }),
-        async input() {},
-      });
-    `);
-    // Functional nodes are recovered from the call's return type.
-    expect(node?.type).toBe("fn");
-    expect(field(node, "config", "a")?.type).toBe("string");
-  });
-
   it("extracts ONLY the default export when a file has two node classes", () => {
     const nodes = extract(`
       import { IONode } from "@bonsae/nrg/server";

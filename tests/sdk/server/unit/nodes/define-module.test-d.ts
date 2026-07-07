@@ -1,25 +1,16 @@
 import { describe, it } from "vitest";
-import {
-  defineModule,
-  defineIONode,
-  defineConfigNode,
-  IONode,
-  ConfigNode,
-} from "@bonsae/nrg/server";
+import { defineModule, IONode, ConfigNode } from "@bonsae/nrg/server";
 
 // The NRG_NODE brand is private (never exported), so these proofs assert that
 // `defineModule` accepts only nrg-authored node classes and rejects anything
 // that merely looks like one.
 describe("defineModule brand", () => {
-  it("accepts nrg node classes (factory + class-based)", () => {
-    const FactoryIONode = defineIONode({ type: "factory-io" });
-    const FactoryConfigNode = defineConfigNode({ type: "factory-config" });
-
+  it("accepts nrg node classes", () => {
     class ClassIONode extends IONode {}
     class ClassConfigNode extends ConfigNode {}
 
     defineModule({
-      nodes: [FactoryIONode, FactoryConfigNode, ClassIONode, ClassConfigNode],
+      nodes: [ClassIONode, ClassConfigNode],
     });
   });
 

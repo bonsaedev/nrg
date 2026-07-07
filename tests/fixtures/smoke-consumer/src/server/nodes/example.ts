@@ -1,16 +1,18 @@
-import { defineIONode, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer } from "@bonsae/nrg/server";
+import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema } from "@/schemas/example";
 
 type Config = Infer<typeof ConfigsSchema>;
 type Input = { value: number };
 type Output = { value: number };
 
-export default defineIONode<Config, any, Input, Output>({
-  type: "example-node",
-  category: "function",
-  color: "#a6bbcf",
-  configSchema: ConfigsSchema,
-  async input(msg) {
+export default class ExampleNode extends IONode<Config, any, Input, Output> {
+  static override readonly type = "example-node";
+  static override readonly category = "function";
+  static override readonly color: `#${string}` = "#a6bbcf";
+  static override readonly configSchema: Schema = ConfigsSchema;
+
+  async input(msg: Input) {
     this.send(msg);
-  },
-});
+  }
+}

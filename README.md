@@ -79,61 +79,28 @@ export const OutputSchema = defineSchema(
 
 **src/server/nodes/my-node.ts**
 
-NRG supports two ways to define nodes:
-
-<table>
-<tr><th>Functional API</th><th>Class API</th></tr>
-<tr><td>
-
-```typescript
-import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
-
-export default defineIONode({
-  type: "my-node",
-  color: "#ffffff",
-  configSchema: ConfigsSchema,
-  inputSchema: InputSchema,
-  outputsSchema: OutputSchema,
-
-  async input(msg) {
-    msg.payload = `${this.config.prefix}: ${msg.payload}`;
-    this.send(msg);
-  },
-});
-```
-
-</td><td>
+Define a node by extending `IONode`. Port topology comes from the `Input`/`Output` type generics; the config schema drives the editor form and validation:
 
 ```typescript
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
-import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
+import { ConfigsSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
-type Input = Infer<typeof InputSchema>;
-type Output = Infer<typeof OutputSchema>;
+type Input = { payload: string };
+type Output = { payload: string };
 
 export default class MyNode extends IONode<Config, never, Input, Output> {
   static readonly type = "my-node";
   static readonly category = "function";
   static readonly color: `#${string}` = "#ffffff";
   static readonly configSchema: Schema = ConfigsSchema;
-  static readonly inputSchema: Schema = InputSchema;
-  static readonly outputsSchema: Schema = OutputSchema;
 
   async input(msg: Input) {
     this.send({ payload: `${this.config.prefix}: ${msg.payload}` });
   }
 }
 ```
-
-</td></tr>
-<tr>
-<td>Automatic type inference, less boilerplate</td>
-<td>Custom methods, inheritance, mixins</td>
-</tr>
-</table>
 
 > The `@/schemas` alias resolves to `src/shared/schemas`, so nodes can import their schemas with `@/schemas/my-node` instead of a relative path. It's shipped in NRG's base tsconfig, build, and test configs — no setup required.
 

@@ -212,7 +212,7 @@ Every node returned by `createNode` has these helpers:
 ```typescript
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
-import { defineIONode, IONode, type Port } from "@bonsae/nrg/server";
+import { IONode, type Port } from "@bonsae/nrg/server";
 import MyNode from "../../../src/server/nodes/my-node";
 import Splitter from "../../../src/server/nodes/splitter";
 import Router from "../../../src/server/nodes/router";
@@ -447,14 +447,14 @@ describe("context store", () => {
   });
 });
 
-describe("error handling", () => {
-  const ErrorNode = defineIONode<any, any, { payload: string }>({
-    type: "error-test",
-    async input() {
-      throw new Error("something broke");
-    },
-  });
+class ErrorNode extends IONode<any, any, { payload: string }> {
+  static override readonly type = "error-test";
+  async input() {
+    throw new Error("something broke");
+  }
+}
 
+describe("error handling", () => {
   it("should reject when input throws", async () => {
     const { node } = await createNode(ErrorNode);
 
@@ -471,28 +471,6 @@ describe("i18n", () => {
 
     await node.receive({});
     expect(node.sent(0)).toEqual([{ output: { payload: "my-node.greeting" } }]);
-  });
-});
-
-describe("factory API", () => {
-  it("should work with defineIONode", async () => {
-    const FactoryNode = defineIONode<
-      any,
-      any,
-      { payload: string },
-      { payload: string }
-    >({
-      type: "factory-node",
-      input(msg) {
-        this.send({ payload: msg.payload.toUpperCase() });
-      },
-    });
-
-    const { node } = await createNode(FactoryNode);
-    await node.receive({ payload: "hello" });
-    expect(node.sent(0)).toEqual([
-      { payload: "hello", output: { payload: "HELLO" } },
-    ]);
   });
 });
 
@@ -572,12 +550,12 @@ describe("built-in emit ports", () => {
         this.retryAfterMs = retryAfterMs;
       }
     }
-    const RateLimitedNode = defineIONode<any, any, { payload: string }>({
-      type: "rate-limited",
-      input() {
+    class RateLimitedNode extends IONode<any, any, { payload: string }> {
+      static override readonly type = "rate-limited";
+      async input() {
         throw new RateLimitError(2000);
-      },
-    });
+      }
+    }
 
     const { node } = await createNode(RateLimitedNode, {
       config: { errorPort: true },
@@ -600,12 +578,12 @@ describe("built-in emit ports", () => {
 
   it("should ride the value returned by input() on the complete port", async () => {
     // A node whose input() returns a value:
-    const ReturningNode = defineIONode<any, any, { payload: string }>({
-      type: "returning",
-      input(msg) {
+    class ReturningNode extends IONode<any, any, { payload: string }> {
+      static override readonly type = "returning";
+      async input(msg: { payload: string }) {
         return { id: msg.payload, ok: true };
-      },
-    });
+      }
+    }
 
     const { node } = await createNode(ReturningNode, {
       config: { completePort: true },
@@ -756,15 +734,15 @@ import {
   startRuntime,
   type Runtime,
 } from "@bonsae/nrg/test/server/integration";
-import { defineIONode, ConfigNode } from "@bonsae/nrg/server";
+import { IONode, ConfigNode } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
-const Doubler = defineIONode<any, any, { value: number }, { doubled: number }>({
-  type: "doubler",
-  async input(msg) {
+class Doubler extends IONode<any, any, { value: number }, { doubled: number }> {
+  static override readonly type = "doubler";
+  async input(msg: { value: number }) {
     this.send({ doubled: msg.value * 2 });
-  },
-});
+  }
+}
 
 describe("doubler (integration)", () => {
   let runtime: Runtime;
@@ -805,17 +783,17 @@ class Greeting extends ConfigNode {
   }
 }
 
-const Greeter = defineIONode<any, any, { who: string }, { text: string }>({
-  type: "greeter",
-  configSchema: defineSchema(
+class Greeter extends IONode<any, any, { who: string }, { text: string }> {
+  static override readonly type = "greeter";
+  static override readonly configSchema = defineSchema(
     { source: SchemaType.NodeRef<Greeting>("greeting-config") },
     { $id: "greeter:config" },
-  ),
-  async input(msg) {
+  );
+  async input(msg: { who: string }) {
     const source = this.config.source as unknown as Greeting;
     this.send({ text: `${source.greeting}, ${msg.who}` });
-  },
-});
+  }
+}
 
 it("resolves a config node", async () => {
   const flow = runtime.flow();

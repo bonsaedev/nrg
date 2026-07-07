@@ -331,11 +331,10 @@ const SchemaType: Omit<
  * Recursively tag a schema's non-JSON-typed nodes (Function, Constructor, …) so
  * AJV skips them: it sets `x-nrg-skip-validation`, moves any `default` aside to
  * `_default`, and deletes the offending `type` (AJV throws `type must be
- * JSONType` otherwise). `defineSchema` calls this on the schemas it builds; the
- * node factories (`defineIONode`/`defineConfigNode`) call it again on every
- * declared schema so a raw `SchemaType.Object` (built without `defineSchema`)
- * gets the identical treatment. Mutates in place and is idempotent — a schema
- * already normalized has no non-JSON `type` left to strip.
+ * JSONType` otherwise). `defineSchema` calls this on the schemas it builds, so
+ * every node schema (which goes through `defineSchema`) is normalized. Mutates
+ * in place and is idempotent — a schema already normalized has no non-JSON
+ * `type` left to strip.
  */
 function markNonValidatable<T extends TSchema>(schema: T): T {
   const type = (schema as any).type;

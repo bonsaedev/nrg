@@ -59,26 +59,7 @@ RED.nodes.registerType('my-node', {
 
 One TypeScript file for the node. Schema drives the editor form, validation, and type inference. No HTML, no jQuery.
 
-:::code-group
-
-```typescript [Functional API]
-// server/nodes/my-node.ts
-import { defineIONode } from "@bonsae/nrg/server";
-import { ConfigsSchema } from "@/schemas/my-node";
-
-export default defineIONode({
-  type: "my-node",
-  category: "my-category",
-  color: "#FFFFFF",
-  configSchema: ConfigsSchema,
-
-  async input(msg) {
-    this.send({ payload: msg.payload.toUpperCase() });
-  },
-});
-```
-
-```typescript [Class API]
+```typescript
 // server/nodes/my-node.ts
 import { IONode, type Infer } from "@bonsae/nrg/server";
 import { type Schema } from "@bonsae/nrg/schema";
@@ -99,8 +80,6 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
   }
 }
 ```
-
-:::
 
 > Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
 
@@ -194,15 +173,17 @@ NRG builds your node as an ESM bundle with a CJS bridge — Node-RED's `require(
 
 ```typescript
 // Just import it. NRG handles the rest.
+import { IONode } from "@bonsae/nrg/server";
 import { someUtil } from 'esm-only-package';
 
-export default defineIONode({
-  type: "my-node",
-  async input(msg) {
+export default class MyNode extends IONode {
+  static readonly type = "my-node";
+
+  async input(msg: { payload: unknown }) {
     const result = someUtil(msg.payload);
     this.send({ payload: result });
-  },
-});
+  }
+}
 ```
 
 ```

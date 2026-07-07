@@ -154,7 +154,7 @@ describe("type generation — class-based nodes", () => {
   });
 });
 
-describe("type generation — factory-based nodes", () => {
+describe("type generation — custom-client package", () => {
   let dtsPath: string;
   let dts: string;
 
@@ -172,16 +172,17 @@ describe("type generation — factory-based nodes", () => {
     expect(fs.existsSync(dtsPath)).toBe(true);
   });
 
-  it("emits the NodeTypes registry for functional (defineIONode) nodes", () => {
+  it("emits the NodeTypes registry for each node", () => {
     expect(dts).toContain('declare module "@bonsae/nrg/server"');
     expect(dts).toContain("interface NodeTypes {");
     expect(dts).toContain('"custom-node": {');
     expect(dts).toContain('"multi-output-node": {');
   });
 
-  it("types the module default's functional nodes as NodeConstructor", () => {
+  it("emits a module default listing the node classes", () => {
     expect(dts).toContain("export default _default;");
-    expect(dts).toContain("NodeConstructor");
+    expect(dts).toMatch(/nodes: \[typeof \w/);
+    expect(dts).toContain("typeof CustomNode");
   });
 
   it("compiles clean against the framework (no dangling references)", () => {
