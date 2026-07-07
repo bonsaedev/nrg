@@ -56,6 +56,7 @@
       "default": "./dist/toolkit/vite/index.js"
     },
     "./eslint": "./dist/toolkit/eslint/index.js",
+    "./prettier": "./dist/toolkit/prettier/index.js",
     "./test/server/unit": {
       "types": "./dist/toolkit/types/test-server-unit.d.ts",
       "default": "./dist/toolkit/test/server/unit/index.js"
@@ -192,6 +193,7 @@
     "globals": "^16.1.0",
     "jsonpointer": "^5.0.1",
     "mime-types": "^3.0.1",
+    "prettier": "^3.5.3",
     "tree-kill": "^1.2.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.32.1",
@@ -220,7 +222,6 @@
     "lint-staged": "^16.4.0",
     "node-red": "5.0.0",
     "playwright": "^1.60.0",
-    "prettier": "^3.5.3",
     "semantic-release": "^24.2.4",
     "tsx": "^4.22.4",
     "vite": "^6.3.4",

@@ -429,6 +429,17 @@ function buildEslintConfig() {
   console.log("✓ Built eslint config → dist/toolkit/eslint/index.js");
 }
 
+function buildPrettierConfig() {
+  // The shared Prettier config (@bonsae/nrg/prettier) — a plain options object a
+  // consumer re-exports from their own prettier config. It only `import type`s
+  // from prettier, so the bundle carries no runtime dependency. Values only, no
+  // .d.ts (like the eslint config).
+  esbuildBundle("src/tools/prettier/index.ts", {
+    outfile: "dist/toolkit/prettier/index.js",
+  });
+  console.log("✓ Built prettier config → dist/toolkit/prettier/index.js");
+}
+
 function buildSchemaEntry() {
   // The neutral schema kit (@bonsae/nrg/schema): defineSchema + SchemaType built
   // from the browser-safe sdk/lib/shared/schemas tree (TypeBox only, no node
@@ -908,6 +919,7 @@ async function main() {
   clean(path.resolve(ROOT, "dist")); // wipe both dist/toolkit and dist/runtime
   // Toolkit surface. (No bare-root `.` entry — @bonsae/nrg is subpath-only.)
   buildEslintConfig();
+  buildPrettierConfig();
   buildSchemaEntry();
   await buildTestUtils();
   // Core (shared) values: editor client asset + server CJS. Build the client
