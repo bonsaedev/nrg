@@ -32,6 +32,18 @@ pnpm add -D @bonsae/nrg node-red vue vite vitest
 
 > All of these are dev dependencies, needed only at build time. `@bonsae/nrg` is the authoring toolkit; a built node depends only on `@bonsae/nrg-runtime` (declared automatically in the generated `dist/package.json`), never the toolkit. Vue is included as a dependency of the runtime and served automatically to the editor.
 
+Supported versions (the ranges `@bonsae/nrg` declares as peers):
+
+| Peer       | Version | Notes                                           |
+| ---------- | ------- | ----------------------------------------------- |
+| `node-red` | `5.x`   | dev server + integration-test runtime           |
+| `vue`      | `^3.5`  | editor form components                          |
+| `vite`     | `^6`    | build & dev server                              |
+| `vitest`   | `^4`    | test runner                                     |
+| `eslint`   | `^9`    | only if you use the `@bonsae/nrg/eslint` config |
+
+> `typescript` (`^5.8`) and `prettier` (`^3.5`) ship as direct dependencies of `@bonsae/nrg` — you don't install them separately.
+
 ### Node-RED Resolution
 
 The vite plugin needs a Node-RED instance for the dev server. It resolves it in this order:
@@ -130,18 +142,18 @@ NRG builds the node's edit dialog from your schema — no HTML or jQuery. Your c
 NRG provides five test libraries and ships most test infrastructure as direct dependencies, so you only need to install `vitest` plus any optional peer dependencies:
 
 ```bash
-pnpm add -D vitest
+pnpm add -D vitest@^4
 ```
 
 Optional peer dependencies:
 
-| Package                      | When to install                                              |
-| ---------------------------- | ------------------------------------------------------------ |
-| `@vitest/browser-playwright` | Component tests (Playwright browser provider for Vitest)     |
-| `playwright`                 | Component tests or E2E tests (direct `import` in test files) |
-| `vitest-browser-vue`         | Component tests (`render` helper for Vue components)         |
-| `@vitest/coverage-v8`        | Coverage with `--coverage` (V8 provider)                     |
-| `@vitest/coverage-istanbul`  | Coverage with `--coverage` (Istanbul provider)               |
+| Package                      | Version | When to install                                              |
+| ---------------------------- | ------- | ------------------------------------------------------------ |
+| `@vitest/browser-playwright` | `^4`    | Component tests (Playwright browser provider for Vitest)     |
+| `playwright`                 | `^1.50` | Component tests or E2E tests (direct `import` in test files) |
+| `vitest-browser-vue`         | `^2`    | Component tests (`render` helper for Vue components)         |
+| `@vitest/coverage-v8`        | `^4`    | Coverage with `--coverage` (V8 provider)                     |
+| `@vitest/coverage-istanbul`  | `^4`    | Coverage with `--coverage` (Istanbul provider)               |
 
 - `@bonsae/nrg/test/server/unit` — server-side unit tests
 - `@bonsae/nrg/test/server/integration` — server-side integration tests (real Node-RED runtime)
