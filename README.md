@@ -132,7 +132,7 @@ export default defineModule({
 });
 ```
 
-See the [getting started guide](https://bonsaedev.github.io/nrg/guide/getting-started) for the full walkthrough, or the [node-red-vue-template](https://github.com/AllanOricil/node-red-vue-template) repo for a reference example.
+See the [getting started guide](https://bonsaedev.github.io/nrg/guide/getting-started) for the full walkthrough, or the [node-red-salesforce](https://github.com/bonsaedev/node-red-salesforce) repo for a real-world reference example.
 
 ### The generated editor form
 
