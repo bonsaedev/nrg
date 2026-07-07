@@ -397,28 +397,29 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
 }
 
 /**
- * Creates a validated object schema from a set of properties, tagged with a
- * required, unique `$id`. Automatically marks non-JSON types (e.g., Function) as
- * non-validatable.
+ * Creates a validated object schema from a set of properties. Automatically marks
+ * non-JSON types (e.g., Function) as non-validatable.
  *
- * The `$id` is **required**: it's the AJV compile-cache key (validators are
- * reused per `$id`, so it must be unique across all your schemas), and it makes
- * the schema addressable for cross-schema `$ref`. Convention: `"<node-type>:<role>"`
- * (e.g. `"my-node:configs"`, `"my-node:credentials"`, `"my-node:input"`).
+ * `$id` (the AJV compile-cache key) is **optional**: when you omit it, a random
+ * one is generated, so every schema has a unique `$id` by construction and no two
+ * schemas can collide. Provide one only when you want a stable, readable key.
  *
  * @example
  * ```ts
  * const ConfigsSchema = defineSchema({
  *   name: SchemaType.String({ default: "" }),
  *   timeout: SchemaType.Number({ default: 5000 }),
- * }, { $id: "my-node:configs" });
+ * });
  * ```
  */
 function defineSchema<T extends TProperties>(
   properties: T,
-  options: ObjectOptions & { $id: string },
+  options?: ObjectOptions & { $id?: string },
 ): Schema<T> {
-  const schema = SchemaType.Object(properties, options);
+  const schema = SchemaType.Object(properties, {
+    ...options,
+    $id: options?.$id ?? crypto.randomUUID(),
+  });
   return markNonValidatable(schema) as Schema<T>;
 }
 

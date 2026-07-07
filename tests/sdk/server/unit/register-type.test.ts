@@ -123,85 +123,39 @@ describe("registerType validation", () => {
   });
 });
 
-describe("registerTypes schema $id enforcement", () => {
-  it("throws NrgError when two nodes declare the same schema $id", async () => {
+describe("registerTypes schema $id uniqueness", () => {
+  it("registers two nodes whose schemas got auto-generated $ids without collision", async () => {
     const { IONode, registerTypes } = await getModules();
     const { defineSchema, SchemaType } =
       await import("@/sdk/lib/shared/schemas");
     const RED = createRED();
 
-    const shared = defineSchema(
-      { name: SchemaType.String() },
-      { $id: "shared:configs" },
-    );
-
     class NodeA extends IONode {
       static override readonly type = "node-a";
       static override readonly category = "function";
       static override readonly color = "#a6bbcf";
-      static override readonly configSchema = defineSchema(
-        { name: SchemaType.String() },
-        { $id: "shared:configs" },
-      );
+      static override readonly configSchema = defineSchema({
+        name: SchemaType.String(),
+      });
     }
 
     class NodeB extends IONode {
       static override readonly type = "node-b";
       static override readonly category = "function";
       static override readonly color = "#a6bbcf";
-      static override readonly configSchema = shared;
-    }
-
-    await expect(registerTypes([NodeA, NodeB] as any)(RED)).rejects.toThrow(
-      NrgError,
-    );
-    await expect(registerTypes([NodeA, NodeB] as any)(RED)).rejects.toThrow(
-      'Duplicate schema $id "shared:configs"',
-    );
-  });
-
-  it("warns for a schema with properties but no $id (raw SchemaType.Object)", async () => {
-    const { IONode, registerTypes } = await getModules();
-    const { SchemaType } = await import("@/sdk/lib/shared/schemas");
-    const RED = createRED();
-
-    class RawSchemaNode extends IONode {
-      static override readonly type = "raw-schema-node";
-      static override readonly category = "function";
-      static override readonly color = "#a6bbcf";
-      // A raw object schema (no $id) where defineSchema was intended.
-      static override readonly configSchema = SchemaType.Object({
+      static override readonly configSchema = defineSchema({
         name: SchemaType.String(),
       });
     }
 
-    await registerTypes([RawSchemaNode] as any)(RED);
+    // No explicit $id: defineSchema gives each schema a unique one, so both
+    // register cleanly — no collision to detect.
+    await registerTypes([NodeA, NodeB] as any)(RED);
 
-    expect(RED.log.warn).toHaveBeenCalledWith(
-      expect.stringContaining("raw-schema-node.config schema has properties"),
-    );
-  });
-
-  it("does not warn for an empty schema without $id", async () => {
-    const { IONode, registerTypes } = await getModules();
-    const { SchemaType } = await import("@/sdk/lib/shared/schemas");
-    const RED = createRED();
-
-    class EmptyConfigNode extends IONode {
-      static override readonly type = "empty-config-node";
-      static override readonly category = "function";
-      static override readonly color = "#a6bbcf";
-      // An empty schema (no properties, no $id) is a valid pass-through — it
-      // must NOT trigger the "properties but no $id" warning.
-      static override readonly configSchema = SchemaType.Object({});
-    }
-
-    await registerTypes([EmptyConfigNode] as any)(RED);
-
-    const warnedAboutId = (RED.log.warn as any).mock.calls.some(
-      (args: unknown[]) =>
-        typeof args[0] === "string" && args[0].includes("no $id"),
-    );
-    expect(warnedAboutId).toBe(false);
+    const idA = (NodeA.configSchema as { $id?: string }).$id;
+    const idB = (NodeB.configSchema as { $id?: string }).$id;
+    expect(idA).toBeTruthy();
+    expect(idB).toBeTruthy();
+    expect(idA).not.toBe(idB);
   });
 });

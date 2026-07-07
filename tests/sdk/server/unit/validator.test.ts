@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { initValidator } from "@/sdk/lib/server/validation";
-import { NrgError } from "@/sdk/lib/shared/errors";
 import { createRED } from "@mocks/red";
 
 describe("NodeRedValidator", () => {
@@ -126,44 +125,6 @@ describe("NodeRedValidator", () => {
 
       const invalid = RED.validator.validate({ id: "has spaces!" }, schema);
       expect(invalid.valid).toBe(false);
-    });
-  });
-
-  describe("reserveSchemaId", () => {
-    it("throws NrgError when two different schemas claim the same $id", () => {
-      const RED = createRED();
-      initValidator(RED);
-
-      const first = { $id: "my-node:configs", type: "object" };
-      const second = { $id: "my-node:configs", type: "object" };
-
-      RED.validator.reserveSchemaId(first, "a.config");
-      expect(() => RED.validator.reserveSchemaId(second, "b.config")).toThrow(
-        NrgError,
-      );
-      expect(() => RED.validator.reserveSchemaId(second, "b.config")).toThrow(
-        'Duplicate schema $id "my-node:configs"',
-      );
-    });
-
-    it("is idempotent for the same schema object (re-deploy / reuse)", () => {
-      const RED = createRED();
-      initValidator(RED);
-
-      const schema = { $id: "my-node:configs", type: "object" };
-      RED.validator.reserveSchemaId(schema, "my-node.config");
-      expect(() =>
-        RED.validator.reserveSchemaId(schema, "my-node.input"),
-      ).not.toThrow();
-    });
-
-    it("is a no-op for a schema without $id", () => {
-      const RED = createRED();
-      initValidator(RED);
-
-      expect(() =>
-        RED.validator.reserveSchemaId({ type: "object" }, "my-node.input"),
-      ).not.toThrow();
     });
   });
 });

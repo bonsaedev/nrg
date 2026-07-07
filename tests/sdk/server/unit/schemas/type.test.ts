@@ -129,6 +129,15 @@ describe("defineSchema", () => {
     expect(schema.properties).toHaveProperty("name");
   });
 
+  it("generates a unique $id when none is provided", () => {
+    const a = defineSchema({ name: SchemaType.String() });
+    const b = defineSchema({ name: SchemaType.String() });
+    expect(a.$id).toBeTruthy();
+    expect(b.$id).toBeTruthy();
+    // Two schemas with no explicit $id never collide.
+    expect(a.$id).not.toBe(b.$id);
+  });
+
   it("should mark non-JSON types as skip-validation", () => {
     const schema = defineSchema(
       {
