@@ -1,4 +1,4 @@
-import type { NodeRedRuntimeSettings } from "../../sdk/lib/server";
+import type { NodeRedSettings } from "../../sdk/lib/server";
 
 /**
  * Type-safe helper for defining the Node-RED runtime settings the nrg dev server
@@ -8,19 +8,17 @@ import type { NodeRedRuntimeSettings } from "../../sdk/lib/server";
  *
  * @example
  * ```typescript
- * import { defineNodeRedRuntimeSettings } from "@bonsae/nrg/vite";
+ * import { defineNodeRedSettings } from "@bonsae/nrg/vite";
  *
- * export default defineNodeRedRuntimeSettings({
+ * export default defineNodeRedSettings({
  *   flowFile: "flows.json",
  *   flowFilePretty: true,
  * });
  * ```
  */
-function defineNodeRedRuntimeSettings(
-  settings: NodeRedRuntimeSettings,
-): NodeRedRuntimeSettings {
+function defineNodeRedSettings(settings: NodeRedSettings): NodeRedSettings {
   return settings;
 }
 
-export { defineNodeRedRuntimeSettings };
-export type { NodeRedRuntimeSettings };
+export { defineNodeRedSettings };
+export type { NodeRedSettings };

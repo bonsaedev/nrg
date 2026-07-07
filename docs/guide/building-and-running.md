@@ -23,9 +23,9 @@ Every change — server or client — triggers a full Node-RED restart, **not** 
 To customize the Node-RED runtime, create a `node-red.settings.ts` at the project root:
 
 ```typescript
-import { defineNodeRedRuntimeSettings } from "@bonsae/nrg/vite";
+import { defineNodeRedSettings } from "@bonsae/nrg/vite";
 
-export default defineNodeRedRuntimeSettings({
+export default defineNodeRedSettings({
   flowFile: "flows.json",
   flowFilePretty: true,
   credentialSecret: false,

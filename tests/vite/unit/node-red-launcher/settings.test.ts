@@ -143,7 +143,7 @@ describe("node-red-launcher/settings", () => {
       expect(callArgs.define!["import.meta.url"]).toBeDefined();
     });
 
-    // A `node-red.settings.ts` imports `defineNodeRedRuntimeSettings` from
+    // A `node-red.settings.ts` imports `defineNodeRedSettings` from
     // `@bonsae/nrg/vite`, but this file is bundled into Node-RED's runtime
     // settings — resolving the full plugin entry would drag the dev toolchain's
     // native deps (chokidar→fsevents, vite→lightningcss) into the bundle and
@@ -173,11 +173,11 @@ describe("node-red-launcher/settings", () => {
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "c" }),
       );
-      const leaf = path.join(viteDir, "define-nodered-runtime-settings.js");
+      const leaf = path.join(viteDir, "node-red-settings.js");
       if (withLeaf) {
         fs.writeFileSync(
           leaf,
-          "export const defineNodeRedRuntimeSettings = (s) => s;",
+          "export const defineNodeRedSettings = (s) => s;",
         );
       }
       return leaf;
@@ -190,8 +190,8 @@ describe("node-red-launcher/settings", () => {
       const settingsPath = path.join(tmpDir, "node-red.settings.ts");
       fs.writeFileSync(
         settingsPath,
-        'import { defineNodeRedRuntimeSettings } from "@bonsae/nrg/vite";\n' +
-          "export default defineNodeRedRuntimeSettings({});",
+        'import { defineNodeRedSettings } from "@bonsae/nrg/vite";\n' +
+          "export default defineNodeRedSettings({});",
       );
 
       await compileRuntimeSettingsFile(settingsPath, 1880);

@@ -51,10 +51,10 @@ function findUserRuntimeSettingsFilepath(
 /**
  * Resolve `@bonsae/nrg/vite`'s standalone settings-helper leaf, next to the
  * plugin entry in the consumer's installed nrg. A `node-red.settings.ts` imports
- * `defineNodeRedRuntimeSettings` from `@bonsae/nrg/vite`, but we bundle that file
+ * `defineNodeRedSettings` from `@bonsae/nrg/vite`, but we bundle that file
  * into Node-RED's runtime settings below — resolving the full plugin entry would
  * drag the dev toolchain's native deps (chokidar→fsevents, vite→lightningcss)
- * into the settings bundle and break the launch. `defineNodeRedRuntimeSettings`
+ * into the settings bundle and break the launch. `defineNodeRedSettings`
  * is a compile-time-only identity helper, so we redirect the import to this
  * dependency-free leaf. Returns null for an nrg that predates the leaf, so
  * bundling falls back to the plugin entry (older layouts don't hit the problem).
@@ -63,10 +63,7 @@ function resolveSettingsHelperLeaf(): string | null {
   try {
     const req = createRequire(path.join(process.cwd(), "package.json"));
     const viteEntry = req.resolve("@bonsae/nrg/vite");
-    const leaf = path.join(
-      path.dirname(viteEntry),
-      "define-nodered-runtime-settings.js",
-    );
+    const leaf = path.join(path.dirname(viteEntry), "node-red-settings.js");
     return fs.existsSync(leaf) ? leaf : null;
   } catch {
     return null;

@@ -4,7 +4,7 @@ import type { Express, RequestHandler } from "express";
 import type { INode } from "./nodes";
 import type { Validator } from "../shared/validator";
 
-interface NodeRedRuntimeSettings {
+interface NodeRedSettings {
   userDir?: string;
   nodesDir?: string | string[];
   flowFile?: string;
@@ -350,7 +350,7 @@ interface RED {
     needsPermission(permission: string): RequestHandler;
   };
   /** Runtime settings (user-provided settings plus node-registered settings) */
-  settings: NodeRedRuntimeSettings & Record<string, any>;
+  settings: NodeRedSettings & Record<string, any>;
   /** Node-RED version string */
   version(): string;
   /** @internal — framework validator, set by initValidator() */
@@ -396,7 +396,7 @@ interface NodeRedContextStore {
 }
 
 export type {
-  NodeRedRuntimeSettings,
+  NodeRedSettings,
   RED,
   NodeRedExpressApp,
   NodeRedRequestHandler,

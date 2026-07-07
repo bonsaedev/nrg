@@ -5,7 +5,7 @@ export { Node, IONode, ConfigNode } from "./nodes";
 export type { ContextMode } from "./nodes";
 export type { NodeConstructor, INode, IIONode, IConfigNode } from "./nodes";
 export { NrgError } from "../shared/errors";
-export type { RED, NodeRedRuntimeSettings } from "./red";
+export type { RED, NodeRedSettings } from "./red";
 // The schema builders (`SchemaType`, `defineSchema`) and plane-neutral schema
 // types (`Schema`, `TNodeRef`, `TTypedInput`) come from `@bonsae/nrg/schema` —
 // not re-exported here, so the schema/server boundary stays structural (you

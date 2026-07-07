@@ -388,14 +388,14 @@ function buildVitePlugin(clientAsset: string) {
     define: { __NRG_CLIENT_ASSET__: clientAsset },
   });
   // Also emit the Node-RED-settings helper as a standalone, dependency-free leaf.
-  // A `node-red.settings.ts` imports `defineNodeRedRuntimeSettings` from
+  // A `node-red.settings.ts` imports `defineNodeRedSettings` from
   // `@bonsae/nrg/vite`, but that file is esbuild-bundled into Node-RED's runtime
   // settings (node-red-launcher/settings.ts) — resolving the full vite entry there
   // would drag the dev toolchain's native deps (chokidar→fsevents, vite→
   // lightningcss) into the settings bundle and break `nrg dev`. The settings
   // compiler resolves the import to this leaf (a bare identity helper) instead.
-  esbuildBundle("src/tools/vite/define-nodered-runtime-settings.ts", {
-    outfile: "dist/toolkit/vite/define-nodered-runtime-settings.js",
+  esbuildBundle("src/tools/vite/node-red-settings.ts", {
+    outfile: "dist/toolkit/vite/node-red-settings.js",
   });
   // Invariant: the Node-RED-settings compiler (node-red-launcher/settings.ts)
   // resolves this leaf co-located with the `./vite` entry — `dirname(resolve(
@@ -404,10 +404,7 @@ function buildVitePlugin(clientAsset: string) {
   // registers, and a consumer's `node-red.settings.ts` drags the plugin's native
   // deps (chokidar→fsevents, vite→lightningcss) into the settings bundle → `nrg
   // dev` breaks. Fail the build loudly instead of shipping that.
-  const settingsLeaf = path.join(
-    DIST,
-    "vite/define-nodered-runtime-settings.js",
-  );
+  const settingsLeaf = path.join(DIST, "vite/node-red-settings.js");
   if (!existsSync(settingsLeaf)) {
     throw new Error(
       `Node-RED-settings helper leaf not emitted at ${settingsLeaf} — settings.ts's redirect will fall back to bundling the full @bonsae/nrg/vite plugin and break nrg dev.`,
@@ -651,10 +648,10 @@ function generateTypes() {
     "dist/toolkit/types/vite.d.ts",
     `
 import type { Plugin } from "vite";
-import type { NodeRedRuntimeSettings } from "./server";
+import type { NodeRedSettings } from "./server";
 export declare function nrg(options?: NrgPluginOptions): Plugin[];
-export declare function defineNodeRedRuntimeSettings(settings: NodeRedRuntimeSettings): NodeRedRuntimeSettings;
-export type { NodeRedRuntimeSettings };
+export declare function defineNodeRedSettings(settings: NodeRedSettings): NodeRedSettings;
+export type { NodeRedSettings };
 `,
   );
 
