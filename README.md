@@ -42,7 +42,7 @@ Supported versions (the ranges `@bonsae/nrg` declares as peers):
 | `vitest`   | `^4`    | test runner                                     |
 | `eslint`   | `^9`    | only if you use the `@bonsae/nrg/eslint` config |
 
-> `typescript` (`^5.8`) and `prettier` (`^3.5`) ship as direct dependencies of `@bonsae/nrg` — you don't install them separately.
+> `@bonsae/nrg` bundles its own `typescript` (`^5.8`) and `prettier` (`^3.5`) — used for the build's type generation and the shared `@bonsae/nrg/prettier` config — so you don't need them just to build or run the dev server. If you run `tsc` or `prettier` as your own scripts (e.g. a `validate` step, as in the [getting started guide](https://bonsaedev.github.io/nrg/guide/getting-started)), add them as direct dev dependencies too — pnpm's strict layout won't put a transitive package's binary on your PATH.
 
 ### Node-RED Resolution
 
