@@ -61,14 +61,6 @@ type IONodeContext = {
   global: NodeContextStore;
 };
 
-/**
- * Node palette color. The template-literal type only enforces a leading `#`
- * (an exact 6-hex-digit template type is infeasible — it explodes to `TS2590`),
- * so shorthand (`#abc`) and invalid hex type-check but are rejected at runtime.
- * The real gate is the `/^#[0-9A-Fa-f]{6}$/` check in `Node.register`.
- */
-type HexColor = `#${string}`;
-
 /** Public instance interface for IO nodes. Implemented by {@link IONode}. */
 interface IIONode<
   TConfig = any,
@@ -101,7 +93,6 @@ interface IIONode<
 }
 
 export type {
-  HexColor,
   IIONode,
   IONodeConfig,
   IONodeContext,

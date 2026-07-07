@@ -9,7 +9,6 @@ export type {
   NodeSettings,
 } from "./node";
 export type {
-  HexColor,
   IIONode,
   IONodeConfig,
   IONodeContext,

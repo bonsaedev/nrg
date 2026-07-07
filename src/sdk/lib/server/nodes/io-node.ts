@@ -3,7 +3,6 @@ import type { RED, NodeRedNode } from "../red";
 import { Node } from "./node";
 import { NrgError } from "../../shared/errors";
 import type {
-  HexColor,
   IIONode,
   IONodeContext,
   IONodeContextScope,
@@ -117,7 +116,13 @@ abstract class IONode<
   implements IIONode<TConfig, TCredentials, TInput, TOutput, TSettings>
 {
   public static readonly align?: "left" | "right";
-  public static readonly color: HexColor;
+  /**
+   * Node palette color. The template-literal type only enforces a leading `#`
+   * (an exact 6-hex-digit template type is infeasible — it explodes to `TS2590`),
+   * so shorthand (`#abc`) and invalid hex type-check but are rejected at runtime.
+   * The real gate is the `/^#[0-9A-Fa-f]{6}$/` check in `Node.register`.
+   */
+  public static readonly color: `#${string}`;
 
   // Build-injected port topology; framework-owned, stamped under `NRG_PORTS` by
   // the port-topology injector (non-writable). `declare` — the value comes only

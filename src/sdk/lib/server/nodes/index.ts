@@ -11,7 +11,6 @@ export type {
   NodeCredentials,
   NodeSetting,
   NodeSettings,
-  HexColor,
   IIONode,
   IONodeConfig,
   IONodeContext,
