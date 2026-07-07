@@ -49,7 +49,7 @@ abstract class Node<
   // `validateSettings` at registration; the instance `settings` getter returns
   // it. It's *assigned* (never mutated in place), so every node type gets its
   // own value with no cross-subclass sharing — a plain static, no cache needed.
-  protected static resolvedSettings?: Record<string, unknown>;
+  private static resolvedSettings?: Record<string, unknown>;
 
   public static registered?(RED: RED): void | Promise<void>;
 
