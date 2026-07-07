@@ -27,7 +27,7 @@ pnpm create @bonsae/nrg
 To add NRG to an existing project, install it alongside its build-time peers:
 
 ```bash
-pnpm add -D @bonsae/nrg node-red vue vite vitest
+pnpm add -D @bonsae/nrg node-red@5 vue@^3.5 vite@^6 vitest@^4
 ```
 
 > All of these are dev dependencies, needed only at build time. `@bonsae/nrg` is the authoring toolkit; a built node depends only on `@bonsae/nrg-runtime` (declared automatically in the generated `dist/package.json`), never the toolkit. Vue is included as a dependency of the runtime and served automatically to the editor.
