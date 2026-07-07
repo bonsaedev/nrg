@@ -62,7 +62,6 @@ One TypeScript file for the node. Schema drives the editor form, validation, and
 ```typescript
 // server/nodes/my-node.ts
 import { IONode, type Infer } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
@@ -70,10 +69,10 @@ type Input = Infer<typeof InputSchema>;
 type Output = Infer<typeof OutputSchema>;
 
 export default class MyNode extends IONode<Config, never, Input, Output> {
-  static readonly type = "my-node";
-  static readonly category = "my-category";
-  static readonly color: `#${string}` = "#FFFFFF";
-  static readonly configSchema: Schema = ConfigsSchema;
+  static override readonly type = "my-node";
+  static override readonly category = "my-category";
+  static override readonly color = "#FFFFFF";
+  static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: Input) {
     this.send({ uppercased: msg.payload.toUpperCase() });
@@ -124,7 +123,6 @@ Full TypeScript with types inferred from your schemas. Config, credentials, inpu
 
 ```typescript
 import { IONode, type Infer } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
@@ -132,8 +130,8 @@ type Input = Infer<typeof InputSchema>;
 type Output = Infer<typeof OutputSchema>;
 
 export default class MyNode extends IONode<Config, never, Input, Output> {
-  static readonly type = "my-node";
-  static readonly configSchema: Schema = ConfigsSchema;
+  static override readonly type = "my-node";
+  static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: Input) {
     // msg.paylaod → compile error: Property 'paylaod' does not exist
@@ -177,7 +175,7 @@ import { IONode } from "@bonsae/nrg/server";
 import { someUtil } from 'esm-only-package';
 
 export default class MyNode extends IONode {
-  static readonly type = "my-node";
+  static override readonly type = "my-node";
 
   override async input(msg: { payload: unknown }) {
     const result = someUtil(msg.payload);

@@ -114,7 +114,7 @@ The `configSchema` static property validates node configuration when a node inst
 
 ```typescript
 export default class MyNode extends IONode<Config> {
-  static readonly configSchema: Schema = ConfigsSchema;
+  static override readonly configSchema = ConfigsSchema;
   // ...
 }
 ```
@@ -251,8 +251,8 @@ export const CredentialsSchema = defineSchema(
 
 ```typescript
 export default class MyNode extends IONode<Config, Credentials> {
-  static readonly configSchema: Schema = ConfigsSchema;
-  static readonly credentialsSchema: Schema = CredentialsSchema;
+  static override readonly configSchema = ConfigsSchema;
+  static override readonly credentialsSchema = CredentialsSchema;
 
   override async input(msg: Input) {
     const apiKey = this.credentials?.apiKey;
@@ -417,7 +417,7 @@ type Output = { connection: Connection; rowCount: number };
 
 export default class OpenConnection extends IONode<Config, any, Input, Output> {
   static override readonly type = "db-open";
-  static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly configSchema = ConfigsSchema;
 
   override async input() {
     this.send({ connection: pool, rowCount: 0 }); // pool passes through intact
@@ -437,14 +437,13 @@ port:
 
 ```typescript
 import { IONode, type Port } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import { Readable } from "node:stream";
 
 type Output = { body: Port<Readable> };
 
 export default class FetchStream extends IONode<Config, any, { url: string }, Output> {
   static override readonly type = "fetch-stream";
-  static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: { url: string }) {
     const res = await fetch(msg.url);
@@ -539,7 +538,7 @@ const SettingsSchema = defineSchema(
 );
 
 export default class MyNode extends IONode<Config, any, Input, any, Settings> {
-  static readonly settingsSchema: Schema = SettingsSchema;
+  static override readonly settingsSchema = SettingsSchema;
 
   override async input(msg: Input) {
     const endpoint = this.settings.apiEndpoint;

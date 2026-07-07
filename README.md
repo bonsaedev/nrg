@@ -91,7 +91,6 @@ Define a node by extending `IONode`. Port topology comes from the `Input`/`Outpu
 
 ```typescript
 import { IONode, type Infer, type Port } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import { Readable } from "node:stream";
 import { ConfigsSchema, RequestSchema } from "@/schemas/http-request";
 
@@ -106,8 +105,8 @@ type Output = {
 };
 
 export default class HttpRequest extends IONode<Config, never, Input, Output> {
-  static readonly type = "http-request";
-  static readonly configSchema: Schema = ConfigsSchema;
+  static override readonly type = "http-request";
+  static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: Input) {
     const res = await fetch(`${this.config.baseUrl}${msg.path}`);

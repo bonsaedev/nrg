@@ -642,7 +642,6 @@ Nodes are defined server-side and handle runtime logic. Create `src/server/nodes
 
 ```typescript
 import { IONode, type RED, type Infer } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import {
   ConfigsSchema,
   CredentialsSchema,
@@ -666,10 +665,10 @@ export default class MyNode extends IONode<
 > {
   static override readonly type = "my-node";
   static override readonly category = "function";
-  static override readonly color: `#${string}` = "#a6bbcf";
-  static override readonly configSchema: Schema = ConfigsSchema;
-  static override readonly credentialsSchema: Schema = CredentialsSchema;
-  static override readonly settingsSchema: Schema = SettingsSchema;
+  static override readonly color = "#a6bbcf";
+  static override readonly configSchema = ConfigsSchema;
+  static override readonly credentialsSchema = CredentialsSchema;
+  static override readonly settingsSchema = SettingsSchema;
 
   static override async registered(RED: RED) {
     RED.log.info("my-node type registered");
@@ -737,7 +736,7 @@ type Output = {
 export default class PortNode extends IONode<Config, never, Input, Output> {
   static override readonly type = "port-node";
   static override readonly category = "function";
-  static override readonly color: `#${string}` = "#a6bbcf";
+  static override readonly color = "#a6bbcf";
 
   override async input(msg: Input) {
     this.sendToPort("ok", { value: msg.payload.length });
@@ -769,7 +768,6 @@ You get named output ports from a `Port<T>` record in the `Output` generic. Port
 
 ```typescript
 import { IONode, type Port } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, type Config } from "@/schemas/router";
 
 type Success = { ok: true; id: string };
@@ -778,7 +776,7 @@ type Output = { success: Port<Success>; failure: Port<Failure> };
 
 export default class Router extends IONode<Config, any, Input, Output> {
   static override readonly type = "router";
-  static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: Input) {
     try {
@@ -1083,7 +1081,7 @@ Discriminate on `error.name` (realm-safe) rather than `instanceof`. Requires
 
 ```typescript
 import { IONode, type Infer } from "@bonsae/nrg/server";
-import { defineSchema, SchemaType, type Schema } from "@bonsae/nrg/schema";
+import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
   {
@@ -1101,7 +1099,7 @@ type Output = unknown; // one (untyped) output port
 
 export default class HttpClient extends IONode<Config, any, Input, Output> {
   static override readonly type = "http-client";
-  static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: Input) {
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
@@ -1563,12 +1561,11 @@ To create a configuration node (e.g., a server connection), extend `ConfigNode`:
 
 ```typescript
 import { ConfigNode } from "@bonsae/nrg/server";
-import { type Schema } from "@bonsae/nrg/schema";
 import { ConfigsSchema, type Config } from "@/schemas/remote-server";
 
 export default class RemoteServer extends ConfigNode<Config> {
   static override readonly type = "remote-server";
-  static override readonly configSchema: Schema = ConfigsSchema;
+  static override readonly configSchema = ConfigsSchema;
 
   override async created() {
     // Initialize connection
