@@ -1,5 +1,32 @@
 # Changelog
 
+# [0.34.0](https://github.com/bonsaedev/nrg/compare/v0.33.0...v0.34.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* **build:** hide inputSchema/outputSchemas from generated node help docs ([ee026d1](https://github.com/bonsaedev/nrg/commit/ee026d10d4d276fec18cbfb5a73cb07818deada1))
+* mark node input() with override (base tsconfig has noImplicitOverride) ([81fe3ea](https://github.com/bonsaedev/nrg/commit/81fe3ea02b7149211c8b29d12dbae999fb4dd8cb))
+* **server:** memoize flow-author schema overrides + fail closed on a bad one ([179f012](https://github.com/bonsaedev/nrg/commit/179f01262d7fda3fec642c2f3804cfd7662a8a05))
+* **server:** validate named-port sends (sendToPort) against the port schema ([00d1e01](https://github.com/bonsaedev/nrg/commit/00d1e01e43f60d461950cb9c8feb866503819a26))
+* **test:** type types-first Port<T> named ports via OutputPortNames + surface extraction failures ([b0c0674](https://github.com/bonsaedev/nrg/commit/b0c067475377221c66fd578cdcdc86693573d000))
+* **types:** preserve Port<> for named outputs in the emitted class decl ([d3c8924](https://github.com/bonsaedev/nrg/commit/d3c8924fe092ecc290116fd29005c99fb49a6d6d))
+* **types:** render a NodeRef config field as its config-node class, not unknown ([a859a25](https://github.com/bonsaedev/nrg/commit/a859a2571b8aba9f48413f2c0daf7e838ea847f3))
+
+
+### Features
+
+* **client:** a reusable NodeRedTray component for custom node forms ([bef8abd](https://github.com/bonsaedev/nrg/commit/bef8abda2d586653c130e94c0a87da3cb0d3eea3))
+* **client:** input schema editor + render the schema tray as a Vue component ([6ff88e0](https://github.com/bonsaedev/nrg/commit/6ff88e05367467530d8d209b59249ab4b561e4c9))
+* **client:** per-port output schema editor (Monaco tray) ([296c6a7](https://github.com/bonsaedev/nrg/commit/296c6a73d9cbf92ab8279e7a7bff6e0fd0cdc3e8))
+* **server:** add Port<T> for declaring output ports in the Output generic ([cdccc71](https://github.com/bonsaedev/nrg/commit/cdccc71137b58c2fd4bea9fff4da537601c66633))
+* **server:** derive node port topology from the Input/Output generics ([bd1f014](https://github.com/bonsaedev/nrg/commit/bd1f014ee068474c66255c95f9ac60decab4b589))
+* **server:** validate input/output against flow-author schema overrides ([788a6d0](https://github.com/bonsaedev/nrg/commit/788a6d0e229493f56e49a0a6b80b2d60e6e26481))
+* ship a default Prettier config in the toolkit ([1f86b78](https://github.com/bonsaedev/nrg/commit/1f86b78a8cdcf500742717c2315a8c2851e1cb3f))
+* **test:** inject build-time port topology so types-only nodes test like built nodes ([4bf8e84](https://github.com/bonsaedev/nrg/commit/4bf8e84338a8ab7424fc30ebcbcc3e86d2360d49))
+* **types:** emit per-node error/complete port envelopes in the wiring registry ([3b3f184](https://github.com/bonsaedev/nrg/commit/3b3f184cbeb7c05ef6f1f1bd3cf55f9394f1bf6f))
+* **types:** treat an explicit `unknown` output as one untyped port ([532c04c](https://github.com/bonsaedev/nrg/commit/532c04c3e3f66188dcdd2e7d29852c6e9a566274))
+
 # [0.33.0](https://github.com/bonsaedev/nrg/compare/v0.32.0...v0.33.0) (2026-07-05)
 
 
