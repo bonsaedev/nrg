@@ -259,3 +259,185 @@ describe("buildPackageDts", () => {
     expect(compilePackage(dts, `import "acme-nodes";\n`)).toHaveLength(0);
   });
 });
+
+// The built-in complete/error/status ports across the shapes a real package
+// hits. The complete port is `CompletePort<Input, Return>`: a STANDARD envelope
+// (carried message + completion signal + `input` provenance) that the `input()`
+// return type only IMPROVES via `TReturn`, defaulting to `void`. Guards the
+// regression where a void-returning node's complete collapsed to `never` (it was
+// emitted as the bare return type, `?? "never"`, before the CompletePort wrap).
+describe("buildPackageDts — built-in port envelopes", () => {
+  /** A single-node package: one default-export IONode, so every assertion is
+   * unambiguous (only this node's ports are in the emitted d.ts). */
+  const ioPkg = (
+    type: string,
+    cls: string,
+    generics: string,
+    body: string,
+  ) => ({
+    [type]: `
+      import { IONode } from "@bonsae/nrg/server";
+      export default class ${cls} extends IONode<${generics}> {
+        static readonly type = "${type}";
+        ${body}
+      }
+    `,
+  });
+
+  it("void-returning input() → complete: CompletePort<Input, void> (the standard envelope, not never)", () => {
+    const dts = buildPackageDts(
+      extractPkg(
+        ioPkg(
+          "void-node",
+          "VoidNode",
+          "{ c: 1 }, never, { payload: string }",
+          "async input(_msg: { payload: string }) {}",
+        ),
+      ),
+    );
+    expect(dts).toContain(
+      "complete: CompletePort<{ payload: string; }, void>;",
+    );
+    // Regression guard: a void return must NOT collapse the port to `never`.
+    expect(dts).not.toMatch(/complete: never/);
+    expect(dts).not.toMatch(/CompletePort<[^>]*,\s*never\s*>/);
+  });
+
+  it("input() returning a value → complete carries it under TReturn", () => {
+    const dts = buildPackageDts(
+      extractPkg(
+        ioPkg(
+          "return-node",
+          "ReturnNode",
+          "{ c: 1 }, never, { payload: string }",
+          "async input(_msg: { payload: string }) { return { ok: true }; }",
+        ),
+      ),
+    );
+    expect(dts).toContain(
+      "complete: CompletePort<{ payload: string; }, { ok: boolean; }>;",
+    );
+  });
+
+  it("no Input generic → input unknown; complete CompletePort<unknown, void>; error ErrorPort<unknown>", () => {
+    const dts = buildPackageDts(
+      extractPkg(
+        ioPkg(
+          "no-input-node",
+          "NoInputNode",
+          "{ c: 1 }",
+          "async input(_msg: unknown) {}",
+        ),
+      ),
+    );
+    expect(dts).toContain("input: unknown;");
+    expect(dts).toContain("complete: CompletePort<unknown, void>;");
+    expect(dts).toContain("error: ErrorPort<unknown>;");
+  });
+
+  it("an always-throwing input() (inferred return never) → complete falls back to void, never `never`", () => {
+    const dts = buildPackageDts(
+      extractPkg(
+        ioPkg(
+          "throw-node",
+          "ThrowNode",
+          "{ c: 1 }, never, { payload: string }",
+          `async input(_msg: { payload: string }) { throw new Error("boom"); }`,
+        ),
+      ),
+    );
+    // A `Promise<never>` return is vacuous → renderRole drops it → default "void".
+    expect(dts).toContain(
+      "complete: CompletePort<{ payload: string; }, void>;",
+    );
+    expect(dts).not.toMatch(/,\s*never\s*>/);
+  });
+
+  it("every IO node gets a StatusPort and an input-generic ErrorPort", () => {
+    const dts = buildPackageDts(
+      extractPkg(
+        ioPkg(
+          "st-node",
+          "StNode",
+          "{ c: 1 }, never, { payload: string }",
+          "async input(_msg: { payload: string }) {}",
+        ),
+      ),
+    );
+    expect(dts).toContain("status: StatusPort;");
+    expect(dts).toContain("error: ErrorPort<{ payload: string; }>;");
+  });
+
+  it("a config node gets no wiring-registry entry (config nodes have no ports)", () => {
+    const dts = buildPackageDts(
+      extractPkg({
+        "cfg-node": `
+          import { ConfigNode } from "@bonsae/nrg/server";
+          export default class CfgNode extends ConfigNode<{ host: string }> {
+            static readonly type = "cfg-node";
+          }
+        `,
+      }),
+    );
+    expect(dts).toContain("export declare class CfgNode extends ConfigNode<");
+    // Only IONodes are wired — a config node gets its class decl but no entry.
+    expect(dts).not.toContain('"cfg-node": {');
+    expect(dts).not.toContain("complete:");
+    expect(dts).not.toContain("status:");
+  });
+
+  // Type-level: prove the semantics behind the string assertions — the standard
+  // envelope is a real object type (so a void node's complete is NOT `never`),
+  // and the input() return only adds the `output` field.
+  const ENVELOPE_PKG = {
+    "void-node": `
+      import { IONode } from "@bonsae/nrg/server";
+      export default class VoidNode extends IONode<{ c: 1 }, never, { payload: string }> {
+        static readonly type = "void-node";
+        async input(_msg: { payload: string }) {}
+      }
+    `,
+    "return-node": `
+      import { IONode } from "@bonsae/nrg/server";
+      export default class ReturnNode extends IONode<{ c: 1 }, never, { payload: string }> {
+        static readonly type = "return-node";
+        async input(_msg: { payload: string }) { return { ok: true }; }
+      }
+    `,
+  };
+
+  it("a void node's complete is the assignable standard envelope (carried input + provenance), not never", () => {
+    const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
+    // If complete were `never`, this object literal would be unassignable.
+    const diags = compilePackage(
+      dts,
+      `import "acme-nodes";
+       import type { NodeTypes } from "@bonsae/nrg/server";
+       const c: NodeTypes["void-node"]["complete"] = {
+         payload: "x",
+         complete: { source: { id: "1", type: "void-node", name: undefined } },
+         input: { payload: "x" },
+       };
+       void c;`,
+    );
+    expect(diags).toHaveLength(0);
+  });
+
+  it("the input() return improves complete with `output`; a void return has none", () => {
+    const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
+    const diags = compilePackage(
+      dts,
+      `import "acme-nodes";
+       import type { NodeTypes } from "@bonsae/nrg/server";
+       // return-node: input() returns { ok } → carried under \`output\`.
+       const out: { ok: boolean } =
+         null as unknown as NodeTypes["return-node"]["complete"]["output"];
+       void out;
+       // void-node: no return → no \`output\` field (and the directive also fails
+       // if complete were \`never\`, since \`never["output"]\` would not error).
+       // @ts-expect-error — a void-returning node's complete carries no \`output\`
+       type _NoOutput = NodeTypes["void-node"]["complete"]["output"];`,
+    );
+    expect(diags).toHaveLength(0);
+  });
+});
