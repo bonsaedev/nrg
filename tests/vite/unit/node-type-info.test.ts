@@ -206,14 +206,32 @@ describe("extractNodeTypes — class API", () => {
     expect(names).not.toContain("__nrg_port");
   });
 
-  it("omits outputs when the Output type is absent (any)", () => {
+  it("omits outputs when the Output type is absent (never)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
-      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }> {
+      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, never> {
         static readonly type = "my-node";
       }
     `);
     expect(node.outputs).toBeUndefined();
+  });
+
+  it("makes one untyped port for an any / unknown output", () => {
+    const [anyOut] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      export default class AnyOut extends IONode<{ x: 1 }, never, { p: 1 }, any> {
+        static readonly type = "any-out";
+      }
+    `);
+    expect(anyOut.outputs).toHaveLength(1);
+
+    const [unknownOut] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      export default class UnknownOut extends IONode<{ x: 1 }, never, { p: 1 }, unknown> {
+        static readonly type = "unknown-out";
+      }
+    `);
+    expect(unknownOut.outputs).toHaveLength(1);
   });
 
   it("recovers the settings role from the 5th generic", () => {
@@ -284,10 +302,22 @@ describe("portTopology (generic-derived __nrgPorts descriptor)", () => {
     });
   });
 
-  it("returns undefined for an untyped node so the runtime falls back to schema", () => {
+  it("gives a bare IONode (all-any defaults) one untyped input and output", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
       export default class MyNode extends IONode {
+        static readonly type = "my-node";
+      }
+    `);
+    // Every generic defaults to \`any\`, and \`any\` makes a port, so a bare IONode
+    // is a simple 1-in / 1-out node.
+    expect(portTopology(node)).toMatchObject({ inputs: 1, outputs: 1 });
+  });
+
+  it("returns undefined only when NEITHER Input nor Output makes a port (both never)", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      export default class MyNode extends IONode<{ c: 1 }, never, never, never> {
         static readonly type = "my-node";
       }
     `);

@@ -102,7 +102,8 @@ describe("registerType validation", () => {
   it("should derive inputs from the Input generic", async () => {
     // `createNode` stamps the build-time topology (from the fixture source),
     // after which the static getter reflects the type-derived input count: a
-    // typed `Input` generic gives one input port, an untyped one gives none.
+    // present `Input` generic (a type, or any/unknown) gives one input port,
+    // `never` gives none.
     await createNode(WithInput);
     await createNode(WithoutInput);
 
@@ -112,7 +113,7 @@ describe("registerType validation", () => {
 
   it("should derive outputs from the Output generic", async () => {
     // A single object output → one port, a positional tuple → one port per
-    // element, an untyped `Output` → none. All read off the injected topology.
+    // element, a `never` `Output` → none. All read off the injected topology.
     await createNode(SingleOutput);
     await createNode(MultiOutputs);
     await createNode(NoOutputs);

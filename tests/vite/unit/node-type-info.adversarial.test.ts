@@ -354,10 +354,11 @@ describe("adversarial — node discovery gaps", () => {
     const [node] = nodes;
     expect(node.type).toBe("n");
     expect(node.kind).toBe("io");
-    // Every generic defaults to `any` (vacuous) → no documented roles/ports.
+    // config/settings default to `any` (vacuous) → no documented role. But `any`
+    // input/output DO make untyped ports, so a bare IONode is a 1-in / 1-out node.
     expect(node.config).toBeUndefined();
-    expect(node.input).toBeUndefined();
-    expect(node.outputs).toBeUndefined();
+    expect(node.input).toBeDefined();
+    expect(node.outputs).toHaveLength(1);
     expect(node.complete).toBeUndefined();
   });
 

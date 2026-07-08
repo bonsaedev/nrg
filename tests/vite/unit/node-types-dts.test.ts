@@ -319,7 +319,7 @@ describe("buildPackageDts — built-in port envelopes", () => {
     );
   });
 
-  it("no Input generic → input unknown; complete CompletePort<unknown, void>; error ErrorPort<unknown>", () => {
+  it("Input generic defaults to any → input any (an untyped port); complete CompletePort<any, void>; error ErrorPort<any>", () => {
     const dts = buildPackageDts(
       extractPkg(
         ioPkg(
@@ -330,9 +330,11 @@ describe("buildPackageDts — built-in port envelopes", () => {
         ),
       ),
     );
-    expect(dts).toContain("input: unknown;");
-    expect(dts).toContain("complete: CompletePort<unknown, void>;");
-    expect(dts).toContain("error: ErrorPort<unknown>;");
+    // Only the config generic is given, so Input defaults to `any` — which makes
+    // an untyped input port (was previously treated as "no input").
+    expect(dts).toContain("input: any;");
+    expect(dts).toContain("complete: CompletePort<any, void>;");
+    expect(dts).toContain("error: ErrorPort<any>;");
   });
 
   it("an always-throwing input() (inferred return never) → complete falls back to void, never `never`", () => {

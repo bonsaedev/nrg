@@ -198,6 +198,25 @@ function isVacuous(checker: ts.TypeChecker, type: ts.Type): boolean {
   );
 }
 
+/**
+ * Whether a port GENERIC (input or output) means "no port here". `any` and
+ * `unknown` DO create a port — an untyped one, for a node that accepts/emits
+ * arbitrary data — so only `never`/`void`/`undefined` suppress it. This is the
+ * port-existence rule; `isVacuous` (which also excludes any/unknown) is for
+ * documentation, not topology.
+ */
+function isAbsentPort(checker: ts.TypeChecker, type: ts.Type): boolean {
+  const text = checker.typeToString(type);
+  return (
+    text === "never" ||
+    text === "void" ||
+    text === "undefined" ||
+    (type.flags & ts.TypeFlags.Never) !== 0 ||
+    (type.flags & ts.TypeFlags.Void) !== 0 ||
+    (type.flags & ts.TypeFlags.Undefined) !== 0
+  );
+}
+
 // Only genuine object/intersection types have documentable members. Primitives,
 // literals, and unions would otherwise leak JS prototype methods (charAt, …) via
 // getPropertiesOfType — the help table would render dozens of bogus rows.
@@ -844,12 +863,11 @@ function extractOutputs(
   imports?: Map<ts.Symbol, ImportInfo>,
   ctx?: LocalDeclCtx,
 ): NodeOutputPort[] | undefined {
-  // An explicit `unknown` output declares ONE untyped output port — a node that
-  // emits arbitrary data (a passthrough, a dynamic REST/query result). A
-  // truly-absent output (`any`/`void`/`never`/`undefined`) yields no port: `any`
-  // stays "unspecified", so the node is inert (there is no schema fallback).
-  const isUnknown = (outputType.flags & ts.TypeFlags.Unknown) !== 0;
-  if (!isUnknown && isVacuous(checker, outputType)) return undefined;
+  // `any` and `unknown` each declare ONE untyped output port — a node that emits
+  // arbitrary data (a passthrough, a dynamic REST/query result). Only a truly
+  // absent output (`never`/`void`/`undefined`) yields no port (there is no schema
+  // fallback).
+  if (isAbsentPort(checker, outputType)) return undefined;
 
   // A port value may be wrapped in `Port<T>`; render the inner `T`.
   const value = (type: ts.Type): ts.Type => portInner(checker, type) ?? type;
@@ -1013,6 +1031,19 @@ function assignRoleTypes(
       }
       return;
     }
+    if (role === "input") {
+      // An input port exists unless the generic is absent (never/void/undefined).
+      // `any`/`unknown` DO make an (untyped) input — renderRole returns undefined
+      // for them, so fall back to a bare rendered role so `info.input` is set.
+      if (isAbsentPort(checker, argType)) return;
+      info.input = renderRole(checker, argType, at, imports, ctx) ?? {
+        text: render(checker, argType, at),
+        fields: [],
+      };
+      return;
+    }
+    // config / credentials / settings — documentation roles (no port), so a
+    // vacuous type (incl. any/unknown) legitimately renders nothing.
     const rendered = renderRole(checker, argType, at, imports, ctx);
     if (rendered) {
       (info as unknown as Record<string, NodeRoleType>)[role] = rendered;
@@ -1137,10 +1168,10 @@ function writeNodeTypesJson(infos: NodeTypeInfo[], outDir: string): void {
 /**
  * The port-topology descriptor injected as `<Node>.__nrgPorts`, derived purely
  * from the node's typed generics. Returns `undefined` when NEITHER `Input` nor
- * `Output` is typed, so injection is skipped and the node is inert (0/0) — there
- * is no schema fallback. When any generic IS typed the descriptor is
- * authoritative: an input port exists iff the `Input` generic is non-vacuous
- * (generics are the source of truth).
+ * `Output` makes a port, so injection is skipped and the node is inert (0/0) —
+ * there is no schema fallback. When either does, the descriptor is authoritative:
+ * a port exists unless the generic is absent (`never`/`void`/`undefined`) — so
+ * `any` and `unknown` each make an untyped port; `never` makes none.
  */
 interface PortTopology {
   inputs: 0 | 1;
