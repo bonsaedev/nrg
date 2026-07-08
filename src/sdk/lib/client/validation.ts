@@ -199,4 +199,51 @@ function validateForm(subject: any, schema: any): Record<string, string> {
     );
 }
 
-export { composeValidationSchema, validateNode, validateForm };
+/**
+ * Validates a flow-author DATA-VALIDATION schema STRING (the per-port input/
+ * output schema edited in the Monaco tray) the same way the runtime will — parse
+ * the JSON, then compile it with the same (lenient) AJV the runtime uses, so an
+ * error shown in the editor maps 1:1 to a deploy-time failure. Returns a
+ * human-readable message when the string is not valid JSON or not a compilable
+ * JSON Schema, else `null`. Empty/whitespace is "no override" and passes.
+ *
+ * Surfacing this in the editor means an invalid schema is caught while editing,
+ * not only when the flow is deployed and `input()` / `send()` first compile it.
+ */
+function validateSchemaString(source: string): string | null {
+  const trimmed = typeof source === "string" ? source.trim() : "";
+  if (!trimmed) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch (err) {
+    return `Invalid JSON: ${(err as Error).message}`;
+  }
+
+  // A JSON Schema is an object (the boolean `true`/`false` schemas are valid but
+  // meaningless as a per-message schema); anything else is not usable.
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return "Invalid JSON Schema: expected an object";
+  }
+
+  // Strip `$id` before compiling so validating an edited schema never returns a
+  // stale compiled form (AJV caches by `$id`) nor collides with the real
+  // per-port schema registered at runtime.
+  const schema: Record<string, unknown> = { ...(parsed as object) };
+  delete schema.$id;
+
+  try {
+    validator.createValidator(schema, false);
+  } catch (err) {
+    return `Invalid JSON Schema: ${(err as Error).message}`;
+  }
+  return null;
+}
+
+export {
+  composeValidationSchema,
+  validateNode,
+  validateForm,
+  validateSchemaString,
+};

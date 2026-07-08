@@ -624,6 +624,69 @@ describe("app shell — validation lifecycle", () => {
   });
 });
 
+describe("app shell — flow-author schema validation", () => {
+  const INPUT_FEATURES: NodeFeatures = { hasInput: true, outputPorts: [] };
+  const inputSchemaSchema = () =>
+    nameSchema({
+      validateInput: { type: "boolean", default: false },
+      inputSchema: { type: "string", default: "" },
+    });
+
+  test("reddens the Schema icon and shows the error in the form for an invalid input schema", () => {
+    const { component } = renderApp({
+      configs: { name: "x", validateInput: true, inputSchema: "{ not json" },
+      schema: inputSchemaSchema(),
+      features: INPUT_FEATURES,
+    });
+    // the error message renders in the main form
+    const err = component.container.querySelector(".nrg-schema-error");
+    expect(err?.textContent).toContain("Invalid JSON");
+    // the Schema icon/button is flagged red
+    expect(
+      component.container.querySelector(
+        ".nrg-outputs-schema-btn.nrg-schema-btn-error",
+      ),
+    ).not.toBeNull();
+  });
+
+  test("no error and no red icon for a valid input schema", () => {
+    const { component } = renderApp({
+      configs: {
+        name: "x",
+        validateInput: true,
+        inputSchema: JSON.stringify({ type: "object" }),
+      },
+      schema: inputSchemaSchema(),
+      features: INPUT_FEATURES,
+    });
+    expect(component.container.querySelector(".nrg-schema-error")).toBeNull();
+    expect(
+      component.container.querySelector(".nrg-schema-btn-error"),
+    ).toBeNull();
+  });
+
+  test("clears the error once the invalid schema is corrected", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x", validateInput: true, inputSchema: "{ bad" },
+      defaults: {
+        inputSchema: { value: "" },
+        validateInput: { value: false },
+      },
+      schema: inputSchemaSchema(),
+      features: INPUT_FEATURES,
+    });
+    expect(
+      component.container.querySelector(".nrg-schema-error"),
+    ).not.toBeNull();
+
+    node.inputSchema = JSON.stringify({ type: "object" });
+
+    await vi.waitFor(() => {
+      expect(component.container.querySelector(".nrg-schema-error")).toBeNull();
+    });
+  });
+});
+
 describe("app shell — custom form component", () => {
   test("renders the provided form component instead of the generated form", () => {
     const Probe = defineComponent({

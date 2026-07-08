@@ -3,6 +3,7 @@ import {
   composeValidationSchema,
   validateNode,
   validateForm,
+  validateSchemaString,
 } from "@/sdk/lib/client/validation";
 
 const baseSchema = {
@@ -203,6 +204,49 @@ describe("validateForm", () => {
     expect(Object.keys(result).length).toBe(2);
     expect(result).toHaveProperty("node.name");
     expect(result).toHaveProperty("node.url");
+  });
+});
+
+describe("validateSchemaString", () => {
+  it("passes for empty or whitespace (no override)", () => {
+    expect(validateSchemaString("")).toBeNull();
+    expect(validateSchemaString("   ")).toBeNull();
+  });
+
+  it("passes for a valid JSON Schema", () => {
+    expect(
+      validateSchemaString(
+        '{"type":"object","properties":{"payload":{"type":"string"}},"required":["payload"]}',
+      ),
+    ).toBeNull();
+  });
+
+  it("reports invalid JSON with a helpful message", () => {
+    const msg = validateSchemaString("{ not json");
+    expect(msg).not.toBeNull();
+    expect(msg).toContain("Invalid JSON");
+  });
+
+  it("reports a non-object schema (array / primitive)", () => {
+    expect(validateSchemaString("[1,2,3]")).toContain("expected an object");
+    expect(validateSchemaString("42")).toContain("expected an object");
+  });
+
+  it("reports an invalid JSON Schema (valid JSON, uncompilable)", () => {
+    // Valid JSON, but the $ref can't be resolved — AJV throws at compile, the
+    // same failure the runtime would hit at deploy.
+    const msg = validateSchemaString('{"$ref":"#/definitions/DoesNotExist"}');
+    expect(msg).not.toBeNull();
+    expect(msg).toContain("Invalid JSON Schema");
+  });
+
+  it("ignores a stale $id so an edited schema recompiles", () => {
+    // Same $id, different content across two calls: the first is valid, the
+    // second is broken — the broken one must still be reported (no stale cache).
+    expect(validateSchemaString('{"$id":"reused","type":"object"}')).toBeNull();
+    expect(
+      validateSchemaString('{"$id":"reused","$ref":"#/definitions/Nope"}'),
+    ).toContain("Invalid JSON Schema");
   });
 });
 

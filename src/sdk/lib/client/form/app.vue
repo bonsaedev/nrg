@@ -67,12 +67,21 @@
                 <button
                   type="button"
                   class="red-ui-button red-ui-button-small nrg-outputs-schema-btn"
+                  :class="{
+                    'nrg-schema-btn-error': !!errors['node.inputSchema'],
+                  }"
                   :disabled="!localNode.validateInput"
                   :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${inputLabel}`"
                   @click="openInputSchemaEditor()"
                 >
                   <span class="nrg-schema-glyph" aria-hidden="true">{ }</span>
                 </button>
+                <span
+                  v-if="errors['node.inputSchema']"
+                  class="node-red-vue-input-error-message nrg-schema-error"
+                >
+                  {{ errors["node.inputSchema"] }}
+                </span>
               </td>
               <td
                 v-if="typeCheckEnabled && supportsInputTypeValidation"
@@ -182,12 +191,22 @@
                 <button
                   type="button"
                   class="red-ui-button red-ui-button-small nrg-outputs-schema-btn"
+                  :class="{
+                    'nrg-schema-btn-error':
+                      !!errors[`node.outputSchemas.${port.index}`],
+                  }"
                   :disabled="!validateOutputFor(port.index)"
                   :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${port.label}`"
                   @click="openOutputSchemaEditor(port.index)"
                 >
                   <span class="nrg-schema-glyph" aria-hidden="true">{ }</span>
                 </button>
+                <span
+                  v-if="errors[`node.outputSchemas.${port.index}`]"
+                  class="node-red-vue-input-error-message nrg-schema-error"
+                >
+                  {{ errors[`node.outputSchemas.${port.index}`] }}
+                </span>
               </td>
               <td
                 v-if="typeCheckEnabled && supportsOutputTypeValidation"
@@ -451,7 +470,7 @@ import { type JSONSchemaType } from "ajv";
 import type { PropType } from "vue";
 import { defineComponent, shallowRef } from "vue";
 import { debounce } from "es-toolkit";
-import { validateForm } from "../validation";
+import { validateForm, validateSchemaString } from "../validation";
 import { typeCheckEnabled } from "../wire-check/availability";
 import type { NodeFeatures, NodeRedNode } from "../types";
 // Framework-internal: the built-in schema fields' editor tray. Registered
@@ -743,9 +762,34 @@ export default defineComponent({
   methods: {
     validate() {
       const newErrors = validateForm(this.localNode, this.schema);
+      Object.assign(newErrors, this.schemaStringErrors());
       const keys = Object.keys(this.errors);
       for (let i = 0; i < keys.length; i++) delete this.errors[keys[i]];
       Object.assign(this.errors, newErrors);
+    },
+    /**
+     * Validates the flow-author per-port DATA-VALIDATION schema STRINGS (the
+     * input schema and each output-port schema) so a malformed JSON Schema is
+     * caught here in the editor rather than at deploy time, when `input()` /
+     * `send()` first compile it. Only ports whose Validate Data toggle is on are
+     * checked, since only those compile at runtime. Errors are keyed like every
+     * other form error (`node.inputSchema`, `node.outputSchemas.<i>`) so the
+     * message renders inline and the Schema icon turns red.
+     */
+    schemaStringErrors(): Record<string, string> {
+      const errs: Record<string, string> = {};
+      if (this.acceptsInputSchema && this.localNode.validateInput) {
+        const msg = validateSchemaString(this.inputSchemaValue());
+        if (msg) errs["node.inputSchema"] = msg;
+      }
+      if (this.hasOutputSchemas) {
+        for (const { index } of this.outputRows) {
+          if (!this.validateOutputFor(index)) continue;
+          const msg = validateSchemaString(this.outputSchemaFor(index));
+          if (msg) errs[`node.outputSchemas.${index}`] = msg;
+        }
+      }
+      return errs;
     },
     resolveLabel(key: string, fallback: string): string {
       const resolved = this.$i18n(key);
@@ -1093,6 +1137,21 @@ export default defineComponent({
   font-size: 0.95em;
   line-height: 1;
   letter-spacing: -0.06em;
+}
+
+/* Invalid flow-author schema: redden the `{ }` glyph and border so the mistake
+   is visible on the button without opening the tray. */
+.nrg-outputs-schema-btn.nrg-schema-btn-error {
+  border-color: var(--red-ui-text-color-error, #d33);
+}
+.nrg-outputs-schema-btn.nrg-schema-btn-error .nrg-schema-glyph {
+  color: var(--red-ui-text-color-error, #d33);
+}
+
+/* The schema error message sits below the button in the ports table cell. */
+.nrg-schema-error {
+  display: block;
+  margin-top: 2px;
 }
 
 .nrg-outputs-return {
