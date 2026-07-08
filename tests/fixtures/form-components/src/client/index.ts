@@ -12,4 +12,8 @@ registerTypes([
   defineNode({ type: "basic-node" }),
   defineNode({ type: "ctx-modes-node" }),
   defineNode({ type: "output-schema-node" }),
+  defineNode({ type: "ports-source" }),
+  defineNode({ type: "ports-trigger" }),
+  defineNode({ type: "ports-route" }),
+  defineNode({ type: "ports-sink" }),
 ]);
