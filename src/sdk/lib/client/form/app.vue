@@ -71,7 +71,7 @@
                   :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${inputLabel}`"
                   @click="openInputSchemaEditor()"
                 >
-                  <i class="fa fa-code"></i>
+                  <span class="nrg-schema-glyph" aria-hidden="true">{ }</span>
                 </button>
               </td>
               <td
@@ -186,7 +186,7 @@
                   :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${port.label}`"
                   @click="openOutputSchemaEditor(port.index)"
                 >
-                  <i class="fa fa-code"></i>
+                  <span class="nrg-schema-glyph" aria-hidden="true">{ }</span>
                 </button>
               </td>
               <td
@@ -1082,6 +1082,17 @@ export default defineComponent({
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* The Schema button shows a `{ }` glyph rather than a generic code icon — it
+   reads as a JSON schema. Monospace + bold so the braces render crisply at the
+   button's icon size. */
+.nrg-outputs-schema-btn .nrg-schema-glyph {
+  font-family: var(--red-ui-monospace-font, "Courier New", monospace);
+  font-weight: 700;
+  font-size: 0.95em;
+  line-height: 1;
+  letter-spacing: -0.06em;
 }
 
 .nrg-outputs-return {
