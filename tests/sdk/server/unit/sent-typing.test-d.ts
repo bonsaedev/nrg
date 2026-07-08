@@ -7,6 +7,7 @@ import TdRecord from "./fixtures/sent-typing-test/td-record";
 import TdPrimitivePorts from "./fixtures/sent-typing-test/td-primitive-ports";
 import TdSingleObjOfObj from "./fixtures/sent-typing-test/td-single-obj-of-obj";
 import TdAnyOutput from "./fixtures/sent-typing-test/td-any-output";
+import TdSource from "./fixtures/sent-typing-test/td-source";
 
 // These proofs are never executed — they exist so `tsc` (run via `pnpm
 // validate:tsc`) verifies that `node.sent()` is typed positionally from the
@@ -115,5 +116,17 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     const byIndex = node.sent(3)[0]?.output;
     void byName;
     void byIndex;
+  });
+
+  // --- source node: a `never` INPUT (no input port) must not poison the emitted
+  //     message type. A source emits from outside input() carrying no incoming
+  //     message, so sent()[i][0] is `{ output: Output }`, never `never`.
+  it("types a never-input source node's single output at sent()[i][0]", async () => {
+    const { node } = await createNode(TdSource);
+    const id: string = node.sent()[0][0].output.event.id;
+    void id;
+    // @ts-expect-error output.event.id is a string, not a number
+    const bad: number = node.sent()[0][0].output.event.id;
+    void bad;
   });
 });

@@ -44,11 +44,16 @@ type PortMessage<T, P extends string> =
  * declared value `V`; carry/trace mode also spread the incoming message, so the
  * node's declared input keys may be present (typed optional). Extra keys are
  * derived from the node — never `unknown` — and an `any` input collapses to just
- * the precisely typed `output`.
+ * the precisely typed `output`. A `never` input (a SOURCE node: no input port,
+ * so it emits from outside any `input()` and carries no incoming message) also
+ * collapses to just `{ output: V }` — without this guard `Partial<never>` would
+ * poison the intersection to `never`, making `sent()[i][0].output` unreadable.
  */
-type WrappedPort<V, TInput> = { output: V } & (unknown extends TInput
+type WrappedPort<V, TInput> = { output: V } & ([TInput] extends [never]
   ? unknown
-  : Partial<TInput>);
+  : unknown extends TInput
+    ? unknown
+    : Partial<TInput>);
 
 /**
  * The positional fan-out the runtime delivers for one emission — one wrapped
