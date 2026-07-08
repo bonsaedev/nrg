@@ -701,19 +701,24 @@ A node's port **topology and wiring come from its types** — the `IONode` gener
 class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {}
 ```
 
-- **`TInput`** is the message your `input(msg)` handler receives. A real type gives the node **one input port**; `never` (or the `any` default) means **no input** — a source node.
-- **`TOutput`** is the node's output port(s). A single type is **one output port** (emit with `this.send(value)`); a record of [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports** (emit with `this.sendToPort(name, value)`). For a port whose payload is genuinely dynamic, `unknown` is **one untyped output port**.
+- **`TInput`** is the message your `input(msg)` handler receives. A **present** type gives the node **one input port** — and that includes `any`/`unknown`, for a config-driven node that is merely triggered and never reads `msg` directly. Only **`never`** means **no input** (a source node).
+- **`TOutput`** is the node's output port(s). A single type — or `any`/`unknown` for a genuinely dynamic payload — is **one output port** (emit with `this.send(value)`); a record of [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports** (emit with `this.sendToPort(name, value)`). **`never`** means **no output** (a sink node).
+
+**A port exists unless its generic is `never`** (or `void`/`undefined`). So `any` and `unknown` each make one untyped port; `never` is the single way to say "no port here".
 
 | Generic | Ports |
 | --- | --- |
-| `TInput` is a real type (e.g. `{ payload: string }`) | 1 input port |
-| `TInput` is `never` / `any` | 0 input ports (source node) |
-| `TOutput` is a single type (e.g. `string`, `{ ok: boolean }`) | 1 output port |
-| `TOutput` is `unknown` (a dynamic, untyped payload) | 1 output port |
+| `TInput` is a real type, `any`, or `unknown` | 1 input port |
+| `TInput` is `never` | 0 input ports (source node) |
+| `TOutput` is a single type, `any`, or `unknown` | 1 output port |
 | `TOutput` is `{ a: Port<A>; b: Port<B> }` | N named output ports |
-| `TOutput` is `never` / `any` / `void` | 0 output ports (sink node) |
+| `TOutput` is `never` | 0 output ports (sink node) |
 
 At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](#extending-a-published-node)). Schemas are **not** required for any of this.
+
+<p align="center">
+  <img alt="Port topology on the Node-RED canvas — source (Input=never) has no input port, trigger (Input=any) has one, route (named Port record) has two outputs, sink (Output=never) has no output" src="/port-topology-canvas.png" width="540"/>
+</p>
 
 ::: tip The generics are compile-time only
 `TInput`/`TOutput` drive the editor's ports and wire-checks and type your handler — but they're **erased at runtime**. The `msg` your `input()` receives is whatever the upstream node actually sent; the framework doesn't validate or convert it against `TInput`. If you need a value in a specific runtime shape, convert it yourself (or turn on input data validation — a config-schema control — to _reject_ bad data: it checks, it doesn't coerce). **Config** is the opposite: it's coerced to its schema types and defaulted before you read it. See [config vs. message data](./schemas#validation-semantics).
