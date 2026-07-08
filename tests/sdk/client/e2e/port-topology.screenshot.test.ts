@@ -6,6 +6,14 @@ import { FIXTURE_FLOW } from "./global-setup";
 // Not an assertion test — it drives the real Node-RED editor to capture docs
 // screenshots proving the port-topology contract: `never` → no port, `any` /
 // `unknown` → one untyped port, a named-Port record → one port per name.
+//
+// OPT-IN ONLY (run with NRG_SCREENSHOTS=1). It shares the single Node-RED
+// instance with the other e2e files, and its `beforeAll` does a FULL destructive
+// `deployFlow` that replaces the fixture flow (n1..n5) with its own demo nodes.
+// Left in the default suite it races those files (their nodes vanish mid-test and
+// the editor's full-shade swallows clicks), so it is skipped unless explicitly
+// regenerating docs — and should be run on its own when it is.
+const GENERATE = Boolean(process.env.NRG_SCREENSHOTS);
 const PORT = Number(process.env.NODE_RED_PORT);
 const OUT = "/tmp/nrg-port-screens";
 
@@ -57,7 +65,7 @@ const FLOW: Record<string, unknown>[] = [
   })),
 ];
 
-describe("port topology screenshots", () => {
+describe.skipIf(!GENERATE)("port topology screenshots", () => {
   let browser: Browser;
   let page: Page;
   let editor: NodeRedEditor;
@@ -94,8 +102,9 @@ describe("port topology screenshots", () => {
           document.querySelectorAll(".red-ui-flow-node-group"),
         );
         const g = groups.find(
-          (el) => (el as unknown as { __data__?: { id: string } }).__data__
-            ?.id === id,
+          (el) =>
+            (el as unknown as { __data__?: { id: string } }).__data__?.id ===
+            id,
         );
         if (!g) return null;
         const nodeEl = g.querySelector(".red-ui-flow-node") ?? g;
