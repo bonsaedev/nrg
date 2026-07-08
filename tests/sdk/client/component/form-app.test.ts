@@ -665,6 +665,33 @@ describe("app shell — flow-author schema validation", () => {
     ).toBeNull();
   });
 
+  test("reddens an output-port Schema icon and lists the error below the Outputs table", () => {
+    const { component } = renderApp({
+      configs: {
+        name: "x",
+        validateOutputs: { 0: true },
+        outputSchemas: { 0: "{ bad json" },
+      },
+      schema: nameSchema({
+        outputSchemas: { type: "object", default: {} },
+      }),
+      features: {
+        hasInput: false,
+        outputPorts: [{ index: 0, label: "success" }],
+      },
+    });
+    // below-table error, prefixed with the port label
+    const err = component.container.querySelector(".nrg-schema-error");
+    expect(err?.textContent).toContain("success");
+    expect(err?.textContent).toContain("Invalid JSON");
+    // the output port's Schema icon is flagged red
+    expect(
+      component.container.querySelector(
+        ".nrg-outputs-schema-btn.nrg-schema-btn-error",
+      ),
+    ).not.toBeNull();
+  });
+
   test("clears the error once the invalid schema is corrected", async () => {
     const { node, component } = renderApp({
       configs: { name: "x", validateInput: true, inputSchema: "{ bad" },
