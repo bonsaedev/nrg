@@ -320,6 +320,89 @@ override async input(msg: Input) {
 }
 ```
 
+## Async, Concurrency-Safe Input
+
+### Traditional
+
+`send` and `done` arrive as callback arguments, so any async work forces you to thread them through every `.then`, `await`, or timer by hand. Worse, the node instance is shared across messages — Node-RED delivers the next `msg` without waiting for `done()`, so anything you stash on `this` races with overlapping inputs.
+
+```javascript
+this.on('input', function(msg, send, done) {
+  this.current = msg;                 // shared on `this`; the next input
+                                      // overwrites it mid-flight
+  fetchRemote(msg.payload)
+    .then((result) => {
+      // Is `this.current` still *this* msg? Not if another arrived while
+      // we awaited. `send`/`done` had to be captured in this closure too.
+      send({ payload: result });
+      done();
+    })
+    .catch(done);
+});
+```
+
+### NRG
+
+Write an `async input`. Call `this.send()` from anywhere — after an `await`, inside a `.then`, or from a timer — and it lands in _this_ invocation's context. Each call runs in its own `AsyncLocalStorage` scope, so concurrent messages never clobber each other and there is no shared `this` state to race on. `done()` fires automatically; a returned value leaves the node's complete port.
+
+```typescript
+override async input(msg: Input) {
+  const result = await fetchRemote(msg.payload);
+  // Resolves this message's context even after awaiting — no threading
+  // `send`/`done`, no correlation ids, no races.
+  this.send({ result });
+}
+```
+
+## Lifecycle Ports
+
+### Traditional
+
+Take an **iterator** that walks a list, runs each element through the flow, then continues once — to **Summarize** — after the last one. Node-RED has no node that fans out many messages and then signals it is done, so people build it as a feedback loop: wire the node's **output back into its own input** so each pass emits one element and re-triggers the node for the next. Iteration becomes recursion drawn on the canvas. "Done" and "failed" have nowhere to go either — you bolt on a **Complete** node and a **Catch** node scoped to the iterator (teleporting) to continue when the loop drains or an element throws.
+
+```text
+   +----------------------------+   output looped back into input
+   |                            |
+   |  +--------------+          |
+   +->|   Iterator   |----------+--> Process Item
+      +--------------+
+
+  +- - - - - - - - -+        +-----------+
+    Complete           . . > | Summarize |   "done" teleports
+    scope: [Iterator]        +-----------+
+  +- - - - - - - - -+
+  +- - - - - - - - -+        +------------+
+    Catch              . . > | Notify Ops |   "error" teleports
+    scope: [Iterator]        +------------+
+  +- - - - - - - - -+
+```
+
+You can make the Complete/Catch link _look_ obvious by convention — parking them beside the iterator or wrapping the group — but nothing enforces it: the binding is the id in the scope list, not the position on the canvas, so the tidy layout is a hint you maintain by hand, not a guarantee the tooling gives you.
+
+### NRG
+
+The iterator is one node with three outputs: the **each** output for the loop body, plus the toggleable **complete** and **error** lifecycle ports. The loop lives inside `input()` — send each element, `return` to leave the complete port, `throw` to leave the error port. No feedback wire, no teleporting Complete/Catch node; every branch is a real wire leaving the node.
+
+```text
+  +--------------+
+  |   Iterator   |-- each ------> Process Item
+  |              |-- complete --> Summarize
+  |              |-- error -----> Notify Ops
+  +--------------+
+```
+
+```typescript
+override async input(msg: Input) {
+  for (const item of msg.items) {
+    this.send({ item });                // each element → `each` output → Process Item
+  }
+  return { count: msg.items.length };   // → `complete` port → Summarize
+  // a throw (or this.error(message, msg)) → `error` port → Notify Ops
+}
+```
+
+The loop, its completion, and its failure read top-to-bottom in one method, and on the canvas they are three wires you can follow — not a self-loop plus two nodes coupled by hidden scope. `complete` carries the returned value under `output`; `error` emits `{ ...msg, error: { name, message, source }, input: msg }`, the same shape a Catch node consumes; `status` mirrors `this.status(...)`.
+
 ## TypedInput Resolution
 
 ### Traditional
