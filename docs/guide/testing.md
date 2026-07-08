@@ -1320,18 +1320,20 @@ pnpm add -D vitest
 
 ```typescript
 // vitest.client.e2e.config.ts
-import { defineConfig, mergeConfig } from "vitest/config";
+import { defineConfig } from "vitest/config";
 import { nrg } from "@bonsae/nrg/test/client/e2e/config";
 
-export default mergeConfig(
-  nrg,
-  defineConfig({
-    test: {
-      globalSetup: "tests/client/e2e/global-setup.ts",
-      include: ["tests/client/e2e/**/*.test.ts"],
-    },
-  }),
-);
+// Spread `nrg.test` (not `mergeConfig`): the e2e tests replace the default
+// `globalSetup` with their own, and `mergeConfig` CONCATENATES arrays — it would
+// run both nrg's default global setup and yours (two Node-RED boots). A spread
+// lets the keys below replace nrg's defaults cleanly.
+export default defineConfig({
+  test: {
+    ...nrg.test,
+    globalSetup: "tests/client/e2e/global-setup.ts",
+    include: ["tests/client/e2e/**/*.test.ts"],
+  },
+});
 ```
 
 The `nrg` config provides:

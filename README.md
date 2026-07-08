@@ -356,7 +356,7 @@ import { nrg } from "@bonsae/nrg/test/client/e2e/config";
 
 export default defineConfig({
   test: {
-    ...nrg,
+    ...nrg.test,
     globalSetup: "tests/client/e2e/global-setup.ts",
     include: ["tests/client/e2e/**/*.test.ts"],
   },
