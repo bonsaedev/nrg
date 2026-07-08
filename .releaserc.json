@@ -3,6 +3,21 @@
     [
       "@semantic-release/commit-analyzer",
       {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "Features" },
+            { "type": "fix", "section": "Bug Fixes" },
+            { "type": "perf", "section": "Performance" },
+            { "type": "refactor", "section": "Refactors" },
+            { "type": "docs", "section": "Documentation" },
+            { "type": "test", "section": "Tests", "hidden": true },
+            { "type": "build", "section": "Build System", "hidden": true },
+            { "type": "ci", "section": "Continuous Integration", "hidden": true },
+            { "type": "chore", "section": "Chores", "hidden": true },
+            { "type": "style", "section": "Styles", "hidden": true }
+          ]
+        },
         "releaseRules": [
           { "type": "refactor", "release": "patch" },
           { "type": "docs", "release": "patch" },
@@ -13,13 +28,19 @@
     [
       "@semantic-release/release-notes-generator",
       {
+        "preset": "conventionalcommits",
         "presetConfig": {
           "types": [
             { "type": "feat", "section": "Features" },
             { "type": "fix", "section": "Bug Fixes" },
+            { "type": "perf", "section": "Performance" },
             { "type": "refactor", "section": "Refactors" },
             { "type": "docs", "section": "Documentation" },
-            { "type": "perf", "section": "Performance" }
+            { "type": "test", "section": "Tests", "hidden": true },
+            { "type": "build", "section": "Build System", "hidden": true },
+            { "type": "ci", "section": "Continuous Integration", "hidden": true },
+            { "type": "chore", "section": "Chores", "hidden": true },
+            { "type": "style", "section": "Styles", "hidden": true }
           ]
         }
       }
