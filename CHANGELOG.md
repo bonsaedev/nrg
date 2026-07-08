@@ -1,5 +1,13 @@
 # Changelog
 
+# [0.35.0](https://github.com/bonsaedev/nrg/compare/v0.34.0...v0.35.0) (2026-07-08)
+
+
+### Features
+
+* any/unknown make an untyped port; only never/void/undefined suppress it ([d385d88](https://github.com/bonsaedev/nrg/commit/d385d888e5d113c5ff5888a709e534160965b43d))
+* **client:** use a { } glyph for the Schema button icon ([c8ed092](https://github.com/bonsaedev/nrg/commit/c8ed0923401e0b4bab865ef5e9be947ba77cb8b2))
+
 # [0.34.0](https://github.com/bonsaedev/nrg/compare/v0.33.0...v0.34.0) (2026-07-07)
 
 
