@@ -44,6 +44,8 @@
 </template>
 
 <script lang="ts">
+import type { PropType } from "vue";
+import type { editor as MonacoEditor } from "monaco-editor";
 import { defineComponent, shallowRef } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
 import NodeRedTray from "./node-red-tray.vue";
@@ -178,6 +180,16 @@ export default defineComponent({
       type: String,
       default: "",
     },
+    /**
+     * Monaco editor construction options (e.g. `{ lineNumbers: "on",
+     * minimap: { enabled: true } }`), forwarded verbatim to
+     * `RED.editor.createEditor`. Public and unopinionated: nrg sets no default,
+     * so the consuming component controls the editor's behaviour entirely.
+     */
+    editorOptions: {
+      type: Object as PropType<MonacoEditor.IStandaloneEditorConstructionOptions>,
+      default: undefined,
+    },
   },
   emits: ["update:modelValue", "update:value", "editor-ready"],
   setup() {
@@ -267,6 +279,7 @@ export default defineComponent({
         id: this.editorId,
         mode: this.language,
         value: this.effectiveValue,
+        options: this.editorOptions,
       });
       this.editorInstance.getSession().on("change", () => {
         const currentValue = this.editorInstance.getValue();
@@ -300,6 +313,7 @@ export default defineComponent({
           stateId: this.stateId,
           mode: this.language,
           value: this.effectiveValue,
+          options: this.editorOptions,
         });
         this.expandedEditor.focus?.();
       });

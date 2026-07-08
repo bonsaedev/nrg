@@ -99,6 +99,12 @@ declare namespace NodeRED {
     value?: string;
     focus?: boolean;
     globals?: Record<string, boolean>;
+    /**
+     * Monaco editor construction options (lineNumbers, minimap, wordWrap, …),
+     * forwarded verbatim to the underlying editor. nrg imposes no defaults —
+     * the caller supplies whatever it wants.
+     */
+    options?: import("monaco-editor").editor.IStandaloneEditorConstructionOptions;
   }
 
   interface TrayButton {

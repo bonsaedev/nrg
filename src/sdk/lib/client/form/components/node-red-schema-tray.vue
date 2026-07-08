@@ -8,6 +8,7 @@
         class="nrg-schema-editor"
         :model-value="draft"
         language="json"
+        :editor-options="editorOptions"
         @update:model-value="(v: string) => (draft = v)"
       />
       <!-- Live validation of the schema as it is typed: the same check the
@@ -23,6 +24,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import type { editor as MonacoEditor } from "monaco-editor";
 import NodeRedTray from "./node-red-tray.vue";
 import NodeRedEditorInput from "./node-red-editor-input.vue";
 import { validateSchemaString } from "../../validation";
@@ -39,6 +41,13 @@ export default defineComponent({
       title: "",
       draft: "",
       onSave: null as ((value: string) => void) | null,
+      // Monaco options for the schema editor. Line numbers make the validation
+      // error's "line X column Y" actionable; the minimap aids navigation of
+      // larger schemas.
+      editorOptions: {
+        lineNumbers: "on",
+        minimap: { enabled: true },
+      } as MonacoEditor.IStandaloneEditorConstructionOptions,
     };
   },
   computed: {

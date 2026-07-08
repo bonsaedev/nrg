@@ -52,6 +52,29 @@ describe("NodeRedEditorInput", () => {
     expect(call.id).toMatch(/^node-red-editor-/);
   });
 
+  test("forwards editorOptions to createEditor as `options`", async () => {
+    const options = { lineNumbers: "on", minimap: { enabled: true } };
+    render(NodeRedEditorInput, {
+      props: { value: "{}", language: "json", editorOptions: options },
+    });
+    await vi.waitFor(() => {
+      expect(RED.editor.createEditor).toHaveBeenCalled();
+    });
+    const spy = RED.editor.createEditor as ReturnType<typeof vi.fn>;
+    const call = spy.mock.calls[0][0] as Record<string, unknown>;
+    expect(call.options).toEqual(options);
+  });
+
+  test("passes options: undefined when none given (nrg imposes no default)", async () => {
+    render(NodeRedEditorInput, { props: { value: "{}" } });
+    await vi.waitFor(() => {
+      expect(RED.editor.createEditor).toHaveBeenCalled();
+    });
+    const spy = RED.editor.createEditor as ReturnType<typeof vi.fn>;
+    const call = spy.mock.calls[0][0] as Record<string, unknown>;
+    expect(call.options).toBeUndefined();
+  });
+
   test("emits editor-ready with editor instance", async () => {
     const onEditorReady = vi.fn();
     render(NodeRedEditorInput, {

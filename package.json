@@ -220,6 +220,7 @@
     "happy-dom": "^20.10.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "monaco-editor": "^0.55.1",
     "node-red": "5.0.0",
     "playwright": "^1.60.0",
     "semantic-release": "^24.2.4",
