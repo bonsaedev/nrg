@@ -236,6 +236,19 @@ function OutputContextModes(
 }
 
 /**
+ * Normalizes an author-supplied default for an input/output data-validation
+ * schema field. The field stores a JSON-Schema STRING (Monaco-editable by the
+ * flow author), but the node author may seed it either with a raw string OR —
+ * more ergonomically — with another schema built from {@link SchemaType}, which
+ * is serialized to a pretty-printed JSON-Schema string here. A schema seed is
+ * therefore valid JSON Schema by construction; only later flow-author edits can
+ * make it invalid.
+ */
+function serializeSchemaDefault(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
+/**
  * Declares the `outputSchemas` config map: per-port DATA-VALIDATION schema
  * overrides, keyed by output port index, as JSON-Schema strings a flow author
  * edits in the editor (Monaco). Declaring it exposes an editable Schema column
@@ -246,20 +259,32 @@ function OutputContextModes(
  *
  * @example
  * ```ts
- * // port 0 is overridable, seeded with an author default schema
+ * // port 0 is overridable, seeded from a `SchemaType` schema (serialized to a
+ * // JSON-Schema string) — a raw JSON string is still accepted too:
  * outputSchemas: SchemaType.OutputSchemas({
- *   default: { 0: JSON.stringify({ type: "object" }) },
+ *   default: { 0: SchemaType.Object({ ok: SchemaType.Boolean() }) },
  * }),
  * ```
  */
 function OutputSchemas(
-  options?: NrgSchemaOptions & { default?: Record<number, string> },
+  options?: NrgSchemaOptions & {
+    default?: Record<number, string | TSchema>;
+  },
 ) {
+  const { default: seed, ...rest } = options ?? {};
+  const seededDefault = seed
+    ? Object.fromEntries(
+        Object.entries(seed).map(([port, schema]) => [
+          port,
+          serializeSchemaDefault(schema),
+        ]),
+      )
+    : {};
   return BaseType.Record(BaseType.Number(), BaseType.String(), {
     description:
       "Per-port output data-validation schema (JSON Schema string), keyed by output port index.",
-    default: {},
-    ...options,
+    default: seededDefault,
+    ...rest,
   });
 }
 
@@ -268,12 +293,26 @@ function OutputSchemas(
  * schema, a JSON-Schema string a flow author edits in the editor. Declaring it
  * exposes the input Schema editor (enabled when Validate Data is on for the
  * input). The effective input schema is the flow-author value, else this default.
+ *
+ * @example
+ * ```ts
+ * // seed from a `SchemaType` schema (serialized to a JSON-Schema string) so the
+ * // default is typed and valid by construction — no hand-written JSON.stringify:
+ * inputSchema: SchemaType.InputSchema({
+ *   default: SchemaType.Object({ payload: SchemaType.String() }),
+ * }),
+ * // a raw JSON-Schema string is still accepted:
+ * inputSchema: SchemaType.InputSchema({ default: '{"type":"object"}' }),
+ * ```
  */
-function InputSchema(options?: NrgSchemaOptions & { default?: string }) {
+function InputSchema(
+  options?: NrgSchemaOptions & { default?: string | TSchema },
+) {
+  const { default: seed, ...rest } = options ?? {};
   return BaseType.String({
     description: "Input data-validation schema (JSON Schema string).",
-    default: "",
-    ...options,
+    default: seed === undefined ? "" : serializeSchemaDefault(seed),
+    ...rest,
   });
 }
 

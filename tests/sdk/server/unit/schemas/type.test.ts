@@ -308,3 +308,48 @@ describe("defineSchema", () => {
     });
   });
 });
+
+describe("InputSchema / OutputSchemas defaults", () => {
+  const OBJECT_SCHEMA_JSON = {
+    type: "object",
+    properties: { payload: { type: "string" } },
+    required: ["payload"],
+  };
+
+  describe("SchemaType.InputSchema", () => {
+    it("defaults to an empty string when no default is given", () => {
+      expect(SchemaType.InputSchema().default).toBe("");
+    });
+
+    it("passes a raw JSON-Schema string default through unchanged", () => {
+      const raw = '{"type":"object"}';
+      expect(SchemaType.InputSchema({ default: raw }).default).toBe(raw);
+    });
+
+    it("serializes a SchemaType schema default to a JSON-Schema string", () => {
+      const s = SchemaType.InputSchema({
+        default: SchemaType.Object({ payload: SchemaType.String() }),
+      });
+      expect(typeof s.default).toBe("string");
+      expect(JSON.parse(s.default as string)).toEqual(OBJECT_SCHEMA_JSON);
+    });
+  });
+
+  describe("SchemaType.OutputSchemas", () => {
+    it("defaults to an empty map when no default is given", () => {
+      expect(SchemaType.OutputSchemas().default).toEqual({});
+    });
+
+    it("serializes per-port schema defaults, leaving string ports untouched", () => {
+      const s = SchemaType.OutputSchemas({
+        default: {
+          0: SchemaType.Object({ payload: SchemaType.String() }),
+          1: '{"type":"array"}',
+        },
+      });
+      const def = s.default as Record<number, string>;
+      expect(JSON.parse(def[0])).toEqual(OBJECT_SCHEMA_JSON);
+      expect(def[1]).toBe('{"type":"array"}');
+    });
+  });
+});
