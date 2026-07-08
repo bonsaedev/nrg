@@ -76,12 +76,6 @@
                 >
                   <span class="nrg-schema-glyph" aria-hidden="true">{ }</span>
                 </button>
-                <span
-                  v-if="errors['node.inputSchema']"
-                  class="node-red-vue-input-error-message nrg-schema-error"
-                >
-                  {{ errors["node.inputSchema"] }}
-                </span>
               </td>
               <td
                 v-if="typeCheckEnabled && supportsInputTypeValidation"
@@ -102,6 +96,13 @@
             </tr>
           </tbody>
         </table>
+        <div
+          v-if="errors['node.inputSchema']"
+          class="node-red-vue-input-error-message nrg-schema-error"
+          role="alert"
+        >
+          {{ inputLabel }} schema — {{ errors["node.inputSchema"] }}
+        </div>
         <ul class="nrg-help-list">
           <li>
             <strong>{{
@@ -201,12 +202,6 @@
                 >
                   <span class="nrg-schema-glyph" aria-hidden="true">{ }</span>
                 </button>
-                <span
-                  v-if="errors[`node.outputSchemas.${port.index}`]"
-                  class="node-red-vue-input-error-message nrg-schema-error"
-                >
-                  {{ errors[`node.outputSchemas.${port.index}`] }}
-                </span>
               </td>
               <td
                 v-if="typeCheckEnabled && supportsOutputTypeValidation"
@@ -262,6 +257,14 @@
             </tr>
           </tbody>
         </table>
+        <div
+          v-for="e in outputSchemaErrors"
+          :key="`out-schema-err-${e.index}`"
+          class="node-red-vue-input-error-message nrg-schema-error"
+          role="alert"
+        >
+          {{ e.label }} schema — {{ e.message }}
+        </div>
         <ul class="nrg-help-list">
           <li>
             <strong>{{
@@ -622,6 +625,22 @@ export default defineComponent({
         index,
         label: this.features.outputPorts[index]?.label ?? `Output ${index}`,
       }));
+    },
+    /**
+     * Flow-author output-schema validation errors, collected for display BELOW
+     * the Outputs table (keyed like every other form error). Each entry pairs
+     * the port label with its message so the reader knows which port is wrong.
+     */
+    outputSchemaErrors(): { index: number; label: string; message: string }[] {
+      return this.outputRows
+        .map((port) => ({
+          index: port.index,
+          label: port.label,
+          message: this.errors[`node.outputSchemas.${port.index}`],
+        }))
+        .filter((e): e is { index: number; label: string; message: string } =>
+          Boolean(e.message),
+        );
     },
     /**
      * Label for the single input port, resolved from the node's i18n catalog
@@ -1148,10 +1167,16 @@ export default defineComponent({
   color: var(--red-ui-text-color-error, #d33);
 }
 
-/* The schema error message sits below the button in the ports table cell. */
+/* The schema error message renders below the ports table, one line per port. */
 .nrg-schema-error {
   display: block;
-  margin-top: 2px;
+  margin-top: 6px;
+}
+
+/* Keep column headers (notably "Validate Data") on a single line. */
+.nrg-input thead th,
+.nrg-outputs thead th {
+  white-space: nowrap;
 }
 
 .nrg-outputs-return {
