@@ -144,4 +144,31 @@ describe("output schema editor (chromium)", () => {
       .waitFor({ state: "visible", timeout: 10_000 });
     expect(await tray.textContent()).toContain("Hello from a custom Vue tray");
   });
+
+  // Capture the input + output data-validation schema form for the docs
+  // (docs/guide/schemas.md). Kept here so the image tracks the real editor UI —
+  // e.g. the Schema button's JSON Schema logo — instead of drifting.
+  test("captures the schema form for the docs", async () => {
+    await editor.editNode("n5");
+    const page = editor.page;
+
+    await editor.field("Name").fill("Validate Order");
+    // Enable the input's Validate Data (no port suffix) and output port 0's, so
+    // both Schema buttons render enabled with the logo.
+    await page
+      .locator('label.nrg-toggle:has(input[aria-label="Validate Data"])')
+      .first()
+      .click();
+    await page
+      .locator(
+        'label.nrg-toggle:has(input[aria-label="Validate Data — Output 0"])',
+      )
+      .click();
+
+    const tray = page.locator(".red-ui-tray").last();
+    await page.waitForTimeout(300);
+    await tray.screenshot({ path: "docs/public/editor-schemas.png" });
+
+    await editor.clickCancel();
+  });
 });
