@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.1](https://github.com/bonsaedev/nrg/compare/v0.35.0...v0.35.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* **test:** keep sent() readable for never-input source nodes ([5c0b239](https://github.com/bonsaedev/nrg/commit/5c0b2391a49ad39f8791c9cf320d0f7324ec77ac))
+
 # [0.35.0](https://github.com/bonsaedev/nrg/compare/v0.34.0...v0.35.0) (2026-07-08)
 
 
