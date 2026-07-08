@@ -10,7 +10,9 @@ import type { ServerBuildOptions } from "../../../src/tools/vite/types";
 // `__nrgPorts` descriptor, and the injector stamps it onto the built class; the
 // runtime routes and the editor draws ports from THAT. Named `Port<T>` keys stamp
 // named ports; a tuple stamps positional ports; a node with NO Input/Output
-// generics is inert (0/0) and never injected — there is no schema fallback.
+// generics defaults both to `any`, and any/unknown each make ONE untyped port
+// (only `never`/`void`/`undefined` suppress a port), so it is 1-in/1-out. There
+// is no schema fallback either way.
 
 const BASIC = path.resolve(__dirname, "../../fixtures/basic-node");
 
@@ -89,12 +91,14 @@ describe("port topology injection (schema-free Port outputs)", () => {
     expect(defs["second-node"].outputPortNames).toBeUndefined();
   });
 
-  it("leaves a node with NO Input/Output generics inert (0/0) — no schema fallback", () => {
+  it("defaults missing Input/Output generics to `any` → 1-in/1-out (no schema fallback)", () => {
     // test-node: `extends IONode<Config, Credentials>` with no Input/Output types →
-    // portTopology is undefined → not injected → the runtime getters report 0/0.
-    // Proves topology comes ONLY from generics; schemas never fill in ports.
-    expect(defs["test-node"].inputs).toBe(0);
-    expect(defs["test-node"].outputs).toBe(0);
+    // both default to `any`, and any/unknown each make ONE untyped port (only
+    // `never` suppresses one), so the node is 1-in/1-out with a single positional
+    // output (no names). Proves topology comes ONLY from generics — including their
+    // `any` defaults — and never from a schema.
+    expect(defs["test-node"].inputs).toBe(1);
+    expect(defs["test-node"].outputs).toBe(1);
     expect(defs["test-node"].outputPortNames).toBeUndefined();
   });
 });

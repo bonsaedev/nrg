@@ -127,10 +127,11 @@ describe("type generation — class-based nodes", () => {
     expect(dts).toContain('"router-node": {');
     expect(dts).not.toContain('"config-server": {');
     // Built-in ports carry the delivered envelope, generic over each node's
-    // input (and its input() return, for complete). test-node has no input
-    // generic (→ unknown); port-node's typed input flows through per-node.
-    expect(dts).toMatch(/error: ErrorPort<unknown>;/);
-    expect(dts).toMatch(/complete: CompletePort<unknown, void>;/);
+    // input (and its input() return, for complete). test-node declares no input
+    // generic, so it defaults to `any`; port-node's typed input flows through
+    // per-node.
+    expect(dts).toMatch(/error: ErrorPort<any>;/);
+    expect(dts).toMatch(/complete: CompletePort<any, void>;/);
     expect(dts).toContain("error: ErrorPort<{ payload: string; }>");
     expect(dts).toMatch(/status: StatusPort;/);
   });
