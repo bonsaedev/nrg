@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.36.0](https://github.com/bonsaedev/nrg/compare/v0.35.1...v0.36.0) (2026-07-08)
+
+### Features
+
+* **client:** expose typed Monaco editor options as a public NodeRedEditorInput prop ([3f5499c](https://github.com/bonsaedev/nrg/commit/3f5499cec52822ee67d6c989e5b8bd90f7a09e96))
+* **client:** show the schema error live inside the editor tray ([db3a2ce](https://github.com/bonsaedev/nrg/commit/db3a2ceb03a035d114f98219527da4d2c9dad9da))
+* **client:** use the official JSON Schema logo on the Schema button ([aa2b290](https://github.com/bonsaedev/nrg/commit/aa2b290d20cf4e0d19c041dab02f9f1953cf9450))
+* **client:** validate flow-author input/output schemas in the editor ([0938c2c](https://github.com/bonsaedev/nrg/commit/0938c2c62cf1b7d88209ee6bc9cdecdec367fdce))
+* **schema:** accept a SchemaType schema as an input/output validation default ([3a19e6c](https://github.com/bonsaedev/nrg/commit/3a19e6c60826ee3a858a97187e7a646959415bee))
+
+### Bug Fixes
+
+* **client:** unwrap the Validate Data header and move schema errors below the table ([6d28f85](https://github.com/bonsaedev/nrg/commit/6d28f8519e68b5e36d2dc51256c80c1157573611))
+
+### Documentation
+
+* fix e2e vitest config to spread nrg.test, not mergeConfig ([6626d83](https://github.com/bonsaedev/nrg/commit/6626d833832f38e3d32e32aea6a647835ad3cb71))
+* refresh editor screenshots to show the JSON Schema logo ([6e838e3](https://github.com/bonsaedev/nrg/commit/6e838e3bd4b3bca7a06b6bd8998911d310181c87))
+* sell async input scoping and lifecycle ports in why-nrg ([ace347f](https://github.com/bonsaedev/nrg/commit/ace347f38d439d050a956fac6ac0179989338697))
+
 ## [0.35.1](https://github.com/bonsaedev/nrg/compare/v0.35.0...v0.35.1) (2026-07-08)
 
 
