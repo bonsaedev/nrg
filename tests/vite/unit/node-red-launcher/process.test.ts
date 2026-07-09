@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { spawn } from "child_process";
+import { spawn, execFile } from "child_process";
 import { EventEmitter } from "events";
 import detect from "detect-port";
-import getPort from "get-port";
 import treeKill from "tree-kill";
 import * as nodeRedProcess from "@/tools/vite/node-red-launcher/process";
 import { NodeRedStartError } from "@/tools/vite/errors";
@@ -13,12 +12,12 @@ vi.mock("child_process", async (importOriginal) => {
   return {
     ...actual,
     spawn: vi.fn(),
+    execFile: vi.fn(),
   };
 });
 
 vi.mock("tree-kill", () => ({ default: vi.fn() }));
 vi.mock("detect-port", () => ({ default: vi.fn() }));
-vi.mock("get-port", () => ({ default: vi.fn() }));
 
 vi.mock("@clack/prompts", () => ({
   intro: vi.fn(),
@@ -53,7 +52,7 @@ describe("node-red-launcher/process", () => {
     vi.mocked(spawn).mockReset();
     vi.mocked(treeKill).mockReset();
     vi.mocked(detect).mockReset();
-    vi.mocked(getPort).mockReset();
+    vi.mocked(execFile).mockReset();
     logger = new Logger({ name: "test", prefix: "node-red" });
   });
 
@@ -90,7 +89,10 @@ describe("node-red-launcher/process", () => {
       expect(spawn).toHaveBeenCalledWith(
         process.execPath,
         ["/fake/red.js", "-s", "/tmp/settings.cjs", "--safe"],
-        { stdio: ["ignore", "pipe", "pipe"] },
+        {
+          stdio: ["ignore", "pipe", "pipe"],
+          detached: process.platform !== "win32",
+        },
       );
     });
 
@@ -238,84 +240,76 @@ describe("node-red-launcher/process", () => {
     it("returns immediately when the child already exited", async () => {
       const proc = createMockProcess();
       proc.exitCode = 1;
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
 
       await nodeRedProcess.stop({ child: proc, pid: 12345, logger });
 
-      expect(treeKill).not.toHaveBeenCalled();
+      expect(killSpy).not.toHaveBeenCalled();
     });
 
     it("returns immediately when the child was killed by a signal", async () => {
       const proc = createMockProcess();
       proc.signalCode = "SIGKILL";
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
 
       await nodeRedProcess.stop({ child: proc, pid: 12345, logger });
 
-      expect(treeKill).not.toHaveBeenCalled();
+      expect(killSpy).not.toHaveBeenCalled();
     });
 
-    it("sends SIGTERM via treeKill and waits for exit", async () => {
+    it("SIGTERMs the whole process group and waits for exit", async () => {
       const proc = createMockProcess();
-
-      vi.mocked(treeKill).mockImplementation(
-        (_pid: any, _signal: any, callback?: any) => {
-          if (callback) callback();
-          process.nextTick(() => proc.emit("exit", 0));
-        },
-      );
+      const killSpy = vi.spyOn(process, "kill").mockImplementation((() => {
+        process.nextTick(() => proc.emit("exit", 0));
+        return true;
+      }) as any);
 
       await nodeRedProcess.stop({ child: proc, pid: 12345, logger });
 
-      expect(treeKill).toHaveBeenCalledWith(
-        12345,
-        "SIGTERM",
-        expect.any(Function),
-      );
+      // negative pid targets the child's process group (spawned detached)
+      expect(killSpy).toHaveBeenCalledWith(-12345, "SIGTERM");
     });
 
-    it("falls back to process.kill when treeKill fails", async () => {
+    it("falls back to the bare pid when the group signal fails", async () => {
       const proc = createMockProcess();
-      const killSpy = vi
-        .spyOn(process, "kill")
-        .mockImplementation((() => true) as any);
-
-      vi.mocked(treeKill).mockImplementation(
-        (_pid: any, _signal: any, callback?: any) => {
-          if (callback) callback(new Error("kill failed"));
-          process.nextTick(() => proc.emit("exit", 0));
-        },
-      );
+      const killSpy = vi.spyOn(process, "kill").mockImplementation(((
+        pid: number,
+      ) => {
+        if (pid < 0) throw new Error("ESRCH");
+        process.nextTick(() => proc.emit("exit", 0));
+        return true;
+      }) as any);
 
       await nodeRedProcess.stop({ child: proc, pid: 12345, logger });
 
+      expect(killSpy).toHaveBeenCalledWith(-12345, "SIGTERM");
       expect(killSpy).toHaveBeenCalledWith(12345, "SIGTERM");
     });
 
-    it("resolves when treeKill and process.kill both fail", async () => {
+    it("resolves without throwing when the signals fail", async () => {
       const proc = createMockProcess();
-
-      vi.mocked(treeKill).mockImplementation(
-        (_pid: any, _signal: any, callback?: any) => {
-          if (callback) callback(new Error("kill failed"));
-        },
-      );
       vi.spyOn(process, "kill").mockImplementation((() => {
         throw new Error("ESRCH");
       }) as any);
+      process.nextTick(() => proc.emit("exit", 0)); // already gone
 
       await expect(
         nodeRedProcess.stop({ child: proc, pid: 12345, logger }),
       ).resolves.toBeUndefined();
     });
 
-    it("force kills after graceful timeout", async () => {
+    it("force-kills the group after the graceful timeout", async () => {
       const proc = createMockProcess();
-
-      vi.mocked(treeKill).mockImplementation(
-        (_pid: any, signal: any, callback?: any) => {
-          // never emit exit for SIGTERM — force the timeout path
-          if (signal === "SIGKILL" && callback) callback();
-        },
-      );
+      const signals: Array<[number, string]> = [];
+      vi.spyOn(process, "kill").mockImplementation(((
+        pid: number,
+        sig: string,
+      ) => {
+        signals.push([pid, sig]);
+        // only exit on the SIGKILL escalation, forcing the timeout path
+        if (sig === "SIGKILL") process.nextTick(() => proc.emit("exit", 0));
+        return true;
+      }) as any);
 
       await nodeRedProcess.stop({
         child: proc,
@@ -324,75 +318,132 @@ describe("node-red-launcher/process", () => {
         logger,
       });
 
-      expect(treeKill).toHaveBeenCalledWith(
-        12345,
-        "SIGKILL",
-        expect.any(Function),
-      );
+      expect(signals).toContainEqual([-12345, "SIGKILL"]);
     });
   });
 
   describe("kill", () => {
-    it("sends SIGKILL via treeKill and resolves on callback", async () => {
-      vi.mocked(treeKill).mockImplementation(
-        (_pid: any, _signal: any, callback?: any) => {
-          if (callback) callback();
-        },
-      );
+    it("SIGKILLs the whole process group", async () => {
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
 
       await expect(nodeRedProcess.kill(12345)).resolves.toBeUndefined();
 
-      expect(treeKill).toHaveBeenCalledWith(
-        12345,
-        "SIGKILL",
-        expect.any(Function),
-      );
+      expect(killSpy).toHaveBeenCalledWith(-12345, "SIGKILL");
     });
   });
-  describe("acquirePort", () => {
-    it("returns preferred port when available", async () => {
-      vi.mocked<any>(detect).mockResolvedValue(1880);
 
-      const port = await nodeRedProcess.acquirePort({
-        preferredPort: 1880,
+  describe("resolvePort", () => {
+    // Drive the lsof/ps shell-outs run() makes: lsof → listening pids,
+    // `ps -o command=` → command line, `ps -o ppid=` → parent pid.
+    function mockShell(opts: {
+      lsof?: string;
+      command?: string;
+      ppid?: string;
+    }) {
+      const { lsof = "", command = "", ppid = "" } = opts;
+      vi.mocked(execFile).mockImplementation(((
+        cmd: string,
+        args: string[],
+        cb: any,
+      ) => {
+        if (cmd === "lsof") cb(null, lsof, "");
+        else if (cmd === "ps" && args.includes("command="))
+          cb(null, command, "");
+        else if (cmd === "ps" && args.includes("ppid=")) cb(null, ppid, "");
+        else cb(null, "", "");
+        return {} as any;
+      }) as any);
+    }
+
+    it("returns the start port when nothing is listening", async () => {
+      mockShell({ lsof: "" });
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
+
+      const port = await nodeRedProcess.resolvePort({
+        startPort: 1880,
         logger,
       });
 
       expect(port).toBe(1880);
-      expect(detect).toHaveBeenCalledTimes(1);
-      expect(getPort).not.toHaveBeenCalled();
+      expect(killSpy).not.toHaveBeenCalled();
     });
 
-    it("retries and returns preferred port when freed after wait", async () => {
-      vi.mocked<any>(detect)
-        .mockResolvedValueOnce(1881)
-        .mockResolvedValueOnce(1880);
+    it("reaps an abandoned nrg Node-RED (ppid 1) and reclaims the port", async () => {
+      mockShell({
+        lsof: "999\n",
+        command: "node /x/red.js -s /tmp/node-red-settings-final-1-1880.cjs\n",
+        ppid: "1\n",
+      });
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
+      vi.mocked<any>(detect).mockResolvedValue(1880); // free after reap
 
-      const port = await nodeRedProcess.acquirePort({
-        preferredPort: 1880,
-        retryDelay: 0,
+      const port = await nodeRedProcess.resolvePort({
+        startPort: 1880,
         logger,
       });
 
       expect(port).toBe(1880);
-      expect(detect).toHaveBeenCalledTimes(2);
-      expect(getPort).not.toHaveBeenCalled();
+      expect(killSpy).toHaveBeenCalledWith(-999, "SIGKILL");
     });
 
-    it("falls back to a random port when preferred stays occupied", async () => {
-      vi.mocked<any>(detect)
-        .mockResolvedValueOnce(1881)
-        .mockResolvedValueOnce(1881);
-      vi.mocked<any>(getPort).mockResolvedValue(3456);
+    it("advances past a LIVE sibling Node-RED without killing it", async () => {
+      let lsofCalls = 0;
+      vi.mocked(execFile).mockImplementation(((
+        cmd: string,
+        args: string[],
+        cb: any,
+      ) => {
+        if (cmd === "lsof") {
+          lsofCalls++;
+          cb(null, lsofCalls === 1 ? "888\n" : "", ""); // 1880 busy, 1881 free
+        } else if (cmd === "ps" && args.includes("command=")) {
+          cb(
+            null,
+            "node red.js -s /tmp/node-red-settings-final-9-1880.cjs\n",
+            "",
+          );
+        } else if (cmd === "ps" && args.includes("ppid=")) {
+          cb(null, "4321\n", ""); // live parent → not orphaned
+        } else cb(null, "", "");
+        return {} as any;
+      }) as any);
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
 
-      const port = await nodeRedProcess.acquirePort({
-        preferredPort: 1880,
-        retryDelay: 0,
+      const port = await nodeRedProcess.resolvePort({
+        startPort: 1880,
         logger,
       });
 
-      expect(port).toBe(3456);
-      expect(getPort).toHaveBeenCalledWith({ port: 1880 });
+      expect(port).toBe(1881);
+      expect(killSpy).not.toHaveBeenCalled();
+    });
+
+    it("advances past a foreign process without killing it", async () => {
+      let lsofCalls = 0;
+      vi.mocked(execFile).mockImplementation(((
+        cmd: string,
+        args: string[],
+        cb: any,
+      ) => {
+        if (cmd === "lsof") {
+          lsofCalls++;
+          cb(null, lsofCalls === 1 ? "777\n" : "", "");
+        } else if (cmd === "ps" && args.includes("command=")) {
+          cb(null, "some-other-server --port 1880\n", ""); // not nrg
+        } else if (cmd === "ps" && args.includes("ppid=")) {
+          cb(null, "1\n", "");
+        } else cb(null, "", "");
+        return {} as any;
+      }) as any);
+      const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as any);
+
+      const port = await nodeRedProcess.resolvePort({
+        startPort: 1880,
+        logger,
+      });
+
+      expect(port).toBe(1881);
+      expect(killSpy).not.toHaveBeenCalled();
     });
   });
 

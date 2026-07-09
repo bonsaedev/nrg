@@ -23,10 +23,9 @@ interface RuntimeSettings {
   tempFiles: string[];
 }
 
-interface AcquirePortOptions {
-  preferredPort: number;
-  /** Wait before re-checking an occupied preferred port. @default 2000 */
-  retryDelay?: number;
+interface ResolvePortOptions {
+  /** Port to start from; advances upward past occupied ports (never random). */
+  startPort: number;
   logger: Logger;
 }
 
@@ -65,7 +64,7 @@ export type {
   ResolveNodeRedOptions,
   GenerateRuntimeSettingsOptions,
   RuntimeSettings,
-  AcquirePortOptions,
+  ResolvePortOptions,
   WaitForPortReleaseOptions,
   StartOptions,
   ManagedProcess,

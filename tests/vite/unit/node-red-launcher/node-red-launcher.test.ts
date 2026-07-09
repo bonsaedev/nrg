@@ -11,16 +11,19 @@ import { generateRuntimeSettings } from "@/tools/vite/node-red-launcher/settings
 import * as nodeRedProcess from "@/tools/vite/node-red-launcher/process";
 import type { StartOptions } from "@/tools/vite/node-red-launcher/types";
 
-vi.mock("@/tools/vite/node-red-launcher/entry-point", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("@/tools/vite/node-red-launcher/entry-point")
-    >();
-  return {
-    ...actual,
-    resolveNodeRed: vi.fn(),
-  };
-});
+vi.mock(
+  "@/tools/vite/node-red-launcher/entry-point",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/tools/vite/node-red-launcher/entry-point")
+      >();
+    return {
+      ...actual,
+      resolveNodeRed: vi.fn(),
+    };
+  },
+);
 
 vi.mock("@/tools/vite/node-red-launcher/settings", () => ({
   generateRuntimeSettings: vi.fn(),
@@ -30,7 +33,7 @@ vi.mock("@/tools/vite/node-red-launcher/process", () => ({
   start: vi.fn(),
   stop: vi.fn(),
   kill: vi.fn(),
-  acquirePort: vi.fn(),
+  resolvePort: vi.fn(),
   waitForPortRelease: vi.fn(),
 }));
 
@@ -63,7 +66,7 @@ describe("NodeRedLauncher", () => {
   beforeEach(() => {
     vi.mocked(resolveNodeRed).mockReset();
     vi.mocked(generateRuntimeSettings).mockReset();
-    vi.mocked(nodeRedProcess.acquirePort).mockReset();
+    vi.mocked(nodeRedProcess.resolvePort).mockReset();
     vi.mocked(nodeRedProcess.waitForPortRelease).mockReset();
     vi.mocked(nodeRedProcess.start).mockReset();
     vi.mocked(nodeRedProcess.stop).mockReset();
@@ -81,7 +84,7 @@ describe("NodeRedLauncher", () => {
     pid = 12345,
   }: { port?: number; pid?: number } = {}) {
     const child = createMockChild(pid);
-    vi.mocked(nodeRedProcess.acquirePort).mockResolvedValue(port);
+    vi.mocked(nodeRedProcess.resolvePort).mockResolvedValue(port);
     vi.mocked(resolveNodeRed).mockResolvedValue("/fake/red.js");
     vi.mocked(generateRuntimeSettings).mockResolvedValue({
       filepath: "/tmp/settings.cjs",
@@ -156,8 +159,8 @@ describe("NodeRedLauncher", () => {
       const port = await launcher.start();
 
       expect(port).toBe(1880);
-      expect(nodeRedProcess.acquirePort).toHaveBeenCalledWith(
-        expect.objectContaining({ preferredPort: 1880 }),
+      expect(nodeRedProcess.resolvePort).toHaveBeenCalledWith(
+        expect.objectContaining({ startPort: 1880 }),
       );
       expect(generateRuntimeSettings).toHaveBeenCalledWith(
         expect.objectContaining({ outDir: "dist", port: 1880 }),
@@ -218,7 +221,7 @@ describe("NodeRedLauncher", () => {
       const failedChild = createMockChild(111);
       const okChild = createMockChild(222);
 
-      vi.mocked(nodeRedProcess.acquirePort).mockResolvedValue(1880);
+      vi.mocked(nodeRedProcess.resolvePort).mockResolvedValue(1880);
       vi.mocked(resolveNodeRed).mockResolvedValue("/fake/red.js");
       vi.mocked(generateRuntimeSettings).mockResolvedValue({
         filepath: "/tmp/settings.cjs",
@@ -247,7 +250,7 @@ describe("NodeRedLauncher", () => {
     });
 
     it("throws NodeRedStartError and kills the process after all retries fail", async () => {
-      vi.mocked(nodeRedProcess.acquirePort).mockResolvedValue(1880);
+      vi.mocked(nodeRedProcess.resolvePort).mockResolvedValue(1880);
       vi.mocked(resolveNodeRed).mockResolvedValue("/fake/red.js");
       vi.mocked(generateRuntimeSettings).mockResolvedValue({
         filepath: "/tmp/settings.cjs",
@@ -269,7 +272,7 @@ describe("NodeRedLauncher", () => {
 
     it("rethrows the original NodeRedStartError without re-wrapping", async () => {
       const originalError = new NodeRedStartError(new Error("spawn failed"));
-      vi.mocked(nodeRedProcess.acquirePort).mockResolvedValue(1880);
+      vi.mocked(nodeRedProcess.resolvePort).mockResolvedValue(1880);
       vi.mocked(resolveNodeRed).mockResolvedValue("/fake/red.js");
       vi.mocked(generateRuntimeSettings).mockResolvedValue({
         filepath: "/tmp/settings.cjs",
@@ -353,7 +356,7 @@ describe("NodeRedLauncher", () => {
       expect(nodeRedProcess.stop).not.toHaveBeenCalled();
     });
 
-    it("clears the process and port when it has no pid", async () => {
+    it("clears the process but keeps the port when it has no pid", async () => {
       const { child } = mockHappyStart();
       child.pid = undefined;
       const launcher = new NodeRedLauncher("dist", {});
@@ -363,7 +366,8 @@ describe("NodeRedLauncher", () => {
 
       expect(nodeRedProcess.stop).not.toHaveBeenCalled();
       expect(launcher.pid).toBeNull();
-      expect((launcher as any).port).toBeNull();
+      // Port is kept in memory so a restart reuses it (stable URL).
+      expect((launcher as any).port).toBe(1880);
     });
 
     it("stops the process and waits for the port to be released", async () => {
@@ -445,7 +449,7 @@ describe("NodeRedLauncher", () => {
     });
 
     it("runs queued operations even when the previous one failed", async () => {
-      vi.mocked(nodeRedProcess.acquirePort).mockRejectedValueOnce(
+      vi.mocked(nodeRedProcess.resolvePort).mockRejectedValueOnce(
         new Error("no ports"),
       );
 
@@ -504,7 +508,7 @@ describe("NodeRedLauncher", () => {
 
     it("does not warn when a process is killed during a restart", async () => {
       const { child } = mockHappyStart();
-      vi.mocked(nodeRedProcess.acquirePort).mockResolvedValue(1880);
+      vi.mocked(nodeRedProcess.resolvePort).mockResolvedValue(1880);
 
       const launcher = new NodeRedLauncher("dist", {});
       await launcher.start();

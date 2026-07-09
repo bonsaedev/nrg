@@ -119,8 +119,13 @@ class NodeRedLauncher implements INodeRedLauncher {
 
   private async doStart(): Promise<number> {
     try {
-      this.port = await nodeRedProcess.acquirePort({
-        preferredPort: this.preferredPort,
+      // Resolve a port and pin it for the session: reuse the one we already
+      // landed on across restarts (kept in memory), so the URL never churns.
+      // First run starts at the preferred port; a busy port auto-advances,
+      // abandoned orphans of ours are reaped — never a random port.
+      const startPort = this.port ?? this.preferredPort;
+      this.port = await nodeRedProcess.resolvePort({
+        startPort,
         logger: this.logger,
       });
 
@@ -183,10 +188,11 @@ class NodeRedLauncher implements INodeRedLauncher {
 
     if (!pid) {
       this.process = null;
-      this.port = null;
       return;
     }
 
+    // `stop` gates on the child's exit event, so the port is free once it
+    // returns. Keep `this.port` set: restarts reuse it so the URL stays put.
     await nodeRedProcess.stop({
       child: this.process.child,
       pid,
@@ -204,8 +210,6 @@ class NodeRedLauncher implements INodeRedLauncher {
         await nodeRedProcess.waitForPortRelease(currentPort);
       }
     }
-
-    this.port = null;
   }
 
   flushLogs(): void {

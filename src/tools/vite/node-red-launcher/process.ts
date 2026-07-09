@@ -1,11 +1,10 @@
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
 import detect from "detect-port";
-import getPort from "get-port";
 import treeKill from "tree-kill";
 import { retry, withTimeout } from "../async-utils";
 import { NodeRedStartError } from "../errors";
 import type {
-  AcquirePortOptions,
+  ResolvePortOptions,
   LogSource,
   ManagedProcess,
   StartOptions,
@@ -15,6 +14,21 @@ import type {
 
 const READY_MARKERS = ["Started flows", "Server now running"];
 
+const isWindows = process.platform === "win32";
+
+/** Run a command and resolve its stdout, or "" if it errors/exits non-zero. */
+function run(cmd: string, args: string[]): Promise<string> {
+  return new Promise((resolve) => {
+    execFile(cmd, args, (error, stdout) => resolve(error ? "" : stdout));
+  });
+}
+
+// The generated Node-RED settings file always carries this marker in its name
+// (see settings.ts) — the only reliable, universal signal that a process on the
+// port is an nrg-launched Node-RED (and thus safe for us to reap), never a
+// user's own server.
+const NRG_SETTINGS_MARKER = "node-red-settings-final-";
+
 function start(options: StartOptions): ManagedProcess {
   const { entryPoint, settingsPath, args, onLine } = options;
 
@@ -23,6 +37,12 @@ function start(options: StartOptions): ManagedProcess {
     [entryPoint, "-s", settingsPath, ...args],
     {
       stdio: ["ignore", "pipe", "pipe"],
+      // Own process group (pgid === child.pid on POSIX) so `stop()` can reap the
+      // WHOLE tree with a single `process.kill(-pid)` — Node-RED forks/helpers
+      // included — instead of relying on tree-kill walking `ps` (which misses
+      // re-parented or just-spawned descendants and leaks orphans that camp the
+      // port). Not unref'd: we keep piping its stdio and managing its lifetime.
+      detached: !isWindows,
     },
   );
 
@@ -94,14 +114,38 @@ function start(options: StartOptions): ManagedProcess {
   return { child, ready };
 }
 
+/** Signal the whole process group (POSIX); fall back to tree-kill on Windows. */
+function signalTree(pid: number, signal: NodeJS.Signals): void {
+  if (isWindows) {
+    treeKill(pid, signal);
+    return;
+  }
+  // Negative pid → the process group led by `pid` (child spawned detached).
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // group already gone, or leader reaped — try the bare pid as a last resort
+    try {
+      process.kill(pid, signal);
+    } catch {
+      // already dead
+    }
+  }
+}
+
 function kill(pid: number): Promise<void> {
   return new Promise<void>((resolve) => {
-    treeKill(pid, "SIGKILL", () => resolve());
+    if (isWindows) {
+      treeKill(pid, "SIGKILL", () => resolve());
+      return;
+    }
+    signalTree(pid, "SIGKILL");
+    resolve();
   });
 }
 
 async function stop(options: StopOptions): Promise<void> {
-  const { child, pid, gracefulTimeoutMs = 10_000, logger } = options;
+  const { child, pid, gracefulTimeoutMs = 8_000, logger } = options;
 
   // the process may already be dead (crash, manual kill) — don't wait for
   // an exit event that already fired, and don't signal a possibly reused pid
@@ -109,53 +153,99 @@ async function stop(options: StopOptions): Promise<void> {
     return;
   }
 
-  const exited = new Promise<void>((resolve) => {
-    child.once("exit", () => resolve());
+  // The authoritative "it's gone" signal is OUR child's exit event, not a port
+  // probe — a dead listener frees the port instantly (no TIME_WAIT on listening
+  // sockets), so process death is the only thing gating a clean rebind.
+  const exited = new Promise<void>((resolve) =>
+    child.once("exit", () => resolve()),
+  );
 
-    treeKill(pid, "SIGTERM", (error) => {
-      if (error) {
-        try {
-          process.kill(pid, "SIGTERM");
-        } catch {
-          // process is already gone — nothing left to wait for
-          resolve();
-        }
-      }
-    });
-  });
+  signalTree(pid, "SIGTERM");
 
   try {
     await withTimeout(exited, gracefulTimeoutMs);
   } catch {
-    logger.warn("Graceful shutdown timed out, force killing...");
-    await kill(pid);
+    logger.warn("Graceful shutdown timed out, force killing process group...");
+    signalTree(pid, "SIGKILL");
+    await withTimeout(exited, 2_000).catch(() => {
+      // best-effort: the group signal was sent; the port reaper will catch a
+      // stray survivor on the next start
+    });
   }
 }
 
-async function acquirePort(options: AcquirePortOptions): Promise<number> {
-  const { preferredPort, retryDelay = 2000, logger } = options;
+/** PIDs currently LISTENing on `port` (POSIX via lsof; empty elsewhere). */
+async function listListeners(port: number): Promise<number[]> {
+  if (isWindows) return []; // lsof-free path: rely on the child-exit gate only
+  // lsof exits non-zero when nothing matches → run() yields "" → no listeners.
+  const stdout = await run("lsof", [
+    "-nP",
+    `-iTCP:${port}`,
+    "-sTCP:LISTEN",
+    "-t",
+  ]);
+  return stdout
+    .split("\n")
+    .map((line) => Number(line.trim()))
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+}
 
-  // Always try the preferred port first. If it's still occupied
-  // (e.g. orphaned process from a failed restart), wait briefly
-  // and retry before falling back to a random port.
-  const available = await detect(preferredPort);
-  if (available === preferredPort) {
-    return preferredPort;
+/** Whether `pid`'s command line is an nrg-launched Node-RED. */
+async function isNrgNodeRed(pid: number): Promise<boolean> {
+  if (isWindows) return false;
+  const stdout = await run("ps", ["-o", "command=", "-p", String(pid)]);
+  return stdout.includes(NRG_SETTINGS_MARKER);
+}
+
+/**
+ * Whether `pid` was orphaned — its launcher died, so the OS reparented it to
+ * init (ppid 1). A live server (sibling project, a second dev of this project,
+ * a foreign process) has a live parent and is never reaped.
+ */
+async function isOrphaned(pid: number): Promise<boolean> {
+  if (isWindows) return false;
+  const stdout = await run("ps", ["-o", "ppid=", "-p", String(pid)]);
+  return Number(stdout.trim()) === 1;
+}
+
+const MAX_PORT_ADVANCE = 100;
+
+/**
+ * Resolve a usable port, starting at `startPort` and advancing upward past any
+ * occupied port. Abandoned nrg Node-REDs (our own crashes — nrg-launched AND
+ * reparented to init) are reaped so we reclaim the port; a LIVE server on the
+ * port (sibling project, second dev of this project, foreign process) is left
+ * alone and we advance past it. Never randomizes and never kills a live server.
+ */
+async function resolvePort(options: ResolvePortOptions): Promise<number> {
+  const { startPort, logger } = options;
+
+  for (let port = startPort; port < startPort + MAX_PORT_ADVANCE; port++) {
+    const holders = await listListeners(port);
+    if (holders.length === 0) return port; // free — use it
+
+    let reaped = false;
+    for (const pid of holders) {
+      if ((await isNrgNodeRed(pid)) && (await isOrphaned(pid))) {
+        logger.warn(`Reaping abandoned Node-RED (pid ${pid}) on port ${port}`);
+        signalTree(pid, "SIGKILL");
+        reaped = true;
+      }
+    }
+    if (
+      reaped &&
+      (await waitForPortRelease(port, { attempts: 20, delay: 150 }))
+    ) {
+      return port; // orphan cleared, port reclaimed
+    }
+
+    // Held by something live/foreign — advance rather than fight or kill it.
+    logger.info(`Port ${port} in use, trying ${port + 1}`);
   }
 
-  logger.warn(`Port ${preferredPort} is still in use, waiting...`);
-  await new Promise((resolve) => setTimeout(resolve, retryDelay));
-
-  const retryAvailable = await detect(preferredPort);
-  if (retryAvailable === preferredPort) {
-    return preferredPort;
-  }
-
-  const fallbackPort = await getPort({ port: preferredPort });
-  logger.warn(
-    `Port ${preferredPort} still occupied, using port ${fallbackPort}`,
+  throw new NodeRedStartError(
+    new Error(`No free port available near ${startPort}`),
   );
-  return fallbackPort;
 }
 
 async function waitForPortRelease(
@@ -179,4 +269,4 @@ async function waitForPortRelease(
   }
 }
 
-export { start, stop, kill, acquirePort, waitForPortRelease };
+export { start, stop, kill, resolvePort, waitForPortRelease };
