@@ -137,10 +137,18 @@ describe("applyState", () => {
     expect(target.tags).not.toBe(source.tags);
   });
 
-  it("deep merges nested objects", () => {
+  it("makes a nested object match the source, dropping removed keys", () => {
+    // The save flow always applies the COMPLETE new state, so a key absent from
+    // the source was cleared by the user and must not linger on the node.
     const target: any = { nested: { x: 1, y: 2 } };
     applyState(target, { nested: { y: 3 } });
-    expect(target.nested).toEqual({ x: 1, y: 3 });
+    expect(target.nested).toEqual({ y: 3 });
+  });
+
+  it("clears a per-port map entry the user removed", () => {
+    const target: any = { outputReturnProperties: { 0: "payload" } };
+    applyState(target, { outputReturnProperties: {} });
+    expect(target.outputReturnProperties).toEqual({});
   });
 
   it("creates target object when missing", () => {

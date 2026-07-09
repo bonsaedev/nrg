@@ -60,6 +60,12 @@ function applyState(target: any, source: any): void {
         target[key] = {};
       }
       applyState(target[key], srcVal);
+      // Drop keys that no longer exist in the source (e.g. a per-port map entry
+      // the user cleared). Without this, the merge above leaves the stale value
+      // on the node, so clearing a field silently reverts to the old value.
+      for (const existing of Object.keys(target[key])) {
+        if (!(existing in srcVal)) delete target[key][existing];
+      }
     } else {
       target[key] = srcVal;
     }
