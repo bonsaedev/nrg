@@ -17,6 +17,19 @@ vi.mock("@clack/prompts", () => ({
 import * as clackLogger from "@clack/prompts";
 import { Logger, logger } from "@/tools/vite/logger";
 
+// The spinner only animates in an interactive terminal; when stdout isn't a TTY
+// (piped/CI, and the test runner) it prints static lines instead. Force the
+// mode for tests that exercise one path or the other.
+function withTTY(interactive: boolean, fn: () => void): void {
+  const original = process.stdout.isTTY;
+  (process.stdout as unknown as { isTTY?: boolean }).isTTY = interactive;
+  try {
+    fn();
+  } finally {
+    (process.stdout as unknown as { isTTY?: boolean }).isTTY = original;
+  }
+}
+
 describe("Logger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -120,14 +133,16 @@ describe("Logger", () => {
     });
 
     it("ends a running spinner with the error glyph instead of a stray log line", () => {
-      const log = new Logger({ name: "test" });
-      const spinner = (log as any).spinner;
-      log.startSpinner("Building");
-      log.error("Rebuild failed");
-      // The failure is drawn *by* the spinner (error glyph), not a separate
-      // log.error line that would leave the spinner dangling.
-      expect(spinner.error).toHaveBeenCalledWith("Rebuild failed");
-      expect(clackLogger.log.error).not.toHaveBeenCalled();
+      withTTY(true, () => {
+        const log = new Logger({ name: "test" });
+        const spinner = (log as any).spinner;
+        log.startSpinner("Building");
+        log.error("Rebuild failed");
+        // The failure is drawn *by* the spinner (error glyph), not a separate
+        // log.error line that would leave the spinner dangling.
+        expect(spinner.error).toHaveBeenCalledWith("Rebuild failed");
+        expect(clackLogger.log.error).not.toHaveBeenCalled();
+      });
     });
 
     it("still surfaces the cause when a spinner is running", () => {
@@ -205,18 +220,36 @@ describe("Logger", () => {
   });
 
   describe("startSpinner() / stopSpinner()", () => {
-    it("startSpinner delegates to spinner.start with formatted message", () => {
-      const log = new Logger({ name: "test", prefix: "sp" });
-      log.startSpinner("Loading");
-      const spinner = (log as any).spinner;
-      expect(spinner.start).toHaveBeenCalledWith("[sp] Loading");
+    it("delegates to the clack spinner in an interactive terminal", () => {
+      withTTY(true, () => {
+        const log = new Logger({ name: "test", prefix: "sp" });
+        const spinner = (log as any).spinner;
+        log.startSpinner("Loading");
+        expect(spinner.start).toHaveBeenCalledWith("[sp] Loading");
+        log.stopSpinner("Done");
+        expect(spinner.stop).toHaveBeenCalledWith("[sp] Done");
+      });
     });
 
-    it("stopSpinner delegates to spinner.stop with formatted message", () => {
-      const log = new Logger({ name: "test", prefix: "sp" });
-      log.stopSpinner("Done");
-      const spinner = (log as any).spinner;
-      expect(spinner.stop).toHaveBeenCalledWith("[sp] Done");
+    it("prints static lines instead of animating when stdout is not a TTY", () => {
+      withTTY(false, () => {
+        const log = new Logger({ name: "test", prefix: "sp" });
+        const spinner = (log as any).spinner;
+        const consoleSpy = vi
+          .spyOn(console, "log")
+          .mockImplementation(() => {});
+        log.startSpinner("Loading");
+        log.stopSpinner("Done");
+        expect(spinner.start).not.toHaveBeenCalled();
+        expect(spinner.stop).not.toHaveBeenCalled();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining("[sp] Loading"),
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining("[sp] Done"),
+        );
+        consoleSpy.mockRestore();
+      });
     });
   });
 

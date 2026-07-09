@@ -112,6 +112,7 @@ function nrg(options: NrgPluginOptions = {}): Plugin[] {
       clientBuildOptions,
       extraFilesCopyTargets,
       buildContext,
+      verbose: server.verbose,
     }),
     buildPlugin({
       serverBuildOptions,

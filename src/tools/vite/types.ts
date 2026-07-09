@@ -73,6 +73,11 @@ interface NodeRedLauncherOptions {
 interface ServerOptions {
   /** Options for the Node-RED dev server launcher. */
   nodeRed?: NodeRedLauncherOptions;
+  /**
+   * Print every dependency build warning in full instead of collapsing the
+   * non-actionable ones into a single summary line. @default false
+   */
+  verbose?: boolean;
 }
 
 /**
@@ -164,6 +169,8 @@ interface ServerPluginOptions {
   clientBuildOptions: ClientBuildOptions;
   extraFilesCopyTargets: CopyTarget[];
   buildContext: BuildContext;
+  /** Print every dependency build warning instead of collapsing them. */
+  verbose?: boolean;
 }
 
 export type {

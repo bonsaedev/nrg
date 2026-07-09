@@ -17,6 +17,24 @@ import { cleanDir, copyFiles } from "../utils";
 import { build as buildServer } from "../server";
 import { build as buildClient } from "../client";
 
+// While the build loads the freshly-built bundle it can emit raw console.warn
+// (e.g. nrg's credential-format advisory) and Node process warnings (e.g. the
+// punycode deprecation). Those would clobber the active spinner's line, so route
+// them into the collector to be flushed cleanly once the build settles.
+async function withWarningCapture<T>(run: () => Promise<T>): Promise<T> {
+  const originalWarn = console.warn;
+  const originalNoDeprecation = process.noDeprecation;
+  console.warn = (...args: unknown[]): void =>
+    logger.collectWarning(args.map(String).join(" "));
+  process.noDeprecation = true;
+  try {
+    return await run();
+  } finally {
+    console.warn = originalWarn;
+    process.noDeprecation = originalNoDeprecation;
+  }
+}
+
 function serverPlugin(options: ServerPluginOptions): Plugin {
   const {
     nodeRedLauncher,
@@ -24,6 +42,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
     clientBuildOptions,
     extraFilesCopyTargets,
     buildContext,
+    verbose = false,
   } = options;
 
   let nodeRedPort: number;
@@ -35,26 +54,27 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
   let server: ViteDevServer;
   let watcher: FSWatcher | null = null;
 
+  // Quiet: the granular Cleaned/Built/Copied steps are hidden — the caller wraps
+  // the whole start in a single spinner. Warnings are collected (not printed) and
+  // flushed once the build settles.
   const build = async (clean: boolean = false) => {
+    logger.resetWarnings();
     if (clean) {
-      logger.startSpinner("Cleaning");
       cleanDir(buildContext.outDir);
-      logger.stopSpinner("Cleaned");
     }
-
-    logger.startSpinner("Building");
-    await buildServer(serverBuildOptions, buildContext);
-    await buildClient(clientBuildOptions, buildContext);
-    logger.stopSpinner("Built");
-
+    await withWarningCapture(async () => {
+      await buildServer(serverBuildOptions, buildContext, true);
+      await buildClient(clientBuildOptions, buildContext, true);
+    });
     if (extraFilesCopyTargets.length) {
-      logger.startSpinner("Copying extra files");
       copyFiles(extraFilesCopyTargets, buildContext.outDir);
-      logger.stopSpinner("Copied extra files");
     }
   };
 
-  const start = async (clean: boolean = false) => {
+  const start = async (
+    clean: boolean = false,
+    phase: "initial" | "restart" = "restart",
+  ) => {
     if (isStarting) {
       pendingStart = true;
       return;
@@ -63,13 +83,23 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
     isStarting = true;
     pendingStart = false;
 
+    // One spinner spans the whole (re)build + launch. The granular Cleaned/Built/
+    // Copied steps stay hidden; only this line and the flushed warnings show.
+    const startedAt = Date.now();
+    logger.startSpinner(
+      phase === "initial"
+        ? "Building…"
+        : "Restarting Node-RED (editor reconnects automatically)",
+    );
+    // Let clack paint the first frame before the build blocks the event loop,
+    // so "Building…" is visible during the (CPU-bound, non-animating) build.
+    await new Promise((resolve) => setImmediate(resolve));
+
     try {
       await nodeRedLauncher.stop();
       await build(clean);
-
-      logger.startSpinner("Starting Node-RED");
+      if (phase === "initial") logger.updateSpinner("Starting Node-RED");
       nodeRedPort = await nodeRedLauncher.start();
-      logger.stopSpinner("Node-RED started");
 
       const proxyConfig = server.config.server.proxy;
       if (proxyConfig && typeof proxyConfig === "object") {
@@ -78,7 +108,12 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
           (rule as any).target = `http://127.0.0.1:${nodeRedPort}`;
         }
       }
-      logger.success("Ready");
+
+      const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+      logger.stopSpinner(
+        phase === "initial" ? "Ready" : `Node-RED ready · ${elapsed}s`,
+      );
+      logger.flushWarnings(verbose);
     } catch (error) {
       // Surface the underlying cause — the Rollup/esbuild error with its file,
       // line, and code frame — not just the wrapper's generic message. (The
@@ -145,14 +180,33 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
               changeOrigin: true,
               ws: true,
               configure: (proxy) => {
-                proxy.on("error", (_err, _req, res) => {
-                  if (nodeRedPort) {
-                    (proxy as any).options.target =
-                      `http://127.0.0.1:${nodeRedPort}`;
+                proxy.on("error", (_err, req, res) => {
+                  const target = `http://127.0.0.1:${nodeRedPort || nodeRedLauncher.preferredPort}`;
+                  (proxy as any).options.target = target;
+
+                  const isHttp = !!res && "writeHead" in res;
+
+                  // During a restart Node-RED is briefly down. Retry HTTP for a
+                  // short window (~3s) so requests succeed once it's back instead
+                  // of 502-ing the editor (which drives reconnect churn). WS
+                  // upgrades drop quietly — the editor reconnects on its own.
+                  if (isStarting && isHttp) {
+                    const r = req as any;
+                    r.__nrgRetries = (r.__nrgRetries ?? 0) + 1;
+                    if (r.__nrgRetries <= 20) {
+                      setTimeout(
+                        () => (proxy as any).web(req, res, { target }),
+                        150,
+                      );
+                      return;
+                    }
                   }
-                  if (res && !res.headersSent && "writeHead" in res) {
+
+                  if (isHttp && !(res as any).headersSent) {
                     (res as any).writeHead(502);
                     (res as any).end();
+                  } else if (res && "destroy" in res) {
+                    (res as any).destroy();
                   }
                 });
               },
@@ -166,10 +220,14 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
         customLogger: {
           ...console,
           info: () => {},
-          warn: console.warn,
+          warn: (...args: any[]) => {
+            const msg = args.map(String).join(" ");
+            if (isStarting && logger.isTransient(msg)) return;
+            console.warn(...args);
+          },
           error: (...args: any[]) => {
             const msg = args.map(String).join(" ");
-            if (isStarting && msg.includes("ECONNREFUSED")) return;
+            if (isStarting && logger.isTransient(msg)) return;
             console.error(...args);
           },
           warnOnce: () => {},
@@ -184,16 +242,31 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       server = viteServer;
 
       logger.intro();
-      await start(true);
+      await start(true, "initial");
       initialStartDone = true;
 
-      printServerUrls(server.config.server.port ?? 5173, {
-        actual: nodeRedPort,
-        preferred: nodeRedLauncher.preferredPort,
-      });
-
-      logger.startGroup("Node-RED");
-      nodeRedLauncher.flushLogs();
+      // Report the ACTUAL Vite port, not the configured default: Vite
+      // auto-increments (5173 → 5174 …) when the port is taken, but this hook
+      // runs before the server binds, so `config.server.port` is still the
+      // default here. Read the bound port off the http server once it listens.
+      const announce = () => {
+        const address = server.httpServer?.address();
+        const vitePort =
+          address && typeof address === "object"
+            ? address.port
+            : (server.config.server.port ?? 5173);
+        printServerUrls(vitePort, {
+          actual: nodeRedPort,
+          preferred: nodeRedLauncher.preferredPort,
+        });
+        logger.startGroup("Node-RED");
+        nodeRedLauncher.flushLogs();
+      };
+      if (server.httpServer?.listening) {
+        announce();
+      } else {
+        server.httpServer?.once("listening", announce);
+      }
 
       const serverSrcDir = path.resolve(
         serverBuildOptions.srcDir ?? "./server",
@@ -225,7 +298,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
 
       const handleFileChange = (file: string, event: string) => {
         if (!initialStartDone) return;
-        logger.info(`${event}: ${path.relative(process.cwd(), file)}`);
+        logger.changed(event, path.relative(process.cwd(), file));
         debounceBeforeStart();
       };
 

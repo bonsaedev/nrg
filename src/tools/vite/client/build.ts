@@ -40,6 +40,7 @@ function resolveClientAsset(): string {
 async function build(
   clientBuildOptions: ClientBuildOptions,
   buildContext: BuildContext,
+  collectWarnings = false,
 ): Promise<void> {
   const {
     srcDir = "./client",
@@ -190,6 +191,7 @@ async function build(
   const config: InlineConfig = {
     configFile: false,
     logLevel: "warn",
+    customLogger: collectWarnings ? logger.viteWarnLogger() : undefined,
     base: `/resources/${buildContext.packageName}`,
     publicDir: path.resolve(srcDir, "public"),
     resolve: {

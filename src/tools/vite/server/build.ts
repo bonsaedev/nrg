@@ -22,6 +22,7 @@ import type { PortTopology } from "./plugins/node-type-info";
 async function build(
   serverOpts: ServerBuildOptions,
   buildContext: BuildContext,
+  collectWarnings = false,
 ): Promise<void> {
   const {
     srcDir = "./server",
@@ -89,6 +90,9 @@ async function build(
   const config: InlineConfig = {
     configFile: false,
     logLevel: "warn",
+    // Route dependency warnings into the logger's collector so the dev loop can
+    // collapse them; the prod build keeps vite's default logger.
+    customLogger: collectWarnings ? logger.viteWarnLogger() : undefined,
     plugins,
     // esbuild reads no tsconfig here (tsconfigRaw: "{}"), so the `@/schemas`
     // path alias from the shipped base tsconfig isn't applied at build time —
