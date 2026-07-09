@@ -1,6 +1,10 @@
 import { defineNode } from "./define-node";
 import { registerNrgType } from "./wire-check/registry";
-import { validateNode, composeValidationSchema } from "./validation";
+import {
+  validateNode,
+  composeValidationSchema,
+  validateSchemaFields,
+} from "./validation";
 import { mountApp, unmountApp } from "./form";
 import { getNodeState, getChanges, applyState } from "./state";
 import {
@@ -160,7 +164,12 @@ async function registerType(definition: NodeDefinition): Promise<void> {
         defaults[firstProp] = {
           ...rest,
           validate: function (this: NodeRedNode, _value: any, _opt: any) {
-            return validateNode(this, validationSchema);
+            const base = validateNode(this, validationSchema);
+            // Also fail on a malformed data-validation schema string so the
+            // node's workspace error triangle fires (not just the form).
+            const schemaErrors = validateSchemaFields(this);
+            if (base === true && schemaErrors.length === 0) return true;
+            return [...(base === true ? [] : base), ...schemaErrors];
           },
         };
       }

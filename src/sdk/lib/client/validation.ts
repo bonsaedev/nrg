@@ -241,9 +241,40 @@ function validateSchemaString(source: string): string | null {
   return null;
 }
 
+/**
+ * Validate a node's flow-author DATA-VALIDATION schema STRINGS (the input schema
+ * and each output-port schema) the same way the form does, so a malformed schema
+ * marks the NODE invalid — the workspace error triangle — not just the open form.
+ * Only fields whose "Validate Data" toggle is on are checked, since only those
+ * compile at runtime. Returns one message per bad schema (empty when all valid).
+ */
+function validateSchemaFields(node: any): string[] {
+  const errors: string[] = [];
+
+  if (node?.validateInput && typeof node.inputSchema === "string") {
+    const msg = validateSchemaString(node.inputSchema);
+    if (msg) errors.push(`inputSchema: ${msg}`);
+  }
+
+  const outputSchemas = node?.outputSchemas;
+  if (outputSchemas && typeof outputSchemas === "object") {
+    for (const [index, schema] of Object.entries(outputSchemas)) {
+      // Only ports with Validate Data on compile at runtime.
+      if (!node.validateOutputs?.[index]) continue;
+      if (typeof schema === "string") {
+        const msg = validateSchemaString(schema);
+        if (msg) errors.push(`outputSchemas.${index}: ${msg}`);
+      }
+    }
+  }
+
+  return errors;
+}
+
 export {
   composeValidationSchema,
   validateNode,
   validateForm,
   validateSchemaString,
+  validateSchemaFields,
 };

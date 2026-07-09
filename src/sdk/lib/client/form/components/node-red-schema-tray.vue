@@ -4,20 +4,18 @@
        composes NodeRedTray with their own content. -->
   <NodeRedTray ref="tray" :title="title" @done="onDone">
     <div class="nrg-schema-tray">
+      <!-- Already inside a tray, so no expand button; fills the tray height.
+           Monaco's own inline (intellisense) diagnostics surface JSON errors —
+           no separate error message is rendered here. -->
       <NodeRedEditorInput
         class="nrg-schema-editor"
         :model-value="draft"
         language="json"
+        :expandable="false"
+        fill
         :editor-options="editorOptions"
         @update:model-value="(v: string) => (draft = v)"
       />
-      <!-- Live validation of the schema as it is typed: the same check the
-           runtime runs, so a malformed schema is caught here in the tray, not
-           at deploy. Empty/valid → no message. -->
-      <div v-if="schemaError" class="nrg-schema-tray-error" role="alert">
-        <span class="nrg-schema-tray-error-icon" aria-hidden="true">⚠</span>
-        <span>{{ schemaError }}</span>
-      </div>
     </div>
   </NodeRedTray>
 </template>
@@ -27,7 +25,6 @@ import { defineComponent } from "vue";
 import type { editor as MonacoEditor } from "monaco-editor";
 import NodeRedTray from "./node-red-tray.vue";
 import NodeRedEditorInput from "./node-red-editor-input.vue";
-import { validateSchemaString } from "../../validation";
 
 /**
  * A JSON-schema editor in a Node-RED tray. Open it via a ref:
@@ -41,27 +38,24 @@ export default defineComponent({
       title: "",
       draft: "",
       onSave: null as ((value: string) => void) | null,
-      // Monaco options for the schema editor. Line numbers make the validation
-      // error's "line X column Y" actionable; the minimap aids navigation of
-      // larger schemas.
+      // Monaco options for the schema editor. Line numbers make Monaco's
+      // "line X column Y" diagnostics actionable; the minimap aids navigation of
+      // larger schemas; automaticLayout keeps it sized to the (filled) tray.
       editorOptions: {
         lineNumbers: "on",
         minimap: { enabled: true },
+        automaticLayout: true,
       } as MonacoEditor.IStandaloneEditorConstructionOptions,
     };
-  },
-  computed: {
-    /** Live error for the current draft — `null` when empty or valid. */
-    schemaError(): string | null {
-      return validateSchemaString(this.draft);
-    },
   },
   methods: {
     open(title: string, value: string, onSave: (value: string) => void) {
       this.title = title;
       this.draft = value;
       this.onSave = onSave;
-      (this.$refs.tray as { open(): void }).open();
+      // Pass the title through so RED.tray.show gets it now, not on the next
+      // reactive tick (the `:title` prop hasn't propagated to NodeRedTray yet).
+      (this.$refs.tray as { open(title?: string): void }).open(title);
     },
     onDone() {
       this.onSave?.(this.draft);
@@ -84,25 +78,5 @@ export default defineComponent({
 .nrg-schema-editor :deep(.container),
 .nrg-schema-editor :deep(.editor-wrapper) {
   height: 100%;
-}
-
-/* Live schema error, pinned below the editor. Uses the Node-RED error color
-   with a subtle red-tinted background so it reads as a validation failure. */
-.nrg-schema-tray-error {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  color: var(--red-ui-text-color-error, #d33);
-  background: rgba(211, 51, 51, 0.08);
-  border: 1px solid var(--red-ui-text-color-error, #d33);
-  border-radius: 3px;
-  font-size: 13px;
-  line-height: 1.4;
-}
-.nrg-schema-tray-error-icon {
-  font-weight: 700;
 }
 </style>

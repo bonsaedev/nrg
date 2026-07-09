@@ -43,10 +43,14 @@ export default defineComponent({
     return { trayBody: null as HTMLElement | null };
   },
   methods: {
-    /** Show the tray; the default slot renders into the tray body. */
-    open() {
+    /**
+     * Show the tray; the default slot renders into the tray body. Pass `title`
+     * to override the prop for this open — needed when the title is set
+     * reactively right before opening (the prop hasn't propagated yet).
+     */
+    open(title?: string) {
       RED.tray.show({
-        title: this.title,
+        title: title ?? this.title,
         width: this.width,
         buttons: [
           {

@@ -4,6 +4,7 @@ import {
   validateNode,
   validateForm,
   validateSchemaString,
+  validateSchemaFields,
 } from "@/sdk/lib/client/validation";
 
 const baseSchema = {
@@ -512,6 +513,42 @@ describe("composeValidationSchema", () => {
         undefined,
       )!;
       expect((composed.properties!.code as any).minLength).toBe(3);
+    });
+  });
+
+  describe("validateSchemaFields", () => {
+    it("passes when schemas are valid or Validate Data is off", () => {
+      expect(
+        validateSchemaFields({
+          validateInput: true,
+          inputSchema: '{"type":"object"}',
+        }),
+      ).toEqual([]);
+      // toggle off → not compiled at runtime, so not checked even if malformed
+      expect(
+        validateSchemaFields({
+          validateInput: false,
+          inputSchema: "{ not json",
+        }),
+      ).toEqual([]);
+    });
+
+    it("flags a malformed input schema when Validate Data is on", () => {
+      const errors = validateSchemaFields({
+        validateInput: true,
+        inputSchema: "{ not json",
+      });
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatch(/^inputSchema:/);
+    });
+
+    it("flags a malformed output schema only for ports with the toggle on", () => {
+      const errors = validateSchemaFields({
+        outputSchemas: { "0": "{ bad", "1": "{ also bad" },
+        validateOutputs: { "0": true, "1": false },
+      });
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatch(/^outputSchemas\.0:/);
     });
   });
 });

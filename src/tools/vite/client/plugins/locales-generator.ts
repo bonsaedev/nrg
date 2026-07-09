@@ -48,6 +48,7 @@ function localesGenerator(options: {
         validate: "Validate Data",
         returnProperty: "Return Property",
         contextMode: "Context Mode",
+        schema: "Data Schema",
       },
       contextModes: {
         modes: {
@@ -118,6 +119,7 @@ function localesGenerator(options: {
         validate: "Daten validieren",
         returnProperty: "Rückgabe-Eigenschaft",
         contextMode: "Kontextmodus",
+        schema: "Datenschema",
       },
       contextModes: {
         modes: {
@@ -188,6 +190,7 @@ function localesGenerator(options: {
         validate: "Validar datos",
         returnProperty: "Propiedad de retorno",
         contextMode: "Modo de contexto",
+        schema: "Esquema de datos",
       },
       contextModes: {
         modes: {
@@ -258,6 +261,7 @@ function localesGenerator(options: {
         validate: "Valider les données",
         returnProperty: "Propriété de retour",
         contextMode: "Mode de contexte",
+        schema: "Schéma de données",
       },
       contextModes: {
         modes: {
@@ -328,6 +332,7 @@ function localesGenerator(options: {
         validate: "데이터 검증",
         returnProperty: "반환 속성",
         contextMode: "컨텍스트 모드",
+        schema: "데이터 스키마",
       },
       contextModes: {
         modes: {
@@ -396,6 +401,7 @@ function localesGenerator(options: {
         validate: "Validar dados",
         returnProperty: "Propriedade de retorno",
         contextMode: "Modo de contexto",
+        schema: "Esquema de dados",
       },
       contextModes: {
         modes: {
@@ -466,6 +472,7 @@ function localesGenerator(options: {
         validate: "Проверять данные",
         returnProperty: "Свойство возврата",
         contextMode: "Режим контекста",
+        schema: "Схема данных",
       },
       contextModes: {
         modes: {
@@ -536,6 +543,7 @@ function localesGenerator(options: {
         validate: "データを検証",
         returnProperty: "戻りプロパティ",
         contextMode: "コンテキストモード",
+        schema: "データスキーマ",
       },
       contextModes: {
         modes: {
@@ -606,6 +614,7 @@ function localesGenerator(options: {
         validate: "验证数据",
         returnProperty: "返回属性",
         contextMode: "上下文模式",
+        schema: "数据模式",
       },
       contextModes: {
         modes: {
@@ -671,6 +680,7 @@ function localesGenerator(options: {
         validate: "驗證資料",
         returnProperty: "返回屬性",
         contextMode: "內容模式",
+        schema: "資料綱要",
       },
       contextModes: {
         modes: {

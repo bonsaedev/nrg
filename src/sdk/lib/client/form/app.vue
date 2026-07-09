@@ -52,7 +52,7 @@
                 {{ resolveLabel("toggles.validateInput", "Validate Data") }}
               </th>
               <th v-if="acceptsInputSchema" class="nrg-outputs-flag">
-                {{ resolveLabel("outputs.schema", "Schema") }}
+                {{ resolveLabel("outputs.schema", "Data Schema") }}
               </th>
               <th
                 v-if="typeCheckEnabled && supportsInputTypeValidation"
@@ -87,8 +87,9 @@
                   :class="{
                     'nrg-schema-btn-error': !!errors['node.inputSchema'],
                   }"
+                  :title="errors['node.inputSchema'] || undefined"
                   :disabled="!localNode.validateInput"
-                  :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${inputLabel}`"
+                  :aria-label="`${resolveLabel('outputs.schema', 'Data Schema')} — ${inputLabel}`"
                   @click="openInputSchemaEditor()"
                 >
                   <span class="nrg-schema-glyph" aria-hidden="true">
@@ -117,13 +118,6 @@
             </tr>
           </tbody>
         </table>
-        <div
-          v-if="errors['node.inputSchema']"
-          class="node-red-vue-input-error-message nrg-schema-error"
-          role="alert"
-        >
-          {{ inputLabel }} schema — {{ errors["node.inputSchema"] }}
-        </div>
         <ul class="nrg-help-list">
           <li>
             <strong>{{
@@ -177,7 +171,7 @@
                 {{ resolveLabel("outputs.validate", "Validate Data") }}
               </th>
               <th v-if="hasOutputSchemas" class="nrg-outputs-flag">
-                {{ resolveLabel("outputs.schema", "Schema") }}
+                {{ resolveLabel("outputs.schema", "Data Schema") }}
               </th>
               <th
                 v-if="typeCheckEnabled && supportsOutputTypeValidation"
@@ -217,8 +211,11 @@
                     'nrg-schema-btn-error':
                       !!errors[`node.outputSchemas.${port.index}`],
                   }"
+                  :title="
+                    errors[`node.outputSchemas.${port.index}`] || undefined
+                  "
                   :disabled="!validateOutputFor(port.index)"
-                  :aria-label="`${resolveLabel('outputs.schema', 'Schema')} — ${port.label}`"
+                  :aria-label="`${resolveLabel('outputs.schema', 'Data Schema')} — ${port.label}`"
                   @click="openOutputSchemaEditor(port.index)"
                 >
                   <span class="nrg-schema-glyph" aria-hidden="true">
@@ -282,14 +279,6 @@
             </tr>
           </tbody>
         </table>
-        <div
-          v-for="e in outputSchemaErrors"
-          :key="`out-schema-err-${e.index}`"
-          class="node-red-vue-input-error-message nrg-schema-error"
-          role="alert"
-        >
-          {{ e.label }} schema — {{ e.message }}
-        </div>
         <ul class="nrg-help-list">
           <li>
             <strong>{{
@@ -652,22 +641,6 @@ export default defineComponent({
       }));
     },
     /**
-     * Flow-author output-schema validation errors, collected for display BELOW
-     * the Outputs table (keyed like every other form error). Each entry pairs
-     * the port label with its message so the reader knows which port is wrong.
-     */
-    outputSchemaErrors(): { index: number; label: string; message: string }[] {
-      return this.outputRows
-        .map((port) => ({
-          index: port.index,
-          label: port.label,
-          message: this.errors[`node.outputSchemas.${port.index}`],
-        }))
-        .filter((e): e is { index: number; label: string; message: string } =>
-          Boolean(e.message),
-        );
-    },
-    /**
      * Label for the single input port, resolved from the node's i18n catalog
      * (`inputLabels.0`, then `inputLabels`) — mirrors createDefaultInputLabels.
      * Falls back to "Input" since there is only ever one input port.
@@ -933,7 +906,7 @@ export default defineComponent({
       };
     },
     openOutputSchemaEditor(index: number) {
-      const title = `${this.resolveLabel("outputs.schema", "Schema")} — ${
+      const title = `${this.resolveLabel("outputs.schema", "Data Schema")} — ${
         this.outputRows[index]?.label ?? `Output ${index}`
       }`;
       this.schemaTrayRef().open(title, this.outputSchemaFor(index), (value) =>
@@ -955,7 +928,7 @@ export default defineComponent({
     /** Open a Monaco (JSON) tray to edit the input's validation schema, seeded
      * from the effective value and saved back to config on Done. */
     openInputSchemaEditor() {
-      const title = `${this.resolveLabel("outputs.schema", "Schema")} — ${
+      const title = `${this.resolveLabel("outputs.schema", "Data Schema")} — ${
         this.inputLabel
       }`;
       this.schemaTrayRef().open(title, this.inputSchemaValue(), (value) =>
@@ -1209,10 +1182,12 @@ export default defineComponent({
   color: var(--red-ui-text-color-error, #d33);
 }
 
-/* The schema error message renders below the ports table, one line per port. */
-.nrg-schema-error {
-  display: block;
-  margin-top: 6px;
+/* Match the return-property / context-mode field height (28px), scoped through
+   the flag cell to beat Node-RED's global `.red-ui-button-small` height (20px). */
+.nrg-outputs-flag .nrg-outputs-schema-btn {
+  height: 28px;
+  box-sizing: border-box;
+  border-radius: 5px;
 }
 
 /* Keep column headers (notably "Validate Data") on a single line. */
@@ -1232,7 +1207,7 @@ export default defineComponent({
       --red-ui-form-input-border-color,
       var(--red-ui-secondary-border-color, #ccc)
     );
-  border-radius: 2px;
+  border-radius: 5px;
   background: var(--red-ui-form-input-background, #fff);
   color: var(--red-ui-form-text-color, inherit);
 }
@@ -1241,15 +1216,24 @@ export default defineComponent({
   width: 100%;
   height: 28px;
   box-sizing: border-box;
-  padding: 0 6px;
+  /* right room for the custom caret */
+  padding: 0 22px 0 6px;
   text-align: center;
   border: 1px solid
     var(
       --red-ui-form-input-border-color,
       var(--red-ui-secondary-border-color, #ccc)
     );
-  border-radius: 2px;
-  background: var(--red-ui-form-input-background, #fff);
+  border-radius: 5px;
+  /* A native <select> ignores border-radius (notably on macOS), so reset its
+     appearance and draw our own caret to get the rounded corners back. */
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--red-ui-form-input-background, #fff);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 6px;
   color: var(--red-ui-form-text-color, inherit);
 }
 
@@ -1263,11 +1247,17 @@ export default defineComponent({
    higher specificity (.nrg-outputs td .x → wins over .red-ui-editor
    input[type=text]) so the return-property input and context-mode select share
    one height and line up in the row. */
-.nrg-outputs td .nrg-outputs-return,
-.nrg-outputs td .nrg-outputs-context {
+.nrg-outputs td .nrg-outputs-return {
   height: 28px;
   margin: 0;
   padding: 0 6px;
+  line-height: normal;
+}
+.nrg-outputs td .nrg-outputs-context {
+  height: 28px;
+  margin: 0;
+  /* keep the right room for the custom caret (see .nrg-outputs-context) */
+  padding: 0 22px 0 6px;
   line-height: normal;
 }
 

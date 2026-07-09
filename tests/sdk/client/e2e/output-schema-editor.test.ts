@@ -34,15 +34,15 @@ describe("output schema editor (chromium)", () => {
     await editor.editNode("n5");
     const page = editor.page;
 
-    // Opted in → the Schema column header renders in the Outputs table.
+    // Opted in → the Data Schema column header renders in the Outputs table.
     const th = page.locator("table.nrg-outputs th.nrg-outputs-flag", {
-      hasText: "Schema",
+      hasText: "Data Schema",
     });
     await th.waitFor({ state: "visible", timeout: 10_000 });
     expect(await th.isVisible()).toBe(true);
 
-    const btn0 = page.locator('[aria-label="Schema — Output 0"]');
-    const btn1 = page.locator('[aria-label="Schema — Output 1"]');
+    const btn0 = page.locator('[aria-label="Data Schema — Output 0"]');
+    const btn1 = page.locator('[aria-label="Data Schema — Output 1"]');
     await btn0.scrollIntoViewIfNeeded();
 
     // Validate Data is off for every port initially → port 0's button is
@@ -76,7 +76,7 @@ describe("output schema editor (chromium)", () => {
     await editor.editNode("n5");
     const page = editor.page;
 
-    const inBtn = page.locator('[aria-label="Schema — Input"]');
+    const inBtn = page.locator('[aria-label="Data Schema — Input"]');
     await inBtn.scrollIntoViewIfNeeded();
     expect(await inBtn.isDisabled()).toBe(true);
 
@@ -97,7 +97,7 @@ describe("output schema editor (chromium)", () => {
         'label.nrg-toggle:has(input[aria-label="Validate Data — Output 0"])',
       )
       .click();
-    const btn0 = page.locator('[aria-label="Schema — Output 0"]');
+    const btn0 = page.locator('[aria-label="Data Schema — Output 0"]');
     await btn0.scrollIntoViewIfNeeded();
     await btn0.click();
 

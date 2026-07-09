@@ -11,6 +11,7 @@
     </slot>
     <div class="editor-wrapper">
       <button
+        v-if="expandable"
         ref="expand-button"
         class="red-ui-button red-ui-button-small expand-button"
         @click="onClickExpand"
@@ -29,8 +30,10 @@
     </div>
     <!-- "Expand" pops the field's editor into a full-width tray. Reuses the
          shared NodeRedTray shell; a second Monaco is mounted into the teleported
-         host (sharing this field's stateId for scroll/cursor view state). -->
+         host (sharing this field's stateId for scroll/cursor view state).
+         Skipped when the editor is already inside a tray (`expandable=false`). -->
     <NodeRedTray
+      v-if="expandable"
       ref="expandTray"
       title="Editor"
       @open="onExpandOpen"
@@ -180,6 +183,18 @@ export default defineComponent({
       type: String,
       default: "",
     },
+    /** Show the "expand into a tray" button. Turn off when the editor is
+     *  already mounted inside a tray (the button would be redundant). */
+    expandable: {
+      type: Boolean,
+      default: true,
+    },
+    /** Fill the parent's height (height: 100%) instead of the fixed 200px —
+     *  for use inside a tray/flex container that supplies the height. */
+    fill: {
+      type: Boolean,
+      default: false,
+    },
     /**
      * Monaco editor construction options (e.g. `{ lineNumbers: "on",
      * minimap: { enabled: true } }`), forwarded verbatim to
@@ -219,9 +234,11 @@ export default defineComponent({
     },
   },
   mounted() {
-    // NOTE: jquery wrapper is used because RED.popover.tooltip needs it
-    const expandButton = $(this.$refs["expand-button"] as HTMLElement);
-    RED.popover.tooltip(expandButton, RED._("node-red:common.label.expand"));
+    if (this.expandable) {
+      // NOTE: jquery wrapper is used because RED.popover.tooltip needs it
+      const expandButton = $(this.$refs["expand-button"] as HTMLElement);
+      RED.popover.tooltip(expandButton, RED._("node-red:common.label.expand"));
+    }
     this.mountEditor();
   },
   beforeUnmount() {
@@ -247,7 +264,10 @@ export default defineComponent({
           try {
             const inlineHeight = containerEl.style.height;
             const inlineWidth = containerEl.style.width;
-            if (inlineHeight) {
+            if (this.fill) {
+              // Fill the tray/flex parent that supplies the height.
+              editorEl.style.height = "100%";
+            } else if (inlineHeight) {
               editorEl.style.height = inlineHeight;
             } else {
               editorEl.style.height = "200px";

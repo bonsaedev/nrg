@@ -632,24 +632,23 @@ describe("app shell — flow-author schema validation", () => {
       inputSchema: { type: "string", default: "" },
     });
 
-  test("reddens the Schema icon and shows the error in the form for an invalid input schema", () => {
+  test("reddens the Schema icon and adds an error tooltip for an invalid input schema", () => {
     const { component } = renderApp({
       configs: { name: "x", validateInput: true, inputSchema: "{ not json" },
       schema: inputSchemaSchema(),
       features: INPUT_FEATURES,
     });
-    // the error message renders in the main form
-    const err = component.container.querySelector(".nrg-schema-error");
-    expect(err?.textContent).toContain("Invalid JSON");
-    // the Schema icon/button is flagged red
-    expect(
-      component.container.querySelector(
-        ".nrg-outputs-schema-btn.nrg-schema-btn-error",
-      ),
-    ).not.toBeNull();
+    // the Schema icon/button is flagged red...
+    const btn = component.container.querySelector(
+      ".nrg-outputs-schema-btn.nrg-schema-btn-error",
+    );
+    expect(btn).not.toBeNull();
+    // ...and carries the message as a tooltip — no separate in-form error text
+    expect(btn?.getAttribute("title")).toContain("Invalid JSON");
+    expect(component.container.querySelector(".nrg-schema-error")).toBeNull();
   });
 
-  test("no error and no red icon for a valid input schema", () => {
+  test("no red icon and no tooltip for a valid input schema", () => {
     const { component } = renderApp({
       configs: {
         name: "x",
@@ -659,13 +658,14 @@ describe("app shell — flow-author schema validation", () => {
       schema: inputSchemaSchema(),
       features: INPUT_FEATURES,
     });
-    expect(component.container.querySelector(".nrg-schema-error")).toBeNull();
     expect(
       component.container.querySelector(".nrg-schema-btn-error"),
     ).toBeNull();
+    const btn = component.container.querySelector(".nrg-outputs-schema-btn");
+    expect(btn?.getAttribute("title")).toBeNull();
   });
 
-  test("reddens an output-port Schema icon and lists the error below the Outputs table", () => {
+  test("reddens an output-port Schema icon and adds an error tooltip", () => {
     const { component } = renderApp({
       configs: {
         name: "x",
@@ -680,19 +680,16 @@ describe("app shell — flow-author schema validation", () => {
         outputPorts: [{ index: 0, label: "success" }],
       },
     });
-    // below-table error, prefixed with the port label
-    const err = component.container.querySelector(".nrg-schema-error");
-    expect(err?.textContent).toContain("success");
-    expect(err?.textContent).toContain("Invalid JSON");
-    // the output port's Schema icon is flagged red
-    expect(
-      component.container.querySelector(
-        ".nrg-outputs-schema-btn.nrg-schema-btn-error",
-      ),
-    ).not.toBeNull();
+    // the output port's Schema icon is flagged red + tooltip carries the error
+    const btn = component.container.querySelector(
+      ".nrg-outputs-schema-btn.nrg-schema-btn-error",
+    );
+    expect(btn).not.toBeNull();
+    expect(btn?.getAttribute("title")).toContain("Invalid JSON");
+    expect(component.container.querySelector(".nrg-schema-error")).toBeNull();
   });
 
-  test("clears the error once the invalid schema is corrected", async () => {
+  test("clears the red icon and tooltip once the invalid schema is corrected", async () => {
     const { node, component } = renderApp({
       configs: { name: "x", validateInput: true, inputSchema: "{ bad" },
       defaults: {
@@ -703,13 +700,15 @@ describe("app shell — flow-author schema validation", () => {
       features: INPUT_FEATURES,
     });
     expect(
-      component.container.querySelector(".nrg-schema-error"),
+      component.container.querySelector(".nrg-schema-btn-error"),
     ).not.toBeNull();
 
     node.inputSchema = JSON.stringify({ type: "object" });
 
     await vi.waitFor(() => {
-      expect(component.container.querySelector(".nrg-schema-error")).toBeNull();
+      expect(
+        component.container.querySelector(".nrg-schema-btn-error"),
+      ).toBeNull();
     });
   });
 });
