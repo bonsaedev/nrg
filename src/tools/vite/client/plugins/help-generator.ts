@@ -7,6 +7,7 @@ import type {
   NodeTypeInfo,
   NodeFieldInfo,
   NodeRoleType,
+  NodeOutputPort,
 } from "../../server/plugins/node-type-info";
 import { nodeDefsPath, nodeTypesPath } from "../../utils";
 import { logger } from "../../logger";
@@ -388,35 +389,32 @@ function roleSection(
 }
 
 /**
- * Render one message PORT (input or output). Distinct from {@link roleSection}
- * because a data port must read as ONE message:
+ * Render the INPUT port (a single message). Distinct from {@link roleSection}
+ * because it must read as ONE message:
  *
- * - the port's domain label (`inputLabels` / `outputLabels[i]`, e.g. "Operation
- *   result") is surfaced — a plain role section drops it;
- * - an object value can be captioned ("…carries an object with these
- *   properties:") so its property rows aren't misread as several separate ports.
+ * - the port's domain label (`inputLabels`, e.g. "Record data") is surfaced;
+ * - an object value is a field table, enriched by the default input validation
+ *   schema (constraints, required, descriptions) when the author ships one;
  * - a primitive/union value renders a one-row Type table (so a non-object input,
  *   which the old schema-only path dropped, is documented too).
  *
- * The heading text is HTML-escaped (a port name or a label-file string may carry
- * `<`). Returns "" when the port carries nothing to document (any/unknown/void).
+ * The heading text is HTML-escaped (a label-file string may carry `<`). Returns
+ * "" when the port carries nothing to document (any/unknown/void).
  */
 function messagePortSection(
   title: string,
   role: NodeRoleType,
   t: HelpTranslations,
   opts: {
-    /** Domain label for the whole port (from `inputLabels`/`outputLabels`). */
+    /** Domain label for the whole port (from `inputLabels`). */
     portLabel?: string;
-    /** Per-property labels for an object value (from the `input`/`outputs` map). */
+    /** Per-property labels for an object value (from the `input` map). */
     fieldLabels?: Record<string, string>;
     heading?: string;
-    /** Object-value framing caption; omitted → no caption row. */
-    caption?: string;
     /**
      * The author's default data-validation schema for this port (parsed from the
-     * `inputSchema`/`outputSchemas` config defaults). When present, each field's
-     * matching `properties[name]` enriches the type with runtime constraints
+     * `inputSchema` config default). When present, each field's matching
+     * `properties[name]` enriches the type with runtime constraints
      * (min/max/pattern/format/required) and a description — the contract the TS
      * generics don't carry. Defaults are NOT shown: data-plane validation is a
      * pure predicate, so they're never injected into a message.
@@ -426,12 +424,9 @@ function messagePortSection(
 ): string {
   const level = (opts.heading ?? "###").length;
   const head = `<h${level}>${escapeHtml(title)}</h${level}>\n`;
-  // The port's domain label — omitted when it's already the heading (a nameless
-  // tuple port uses the label as its heading, so repeating it is noise).
-  const labelLine =
-    opts.portLabel && opts.portLabel !== title
-      ? `<p><strong>${escapeHtml(opts.portLabel)}</strong></p>\n`
-      : "";
+  const labelLine = opts.portLabel
+    ? `<p><strong>${escapeHtml(opts.portLabel)}</strong></p>\n`
+    : "";
 
   if (role.fields.length) {
     const rows = role.fields
@@ -447,18 +442,12 @@ function messagePortSection(
         ),
       );
     if (rows.length === 0) return "";
-    // Caption (output only) so the rows read as the single emitted object's
-    // properties, not as multiple ports.
-    const caption = opts.caption
-      ? `<p><small>${opts.caption}</small></p>\n`
-      : "";
     // A Description column only when the validation schema supplied one — a pure
     // type has no descriptions (the reason the column was dropped originally).
     const includeDescription = rows.some((r) => r.description);
     return (
       head +
       labelLine +
-      caption +
       buildPropertyTable(rows, t, false, includeDescription) +
       "\n"
     );
@@ -483,17 +472,40 @@ function parseValidationSchema(value: unknown): any | undefined {
   }
 }
 
-/** Parse the per-port `outputSchemas` default (`{ [portIndex]: schemaString }`). */
-function parseOutputValidationSchemas(value: unknown): Record<number, any> {
-  const out: Record<number, any> = {};
-  if (!value || typeof value !== "object") return out;
-  for (const [port, schema] of Object.entries(
-    value as Record<string, unknown>,
-  )) {
-    const parsed = parseValidationSchema(schema);
-    if (parsed) out[Number(port)] = parsed;
-  }
-  return out;
+/**
+ * The unified OUTPUTS table: one row per output port — `Port | Type` — with the
+ * value shown inline (an object as its `{ … }` shape, not exploded into a field
+ * table), so a single object output, a union, and a multi-port node all read the
+ * same way under one plural "Outputs" heading. A port whose value is vacuous
+ * (any/unknown/void) carries nothing to document and is skipped; when none
+ * remain, returns "" (no section).
+ */
+function buildOutputsTable(
+  ports: NodeOutputPort[],
+  outputLabels: string[] | undefined,
+  t: HelpTranslations,
+): string {
+  const rows = ports
+    .map((port, i) => {
+      const type = port.role.text.trim();
+      if (VACUOUS_ROLE_TYPES.has(type)) return undefined;
+      // The port's identifier: its friendly label, else the named-port name,
+      // else the positional "Port N".
+      const name =
+        outputLabels?.[i] ?? port.name ?? `${t.sections.port} ${i + 1}`;
+      return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(type)}</td></tr>`;
+    })
+    .filter((r): r is string => r !== undefined);
+  if (rows.length === 0) return "";
+
+  return (
+    `<h3>${t.sections.outputs}</h3>\n` +
+    `<div style="overflow-x:auto">\n` +
+    `<table width="100%" style="min-width:500px">\n` +
+    `<thead><tr><th>${t.sections.port}</th><th>${t.columns.type}</th></tr></thead>\n` +
+    `<tbody>\n${rows.join("\n")}\n</tbody>\n` +
+    `</table>\n</div>`
+  );
 }
 
 /** The built-in ERROR port's fixed shape (see server ports.ts ErrorPortOutput). */
@@ -551,25 +563,20 @@ function generateHelpDoc(
       });
   if (settingsSection) lines.push(settingsSection);
 
-  // The node author's default data-validation schemas (serialized JSON-Schema
-  // strings on the inputSchema/outputSchemas config defaults). They carry the
-  // runtime contract — constraints, required, per-field descriptions — that the
-  // TS generics don't, so they enrich the type-driven Input/Output tables.
-  const configProps = nodeClass.configSchema?.properties;
+  // The node author's default INPUT data-validation schema (a serialized
+  // JSON-Schema string on the inputSchema config default). It carries the
+  // runtime contract — constraints, required, per-field descriptions — the TS
+  // generics don't, so it enriches the type-driven Input table. (Outputs render
+  // as inline types, so their per-field schema doesn't apply there.)
   const inputValidationSchema = parseValidationSchema(
-    configProps?.inputSchema?.default,
+    nodeClass.configSchema?.properties?.inputSchema?.default,
   );
-  const outputValidationSchemas = parseOutputValidationSchemas(
-    configProps?.outputSchemas?.default,
-  );
-  // Set only when a schema actually enriches a RENDERED section, so the note
-  // never appears for constraints the reader can't see (e.g. an `any` port).
-  let hasValidationSchema = false;
 
   // Input — type-driven, single port. Surface its domain label (`inputLabels`)
   // and render an object as a field table or a primitive/union as a Type table
   // (the old schema-only path dropped a non-object input entirely). Enriched by
   // the default input validation schema when the author ships one.
+  let hasValidationSchema = false;
   if (nodeTypes?.input) {
     const inputSection = messagePortSection(
       t.sections.input,
@@ -587,67 +594,27 @@ function generateHelpDoc(
     }
   }
 
-  // Output(s) — type-driven (shape-aware) from the node's Output generic. Each
-  // port reads as ONE output message: its domain label (outputLabels[i]) is
-  // surfaced and an object value is captioned so its properties don't read as
-  // separate ports. Enriched by that port's default output validation schema.
+  // Outputs — every port renders uniformly as one row (Port | Type) under a
+  // single "Outputs" heading, with an object value shown inline as its shape
+  // rather than exploded into a field table. A single object output, a union,
+  // and a multi-port node all read the same way.
   if (nodeTypes?.outputs?.length) {
-    const ports = nodeTypes.outputs;
-    const outputLabels = labels.outputLabels;
-    const objectCaption = t.captions.objectProperties;
-    let rendered = false;
-    if (ports.length === 1 && ports[0].name === undefined) {
-      const schema = outputValidationSchemas[ports[0].index];
-      const section = messagePortSection(t.sections.output, ports[0].role, t, {
-        portLabel: outputLabels?.[0],
-        fieldLabels: labels.outputs?.[0],
-        caption: objectCaption,
-        schema,
-      });
-      if (section) {
-        lines.push(section);
-        rendered = true;
-        if (schema) hasValidationSchema = true;
-      }
-    } else {
-      const portSections = ports
-        .map((port, i) => {
-          // A named port is titled by its name; a positional one prefers its
-          // domain label over the generic "Port N".
-          const title =
-            port.name ?? outputLabels?.[i] ?? `${t.sections.port} ${i + 1}`;
-          const fieldLabels = port.name
-            ? (labels.outputs as any)?.[port.name]
-            : labels.outputs?.[i];
-          // Show the domain label as a caption only when it isn't the heading.
-          const portLabel = port.name ? outputLabels?.[i] : undefined;
-          const schema = outputValidationSchemas[port.index];
-          const section = messagePortSection(title, port.role, t, {
-            portLabel,
-            fieldLabels,
-            heading: "####",
-            caption: objectCaption,
-            schema,
-          });
-          if (section && schema) hasValidationSchema = true;
-          return section;
-        })
-        .filter(Boolean);
-      if (portSections.length) {
-        lines.push(
-          `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
-        );
-        rendered = true;
-      }
+    const outputsTable = buildOutputsTable(
+      nodeTypes.outputs,
+      labels.outputLabels,
+      t,
+    );
+    if (outputsTable) {
+      lines.push(outputsTable);
+      // Explain the wire shape the inline types don't reveal: value under the
+      // return property, plus the source/input provenance keys.
+      lines.push(`<p><small>${t.notes.outputEnvelope}</small></p>`);
     }
-    // Explain the wire shape the type sections don't reveal: value under the
-    // return property, plus the source/input provenance keys.
-    if (rendered) lines.push(`<p><small>${t.notes.outputEnvelope}</small></p>`);
   }
 
-  // When constraints came from a default validation schema, note that they are
-  // opt-in (Validate Data) and flow-author-overridable, so they don't read as
-  // hard guarantees.
+  // When the Input constraints came from a default validation schema, note that
+  // they are opt-in (Validate Data) and flow-author-overridable, so they don't
+  // read as hard guarantees.
   if (hasValidationSchema) {
     lines.push(`<p><small>${t.notes.dataValidation}</small></p>`);
   }

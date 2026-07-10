@@ -151,13 +151,15 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
     expect(doc).toContain("<td>endpoint</td><td>string</td><td>Yes</td>");
   });
 
-  it("renders the named output port TITLES and their field types", () => {
+  it("renders the named output ports as Outputs rows with the object shape inline", () => {
     expect(doc).toContain("<h3>Outputs</h3>");
-    expect(doc).toContain("<h4>success</h4>");
-    expect(doc).toContain("<h4>failure</h4>");
-    expect(doc).toContain("<td>data</td><td>string</td>");
-    expect(doc).toContain("<td>reason</td><td>string</td>");
-    // the named-ports brand is never leaked as a port title
+    // Port name in the Port cell; the object shape inline in the Type cell.
+    expect(doc).toContain("<td>success</td>");
+    expect(doc).toContain("<td>failure</td>");
+    expect(doc).toContain("data: string");
+    expect(doc).toContain("reason: string");
+    // no per-port sub-headings, and the named-ports brand never leaks
+    expect(doc).not.toContain("<h4>");
     expect(doc).not.toContain("__nrg_named_ports");
   });
 

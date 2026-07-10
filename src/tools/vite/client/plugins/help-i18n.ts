@@ -25,11 +25,6 @@ interface HelpTranslations {
     yes: string;
     no: string;
   };
-  captions: {
-    /** Frames an object-typed output port so its rows read as ONE output
-     * emitting an object, not several separate output ports. */
-    objectProperties: string;
-  };
   notes: {
     /** Explains the output message envelope (return property + source/input),
      * which the type sections don't otherwise reveal. */
@@ -66,9 +61,6 @@ const translations: Record<string, HelpTranslations> = {
       yes: "Yes",
       no: "No",
     },
-    captions: {
-      objectProperties: "This output carries an object with these properties:",
-    },
     notes: {
       outputEnvelope:
         "Data outputs are placed under the return property (default <code>output</code>). Every port message also carries <code>source</code> (the producing node) and <code>input</code> (the message being processed).",
@@ -100,10 +92,6 @@ const translations: Record<string, HelpTranslations> = {
     values: {
       yes: "Ja",
       no: "Nein",
-    },
-    captions: {
-      objectProperties:
-        "Dieser Ausgang liefert ein Objekt mit diesen Eigenschaften:",
     },
     notes: {
       outputEnvelope:
@@ -137,9 +125,6 @@ const translations: Record<string, HelpTranslations> = {
       yes: "Sí",
       no: "No",
     },
-    captions: {
-      objectProperties: "Esta salida devuelve un objeto con estas propiedades:",
-    },
     notes: {
       outputEnvelope:
         "Las salidas de datos se colocan bajo la propiedad de retorno (predeterminado <code>output</code>). Cada mensaje de puerto también incluye <code>source</code> (el nodo que lo produce) e <code>input</code> (el mensaje en proceso).",
@@ -171,9 +156,6 @@ const translations: Record<string, HelpTranslations> = {
     values: {
       yes: "Oui",
       no: "Non",
-    },
-    captions: {
-      objectProperties: "Cette sortie fournit un objet avec ces propriétés :",
     },
     notes: {
       outputEnvelope:
@@ -207,9 +189,6 @@ const translations: Record<string, HelpTranslations> = {
       yes: "예",
       no: "아니오",
     },
-    captions: {
-      objectProperties: "이 출력은 다음 속성을 가진 객체를 전달합니다:",
-    },
     notes: {
       outputEnvelope:
         "데이터 출력은 반환 속성 아래에 배치됩니다(기본값 <code>output</code>). 모든 포트 메시지에는 <code>source</code>(생성한 노드)와 <code>input</code>(처리 중인 메시지)도 포함됩니다.",
@@ -241,9 +220,6 @@ const translations: Record<string, HelpTranslations> = {
     values: {
       yes: "Sim",
       no: "Não",
-    },
-    captions: {
-      objectProperties: "Esta saída retorna um objeto com estas propriedades:",
     },
     notes: {
       outputEnvelope:
@@ -277,10 +253,6 @@ const translations: Record<string, HelpTranslations> = {
       yes: "Да",
       no: "Нет",
     },
-    captions: {
-      objectProperties:
-        "Этот выход возвращает объект со следующими свойствами:",
-    },
     notes: {
       outputEnvelope:
         "Выходные данные помещаются в свойство возврата (по умолчанию <code>output</code>). Каждое сообщение порта также содержит <code>source</code> (узел-источник) и <code>input</code> (обрабатываемое сообщение).",
@@ -312,9 +284,6 @@ const translations: Record<string, HelpTranslations> = {
     values: {
       yes: "はい",
       no: "いいえ",
-    },
-    captions: {
-      objectProperties: "この出力は次のプロパティを持つオブジェクトを返します:",
     },
     notes: {
       outputEnvelope:
@@ -348,9 +317,6 @@ const translations: Record<string, HelpTranslations> = {
       yes: "是",
       no: "否",
     },
-    captions: {
-      objectProperties: "此输出返回包含以下属性的对象：",
-    },
     notes: {
       outputEnvelope:
         "数据输出放在返回属性下（默认 <code>output</code>）。每个端口消息还带有 <code>source</code>（产生该消息的节点）和 <code>input</code>（正在处理的消息）。",
@@ -382,9 +348,6 @@ const translations: Record<string, HelpTranslations> = {
     values: {
       yes: "是",
       no: "否",
-    },
-    captions: {
-      objectProperties: "此輸出傳回包含以下屬性的物件：",
     },
     notes: {
       outputEnvelope:

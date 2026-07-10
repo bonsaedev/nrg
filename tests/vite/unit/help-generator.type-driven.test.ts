@@ -105,10 +105,10 @@ describe("help-generator — type-driven rendering", () => {
     });
   });
 
-  // (b) Output ports: single object, positional tuple, named record, and a
-  // primitive-typed port (code line, not a table).
+  // (b) Output ports: every port renders as one row (Port | Type) under a single
+  // "Outputs" heading — object shape inline, no per-field explosion.
   describe("(b) Output ports", () => {
-    it("single object output → one <h3>Output</h3> section (not a group)", () => {
+    it("single object output → one Outputs table row with the shape inline", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -126,12 +126,17 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h3>Output</h3>");
-      expect(doc).not.toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<td>result</td><td>string</td>");
+      // Always the plural "Outputs" heading, even for a single port.
+      expect(doc).toContain("<h3>Outputs</h3>");
+      // One row: the port (unnamed → "Port 1") and its object shape inline.
+      expect(doc).toContain(
+        "<tr><td>Port 1</td><td>{ result: string }</td></tr>",
+      );
+      // NOT exploded into a per-field property table.
+      expect(doc).not.toContain("<td>result</td>");
     });
 
-    it("positional tuple ports → an <h3>Outputs</h3> group with Port 1 / Port 2", () => {
+    it("positional tuple ports → one Outputs table, a row per port", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -152,13 +157,13 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>Port 1</h4>");
-      expect(doc).toContain("<h4>Port 2</h4>");
-      expect(doc).toContain("<td>a</td><td>string</td>");
-      expect(doc).toContain("<td>b</td><td>number</td>");
+      expect(doc).toContain("<tr><td>Port 1</td><td>{ a: string }</td></tr>");
+      expect(doc).toContain("<tr><td>Port 2</td><td>{ b: number }</td></tr>");
+      // No per-port sub-headings anymore.
+      expect(doc).not.toContain("<h4>");
     });
 
-    it("named record ports → sections titled by port name", () => {
+    it("named record ports → rows keyed by port name", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -185,14 +190,17 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>success</h4>");
-      expect(doc).toContain("<h4>failure</h4>");
-      // NOT rendered as generic "Port N" when a name exists
-      expect(doc).not.toContain("<h4>Port 1</h4>");
-      expect(doc).toContain("<td>payload</td><td>string</td>");
+      // Port name in the Port cell; the object shape inline in the Type cell.
+      expect(doc).toContain(
+        "<tr><td>success</td><td>{ payload: string }</td></tr>",
+      );
+      expect(doc).toContain(
+        "<tr><td>failure</td><td>{ error: string }</td></tr>",
+      );
+      expect(doc).not.toContain("Port 1"); // named, not generic "Port N"
     });
 
-    it("a single primitive-typed port → a <code>type</code> line, not a table", () => {
+    it("a single primitive-typed port → one Outputs row with the type inline", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -203,14 +211,11 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h3>Output</h3>");
-      // A primitive/union port with no fields renders a one-row Type table
-      // (consistent with the field tables, not a bare code line).
-      expect(doc).toContain("<th>Type</th>");
-      expect(doc).toContain("<tr><td>string</td></tr>");
+      expect(doc).toContain("<h3>Outputs</h3>");
+      expect(doc).toContain("<tr><td>Port 1</td><td>string</td></tr>");
     });
 
-    it("a primitive positional port renders a one-row Type table at the <h4> heading level", () => {
+    it("mixed primitive + object positional ports share one Outputs table", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -228,22 +233,17 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>Port 1</h4>");
-      expect(doc).toContain('<tr><td>"ok" | "fail"</td></tr>');
-      // Port 2 (object) still renders a field table
-      expect(doc).toContain("<h4>Port 2</h4>");
-      expect(doc).toContain("<td>b</td><td>number</td>");
+      expect(doc).toContain('<tr><td>Port 1</td><td>"ok" | "fail"</td></tr>');
+      expect(doc).toContain("<tr><td>Port 2</td><td>{ b: number }</td></tr>");
+      expect(doc).not.toContain("<h4>");
     });
 
     // The port's domain label (outputLabels[i]) is surfaced, and an object
     // value is captioned so it reads as ONE output, not many.
-    it("surfaces the outputLabels port label and captions an object output", () => {
+    it("shows the outputLabels label in the Port cell with the object shape inline", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        {
-          outputLabels: ["Query results"],
-          outputs: [{ records: "Query result records", totalSize: "Total" }],
-        },
+        { outputLabels: ["Query results"] },
         enUS,
         undefined,
         ioTypes({
@@ -253,10 +253,7 @@ describe("help-generator — type-driven rendering", () => {
               role: role(
                 "{ records: Array<Record<string, unknown>>; totalSize: number }",
                 [
-                  {
-                    name: "records",
-                    type: "Array<Record<string, unknown>>",
-                  },
+                  { name: "records", type: "Array<Record<string, unknown>>" },
                   { name: "totalSize", type: "number" },
                 ],
               ),
@@ -265,44 +262,35 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h3>Output</h3>");
-      // domain label surfaced as a caption
-      expect(doc).toContain("<p><strong>Query results</strong></p>");
-      // object caption clarifies it is a single output emitting one object
-      expect(doc).toContain(enUS.captions.objectProperties);
-      // per-field labels still applied (Label column)
-      expect(doc).toContain("<td>Query result records</td>");
-      // generic types are HTML-escaped
-      expect(doc).toContain("Array&lt;Record&lt;string, unknown&gt;&gt;");
+      expect(doc).toContain("<h3>Outputs</h3>");
+      // the domain label is the Port cell; the object shape is inline & escaped
+      expect(doc).toContain(
+        "<td>Query results</td><td>{ records: Array&lt;Record&lt;string, unknown&gt;&gt;; totalSize: number }</td>",
+      );
+      // NOT exploded into per-field rows
+      expect(doc).not.toContain("<td>records</td>");
     });
 
-    it("surfaces the port label for a union output without the object caption", () => {
+    it("shows the port label for a union output with the union inline", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        {
-          outputLabels: ["Operation result"],
-          outputs: [{ payload: "Operation result" }],
-        },
+        { outputLabels: ["Operation result"] },
         enUS,
         undefined,
         ioTypes({
           outputs: [
-            {
-              index: 0,
-              role: role("SaveResult | Array<SaveResult>", []),
-            },
+            { index: 0, role: role("SaveResult | Array<SaveResult>", []) },
           ],
         }),
       );
 
-      expect(doc).toContain("<h3>Output</h3>");
-      expect(doc).toContain("<p><strong>Operation result</strong></p>");
-      // union → one-row Type table, and NO object caption (there are no fields)
-      expect(doc).toContain("<th>Type</th>");
-      expect(doc).not.toContain(enUS.captions.objectProperties);
+      expect(doc).toContain("<h3>Outputs</h3>");
+      expect(doc).toContain(
+        "<td>Operation result</td><td>SaveResult | Array&lt;SaveResult&gt;</td>",
+      );
     });
 
-    it("a nameless tuple port uses its outputLabels entry as the heading", () => {
+    it("a nameless tuple port uses its outputLabels entry as the Port cell", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         { outputLabels: ["Success", "Failure"] },
@@ -323,15 +311,12 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain("<h3>Outputs</h3>");
-      expect(doc).toContain("<h4>Success</h4>");
-      expect(doc).toContain("<h4>Failure</h4>");
-      // The domain label replaces the generic "Port N" heading, so it isn't
-      // also repeated as a caption.
-      expect(doc).not.toContain("<h4>Port 1</h4>");
-      expect(doc).not.toContain("<p><strong>Success</strong></p>");
+      expect(doc).toContain("<tr><td>Success</td><td>{ a: string }</td></tr>");
+      expect(doc).toContain("<tr><td>Failure</td><td>{ b: number }</td></tr>");
+      expect(doc).not.toContain("Port 1");
     });
 
-    it("a named port keeps its name as the heading and shows outputLabels as a caption", () => {
+    it("a named port prefers its outputLabels label over the raw name in the Port cell", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         { outputLabels: ["On success", "On failure"] },
@@ -353,8 +338,8 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h4>success</h4>");
-      expect(doc).toContain("<p><strong>On success</strong></p>");
+      expect(doc).toContain("<td>On success</td>");
+      expect(doc).toContain("<td>On failure</td>");
     });
   });
 
@@ -426,8 +411,8 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
       expect(doc).toContain("<h3>Input</h3>");
-      expect(doc).toContain("<h3>Output</h3>");
-      expect(doc).not.toContain("<th>Description</th>");
+      expect(doc).toContain("<h3>Outputs</h3>");
+      expect(doc).not.toContain(">Description</th>");
     });
 
     it("is absent when nodeTypes.complete is undefined", () => {
@@ -664,7 +649,7 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).toContain("<tr><td>string</td></tr>");
     });
 
-    it("an object input keeps its field table and shows NO object caption", () => {
+    it("an object input renders a field table with its per-field labels", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         { inputLabels: ["Records"], input: { payload: "Record data" } },
@@ -680,8 +665,8 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).toContain("<h3>Input</h3>");
       expect(doc).toContain("<p><strong>Records</strong></p>");
       expect(doc).toContain("<td>Record data</td>"); // per-field label
-      // The object caption is output-only, never on the input section.
-      expect(doc).not.toContain(enUS.captions.objectProperties);
+      // Input keeps the field table (unlike outputs, which render inline).
+      expect(doc).toContain("<td>payload</td>");
     });
 
     it("appends the output envelope note when outputs render", () => {
@@ -766,9 +751,9 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      // The nameless tuple port uses its label as the heading — it must be escaped.
-      expect(doc).toContain("<h4>A&lt;B&gt;</h4>");
-      expect(doc).not.toContain("<h4>A<B></h4>");
+      // The label goes in the Port cell and must be HTML-escaped.
+      expect(doc).toContain("<td>A&lt;B&gt;</td>");
+      expect(doc).not.toContain("<td>A<B></td>");
     });
 
     it("escapes the node description", () => {
@@ -829,7 +814,7 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).toContain(enUS.notes.dataValidation);
     });
 
-    it("enriches an Output port from its outputSchemas default, keyed by port index", () => {
+    it("does NOT enrich Outputs from an outputSchemas default (outputs render inline)", () => {
       const doc = generateHelpDoc(
         {
           type: "n",
@@ -867,9 +852,15 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<td>number [min: 0]</td>");
-      expect(doc).toContain("<td>row count</td>");
-      expect(doc).toContain(enUS.notes.dataValidation);
+      // The port renders as one inline-type row; the output schema's constraints,
+      // description, and the data-validation note are NOT surfaced (output-side
+      // enrichment was dropped — only Input enriches).
+      expect(doc).toContain(
+        "<tr><td>Port 1</td><td>{ total: number }</td></tr>",
+      );
+      expect(doc).not.toContain("[min: 0]");
+      expect(doc).not.toContain("row count");
+      expect(doc).not.toContain(enUS.notes.dataValidation);
     });
 
     it("adds no data-validation note (or Description column) without a default schema", () => {
