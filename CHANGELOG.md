@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0](https://github.com/bonsaedev/nrg/compare/v0.37.0...v0.38.0) (2026-07-10)
+
+### Features
+
+* **vite:** tag every built node package with the "bonsae" keyword ([be5bed2](https://github.com/bonsaedev/nrg/commit/be5bed2c18f4662f482eddc00f402ff7c673fb53))
+
 ## [0.37.0](https://github.com/bonsaedev/nrg/compare/v0.36.0...v0.37.0) (2026-07-10)
 
 ### Features
