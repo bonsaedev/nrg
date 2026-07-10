@@ -74,7 +74,15 @@ function staticPropName(name: ts.PropertyName): string | undefined {
   return undefined;
 }
 
-/** The `T` text for `<SchemaType>.Unsafe<T>()` / `<SchemaType>.Array(Unsafe<T>())`. */
+/**
+ * The `T` text for a generic `<SchemaType>.<Method><T>(...)` field whose `T` is
+ * erased at runtime and only readable from source: `Unsafe<T>()`, `NodeRef<T>()`,
+ * and `TypedInput<T>()`, plus `Array(Unsafe<T>())` → `T[]`. NodeRef/TypedInput
+ * let the generated help show the referenced instance / resolved value type
+ * (`NodeRef<Connection>`, `TypedInput<string>`) instead of a bare name.
+ */
+const GENERIC_METHODS = new Set(["Unsafe", "NodeRef", "TypedInput"]);
+
 function unsafeTypeArg(
   node: ts.Expression,
   sf: ts.SourceFile,
@@ -89,7 +97,7 @@ function unsafeTypeArg(
     return undefined;
   }
   const method = node.expression.name.text;
-  if (method === "Unsafe" && node.typeArguments?.length) {
+  if (GENERIC_METHODS.has(method) && node.typeArguments?.length) {
     return normalizeType(node.typeArguments[0]!.getText(sf));
   }
   if (method === "Array" && node.arguments.length) {

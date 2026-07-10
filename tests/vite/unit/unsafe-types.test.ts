@@ -26,6 +26,20 @@ describe("unsafe-types parser", () => {
       });
     });
 
+    it("recovers the T for NodeRef<T>() and TypedInput<T>() too", () => {
+      const code = `${IMPORT}
+        const S = defineSchema({
+          connection: SchemaType.NodeRef<SalesforceConnection>("salesforce-connection"),
+          query: SchemaType.TypedInput<string>({ default: { type: "str", value: "" } }),
+        }, { $id: "soql:config" });`;
+      expect(
+        extractUnsafeTypesFromSource("n.ts", code).get("soql:config"),
+      ).toEqual({
+        connection: "SalesforceConnection",
+        query: "string",
+      });
+    });
+
     it("handles Array(Unsafe<T>()) as T[]", () => {
       const code = `${IMPORT}
         const S = defineSchema({ rows: SchemaType.Array(SchemaType.Unsafe<Row>()) }, { $id: "n:rows" });`;
