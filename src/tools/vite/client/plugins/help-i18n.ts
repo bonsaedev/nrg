@@ -34,6 +34,9 @@ interface HelpTranslations {
     /** Explains the output message envelope (return property + source/input),
      * which the type sections don't otherwise reveal. */
     outputEnvelope: string;
+    /** Explains that input/output constraints come from the author's default
+     * data-validation schema — opt-in and flow-author-overridable. */
+    dataValidation: string;
   };
 }
 
@@ -69,6 +72,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "Data outputs are placed under the return property (default <code>output</code>). Every port message also carries <code>source</code> (the producing node) and <code>input</code> (the message being processed).",
+      dataValidation:
+        "Constraints come from a default validation schema — enforced only when Validate Data is enabled, and overridable per node.",
     },
   },
   de: {
@@ -103,6 +108,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "Datenausgaben werden unter der Rückgabe-Eigenschaft abgelegt (Standard <code>output</code>). Jede Port-Nachricht enthält zudem <code>source</code> (den erzeugenden Node) und <code>input</code> (die verarbeitete Nachricht).",
+      dataValidation:
+        "Die Einschränkungen stammen aus einem Standard-Validierungsschema — nur bei aktiviertem „Validate Data“ erzwungen und pro Node überschreibbar.",
     },
   },
   "es-ES": {
@@ -136,6 +143,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "Las salidas de datos se colocan bajo la propiedad de retorno (predeterminado <code>output</code>). Cada mensaje de puerto también incluye <code>source</code> (el nodo que lo produce) e <code>input</code> (el mensaje en proceso).",
+      dataValidation:
+        "Las restricciones provienen de un esquema de validación predeterminado — aplicado solo cuando «Validate Data» está activado y anulable por nodo.",
     },
   },
   fr: {
@@ -169,6 +178,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "Les sorties de données sont placées sous la propriété de retour (par défaut <code>output</code>). Chaque message de port comporte aussi <code>source</code> (le nœud émetteur) et <code>input</code> (le message traité).",
+      dataValidation:
+        "Les contraintes proviennent d'un schéma de validation par défaut — appliqué uniquement lorsque « Validate Data » est activé et remplaçable par nœud.",
     },
   },
   ko: {
@@ -202,6 +213,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "데이터 출력은 반환 속성 아래에 배치됩니다(기본값 <code>output</code>). 모든 포트 메시지에는 <code>source</code>(생성한 노드)와 <code>input</code>(처리 중인 메시지)도 포함됩니다.",
+      dataValidation:
+        "제약 조건은 기본 검증 스키마에서 가져오며, Validate Data가 활성화된 경우에만 적용되고 노드별로 재정의할 수 있습니다.",
     },
   },
   "pt-BR": {
@@ -235,6 +248,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "As saídas de dados são colocadas sob a propriedade de retorno (padrão <code>output</code>). Cada mensagem de porta também carrega <code>source</code> (o nó de origem) e <code>input</code> (a mensagem em processamento).",
+      dataValidation:
+        "As restrições vêm de um esquema de validação padrão — aplicadas somente quando Validate Data está ativado e substituíveis por nó.",
     },
   },
   ru: {
@@ -269,6 +284,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "Выходные данные помещаются в свойство возврата (по умолчанию <code>output</code>). Каждое сообщение порта также содержит <code>source</code> (узел-источник) и <code>input</code> (обрабатываемое сообщение).",
+      dataValidation:
+        "Ограничения берутся из схемы валидации по умолчанию — применяются только при включённом Validate Data и переопределяются для каждого узла.",
     },
   },
   ja: {
@@ -302,6 +319,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "データ出力は戻りプロパティ（既定は <code>output</code>）の下に格納されます。各ポートのメッセージには <code>source</code>（生成元ノード）と <code>input</code>（処理中のメッセージ）も含まれます。",
+      dataValidation:
+        "制約は既定の検証スキーマに基づき、Validate Data が有効な場合にのみ適用され、ノードごとに上書きできます。",
     },
   },
   "zh-CN": {
@@ -335,6 +354,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "数据输出放在返回属性下（默认 <code>output</code>）。每个端口消息还带有 <code>source</code>（产生该消息的节点）和 <code>input</code>（正在处理的消息）。",
+      dataValidation:
+        "约束来自默认验证模式 — 仅在启用 Validate Data 时强制执行，并且可按节点覆盖。",
     },
   },
   "zh-TW": {
@@ -368,6 +389,8 @@ const translations: Record<string, HelpTranslations> = {
     notes: {
       outputEnvelope:
         "資料輸出置於回傳屬性之下（預設 <code>output</code>）。每個埠訊息也會帶有 <code>source</code>（產生訊息的節點）與 <code>input</code>（正在處理的訊息）。",
+      dataValidation:
+        "限制來自預設驗證結構描述 — 僅在啟用 Validate Data 時強制執行，並且可依節點覆寫。",
     },
   },
 };

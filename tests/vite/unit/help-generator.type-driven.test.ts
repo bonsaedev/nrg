@@ -783,4 +783,147 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).not.toContain("records < 200 & counting");
     });
   });
+
+  // (h) The node author's default input/output data-validation schemas
+  // (inputSchema/outputSchemas config defaults) enrich the type-driven tables.
+  describe("(h) input/output validation-schema enrichment", () => {
+    it("enriches the Input table from the default inputSchema (constraints, description, note)", () => {
+      const doc = generateHelpDoc(
+        {
+          type: "n",
+          configSchema: {
+            properties: {
+              inputSchema: {
+                default: JSON.stringify({
+                  type: "object",
+                  properties: {
+                    payload: {
+                      type: "string",
+                      minLength: 3,
+                      description: "The record id",
+                    },
+                  },
+                  required: ["payload"],
+                }),
+              },
+            },
+          },
+        },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
+          ]),
+        }),
+      );
+
+      expect(doc).toContain("<h3>Input</h3>");
+      // TS type kept, enriched with the schema constraint
+      expect(doc).toContain("<td>string [min: 3]</td>");
+      // the schema supplied a description → Description column appears
+      expect(doc).toContain(">Description</th>");
+      expect(doc).toContain("<td>The record id</td>");
+      // the opt-in / overridable note
+      expect(doc).toContain(enUS.notes.dataValidation);
+    });
+
+    it("enriches an Output port from its outputSchemas default, keyed by port index", () => {
+      const doc = generateHelpDoc(
+        {
+          type: "n",
+          configSchema: {
+            properties: {
+              outputSchemas: {
+                default: {
+                  0: JSON.stringify({
+                    type: "object",
+                    properties: {
+                      total: {
+                        type: "number",
+                        minimum: 0,
+                        description: "row count",
+                      },
+                    },
+                  }),
+                },
+              },
+            },
+          },
+        },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          outputs: [
+            {
+              index: 0,
+              role: role("{ total: number }", [
+                { name: "total", type: "number" },
+              ]),
+            },
+          ],
+        }),
+      );
+
+      expect(doc).toContain("<td>number [min: 0]</td>");
+      expect(doc).toContain("<td>row count</td>");
+      expect(doc).toContain(enUS.notes.dataValidation);
+    });
+
+    it("adds no data-validation note (or Description column) without a default schema", () => {
+      const doc = generateHelpDoc(
+        { type: "n" },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
+          ]),
+        }),
+      );
+
+      expect(doc).toContain("<h3>Input</h3>");
+      expect(doc).not.toContain(enUS.notes.dataValidation);
+      expect(doc).not.toContain(">Description</th>");
+    });
+
+    it("ignores an empty or invalid inputSchema default", () => {
+      const empty = generateHelpDoc(
+        {
+          type: "n",
+          configSchema: { properties: { inputSchema: { default: "" } } },
+        },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
+          ]),
+        }),
+      );
+      expect(empty).not.toContain(enUS.notes.dataValidation);
+
+      const bad = generateHelpDoc(
+        {
+          type: "n",
+          configSchema: {
+            properties: { inputSchema: { default: "not json{" } },
+          },
+        },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
+          ]),
+        }),
+      );
+      expect(bad).not.toContain(enUS.notes.dataValidation);
+    });
+  });
 });
