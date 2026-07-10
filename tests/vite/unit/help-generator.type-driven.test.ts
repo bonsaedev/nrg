@@ -360,11 +360,11 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h3>Complete</h3>");
+      expect(doc).toContain("<h3>Lifecycle outputs</h3>");
       // The return value is inlined under `complete`, alongside source/input —
       // not exploded into per-field rows.
       expect(doc).toContain(
-        "<tr><td>{ complete: { done: boolean; count: number }; source; input }</td></tr>",
+        "<tr><td>Complete</td><td>{ complete: { done: boolean; count: number }; source; input }</td></tr>",
       );
       expect(doc).not.toContain("<td>done</td>");
     });
@@ -378,9 +378,9 @@ describe("help-generator — type-driven rendering", () => {
         ioTypes({ complete: role('"ok" | "fail"', []) }),
       );
 
-      expect(doc).toContain("<h3>Complete</h3>");
+      expect(doc).toContain("<h3>Lifecycle outputs</h3>");
       expect(doc).toContain(
-        '<tr><td>{ complete: "ok" | "fail"; source; input }</td></tr>',
+        '<tr><td>Complete</td><td>{ complete: "ok" | "fail"; source; input }</td></tr>',
       );
       expect(doc).toContain("<th>Type</th>");
     });
@@ -530,8 +530,9 @@ describe("help-generator — type-driven rendering", () => {
     });
   });
 
-  // (e) i18n: the Settings and Complete section TITLES resolve for every locale.
-  describe("(e) i18n — Settings & Complete titles resolve for every locale", () => {
+  // (e) i18n: the Settings / Lifecycle / Complete section TITLES resolve for
+  // every locale.
+  describe("(e) i18n — Settings & Lifecycle titles resolve for every locale", () => {
     const LOCALES = [
       "en-US",
       "de",
@@ -548,9 +549,10 @@ describe("help-generator — type-driven rendering", () => {
     it.each(LOCALES)("resolves both section titles for %s", (locale) => {
       const t = getHelpTranslations(locale);
 
-      // Neither translation key is missing (which would stringify to "undefined").
+      // No translation key is missing (which would stringify to "undefined").
       expect(String(t.sections.settings)).not.toBe("undefined");
       expect(String(t.sections.complete)).not.toBe("undefined");
+      expect(String(t.sections.lifecycle)).not.toBe("undefined");
 
       const doc = generateHelpDoc(
         { type: "n" },
@@ -568,9 +570,12 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain(`<h3>${t.sections.settings}</h3>`);
-      expect(doc).toContain(`<h3>${t.sections.complete}</h3>`);
-      // Guard against a missing key ever rendering literally as a heading.
+      // Complete is a row in the Lifecycle table now, not its own heading.
+      expect(doc).toContain(`<h3>${t.sections.lifecycle}</h3>`);
+      expect(doc).toContain(`<td>${t.sections.complete}</td>`);
+      // Guard against a missing key ever rendering literally as a heading/cell.
       expect(doc).not.toContain("<h3>undefined</h3>");
+      expect(doc).not.toContain("<td>undefined</td>");
     });
   });
 
@@ -625,11 +630,10 @@ describe("help-generator — type-driven rendering", () => {
       // Input/Output are type-driven only — without nodeTypes, no such sections.
       expect(doc).not.toContain("<h3>Input</h3>");
       expect(doc).not.toContain("<h3>Output</h3>");
-      // No Complete section without nodeTypes.complete
+      // No Complete without nodeTypes.complete
       expect(doc).not.toContain("Complete");
-      // Built-in Error/Status sections are gated on nodeTypes.kind === "io".
-      expect(doc).not.toContain("<h3>Error</h3>");
-      expect(doc).not.toContain("<h3>Status</h3>");
+      // The Lifecycle table is gated on nodeTypes.kind === "io".
+      expect(doc).not.toContain("<h3>Lifecycle outputs</h3>");
     });
   });
 
@@ -704,7 +708,7 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).not.toContain(enUS.notes.outputEnvelope);
     });
 
-    it("renders built-in Error and Status port sections for io nodes", () => {
+    it("renders built-in Error and Status ports as Lifecycle rows for io nodes", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -715,15 +719,18 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h3>Error</h3>");
-      expect(doc).toContain("<h3>Status</h3>");
+      expect(doc).toContain("<h3>Lifecycle outputs</h3>");
+      expect(doc).toContain("<td>Error</td>");
+      expect(doc).toContain("<td>Status</td>");
       // The fixed shapes name the error block + provenance keys.
       expect(doc).toContain("error:");
       expect(doc).toContain("status:");
       expect(doc).toContain("source");
+      // A node with no input() return has no Complete row.
+      expect(doc).not.toContain("<td>Complete</td>");
     });
 
-    it("does NOT render Error/Status for config nodes (no ports)", () => {
+    it("does NOT render the Lifecycle table for config nodes (no ports)", () => {
       const doc = generateHelpDoc({ type: "n" }, {}, enUS, undefined, {
         type: "n",
         kind: "config",
@@ -731,8 +738,9 @@ describe("help-generator — type-driven rendering", () => {
       });
 
       expect(doc).toContain("<h3>Properties</h3>");
-      expect(doc).not.toContain("<h3>Error</h3>");
-      expect(doc).not.toContain("<h3>Status</h3>");
+      expect(doc).not.toContain("<h3>Lifecycle outputs</h3>");
+      expect(doc).not.toContain("<td>Error</td>");
+      expect(doc).not.toContain("<td>Status</td>");
     });
 
     it("escapes a port heading carrying HTML-special characters", () => {

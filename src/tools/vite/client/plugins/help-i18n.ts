@@ -12,6 +12,8 @@ interface HelpTranslations {
     error: string;
     /** Built-in status port. */
     status: string;
+    /** Heading for the combined built-in Complete/Error/Status ports table. */
+    lifecycle: string;
   };
   columns: {
     property: string;
@@ -48,6 +50,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "Complete",
       error: "Error",
       status: "Status",
+      lifecycle: "Lifecycle outputs",
     },
     columns: {
       property: "Property",
@@ -80,6 +83,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "Abschluss",
       error: "Fehler",
       status: "Status",
+      lifecycle: "Lebenszyklus-Ausgänge",
     },
     columns: {
       property: "Eigenschaft",
@@ -112,6 +116,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "Completado",
       error: "Error",
       status: "Estado",
+      lifecycle: "Salidas de ciclo de vida",
     },
     columns: {
       property: "Propiedad",
@@ -144,6 +149,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "Terminé",
       error: "Erreur",
       status: "Statut",
+      lifecycle: "Sorties de cycle de vie",
     },
     columns: {
       property: "Propriété",
@@ -176,6 +182,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "완료",
       error: "오류",
       status: "상태",
+      lifecycle: "수명 주기 출력",
     },
     columns: {
       property: "속성",
@@ -208,6 +215,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "Concluído",
       error: "Erro",
       status: "Status",
+      lifecycle: "Saídas de ciclo de vida",
     },
     columns: {
       property: "Propriedade",
@@ -240,6 +248,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "Завершение",
       error: "Ошибка",
       status: "Статус",
+      lifecycle: "Выходы жизненного цикла",
     },
     columns: {
       property: "Свойство",
@@ -272,6 +281,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "完了",
       error: "エラー",
       status: "ステータス",
+      lifecycle: "ライフサイクル出力",
     },
     columns: {
       property: "プロパティ",
@@ -304,6 +314,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "完成",
       error: "错误",
       status: "状态",
+      lifecycle: "生命周期输出",
     },
     columns: {
       property: "属性",
@@ -336,6 +347,7 @@ const translations: Record<string, HelpTranslations> = {
       complete: "完成",
       error: "錯誤",
       status: "狀態",
+      lifecycle: "生命週期輸出",
     },
     columns: {
       property: "屬性",

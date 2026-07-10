@@ -619,27 +619,34 @@ function generateHelpDoc(
     lines.push(`<p><small>${t.notes.dataValidation}</small></p>`);
   }
 
-  // Complete port — carries input()'s return value. Rendered like Error/Status:
-  // a one-row Type table with the full message shape inline (the return value is
-  // NOT exploded into a field table), so all three built-in ports read the same.
-  // Only shown when input() returns a non-void value (nodeTypes.complete is set
-  // only for a non-vacuous return).
-  if (nodeTypes?.complete) {
-    const completeShape = `{ complete: ${nodeTypes.complete.text.trim()}; source; input }`;
-    lines.push(
-      `<h3>${escapeHtml(t.sections.complete)}</h3>\n${buildTypeTable(completeShape, t)}`,
-    );
-  }
-
-  // Built-in ERROR and STATUS ports — present on every IONode (enable via
-  // config). Their shapes are framework-fixed (not type-derived), so render them
-  // as static shape tables. Config nodes have no ports, so skip them.
+  // Built-in LIFECYCLE ports — Complete / Error / Status — in one table
+  // (Port | Type), mirroring the data Outputs table. Error and Status have
+  // framework-fixed shapes and are always present on an IONode; Complete appears
+  // only when input() returns a non-void value, with that inferred return type
+  // inlined under `complete`. Config nodes have no ports, so skip them.
   if (nodeTypes?.kind === "io") {
+    const lifecycle: Array<[string, string]> = [];
+    if (nodeTypes.complete) {
+      lifecycle.push([
+        t.sections.complete,
+        `{ complete: ${nodeTypes.complete.text.trim()}; source; input }`,
+      ]);
+    }
+    lifecycle.push([t.sections.error, ERROR_PORT_SHAPE]);
+    lifecycle.push([t.sections.status, STATUS_PORT_SHAPE]);
+    const body = lifecycle
+      .map(
+        ([port, type]) =>
+          `<tr><td>${escapeHtml(port)}</td><td>${escapeHtml(type)}</td></tr>`,
+      )
+      .join("\n");
     lines.push(
-      `<h3>${escapeHtml(t.sections.error)}</h3>\n${buildTypeTable(ERROR_PORT_SHAPE, t)}`,
-    );
-    lines.push(
-      `<h3>${escapeHtml(t.sections.status)}</h3>\n${buildTypeTable(STATUS_PORT_SHAPE, t)}`,
+      `<h3>${escapeHtml(t.sections.lifecycle)}</h3>\n` +
+        `<div style="overflow-x:auto">\n` +
+        `<table width="100%" style="min-width:500px">\n` +
+        `<thead><tr><th>${t.sections.port}</th><th>${t.columns.type}</th></tr></thead>\n` +
+        `<tbody>\n${body}\n</tbody>\n` +
+        `</table>\n</div>`,
     );
   }
 

@@ -164,8 +164,9 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
   });
 
   it("renders the Complete port from input()'s return type", () => {
-    expect(doc).toContain("<h3>Complete</h3>");
-    // The return value is inlined under `complete`, alongside source/input.
+    // Complete is a row in the Lifecycle table, its return value inlined.
+    expect(doc).toContain("<h3>Lifecycle outputs</h3>");
+    expect(doc).toContain("<td>Complete</td>");
     expect(doc).toContain("complete: {");
     expect(doc).toContain("ok: boolean");
     expect(doc).toContain("processed: number");
@@ -180,14 +181,14 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
     expect(doc).toContain("<td>region</td><td>string</td>");
   });
 
-  it("orders the type-driven sections: Properties → Settings → Outputs → Complete", () => {
+  it("orders the type-driven sections: Properties → Settings → Outputs → Lifecycle", () => {
     const p = doc.indexOf("<h3>Properties</h3>");
     const s = doc.indexOf("<h3>Settings</h3>");
     const o = doc.indexOf("<h3>Outputs</h3>");
-    const c = doc.indexOf("<h3>Complete</h3>");
+    const l = doc.indexOf("<h3>Lifecycle outputs</h3>");
     expect(p).toBeGreaterThanOrEqual(0);
     expect(p).toBeLessThan(s);
     expect(s).toBeLessThan(o);
-    expect(o).toBeLessThan(c);
+    expect(o).toBeLessThan(l);
   });
 });

@@ -274,10 +274,10 @@ describe("adversarial — complete port from input() return type", () => {
 
     const html = help(node);
     expect(html).toContain("Complete");
-    // Rendered as a one-row Type table with the value inlined under `complete`,
-    // never a method table (no prototype leak).
+    // A Lifecycle-table row with the value inlined under `complete`, never a
+    // method table (no prototype leak).
     expect(html).toContain(
-      "<tr><td>{ complete: number; source; input }</td></tr>",
+      "<tr><td>Complete</td><td>{ complete: number; source; input }</td></tr>",
     );
     expect(html).not.toContain("toFixed");
   });
