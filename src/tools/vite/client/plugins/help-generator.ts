@@ -349,43 +349,26 @@ const VACUOUS_ROLE_TYPES = new Set([
 ]);
 
 /**
- * Render a role that is either an object (a field table) or a primitive/union
- * (a single-cell Type table). Returns "" when there is nothing to show — an
- * object with no fields, or a vacuous type like `any`/`unknown`.
+ * Render the type-driven Settings section: an object role → a field table (with
+ * defaults), a primitive/union role → a one-row Type table. The role is always
+ * present and non-vacuous here (the extractor only sets `nodeTypes.settings` for
+ * a documentable type), so there is no empty/vacuous case to guard.
  */
-function roleSection(
-  title: string,
-  role: NodeRoleType | undefined,
+function settingsRoleSection(
+  role: NodeRoleType,
+  schema: any,
   t: HelpTranslations,
-  opts: {
-    schema?: any;
-    labels?: Record<string, string>;
-    heading?: string;
-    includeDefault?: boolean;
-    includeDescription?: boolean;
-  } = {},
 ): string {
-  if (!role) return "";
   if (role.fields.length) {
     return generateSchemaSection({
-      title,
-      schema: opts.schema,
+      title: t.sections.settings,
+      schema,
       typeFields: role.fields,
       t,
-      labels: opts.labels,
-      heading: opts.heading,
-      includeDefault: opts.includeDefault ?? false,
-      includeDescription: opts.includeDescription ?? true,
+      includeDefault: true,
     });
   }
-  const text = role.text.trim();
-  // A vacuous type (`any`/`unknown`/…) carries no useful information — skip the
-  // whole section, the same way an `any` input renders nothing.
-  if (VACUOUS_ROLE_TYPES.has(text)) return "";
-  // A union / primitive with no members — show the type itself in a one-row
-  // table so it reads consistently with the field tables.
-  const level = (opts.heading ?? "###").length;
-  return `<h${level}>${title}</h${level}>\n${buildTypeTable(text, t)}\n`;
+  return `<h3>${escapeHtml(t.sections.settings)}</h3>\n${buildTypeTable(role.text.trim(), t)}\n`;
 }
 
 /**
@@ -550,12 +533,10 @@ function generateHelpDoc(
   });
   if (credsSection) lines.push(credsSection);
 
-  // Settings — node-level configuration (RED.settings)
+  // Settings — node-level configuration (RED.settings). Type-driven when the
+  // node declares a Settings type, else schema-driven.
   const settingsSection = nodeTypes?.settings
-    ? roleSection(t.sections.settings, nodeTypes.settings, t, {
-        schema: nodeClass.settingsSchema,
-        includeDefault: true,
-      })
+    ? settingsRoleSection(nodeTypes.settings, nodeClass.settingsSchema, t)
     : generateSchemaSection({
         title: t.sections.settings,
         schema: nodeClass.settingsSchema,

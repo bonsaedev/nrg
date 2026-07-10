@@ -103,6 +103,19 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).toContain("<h3>Settings</h3>");
       expect(doc).toContain("<td>region</td><td>string</td>");
     });
+
+    it("renders a primitive/union Settings role as a one-row Type table", () => {
+      const doc = generateHelpDoc(
+        { type: "n" },
+        {},
+        enUS,
+        undefined,
+        ioTypes({ settings: role('"debug" | "info" | "warn"', []) }),
+      );
+
+      expect(doc).toContain("<h3>Settings</h3>");
+      expect(doc).toContain('<tr><td>"debug" | "info" | "warn"</td></tr>');
+    });
   });
 
   // (b) Output ports: every port renders as one row (Port | Type) under a single
@@ -677,6 +690,23 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).toContain("<td>payload</td>");
     });
 
+    it("renders no Input section when every input field is a hidden/system field", () => {
+      const doc = generateHelpDoc(
+        { type: "n" },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ id: string; type: string }", [
+            { name: "id", type: "string" },
+            { name: "type", type: "string" },
+          ]),
+        }),
+      );
+      // `id` and `type` are hidden system fields → no rows → no Input section.
+      expect(doc).not.toContain("<h3>Input</h3>");
+    });
+
     it("appends the output envelope note when outputs render", () => {
       const doc = generateHelpDoc(
         { type: "n" },
@@ -927,6 +957,25 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
       expect(bad).not.toContain(enUS.notes.dataValidation);
+
+      // Valid JSON but not an object (e.g. a bare number) → not a usable schema.
+      const nonObject = generateHelpDoc(
+        {
+          type: "n",
+          configSchema: {
+            properties: { inputSchema: { default: "42" } },
+          },
+        },
+        {},
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
+          ]),
+        }),
+      );
+      expect(nonObject).not.toContain(enUS.notes.dataValidation);
     });
   });
 });
