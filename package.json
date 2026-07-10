@@ -22,6 +22,7 @@
     "pnpm": ">=10.11.0"
   },
   "keywords": [
+    "bonsae",
     "node-red",
     "vue",
     "vue3",
