@@ -274,8 +274,11 @@ describe("adversarial — complete port from input() return type", () => {
 
     const html = help(node);
     expect(html).toContain("Complete");
-    // Rendered as a one-row Type table, never a method table (no prototype leak).
-    expect(html).toContain("<tr><td>number</td></tr>");
+    // Rendered as a one-row Type table with the value inlined under `complete`,
+    // never a method table (no prototype leak).
+    expect(html).toContain(
+      "<tr><td>{ complete: number; source; input }</td></tr>",
+    );
     expect(html).not.toContain("toFixed");
   });
 });

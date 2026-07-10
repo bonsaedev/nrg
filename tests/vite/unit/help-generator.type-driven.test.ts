@@ -343,10 +343,10 @@ describe("help-generator — type-driven rendering", () => {
     });
   });
 
-  // (c) Complete section: object → table, primitive/union → one-row Type table,
-  // absent when complete is undefined.
+  // (c) Complete section: a one-row Type table with the full built-in-port
+  // message shape inline (like Error/Status), absent when complete is undefined.
   describe("(c) Complete section", () => {
-    it("object complete → a table (from input()'s return type)", () => {
+    it("object complete → the full port shape inline (not a field table)", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -361,13 +361,15 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain("<h3>Complete</h3>");
-      expect(doc).toContain("<td>done</td><td>boolean</td>");
-      expect(doc).toContain("<td>count</td><td>number</td>");
-      // complete uses includeDefault: false → no Default column
-      expect(doc).not.toContain("<th>Default</th>");
+      // The return value is inlined under `complete`, alongside source/input —
+      // not exploded into per-field rows.
+      expect(doc).toContain(
+        "<tr><td>{ complete: { done: boolean; count: number }; source; input }</td></tr>",
+      );
+      expect(doc).not.toContain("<td>done</td>");
     });
 
-    it("primitive/union complete → a one-row Type table", () => {
+    it("primitive/union complete → the union inlined under `complete`", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -377,7 +379,9 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       expect(doc).toContain("<h3>Complete</h3>");
-      expect(doc).toContain('<tr><td>"ok" | "fail"</td></tr>');
+      expect(doc).toContain(
+        '<tr><td>{ complete: "ok" | "fail"; source; input }</td></tr>',
+      );
       expect(doc).toContain("<th>Type</th>");
     });
 

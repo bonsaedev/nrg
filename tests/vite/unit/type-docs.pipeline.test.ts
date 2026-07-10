@@ -165,8 +165,13 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
 
   it("renders the Complete port from input()'s return type", () => {
     expect(doc).toContain("<h3>Complete</h3>");
-    expect(doc).toContain("<td>ok</td><td>boolean</td>");
-    expect(doc).toContain("<td>processed</td><td>number</td>");
+    // The return value is inlined under `complete`, alongside source/input.
+    expect(doc).toContain("complete: {");
+    expect(doc).toContain("ok: boolean");
+    expect(doc).toContain("processed: number");
+    expect(doc).toContain("source; input }");
+    // not exploded into per-field rows
+    expect(doc).not.toContain("<td>ok</td>");
   });
 
   it("renders the Settings fields from the 5th generic", () => {

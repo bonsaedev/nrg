@@ -619,13 +619,17 @@ function generateHelpDoc(
     lines.push(`<p><small>${t.notes.dataValidation}</small></p>`);
   }
 
-  // Complete port — carries the value returned from input().
-  const completeSection = roleSection(
-    t.sections.complete,
-    nodeTypes?.complete,
-    t,
-  );
-  if (completeSection) lines.push(completeSection);
+  // Complete port — carries input()'s return value. Rendered like Error/Status:
+  // a one-row Type table with the full message shape inline (the return value is
+  // NOT exploded into a field table), so all three built-in ports read the same.
+  // Only shown when input() returns a non-void value (nodeTypes.complete is set
+  // only for a non-vacuous return).
+  if (nodeTypes?.complete) {
+    const completeShape = `{ complete: ${nodeTypes.complete.text.trim()}; source; input }`;
+    lines.push(
+      `<h3>${escapeHtml(t.sections.complete)}</h3>\n${buildTypeTable(completeShape, t)}`,
+    );
+  }
 
   // Built-in ERROR and STATUS ports — present on every IONode (enable via
   // config). Their shapes are framework-fixed (not type-derived), so render them
