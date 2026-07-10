@@ -2,6 +2,26 @@
 
 Building Node-RED nodes the traditional way involves writing raw HTML templates, jQuery bindings, callback-based APIs, and manual validation — with no type safety. NRG replaces all of that with TypeScript, JSON Schemas, Vue 3, and Vite.
 
+## Message Flow
+
+A flow is a message hopping from node to node. The difference is **who decides whether it keeps going — and how much of it travels along.**
+
+```text
+TRADITIONAL  --  decided by the node's author, in code
+
+   msg --> [ node ] --> send(msg)? --> next node
+                            |
+                            +-- forget this, and the flow stops (no error)
+
+NRG  --  decided by the flow author, on the wire
+
+   msg --> [ node ] --> result --> next node
+                            |
+                            +-- carry | trace | reset   (chosen per wire)
+```
+
+In classic Node-RED every node has to remember to pass the message on; miss it once and the flow silently dead-ends — and whoever built the flow can't fix it from the outside. NRG flips this: the node just returns its result, the framework carries the incoming message for you, and the **flow author** decides per output how much of it continues — the last message (`carry`), the full history (`trace`), or a clean slate (`reset`). See [context modes](./schemas#context-modes).
+
 ## Node Registration
 
 ### Traditional
