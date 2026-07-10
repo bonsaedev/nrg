@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
 import { build } from "../../../src/tools/vite/server/build";
-import type { BuildContext, ServerBuildOptions } from "../../../src/tools/vite/types";
+import type {
+  BuildContext,
+  ServerBuildOptions,
+} from "../../../src/tools/vite/types";
 
 const FIXTURE_DIR = path.resolve(__dirname, "../../fixtures/basic-node");
 
@@ -80,6 +83,7 @@ describe("server build", () => {
       expect(pkg["node-red"]).toBeDefined();
       expect(pkg["node-red"].nodes).toBeDefined();
       expect(pkg.keywords).toContain("node-red");
+      expect(pkg.keywords).toContain("bonsae");
       expect(pkg.type).toBe("commonjs");
     });
 

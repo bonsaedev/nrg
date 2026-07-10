@@ -324,6 +324,7 @@ describe("packageJsonGenerator closeBundle", () => {
     expect(result.devDependencies).toBeUndefined();
     expect(result["node-red"]).toEqual({ nodes: { nodes: "index.js" } });
     expect(result.keywords).toContain("node-red");
+    expect(result.keywords).toContain("bonsae");
   });
 
   it("tracks dependencies from resolveId", () => {
@@ -513,7 +514,7 @@ describe("packageJsonGenerator closeBundle", () => {
     expect(fs.existsSync(path.join(outDir, "package.json"))).toBe(false);
   });
 
-  it("preserves existing keywords with deduplication", () => {
+  it("preserves existing keywords, dedupes node-red, and appends bonsae", () => {
     writePackageJson({
       name: "test",
       version: "1.0.0",
@@ -526,6 +527,7 @@ describe("packageJsonGenerator closeBundle", () => {
     const result = JSON.parse(
       fs.readFileSync(path.join(outDir, "package.json"), "utf-8"),
     );
-    expect(result.keywords).toEqual(["iot", "node-red"]);
+    // author's keywords kept, `node-red` not duplicated, `bonsae` appended.
+    expect(result.keywords).toEqual(["iot", "node-red", "bonsae"]);
   });
 });

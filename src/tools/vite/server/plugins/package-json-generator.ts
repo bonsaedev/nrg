@@ -232,8 +232,14 @@ function packageJsonGenerator(options: {
         main: "index.js",
         type: "commonjs",
         dependencies: distDependencies,
+        // `node-red` makes the node discoverable in the Node-RED library;
+        // `bonsae` marks every node built with nrg (deduped with the author's own).
         keywords: [
-          ...new Set([...(rootPackageJson.keywords ?? []), "node-red"]),
+          ...new Set([
+            ...(rootPackageJson.keywords ?? []),
+            "node-red",
+            "bonsae",
+          ]),
         ],
         "node-red": {
           nodes: { nodes: "index.js" },
