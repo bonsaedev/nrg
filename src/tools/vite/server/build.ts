@@ -170,13 +170,16 @@ module.exports = function (RED) {
     // inliner. Runs in dev and prod.
     await extractNodeDefinitions(buildContext.outDir);
 
-    // Emit the prod type consumers from the types extracted up front (reused, so
-    // tsc runs once): node-types.json for the client help generator, and
-    // index.d.ts for the editor connection-type surface (inheritable classes +
-    // the NodeTypes wiring registry). In dev these aren't emitted, so help docs
-    // show only the config/credentials schemas (no typed input/output sections).
+    // node-types.json feeds the client help generator (the typed input/output
+    // sections and the TS type of each config field). The infos are already
+    // extracted above for the port-topology injector, so writing it is cheap —
+    // emit it in dev too, so help docs show typed sections during development.
+    writeNodeTypesJson(infos, buildContext.outDir);
+
+    // index.d.ts (the editor connection-type surface — inheritable classes + the
+    // NodeTypes wiring registry) is heavier and needed only by a published
+    // package's consumers, so it stays prod-only.
     if (!buildContext.isDev) {
-      writeNodeTypesJson(infos, buildContext.outDir);
       if (types) {
         writePackageDts(
           infos,
