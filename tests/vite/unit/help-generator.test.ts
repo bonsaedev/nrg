@@ -261,7 +261,8 @@ describe("help-generator", () => {
 
     it("hides nrg system config fields, keeps real properties", () => {
       // The lifecycle-port toggles + per-port output settings are baked into
-      // every IONode's config; they belong in the Capabilities table, not here.
+      // every IONode's config; they're framework-injected system fields,
+      // omitted from the Properties table.
       const schema = {
         properties: {
           errorPort: { type: "boolean" },
