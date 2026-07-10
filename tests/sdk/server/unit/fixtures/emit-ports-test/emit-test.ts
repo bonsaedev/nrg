@@ -23,12 +23,16 @@ class CustomError extends Error {
   code: string;
   retryable: boolean;
   detail: { attempt: number };
+  // An unset optional field — an own enumerable property whose value is
+  // `undefined`. The error port strips these (they carry no information).
+  hint: string | undefined;
   constructor(message: string) {
     super(message);
     this.name = "CustomError";
     this.code = "E_CUSTOM";
     this.retryable = true;
     this.detail = { attempt: 2 };
+    this.hint = undefined;
   }
 }
 

@@ -139,6 +139,16 @@ describe("returnProperty / output convention", () => {
     });
   });
 
+  it("rejects a per-port return property that is a reserved framework key", async () => {
+    // `source`/`input`/`error`/… are owned by the framework on the outgoing
+    // message, so a flow author cannot repurpose one as a return property.
+    await expect(
+      createNode(OverridableNode, {
+        config: { outputReturnProperties: { 0: "source" } },
+      }),
+    ).rejects.toThrow(/Reserved return property "source"/);
+  });
+
   it("supports a node-defined default return property per port", async () => {
     const { node } = await createNode(CustomDefault);
     await node.receive({ a: 1 });

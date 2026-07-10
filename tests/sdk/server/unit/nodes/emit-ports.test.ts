@@ -186,6 +186,9 @@ describe("emit ports", () => {
         retryable: true,
         detail: { attempt: 2 },
       });
+      // An unset optional field (own enumerable prop valued `undefined`) is
+      // stripped — it carries no information and would only clutter the panel.
+      expect("hint" in error).toBe(false);
       // `source` rides the root, beside `error` — not inside it.
       expect(errorSends[0].source).toMatchObject({ type: "emit-test" });
       // The full Error structure is preserved: `stack` is non-enumerable, so it
