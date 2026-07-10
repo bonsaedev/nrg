@@ -10,13 +10,15 @@ pnpm vite dev
 
 This will:
 
-1. Build your server and client code into `.nrg/` (a gitignored dev directory — **not** `dist/`, which is reserved for the publishable build from `pnpm vite build`)
+1. Build your server and client code into the `.nrg/` folder.
 2. Launch a local Node-RED instance (URL printed in the terminal)
 3. Watch for file changes and automatically rebuild + restart
 
-The dev build imports the `@bonsae/nrg` toolkit directly (never `@bonsae/nrg-runtime`), so it runs locally with nothing extra installed.
+`.nrg/` is a gitignored dev folder — it is not `dist/`, which only `pnpm vite build` writes for publishing.
 
-Every change — server or client — triggers a full Node-RED restart, **not** hot module replacement (HMR). Vite handles the restart; you refresh the browser to load the rebuilt editor and client forms. Open edit-dialog state resets on restart, but Node-RED preserves your flow definitions.
+In dev mode your code imports `@bonsae/nrg` directly, so everything runs locally with nothing extra to install. (The production build swaps this for a smaller runtime package — see "Why your built node depends on `@bonsae/nrg-runtime`" below.)
+
+Every change — server or client — triggers a full Node-RED restart, **not** hot module replacement (HMR). Vite handles the restart; you refresh the browser to load the rebuilt editor and client forms. If you have a node's edit panel open when a restart happens, any unsaved changes in that panel are cleared — but your deployed flows themselves are kept.
 
 ### Node-RED Settings
 
@@ -72,24 +74,25 @@ dist/
 
 ### Debugging a production build
 
-The **server bundle (`index.mjs`) is intentionally not minified**. It's `require`d
-locally by Node-RED — never shipped over the wire — so readability wins over size: a
-production stack trace points at real function names and line numbers in `index.mjs`,
-so you can trace an error without a source map. (No server source map is emitted for
-that reason.)
+The **server bundle (`index.mjs`) is intentionally not minified**. Node-RED loads it
+locally with `require()` — it is never sent to a browser — so readable code is worth
+more than a smaller file. The payoff: a production stack trace shows real function
+names and line numbers in `index.mjs`, so you can trace an error without a source map
+(which is why none is emitted for the server).
 
 For step-through debugging against your original TypeScript, use **dev mode**
 (`pnpm vite dev`): it builds unminified with accurate inline source maps and a live
 Node-RED — reproduce the issue there.
 
 The **client bundle** (`resources/*.[hash].js`) _is_ minified — the editor downloads
-it, so size matters — and content-hashed so browsers never serve a stale copy across
-releases.
+it, so size matters. Its filename includes a hash of its contents, which changes every
+release, so a browser can never reuse an old cached copy.
 
 ### Why your built node depends on `@bonsae/nrg-runtime`
 
 The generated `dist/package.json` declares a dependency on **`@bonsae/nrg-runtime`**,
-not `@bonsae/nrg`. That's deliberate:
+not `@bonsae/nrg`. You never add this yourself — NRG does it for you. Why are there
+two packages?
 
 - **`@bonsae/nrg`** is the authoring toolkit — the Vite plugin, test utilities, and
   build/dev tooling (`vite`, `esbuild`, `typescript`, …). You install it as a
@@ -98,12 +101,12 @@ not `@bonsae/nrg`. That's deliberate:
   classes, schemas, the AJV validator, the editor client runtime) — `ajv`/`typebox`/
   `vue`, no build tooling.
 
-At build time, NRG rewrites your `import … from "@bonsae/nrg/server"` to the runtime
-package in the emitted bundle and declares only that dependency, so installing your
-node in Node-RED pulls the small runtime and none of the tooling. You never reference
-`@bonsae/nrg-runtime` yourself: it's installed transitively when you add `@bonsae/nrg`,
-and the two are published together at the same version, so the pinned dependency
-always resolves.
+During `vite build`, NRG swaps your `@bonsae/nrg/server` and `@bonsae/nrg/schema`
+imports for `@bonsae/nrg-runtime` in the emitted bundle and declares only that
+dependency, so installing your node in Node-RED pulls the small runtime and none of
+the tooling. You never reference `@bonsae/nrg-runtime` yourself: you get it
+automatically when you install `@bonsae/nrg`, and the two are published together at
+the same version, so it always installs cleanly.
 
 ## Installing in Node-RED
 
@@ -191,6 +194,7 @@ export default defineConfig({
 | Option | Default | Description |
 | --- | --- | --- |
 | `nodeRed` | — | Options for the Node-RED dev server launcher (see [`NodeRedLauncherOptions`](#noderedlauncheroptions)) |
+| `verbose` | `false` | Print every dependency build warning in full instead of collapsing the non-actionable ones into a single summary line |
 
 ### `BuildOptions` (the `build` group)
 
@@ -223,7 +227,7 @@ export default defineConfig({
 | `licensePath` | `"./LICENSE"` | Path to LICENSE file to include in the HTML output |
 | `publicDir` | `"./src/client/public"` | Directory for public static files copied to `dist/resources/` |
 | `external` | `["jquery", "node-red", "vue", "@bonsae/nrg/client"]` | Modules to treat as external (not bundled) |
-| `globals` | — | Global variable mappings for external modules |
+| `globals` | `{ jquery: "$", "node-red": "RED", vue: "Vue" }` | Global variable mappings for external modules |
 | `manualChunks` | — | Custom chunk splitting function for Rollup |
 
 ### Node resources (icons, locales, examples)

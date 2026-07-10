@@ -3,14 +3,14 @@
 NRG uses [TypeBox](https://github.com/sinclairzx81/typebox) schemas for runtime validation on both server and client. Schemas serve two purposes: they validate data at runtime with AJV, and they render/validate the editor form.
 
 ::: info Schemas do not define ports
-A node's **port topology and wiring come from its TypeScript types** — the `IONode` generics — _not_ from schemas. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs). So input/output schemas are **optional**: reach for them when you want runtime data validation, not to declare ports.
+Schemas are optional. What ports a node has — and what type flows over each wire — comes from the node's **TypeScript types** (the `IONode` generics), not from schemas. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs). Use a schema only when you want to check data at runtime.
 
-If you'd rather make a schema the single source of truth for **both** validation and the type, derive the type from the schema with [`Infer`](#infer-drives-types) and feed it to the generic — the type still drives wiring, and the two can't drift.
+If you'd like one schema to be the single source for **both** the check and the type, write the schema, get its type with [`Infer`](#infer-drives-types), and pass that type to the node — the type still drives the ports and wiring, and the two can't drift.
 :::
 
 ## Defining Schemas
 
-Use `defineSchema` to create a schema with a required `$id`. Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/shared/schemas/` never value-imports the node runtime:
+Use `defineSchema` to create a schema (the `$id` is optional). Import the builders from **`@bonsae/nrg/schema`** — a neutral entry that carries only the schema builders and TypeBox, with no node runtime, so a schema module in `src/shared/schemas/` never value-imports the node runtime:
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -31,12 +31,12 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-The `$id` is **required**: it's the AJV compile-cache key (validators are reused per `$id`, so it must be unique across all your schemas), and it makes the schema addressable for cross-schema `$ref`. Convention: `"<node-type>:<role>"` (e.g. `"my-node:configs"`, `"my-node:credentials"`).
+The `$id` is **optional**. It's the AJV compile-cache key (validators are reused per `$id`), and it makes the schema addressable for cross-schema `$ref`. Omit it and a unique one is generated for you, so no two schemas can collide; provide your own only when you want a stable, readable key. Convention: `"<node-type>:<role>"` (e.g. `"my-node:configs"`, `"my-node:credentials"`).
 
 > Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
 
 ::: tip Where the builders live
-`@bonsae/nrg/schema` ships only the builders plus TypeBox — no node runtime — so a dedicated file in `src/shared/schemas/` stays decoupled from the node runtime. The builders (`defineSchema`, `SchemaType`) and the plane-neutral schema types (`Schema`, `TNodeRef`, `TTypedInput`) come **only** from `@bonsae/nrg/schema` — `@bonsae/nrg/server` does not re-export them, which keeps the schema/server boundary structural. Type inference (`Infer`, below) is the exception: it's plane-specific — always from `@bonsae/nrg/server` on the server or `@bonsae/nrg/client` on the client.
+Import the builders (`defineSchema`, `SchemaType`) and the schema types (`Schema`, `TNodeRef`, `TTypedInput`) from `@bonsae/nrg/schema` — they are **not** re-exported from `@bonsae/nrg/server`. That entry ships only the builders plus TypeBox (no node runtime), so a schema file in `src/shared/schemas/` never pulls in the node runtime. The one exception is `Infer` (below): import it from `@bonsae/nrg/server` in server code and from `@bonsae/nrg/client` in editor/client code.
 :::
 
 ## Type Inference
@@ -123,13 +123,14 @@ Default values from the schema are used by the editor to initialize new node ins
 
 ### Output and the message envelope
 
-Every node produces an **`output`**. `this.send(x)` always means "x is the
-result" — never "x is the whole outgoing message". The framework places the
-value at the return key and keeps the incoming message under **`input`**:
+Whatever you pass to `this.send(x)` is treated as the result value — never as the
+whole outgoing message. The framework wraps it for you: it puts your value under
+**`output`** and keeps the message that came in under **`input`** (so you can
+still read `msg.input.output`). Example:
 
 ```
 this.send(result)
-// outgoing: { output: result, input: msg }
+// outgoing: { output: result, source: { id, type, name, port }, input: msg }
 ```
 
 So the prior message stays recoverable under `input` (`msg.input.output`…). How
@@ -225,16 +226,13 @@ puts the result at the return key and the incoming message under `input`; the
 outgoing root is always just the result (incoming keys are never re-flattened at
 the root):
 
-- **carry** (default, depth 1): the previous message under `input`, but with
-  **its own** `input` stripped, so the chain never grows past one level.
-  `msg.input.output` is the immediately-previous result; nothing older is kept,
-  and a source's own fields survive exactly one hop, then drop. Loop-safe — the
-  safe default for loops and long chains.
-- **trace** (depth ∞): the previous message under `input`, untouched, so the
-  chain accumulates one frame per node (`msg.input.input`…) — full lineage back
-  to the source. Opt in for linear flows that want a provenance trail.
-- **reset** (depth 0): the outgoing message is only the result — no `input`
-  frame. Use for source nodes that intentionally start fresh.
+- **carry** (default) — keep only the immediately-previous message under `input`;
+  older history is dropped, so the chain never grows past one level
+  (`msg.input.output` is the previous result). Safe for loops and long chains.
+- **trace** — keep the full chain: each node adds a frame (`msg.input.input`…)
+  all the way back to the source. Use it when you want a provenance trail.
+- **reset** — keep no history: the outgoing message is just the result, with no
+  `input` frame. Use it for source nodes that intentionally start fresh.
 
 (A send with no incoming message — a source node, or a send outside any
 `input()` call — records no `input` frame.)
@@ -293,8 +291,10 @@ same AJV coercion nrg has always done for the config plane.
 runs a **pure predicate**: no coercion, no defaults, and it never rewrites the
 message. If it fails the node throws (routed to the error port when enabled); if it
 passes, the message flows through byte-for-byte. It is also **opt-in** — off unless
-the node exposes an input/output validation schema (a `SchemaType.InputSchema` /
-`SchemaType.OutputSchemas` config field) and the port's _Validate_ toggle is on.
+(a) an effective schema resolves for the port (a default the node author seeded, or
+one the flow author types in the editor) **and** (b) the port's _Validate_ toggle is
+on. The `inputSchema` / `outputSchemas` config fields exist on every IONode
+automatically, so you never have to "expose" them.
 
 **The port _types_ are compile-time only.** `TInput`/`TOutput` (and `Port<T>`) are
 erased at build. They drive the editor's port topology and wire type-checks, and
@@ -311,15 +311,16 @@ override async input(msg: Input) {
 }
 ```
 
-Reach for a `TypedInput` **config** field for values a flow author supplies (it
-resolves and coerces through the config plane), and reach for a port **schema**
-when you want to _reject_ malformed data at the boundary — not to convert it.
+Rule of thumb: use a `TypedInput` **config** field when a _flow author_ fills in a
+value in the editor — it gets converted to the right type for you. Use a port
+**schema** when you want to _reject_ a bad incoming/outgoing message at the
+boundary — it only checks the data, it never converts it.
 
 ### When should you add a port schema?
 
 You don't need one for topology or types — the generics already give you those.
-Expose an input/output validation schema (a `SchemaType.InputSchema` /
-`SchemaType.OutputSchemas` config field, and turn validation on) when you want to:
+Seed a default input/output validation schema (a `SchemaType.InputSchema` /
+`SchemaType.OutputSchemas` config field) and turn validation on when you want to:
 
 - **fail fast on bad data** at a trust boundary — reject a malformed message to the
   error port instead of crashing deep in the handler; or
@@ -331,7 +332,7 @@ message.
 
 ## Input Data Validation
 
-Input validation **checks** incoming messages before they reach your `input()` handler. It does not create the input port (the `Input` generic does), and it is **not** a static on the class — it's a **config-schema framework control**. Expose it by adding a `SchemaType.InputSchema()` field to your config schema: you seed a default JSON Schema, and the flow author can override it and turn the per-instance _Validate_ toggle on.
+Input validation **checks** incoming messages before they reach your `input()` handler. It does not create the input port (the `Input` generic does), and it is **not** a static on the class — it's a **config-schema framework control**. The input Schema editor and _Validate_ toggle render on every IONode already; adding a `SchemaType.InputSchema()` field to your config schema just seeds a default JSON Schema in that editor. The flow author can then override it and turn the per-instance _Validate_ toggle on.
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -356,7 +357,7 @@ Validation runs when the flow author turns on the port's _Validate_ toggle (whic
 
 ## Output Data Validation
 
-Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**. Expose per-port output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):
+Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**, and the per-port Schema editor and _Validate_ toggle render on every IONode already. Seed per-port default output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -387,12 +388,12 @@ Port **count and names** come from the `Output` generic, not from these schemas 
 
 ## Configuring validation in the editor {#editor-schema-overrides}
 
-Input and output data validation is a **config-schema framework control** — never a static on the class. You expose it by adding a `SchemaType.InputSchema()` / `SchemaType.OutputSchemas()` field to your **config** schema; the `default` you seed is the node author's default validation schema, and the flow author can override it per instance and turn validation on — without touching your code.
+Input and output data validation is a **config-schema framework control** — never a static on the class. The controls render on every IONode automatically; adding a `SchemaType.InputSchema()` / `SchemaType.OutputSchemas()` field to your **config** schema just seeds the node author's default validation schema. The flow author can override that default per instance and turn validation on — without touching your code.
 
 Two pieces make this work:
 
-1. **The Validate toggle.** When a node exposes an input or output schema field, the editor's **Ports Settings** table shows a _Validate_ toggle per port. Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance.
-2. **The Schema editor.** `SchemaType.InputSchema()` (input) and `SchemaType.OutputSchemas()` (outputs) surface an editable **Schema** button (a Monaco JSON editor) in the Ports Settings table, seeded with the `default` you provide.
+1. **The Validate toggle.** Every IONode's **Ports Settings** table already shows a _Validate_ toggle per port (input and output). Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance.
+2. **The Schema editor.** An editable **Schema** button (a Monaco JSON editor) already appears per port in the Ports Settings table. Declaring `SchemaType.InputSchema()` (input) / `SchemaType.OutputSchemas()` (outputs) just seeds that editor with the `default` you provide.
 
 ```typescript
 const ConfigsSchema = defineSchema(
@@ -501,17 +502,14 @@ Keep `Unsafe<T>()` as a **named property** of a schema built with `defineSchema`
 The same applies to an input-validation schema for non-data inputs.
 
 ::: warning Config-node references and typed inputs are NOT `Unsafe` cases
-Don't reach for `Unsafe` here — these have first-class builders the editor and
-the client type-resolver understand, and skipping them loses both:
+Don't use `Unsafe` for these — they have proper builders the editor and the
+client type-resolver understand:
 
 - **Config-node reference** → `SchemaType.NodeRef<TheConfigClass>("the-config-type")`
-  — stored as the node id; resolves to `string` on the client. The class is a
-  type-only generic (import it with `import type`); only the `type` string is
-  passed at runtime. This is also why the reference must stay a type: the server
-  node value-imports this schema, so a schema that *value*-imported the node back
-  would form an import cycle. The `@bonsae/nrg/schema-server-imports-type-only`
-  lint rule (in `nrg`) enforces that schemas only `import type` from
-  `server/`.
+  — stored as the node id; resolves to `string` on the client. Import the config
+  class with `import type` (only its type is used; nothing is imported at
+  runtime). An eslint rule (`@bonsae/nrg/schema-server-imports-type-only`, in
+  `nrg`) enforces this type-only import.
 - **Typed input** → `SchemaType.TypedInput()` — resolves to `{ value, type }`.
 :::
 

@@ -1,6 +1,6 @@
 # Locales & Help Docs
 
-NRG supports internationalization (i18n) for node labels, help documentation, and error messages. Label files are the single source of truth — they drive both the runtime editor UI and auto-generated help docs.
+You describe your node's on-screen text in small JSON "label" files. NRG uses them in two places: the text you see while editing the node in Node-RED, and the help panel it auto-generates for the node. These files also hold translations for other languages (i18n) and your node's error messages.
 
 ## Directory Structure
 
@@ -61,46 +61,24 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
 | `inputLabels` | No | Label for the input port (string). |
-| `outputLabels` | No | Labels for indexed output ports — an array of strings, one per port. Named ports (by their declared port names) and built-in ports (error/complete/status) are labeled automatically. |
+| `outputLabels` | No | A list of names for your output ports, in order (first entry = first port). You only need it for plain numbered outputs — ports that have names, and the built-in error/complete/status ports, are labeled automatically, so leave those out. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
-| `options` | No | User-facing labels for enum/union option values, keyed by config field then option value — e.g. `"provider": { "anthropic": "Anthropic API" }`. Unset values fall back to the raw option value. |
+| `options` | No | Friendly names for the choices in a dropdown field. Nest them by field name, then by the stored value — e.g. `{ "provider": { "anthropic": "Anthropic API" } }`. Any value you don't list keeps its raw name. |
 | `credentials` | No | Labels for credential properties |
 | `input` | No | Labels for input schema properties |
-| `outputs` | No | Per-port labels for the auto-generated help docs. An array of label maps (in output-port order) for positional ports, or an object keyed by port name for named ports. |
+| `outputs` | No | Currently has no effect. Output port names come from `outputLabels` (or the port's declared name), and each output's value type comes from the node's TypeScript output type. |
 | `errors` | No | Custom error messages. Use `__field__` for placeholder substitution. |
 
 ### Named Output Ports
 
-When your node has named output ports — a `Port<T>` record in the `TOutput` generic, or a record `outputsSchema` — the editor labels each port from its **port name** automatically; you don't set `outputLabels`. For the auto-generated help docs, provide `outputs` as an object keyed by port name:
-
-```json
-{
-  "$schema": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
-  "label": "Router",
-  "outputs": {
-    "success": { "payload": "Result" },
-    "failure": { "error": "Error Message" }
-  }
-}
-```
-
-This matches the named ports defined in your schema:
-
-```typescript
-export const OutputSchema = {
-  success: defineSchema({ payload: SchemaType.String() }, { $id: "router:success" }),
-  failure: defineSchema({ error: SchemaType.String() }, { $id: "router:failure" }),
-};
-```
+If your node's outputs have names (say a `success` port and a `failure` port) instead of being plain numbered outputs, the editor labels each port with its name automatically — you don't set `outputLabels`. There's nothing to add to the label file for this: the `outputs` field has no effect on the editor or the generated help docs, and the help table already shows each named port's declared name.
 
 ### Rules
 
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
 - **`outputLabels` is an array** — one entry per indexed output port. Named and built-in ports are labeled automatically (from their port names, and error/complete/status).
-- **`outputs` is an array** for positional outputs — even for single-output nodes, use `[{ ... }]`
-- **`outputs` is an object** for named output ports — use `{ portName: { ... } }`
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label
-- **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to camelCase formatting
+- **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to a spaced, Title-cased version of the field name (e.g. `apiUrl` → 'Api Url')
 
 ### JSON Schema
 
@@ -130,68 +108,80 @@ For local development or when using a linked package, use the local path instead
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://unpkg.com/@bonsae/nrg/json-schemas/labels.schema.json",
   "title": "NRG Node Labels",
-  "description": "Label file for NRG Node-RED nodes.",
+  "description": "Label file for NRG Node-RED nodes. Provides human-readable labels for the editor UI and auto-generated help docs.",
   "type": "object",
   "required": ["label"],
   "properties": {
     "$schema": {
-      "type": "string"
+      "type": "string",
+      "description": "JSON Schema reference for IDE validation"
     },
     "label": {
       "type": "string",
-      "description": "Display name in the palette and workspace"
-    },
-    "description": {
-      "type": "string",
-      "description": "Node description for auto-generated help docs"
+      "description": "Display name shown in the palette and workspace"
     },
     "paletteLabel": {
       "type": "string",
       "description": "Label shown in the palette. Falls back to 'label' if not set."
     },
+    "description": {
+      "type": "string",
+      "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
+    },
     "inputLabels": {
       "type": "string",
-      "description": "Label for the input port"
+      "description": "Label for the input port."
     },
     "outputLabels": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Labels for indexed output ports, one per port"
+      "description": "Labels for output ports, one per port."
     },
     "configs": {
-      "$ref": "#/$defs/labelMap"
+      "$ref": "#/$defs/labelMap",
+      "description": "Labels for config properties"
     },
     "options": {
       "$ref": "#/$defs/portLabelMap",
-      "description": "User-facing labels for enum/union option values, keyed by config field then option value. Unset values fall back to the raw option value."
+      "description": "User-facing labels for enum/union option values, keyed by config field then option value (e.g. \"provider\": { \"anthropic\": \"Anthropic API\" }). Unset values fall back to the raw option value."
     },
     "credentials": {
-      "$ref": "#/$defs/labelMap"
+      "$ref": "#/$defs/labelMap",
+      "description": "Labels for credential properties"
     },
     "input": {
-      "$ref": "#/$defs/labelMap"
+      "$ref": "#/$defs/labelMap",
+      "description": "Labels for input schema properties"
     },
     "outputs": {
       "oneOf": [
-        { "type": "array", "items": { "$ref": "#/$defs/labelMap" } },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/labelMap" }
+        },
         { "$ref": "#/$defs/portLabelMap" }
       ],
-      "description": "Per-port output labels — array for indexed ports (matches outputsSchema order), or object keyed by port name for named ports"
+      "description": "Per-port output labels. Use an array (matching the Output tuple order; a single output uses a one-element array) for positional outputs, or an object keyed by port name for named outputs."
     },
     "errors": {
-      "$ref": "#/$defs/labelMap"
+      "$ref": "#/$defs/labelMap",
+      "description": "Custom error messages. Use __field__ for placeholder substitution."
     }
   },
   "additionalProperties": false,
   "$defs": {
     "labelMap": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
+      "additionalProperties": {
+        "type": "string"
+      },
       "description": "Maps property keys to human-readable labels"
     },
     "portLabelMap": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/labelMap" },
+      "additionalProperties": {
+        "$ref": "#/$defs/labelMap"
+      },
       "description": "Maps output port names to their per-property labels (named output ports)"
     }
   }
@@ -206,15 +196,15 @@ When a node type has **no manual doc** in `src/resources/locales/docs/{type}/{la
 
 1. **`description`** from the label file — shown at the top of the help panel
 2. **Schema properties** — rendered as an HTML table with Label, Property, Type, Required, Default, and Description columns
-3. **Port labels** — from the `input` and `outputs` fields in the label file
+3. **Port labels** — from the `input` and `outputLabels` fields in the label file
 
 ### How it works
 
 For each node type, the help generator:
 1. Discovers which languages have label files in `src/resources/locales/labels/{type}/`
 2. For each language, checks if a manual doc exists — if so, skips auto-generation
-3. Reads labels from the label file and schema metadata from the server bundle
-4. Generates a Markdown help doc with HTML tables and appends it to the build output
+3. Reads the labels plus the node's extracted type/schema info (from the build's `node-defs.json` and `node-types.json`)
+4. Builds an HTML help panel — the description plus property tables — and attaches it to the built node
 
 This means: **create a label file in a new language → help docs are generated automatically for that language.**
 
@@ -228,10 +218,7 @@ For a node with this label file:
   "description": "Splits messages based on a threshold.",
   "configs": { "threshold": "Threshold" },
   "input": { "payload": "Payload" },
-  "outputs": [
-    { "payload": "Value", "label": "Label" },
-    { "payload": "Value", "label": "Label" }
-  ]
+  "outputLabels": ["Low", "High"]
 }
 ```
 
@@ -251,11 +238,10 @@ The generated help panel shows:
 >
 > **Outputs**
 >
-> *Port 1*
->
-> | Label | Property | ... |
-> | --- | --- | --- |
-> | Value | payload | ... |
+> | Port | Type |
+> | --- | --- |
+> | Low | number |
+> | High | number |
 
 ## Manual Help Docs
 
@@ -284,7 +270,7 @@ In Vue form components, use `$i18n()` to resolve labels:
 </template>
 ```
 
-`$i18n('configs.url')` resolves to `RED._('my-node.configs.url')`, which looks up the label from the loaded locale catalog.
+`$i18n('configs.url')` resolves to `node._('my-node.configs.url')` — the node's own translation helper — returning the translated text for `configs.url` in the active language, or the key itself when no translation exists.
 
 ## Supported Languages
 

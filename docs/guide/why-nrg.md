@@ -167,7 +167,7 @@ module.exports = function(RED) {
 
 ### NRG
 
-NRG builds your node as an ESM bundle with a CJS bridge — Node-RED's `require()` loads the bridge, which `import()`s the ESM bundle. Use any ESM-only dependency directly.
+Node-RED can only load a node with `require()` (the older CommonJS format), but many modern packages ship only in the newer ESM format. NRG bridges the two for you: it builds your node as ESM and generates a tiny CommonJS file that Node-RED loads with `require()`, which then imports your ESM bundle. The result: you can import any ESM-only dependency directly and it just works.
 
 ```typescript
 // Just import it. NRG handles the rest.
@@ -324,7 +324,7 @@ override async input(msg: Input) {
 
 ### Traditional
 
-`send` and `done` arrive as callback arguments, so any async work forces you to thread them through every `.then`, `await`, or timer by hand. Worse, the node instance is shared across messages — Node-RED delivers the next `msg` without waiting for `done()`, so anything you stash on `this` races with overlapping inputs.
+`send` and `done` are handed to you as callback arguments, so if you do any async work you have to carry them along by hand through every `.then`, `await`, or timer. Worse, the same node instance handles every message, and Node-RED delivers the next `msg` without waiting for `done()` — so if you save anything on `this`, an overlapping message can overwrite it mid-flight.
 
 ```javascript
 this.on('input', function(msg, send, done) {
@@ -343,7 +343,7 @@ this.on('input', function(msg, send, done) {
 
 ### NRG
 
-Write an `async input`. Call `this.send()` from anywhere — after an `await`, inside a `.then`, or from a timer — and it lands in _this_ invocation's context. Each call runs in its own `AsyncLocalStorage` scope, so concurrent messages never clobber each other and there is no shared `this` state to race on. `done()` fires automatically; a returned value leaves the node's complete port.
+Write an async `input`. You can call `this.send()` from anywhere — after an `await`, inside a `.then`, or from a timer — and NRG still knows which incoming message it belongs to. Behind the scenes each `input()` call runs in its own isolated scope, so two messages handled at the same time never mix up each other's data, and you never have to stash anything on `this`. `done()` is called for you when the method finishes; and if you turn on the complete port, a returned value is sent out of it.
 
 ```typescript
 override async input(msg: Input) {
@@ -358,7 +358,7 @@ override async input(msg: Input) {
 
 ### Traditional
 
-Take an **iterator** that walks a list, runs each element through the flow, then continues once — to **Summarize** — after the last one. Node-RED has no node that fans out many messages and then signals it is done, so people build it as a feedback loop: wire the node's **output back into its own input** so each pass emits one element and re-triggers the node for the next. Iteration becomes recursion drawn on the canvas. "Done" and "failed" have nowhere to go either — you bolt on a **Complete** node and a **Catch** node scoped to the iterator (teleporting) to continue when the loop drains or an element throws.
+Say you want a node that loops over a list, sends each item into the flow, then runs one final **Summarize** step after the last item. Node-RED has no built-in node that emits many messages and then signals "I'm finished", so people fake it: they wire the node's **output back into its own input**, so each run emits one item and re-triggers the node for the next one. Handling "finished" and "failed" needs two more nodes — a **Complete** node and a **Catch** node — each configured to watch the iterator.
 
 ```text
    +----------------------------+   output looped back into input
@@ -377,7 +377,7 @@ Take an **iterator** that walks a list, runs each element through the flow, then
   +- - - - - - - - -+
 ```
 
-You can make the Complete/Catch link _look_ obvious by convention — parking them beside the iterator or wrapping the group — but nothing enforces it: the binding is the id in the scope list, not the position on the canvas, so the tidy layout is a hint you maintain by hand, not a guarantee the tooling gives you.
+You can place the **Complete** and **Catch** nodes right next to the iterator to make the connection look obvious, but nothing enforces it. What actually links them is the iterator's id listed in each node's scope setting — not where they sit on the canvas. So the tidy layout is a hint you keep neat by hand, not a guarantee the tooling gives you.
 
 ### NRG
 
@@ -401,7 +401,11 @@ override async input(msg: Input) {
 }
 ```
 
-The loop, its completion, and its failure read top-to-bottom in one method, and on the canvas they are three wires you can follow — not a self-loop plus two nodes coupled by hidden scope. `complete` carries the returned value under the `complete` key; `error` emits `{ error: { name, message, stack }, source, input: msg }` — the `error` block is where a Catch node reads it, but it travels this wire instead of firing a Catch node (the whole point of the explicit port), with `source` and the failing message beside it; `status` mirrors `this.status(...)`.
+Now the loop, its success, and its failure all read top-to-bottom in one method, and on the canvas they are three real wires you can follow — not a self-loop plus two nodes linked by hidden scope. What each port carries:
+
+- **`complete`** — `input()`'s returned value, under a `complete` key.
+- **`error`** — `{ error: { name, message, stack }, source, input: msg }`, the same shape a Catch node reads, but it travels this wire instead of firing a Catch node.
+- **`status`** — whatever you pass to `this.status(...)`.
 
 ## TypedInput Resolution
 

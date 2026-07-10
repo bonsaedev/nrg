@@ -48,9 +48,9 @@ yarn add -D @bonsae/nrg node-red@5 vue@^3.5 vite@^6 vitest@^4 typescript@^5.8 es
 ::: info Why is `vue` a dev dependency?
 `@bonsae/nrg` already ships Vue as a runtime dependency and serves the Vue browser build to the Node-RED editor automatically — your project does not bundle or deploy Vue itself. However, `vue` must also be installed in your project as a dev dependency for two reasons:
 
-1. **Editor autocompletion** — NRG ships `.d.ts` type declarations for its built-in form components (`NodeRedInput`, `NodeRedTypedInput`, etc.). These declarations reference `import("vue").DefineComponent` to provide prop autocompletion and type-checking in your `.vue` templates. The Vue Language Server (Volar) needs `vue` installed in your project's `node_modules` to resolve these types. Without it, all component types resolve to `any` and you lose autocompletion.
+1. **Editor autocompletion** — NRG ships `.d.ts` files describing its built-in form components (`NodeRedInput`, `NodeRedTypedInput`, etc.) so your editor can autocomplete and type-check their props inside `.vue` files. The Vue editor tooling (Volar) can only read those descriptions when `vue` is installed in your project; without it, the components fall back to `any` and you lose autocompletion.
 
-2. **pnpm strict isolation** — pnpm does not hoist transitive dependencies to the root `node_modules`. Even though `@bonsae/nrg` has `vue` in its own dependencies, Volar cannot see it because it resolves types from your project root, not from inside `@bonsae/nrg`'s isolated dependency tree. Adding `vue` as a dev dependency makes it directly visible.
+2. **How pnpm installs packages** — pnpm keeps each package's dependencies private, so NRG's copy of Vue isn't visible at your project's top level, which is where the editor's type tooling (Volar) looks. Listing `vue` in your own `devDependencies` puts a copy where the tooling can find it.
 
 This is only needed during development. The `vue` package is not included in your published Node-RED node package.
 :::
@@ -108,7 +108,7 @@ Create `tsconfig.json` files that extend the shared configs:
 }
 ```
 
-Node schemas live in `src/shared/schemas/`, imported via the `@/schemas` alias (shipped in NRG's base tsconfig, build, and test configs): the server plane value-imports them, while the client imports only their _types_. The `rootDir: ".."` roots each plane at `src/`, so a client tsconfig can still type-check the `src/shared` schema types its forms import.
+Put your node schemas in `src/shared/schemas/` and import them with the `@/schemas` alias (already set up in NRG's tsconfig, build, and test configs). Server code imports the actual schema values; editor (client) code imports only their TypeScript types. Each `src/*/tsconfig.json` uses `rootDir: ".."` to point at `src/`, so the client can still see the shared `src/shared` schema types its forms reference.
 
 ::: tip
 The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.
@@ -129,7 +129,7 @@ export default defineModule({
 });
 ```
 
-`defineModule` collects your node classes into a typed module manifest that NRG uses to register them with Node-RED.
+`defineModule` bundles your node classes into a single typed object that NRG reads to register each node with Node-RED.
 
 ### 5. Configure ESLint
 
@@ -152,7 +152,7 @@ export default [
 ];
 ```
 
-Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). Among other things, `nrg` enforces NRG's plane boundaries in-editor: client code may only `import type` from server or schema modules (keeping the node runtime out of the editor bundle), and the `@bonsae/nrg/schema-server-imports-type-only` rule keeps your schema modules from value-importing your own `server/` directory.
+Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). One thing `nrg` checks: your editor (client) code must use `import type` when it pulls from `server/` or schema files — a plain `import` would drag your node's server-side runtime into the browser bundle. The companion `@bonsae/nrg/schema-server-imports-type-only` rule applies the same type-only requirement to schema files that reference your `server/` folder.
 
 ### 6. Add package.json scripts
 
@@ -165,7 +165,7 @@ Wire up the same scripts the scaffold provides so you can run the short commands
     "build": "vite build",
     "lint": "eslint .",
     "validate": "pnpm validate:tsc && pnpm validate:lint && pnpm validate:format",
-    "validate:tsc": "tsc --build",
+    "validate:tsc": "tsc -p src/server/tsconfig.json --noEmit && tsc -p src/client/tsconfig.json --noEmit",
     "validate:lint": "eslint .",
     "validate:format": "prettier --check ."
   }

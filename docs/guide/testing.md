@@ -49,7 +49,7 @@ pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, server 
 
 Server **unit** tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
 
-Both server tiers make a node behave exactly as it does when built: a **types-only node** (ports declared through the `IONode` generics, with no `inputSchema`/`outputsSchema`) has its port topology derived from those types and stamped on the class the same way the production build does — so base outputs, named `Port<T>` ports, and the built-in `error`/`complete`/`status` port indices all resolve correctly with no extra setup.
+Both server test tiers give your node the same ports it has in production. If your node declares its ports only through the `IONode` generics (no `inputSchema`/`outputsSchema`), the harness reads those types and wires the ports up for you: the normal outputs, any named `Port<T>` outputs, and the built-in `error`/`complete`/`status` ports. No extra setup is needed.
 
 Server **integration** tests boot a real, headless Node-RED runtime, register your node classes through the same path production uses, deploy a flow, and drive it with real messages. Use them to verify the things mocks can't: that a config node resolves through a real `NodeRef`, that credentials reach a deployed node, that wired nodes pass messages, and that context stores persist across a flow.
 
@@ -175,7 +175,7 @@ Creates a fully initialized node instance with mocked RED and Node-RED internals
 | `settings`    | `RED.settings` overrides                                                                                                              |
 | `overrides`   | Low-level Node-RED node overrides (`id`, `wires`, etc.)                                                                               |
 
-**Returns:** `Promise<{ node, RED, error }>` — `error` is whatever `created()` threw, or `undefined` when it succeeded. `createNode` never rejects on a failing `created()`: production constructs the node regardless and defers the failure to the first input, so the node is still returned for inspection and you assert the setup failure via `error`.
+**Returns:** `Promise<{ node, RED, error }>`. `error` holds whatever `created()` threw, or `undefined` if it succeeded. `createNode` never rejects when `created()` fails: production builds the node anyway and surfaces the failure on the first input, so you still get the node back and assert the setup failure via `error`.
 
 #### `createRED(options?)`
 
@@ -198,7 +198,7 @@ Every node returned by `createNode` has these helpers:
 | `node.receive(msg)`    | Send a message through the node's `input()` handler (extra Node-RED message props beyond the input schema are allowed) |
 | `node.close(removed?)` | Trigger the `closed()` lifecycle hook                                                                                                                                                           |
 | `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
-| `node.sent()`          | All raw emissions — each is a positional array, one slot per output port (so `node.sent()[i][0]` is the first port of emission `i`). Use `sent(port)` / `sent(name)` to read one port directly. |
+| `node.sent()`          | Every emission is an array with one slot per output port, so `sent()[i][0]` is port 0 of emission `i`. To read a single port directly, use `sent(port)` (by index) or `sent(name)` (by port name). |
 | `node.sent(port)`      | The per-port message for a specific output port (numeric index) — one level out of the positional array, still wrapped under the return key (`output`)                                          |
 | `node.sent(name)`      | The per-port message for a named output port — resolved from the node's typed `Port<T>` names — still wrapped under the return key (`output`). Built-in `"error"`/`"complete"`/`"status"` ports resolve by name too. |
 | `node.statuses()`      | All `status()` calls                                                                                                                                                                            |
@@ -236,10 +236,20 @@ describe("my-node", () => {
     const { node } = await createNode(MyNode);
     await node.receive({ payload: "hello" });
 
-    // send() wraps the result under the return key (`output`); the default
-    // `carry` context mode keeps the incoming msg under `input`, not at the root.
+    // send() wraps the result under the return key (`output`) and stamps the
+    // producing node (id/type/name/port) under `source`; the default `carry`
+    // context mode keeps the incoming msg under `input`, not at the root.
     expect(node.sent(0)).toEqual([
-      { output: { uppercased: "HELLO" }, input: { payload: "hello" } },
+      {
+        output: { uppercased: "HELLO" },
+        source: {
+          id: expect.any(String),
+          type: expect.any(String),
+          name: expect.any(String),
+          port: 0,
+        },
+        input: { payload: "hello" },
+      },
     ]);
     expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
   });
@@ -305,7 +315,7 @@ describe("credentials", () => {
     });
 
     await node.receive({ payload: "test" });
-    expect(node.sent(0)).toEqual([
+    expect(node.sent(0)).toMatchObject([
       { output: { result: "authenticated" }, input: { payload: "test" } },
     ]);
   });
@@ -318,8 +328,9 @@ describe("settings", () => {
     });
 
     await node.receive({});
-    // receive({}) carries no fields, so the wrapped msg is just `output`.
-    expect(node.sent(0)).toEqual([{ output: { timeout: 3000 } }]);
+    // receive({}) carries no fields, so there's no `input` frame — just
+    // `output` and `source`.
+    expect(node.sent(0)).toMatchObject([{ output: { timeout: 3000 } }]);
   });
 });
 
@@ -337,7 +348,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({ payload: "from-msg" });
-    expect(node.sent(0)).toEqual([
+    expect(node.sent(0)).toMatchObject([
       { output: { value: "from-msg" }, input: { payload: "from-msg" } },
     ]);
   });
@@ -348,7 +359,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ output: { value: "hello" } }]);
+    expect(node.sent(0)).toMatchObject([{ output: { value: "hello" } }]);
   });
 
   it("should resolve number via TypedInput", async () => {
@@ -357,7 +368,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ output: { value: 42 } }]);
+    expect(node.sent(0)).toMatchObject([{ output: { value: 42 } }]);
   });
 });
 
@@ -385,10 +396,10 @@ describe("multi-output nodes", () => {
     await node.receive({ payload: 75 });
     await node.receive({ payload: 30 });
 
-    expect(node.sent(0)).toEqual([
+    expect(node.sent(0)).toMatchObject([
       { output: { value: 75, label: "above" }, input: { payload: 75 } },
     ]);
-    expect(node.sent(1)).toEqual([
+    expect(node.sent(1)).toMatchObject([
       { output: { value: 30, label: "below" }, input: { payload: 30 } },
     ]);
   });
@@ -427,7 +438,7 @@ describe("context store", () => {
     await node.receive({});
     await node.receive({});
 
-    expect(node.sent(0)).toEqual([
+    expect(node.sent(0)).toMatchObject([
       { output: { count: 1 } },
       { output: { count: 2 } },
     ]);
@@ -442,7 +453,7 @@ describe("context store", () => {
     await node.receive({});
 
     // ...then assert what the node read/wrote
-    expect(node.sent(0)).toEqual([{ output: { count: 11 } }]);
+    expect(node.sent(0)).toMatchObject([{ output: { count: 11 } }]);
     expect(await node.context.flow!.get("count")).toBe(11);
   });
 });
@@ -470,7 +481,7 @@ describe("i18n", () => {
     const { node } = await createNode(MyNode);
 
     await node.receive({});
-    expect(node.sent(0)).toEqual([{ output: { greeting: "my-node.greeting" } }]);
+    expect(node.sent(0)).toMatchObject([{ output: { greeting: "my-node.greeting" } }]);
   });
 });
 
@@ -489,7 +500,7 @@ describe("named output ports (sendToPort)", () => {
     });
 
     await node.receive({ payload: 75 });
-    expect(node.sent("success")).toEqual([
+    expect(node.sent("success")).toMatchObject([
       { output: { result: "passed" }, input: { payload: 75 } },
     ]);
     expect(node.sent("failure")).toHaveLength(0);
@@ -501,7 +512,7 @@ describe("named output ports (sendToPort)", () => {
     });
 
     await node.receive({ payload: 10 });
-    expect(node.sent("failure")).toEqual([
+    expect(node.sent("failure")).toMatchObject([
       { output: { error: "below threshold" }, input: { payload: 10 } },
     ]);
   });
@@ -523,7 +534,9 @@ describe("built-in emit ports", () => {
       config: { errorPort: true },
     });
 
-    await expect(node.receive({ payload: "bad" })).rejects.toThrow();
+    // The error port is the sole handler, so the throw is handled and
+    // `receive()` resolves — it does NOT reject (contrast the no-errorPort case).
+    await node.receive({ payload: "bad" });
     expect(node.sent("error")).toHaveLength(1);
     expect(node.sent("error")[0]).toMatchObject({
       error: { message: "something broke" },
@@ -561,7 +574,8 @@ describe("built-in emit ports", () => {
       config: { errorPort: true },
     });
 
-    await expect(node.receive({ payload: "go" })).rejects.toThrow();
+    // errorPort enabled, so the throw is handled and receive() resolves.
+    await node.receive({ payload: "go" });
     expect(node.sent("error")[0]).toMatchObject({
       error: { name: "RateLimitError", message: "rate limited", retryAfterMs: 2000 },
     });
@@ -591,8 +605,10 @@ describe("built-in emit ports", () => {
 
     await node.receive({ payload: "abc" });
     expect(node.sent("complete")).toHaveLength(1);
+    // input()'s return value rides under `complete`, not `output`. (A void
+    // return omits the `complete` key — arrival on the wire is the signal.)
     expect(node.sent("complete")[0]).toMatchObject({
-      output: { id: "abc", ok: true },
+      complete: { id: "abc", ok: true },
     });
   });
 
@@ -723,7 +739,9 @@ A handle to one node in the flow. Harness methods never collide with your node's
 `read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.
 
 ::: tip Reading output
-NRG wraps every `send(result)` as `{ output: result, input: incomingMsg }` — the node's result lives under `output` and the incoming message is kept under `input`, never spread at the top level. So assertions read `(await node.read()).output`. (The default `carry` [context mode](./schemas#context-modes) keeps only the immediate previous message under `input`, so the chain stays flat and loop-safe; under `trace` the full lineage is preserved as `input.input.input…`. A send with no incoming message records no `input` frame.)
+Each emission is `{ output: result, source: producingNode, input: incomingMsg }` — the node's result lives under `output`, the producing node (id/type/name/port) under `source`, and the incoming message under `input`, never spread at the top level. So assertions read `(await node.read()).output`.
+
+How deep the `input` chain goes depends on the [context mode](./schemas#context-modes): the default `carry` keeps only the immediate previous message (flat and loop-safe), `trace` preserves the full lineage as `input.input.input…`, and a send with no incoming message records no `input` frame.
 :::
 
 ### Examples
@@ -970,7 +988,7 @@ describe("validateNode", () => {
 Component tests render your Vue editor components in a real browser with mocked Node-RED globals. They use [Vitest browser mode](https://vitest.dev/guide/browser/) so you can test form rendering, widget interactions, and RED API calls without running a full Node-RED instance.
 
 ::: warning Server/client boundary
-Component tests run in a **real browser**. Never value-import the server runtime — and that includes your `src/shared/schemas/*` modules, which import `defineSchema`/`SchemaType` from `@bonsae/nrg/schema` (which pulls in TypeBox). Value-importing them pulls the node runtime into the browser bundle and crashes the test. Instead, pass your node's `type` to `createNode()` and let the [schemas globalSetup](#resolving-schemas-by-node-type) hand the real schema to the test as serialized data.
+Component tests run in a **real browser**, so never value-import a server-runtime module. That includes your `src/shared/schemas/*` files: they import `defineSchema`/`SchemaType` from `@bonsae/nrg/schema`, which loads TypeBox, and pulling that into the browser bundle crashes the test. Instead, pass your node's `type` to `createNode()` and let the [schemas globalSetup](#resolving-schemas-by-node-type) hand the real schema to the test as serialized data.
 :::
 
 ### Setup
@@ -1075,7 +1093,7 @@ const { provide } = createNode({ name: "test", retries: 3 });
 render(MyForm, { global: { provide } });
 ```
 
-The shorthand discriminator only recognizes `type`, `configs`, `configSchema`, `credentialsSchema`, and `nodes`. `credentials` is **not** a standalone shorthand key — passing `{ credentials: {...} }` on its own is treated as config values. To set credentials, pass `credentials` alongside one of the recognized keys (for example `type` or `configSchema`).
+A plain object is treated as `configs` only when it has NONE of these keys: `type`, `configs`, `configSchema`, `credentialsSchema`, `nodes`. Note that `credentials` is **not** in that list — passing `{ credentials: {...} }` on its own is read as config values. To set credentials, include it alongside one of the recognized keys (for example `type` or `configSchema`).
 
 When you pass a node `type`, `errors` is populated immediately against that node's **real** production schema — the same JSON the vite plugin injects into the editor — and kept in sync as the node changes. No schema import, no server runtime in the browser:
 

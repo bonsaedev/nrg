@@ -2,10 +2,10 @@
 
 This guide walks through creating a complete Node-RED node — its schema, server logic, and Vue 3 editor form.
 
-Two separate things drive a node in NRG:
+A node has two parts:
 
-- Its **config form** comes from the config/credentials/settings **schemas** you define (next section).
-- Its **input/output ports and wiring** come from its **TypeScript types** — the `IONode` generics. Input/output _schemas_ are optional and only add runtime data validation. See [Inputs and Outputs](#inputs-and-outputs).
+- Its **config form** — generated from the config/credentials/settings **schemas** you define in the next section.
+- Its **input and output ports** — which come from the node's **TypeScript types** (the `IONode` generics), not from its schemas. We cover the form first; ports are explained in [Inputs and Outputs](#inputs-and-outputs).
 
 ## Define a Schema
 
@@ -721,7 +721,7 @@ At build time NRG reads these generics and stamps the node's real port count and
 </p>
 
 ::: tip The generics are compile-time only
-`TInput`/`TOutput` drive the editor's ports and wire-checks and type your handler — but they're **erased at runtime**. The `msg` your `input()` receives is whatever the upstream node actually sent; the framework doesn't validate or convert it against `TInput`. If you need a value in a specific runtime shape, convert it yourself (or turn on input data validation — a config-schema control — to _reject_ bad data: it checks, it doesn't coerce). **Config** is the opposite: it's coerced to its schema types and defaulted before you read it. See [config vs. message data](./schemas#validation-semantics).
+`TInput` / `TOutput` are TypeScript-only. They shape the editor's ports, check your wires, and type your `input()` handler — but they **vanish when the code runs**. The `msg` your `input()` receives is exactly what the upstream node sent, unchecked; the framework never validates or converts it against `TInput`. If you need a specific runtime shape, convert it yourself — or turn on input data validation (a config-schema control) to _reject_ bad data: it rejects, it never rewrites. **Config** is different: it's validated and defaulted before you read it. See [config vs. message data](./schemas#validation-semantics).
 :::
 
 #### Declaring output ports with `Port<T>` {#declaring-output-ports-with-port}
@@ -804,9 +804,8 @@ this.sendToPort(0, msg); // same as sendToPort("success", msg)
 this.sendToPort(1, msg); // same as sendToPort("failure", msg)
 ```
 
-Positional `send()` with a tuple — each element is a port's value or `null` —
-**type-checks only with a tuple `Output`** (where `TOutput` is a tuple like
-`[Success, Failure]`):
+Positional `send()` takes a tuple — each element is a port's value or `null`.
+**Use it only when `TOutput` is itself a tuple** like `[Success, Failure]`:
 
 ```typescript
 // type Output = [Success, Failure]
@@ -814,10 +813,10 @@ this.send([successMsg, null]); // send to port 0
 this.send([null, failureMsg]); // send to port 1
 ```
 
-With a **record/named** `Output` (`{ success: Port<…>; failure: Port<…> }`),
-`send()` expects the object map (`{ success, failure }`), so the positional
-`[msg, null]` array form is a TypeScript error even though it still works at
-runtime. For named ports prefer `this.sendToPort("success", msg)`.
+If your `Output` is instead a **named record** (`{ success: Port<…>; failure: Port<…> }`),
+do **not** use the array form — `send()` expects the object map (`{ success, failure }`),
+so TypeScript rejects `[msg, null]` even though it happens to work at runtime. For
+named ports, always prefer `this.sendToPort("success", msg)`.
 
 ::: tip When to use named ports
 Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `sendToPort()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
@@ -852,7 +851,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(result)` | Send the node's result to the next node. The framework wraps it as `{ <returnProperty>: result, input: msg }`; how deep the incoming history is kept under `input` is resolved per output port (default `carry`) — see [Context modes](./schemas#context-modes). |
+| `this.send(result)` | Send the node's result to the next node. The framework wraps it as `{ <returnProperty>: result, source: { id, type, name, port }, input: msg }`; how deep the incoming history is kept under `input` is resolved per output port (default `carry`) — see [Context modes](./schemas#context-modes). |
 | `this.sendToPort(port, msg)` | Send the result to a user-defined output port by index or name. The port's context mode resolves the same way. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
@@ -895,20 +894,21 @@ await this.context.flow.update("ids", (cur) => [...(cur ?? []), msg.id]);
   side effects — do I/O outside `update`).
 
 ::: tip Why this matters
-These are atomic **across instances** when the configured context store supports it
-(e.g. a DynamoDB or Redis store implements them natively); with a plain
-in-memory/file store they're serialized **within the process**. Either way,
-concurrent messages don't lose updates — which is what you need when a flow is
-scaled horizontally (HA mode, or compiled to a stateless target like AWS Lambda).
-`get`+`set` can't give you this: the "modify" happens in your node, outside the
-store, so there's nothing to serialize it against.
+Use `increment` / `update` whenever two messages might touch the same value at
+once: `get`+`set` can silently drop one of the changes, these can't. With a plain
+in-memory or file store, that safety holds **within this Node-RED process**. Some
+stores (Redis, DynamoDB) implement these natively, so the safety holds even
+**across separate servers**. `get`+`set` can't give you this: the "modify" happens
+in your node, outside the store, so there's nothing to serialize it against.
+(Advanced: this is what you need when a flow runs on more than one instance — HA
+mode, or compiled to a stateless target like AWS Lambda.)
 :::
 
 ### Lifecycle Output Ports {#lifecycle-output-ports}
 
 By default, Node-RED routes errors, completions, and status changes through implicit `catch`, `complete`, and `status` nodes. These work without wires — you drop them on the canvas and configure their scope separately — so these events never appear in the visual data flow.
 
-NRG turns these into explicit output ports. When a port is enabled, errors, completions, and status changes are sent through wires like any other message, keeping the flow visible and debuggable. Enabling the **error** port makes it the _sole_ error handler — the error travels its wire instead of also firing Node-RED's `catch` nodes; the complete and status ports run _alongside_ Node-RED's own mechanisms (see the note at the end of this section).
+NRG turns these into explicit output ports. Turn one on and that event is sent down a wire like any other message, so it shows up in the flow. One difference: the **error** port, when enabled, becomes the _sole_ error handler — the error travels its wire and no longer triggers Node-RED's `catch` nodes. The **complete** and **status** ports are additive: they fire _alongside_ Node-RED's built-in complete/status nodes (see the note at the end of this section).
 
 **You don't declare these in your schema.** The framework injects the `errorPort`, `completePort`, and `statusPort` controls into **every** IONode's config, so a **Lifecycle Output Ports** section (see [The editor form](#the-editor-form)) with an Error / Complete / Status toggle renders on every node automatically. Each defaults to **off**, and the **flow author** enables the ones they want, per node instance — that toggle value is what makes the port appear. Nothing in your schema controls whether a port renders.
 
@@ -957,11 +957,11 @@ These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorP
 
 #### Framework config fields {#framework-config-fields}
 
-The framework recognizes a set of config properties by name. Six of them — `name`, the three lifecycle ports, `outputReturnProperties`, and `outputContextModes` — are **injected into every IONode's config schema by the build**, so their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, context mode `carry`, return key `output`), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
+The framework knows a set of config fields by name and **injects them into every IONode's config schema by the build**: `name`, the three lifecycle-port toggles, `outputReturnProperties`, `outputContextModes`, and the data-validation fields (`inputSchema`, `outputSchemas`, and their `validate` toggles). Their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, context mode `carry`, return key `output`, no validation schema), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
 
 As a node **author you declare one of these only to change its default** — add the property to your config schema and set your value on the builder's `default`. That value becomes the seeded default in the editor (which the flow author can still change); declaring does **not** change whether the control appears — it always does.
 
-The last two rows below are the exception. `inputSchema` and `outputSchemas` are **opt-in** — they are _not_ injected, so declaring one is what exposes its flow-author data-validation editor. Leave them out and no input/output schema editor appears.
+That includes the two data-validation rows below. `inputSchema` and `outputSchemas` are injected like the rest, so the **Validate Data** controls render on every node regardless; declaring one only seeds a default schema value — it does not make the editor appear. (The per-port Schema editor becomes available once the flow author toggles Validate Data on.)
 
 | Property | Builder | Controls (framework default) |
 | --- | --- | --- |
@@ -1132,33 +1132,34 @@ NRG generates the node's edit dialog from your schema — you don't write any HT
   - **Outputs** — a per-port table, one row per base output port. The **rows** come from the node's **types** (its port topology); the columns are framework controls:
     - **Return Property** — each port's return key (default `output`). Always available.
     - **Context Mode** — how each port carries the incoming message. The column is always shown and **every port's dropdown is editable**; the node author's [`outputContextModes` default](#framework-config-fields) only sets which value each port starts on (ports without one start on `carry`). See [`outputContextModes`](./schemas#context-modes).
-    - **Validate Data** (+ **Schema**) — **opt-in**: shown only when the author declared per-port [`outputSchemas`](./schemas#editor-schema-overrides) (a `SchemaType.OutputSchemas` config field). Checks the sent value against that port's schema.
+    - **Validate Data** (+ **Schema**) — renders on every node with output ports; the framework injects [`outputSchemas`](./schemas#editor-schema-overrides) into every IONode. Toggle it on for a port to check the sent value against that port's schema.
 
     The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
   - **Lifecycle Output Ports** — _Error_, _Complete_, and _Status_ toggles, on every node (off by default). Enabling one adds that output port. See [lifecycle output ports](#lifecycle-output-ports).
-  - **Input** — a _Validate Data_ toggle, **opt-in**: shown only when the author declared an [`inputSchema`](./schemas#editor-schema-overrides) (a `SchemaType.InputSchema` config field) to validate incoming messages against.
+  - **Input** — a _Validate Data_ toggle, rendered on every node with an input port; the framework injects [`inputSchema`](./schemas#editor-schema-overrides) into every IONode. Toggle it on to validate incoming messages against a schema.
 
 Each help line links to the relevant docs.
 
-::: tip What's always there vs. opt-in
+::: tip What's always there
 Two different mechanisms are at play:
 
 - **Ports come from your types.** `TInput` / `TOutput` draw the ports on the
   canvas and the rows in the Outputs table.
 - **The framework injects its config fields into every IONode.** The build
-  spreads `name`, the three lifecycle-port toggles, `outputReturnProperties`, and
-  `outputContextModes` into every node's config schema — so those controls render
+  spreads `name`, the three lifecycle-port toggles, `outputReturnProperties`,
+  `outputContextModes`, and the data-validation fields (`inputSchema`,
+  `outputSchemas`) into every node's config schema — so those controls render
   on **every** node whether or not you declared them. Declaring one only
   [changes its default](#framework-config-fields).
 
 So a **types-first node like a SOQL query** — one output port from its `Output`
 type, no runtime validation schemas, no declared port config — still shows the
 full Ports Settings section: the lifecycle toggles, a Return Property field, and
-a Context Mode dropdown. The only **opt-in** pieces are the data-validation
-editors: the **Validate Data** column appears only with an
-[`outputSchemas`](./schemas#editor-schema-overrides) config field, and the
-**Input** subsection only with an [`inputSchema`](./schemas#editor-schema-overrides)
-config field (both `SchemaType.*` controls). Config nodes get none of this.
+a Context Mode dropdown. The data-validation editors are always there too: the
+**Validate Data** column shows on every node with output ports (from the injected
+[`outputSchemas`](./schemas#editor-schema-overrides) field), and the **Input**
+subsection on every node with an input port (from the injected
+[`inputSchema`](./schemas#editor-schema-overrides) field). Config nodes get none of this.
 :::
 
 ## Register the Node

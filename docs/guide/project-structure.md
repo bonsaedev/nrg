@@ -1,6 +1,6 @@
 # Project Structure
 
-An NRG project follows a convention-based layout. The Vite plugin discovers files automatically from these paths, so the directory and file names below are significant.
+An NRG project uses a fixed folder layout. You register your node classes explicitly (in the server and client `index.ts` files), but the build finds icons, help text, forms, and schemas by matching their file name to a node's `type`. So for those files, the folder and file names below must match the node type exactly.
 
 ```
 my-node-red-nodes/
@@ -74,15 +74,15 @@ The entry file (`index.ts`) calls `registerTypes()` with all node definitions.
 
 ### `src/client/components/`
 
-Optional Vue 3 single-file components (`.vue`) used as custom editor forms. When a file named `{type}.vue` exists here, it replaces the auto-generated JSON schema form for that node. NRG provides built-in components like `<NodeRedInput>`, `<NodeRedTypedInput>`, and `<NodeRedConfigInput>` for building forms.
+Optional Vue 3 single-file components (`.vue`) used as custom editor forms. By default NRG builds a node's editor form automatically from its schema; if you add a `{type}.vue` file here, NRG uses your custom form for that node instead of the generated one. Helper components like `<NodeRedInput>`, `<NodeRedTypedInput>`, and `<NodeRedConfigInput>` are available for building it.
 
 ### `src/shared/schemas/`
 
-The TypeBox schemas (config, credentials, input, outputs) — the **contract** between the two planes: the **server validates** messages with them (a value import), and the **client types** its forms from them (`import type`). A schema value-imports its builders from `@bonsae/nrg/schema` (which pulls in TypeBox, so schemas are **not** browser-safe); they're kept off the client not by their folder but by the boundary rule — the client may only `import type` from them and gets each schema as *serialized* data at runtime. They live in `src/shared/schemas/`, imported through the `@/schemas` alias — `src/server/nodes/{type}.ts` value-imports `@/schemas/{type}`.
+A schema (built with TypeBox) describes the shape of a node's config, credentials, input, and outputs. It is used two ways. The server imports it as real code to validate messages at runtime. The client imports only its *types* (`import type`) to type the editor form. Schemas live in `src/shared/schemas/`; a server node imports its own schema with `import ... from "@/schemas/{type}"` (the `@/schemas` alias points at this folder).
 
-Because TypeBox ships in that value import, **client code must use `import type`** when referencing a schema's types. At runtime the editor form is built from *serialized* schema data injected by the build — TypeBox never ships to the browser. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
+TypeBox is a Node-only library, so it must never end up in the browser bundle. That is why the client may only use `import type` on a schema — it borrows the types at compile time but imports no runtime code. At runtime the editor form is instead built from a serialized (plain-JSON) copy of the schema that the build injects for it. The boundary lint rule enforces this (client value-imports of `**/schemas/**` are an error; `import type` is allowed).
 
-The reverse direction is guarded too: a schema may only **`import type`** from `**/server/**`. Each server node *value*-imports its own schema, so a schema that value-imported a server module would close a runtime import cycle (server node ⇄ schema) and pull the node runtime into the editor bundle. Config-node references therefore go through `SchemaType.NodeRef<T>("type")`, which takes the node `type` string at runtime and the class only as a type-only generic. This is enforced by the `@bonsae/nrg/schema-server-imports-type-only` rule shipped in `nrg` (`@bonsae/nrg/eslint`). Both rules match by path (`**/schemas/**`), so they apply wherever the schemas live.
+The rule also works the other way: a schema may only **`import type`** from `**/server/**`. Since each server node *value*-imports its own schema, if a schema imported server code back as real code you'd get a loop (server node ⇄ schema), and the server runtime would leak into the editor bundle. To reference a config node without that loop, use `SchemaType.NodeRef<T>("type")`: it takes the node's `type` string at runtime and the class only as a type. This is enforced by the `@bonsae/nrg/schema-server-imports-type-only` rule shipped in `nrg` (`@bonsae/nrg/eslint`). Both rules match by path (`**/schemas/**`), so they apply wherever the schemas live.
 
 ### `src/resources/`
 
@@ -128,8 +128,8 @@ dist/
 
 The `index.d.ts` file holds auto-generated server-side type declarations. NRG derives them from your nodes' TypeScript types and emits three things:
 
-- **Inheritable node classes** — each node ships as an `export declare class` with fully-resolved generics, so a downstream package can `import { MyNode }` from your package and `class Extended extends MyNode { … }`.
-- **The `NodeTypes` registry** — the build augments `@bonsae/nrg/server`'s `NodeTypes` interface with one entry per node (keyed by node-type string, holding its `input`, `outputs`, `complete`, `error`, and `status` port types). Because every installed package augments the same interface, the editor can look up any node's port types and type-check a wire between nodes from different packages.
+- **Inheritable node classes** — each node is emitted as a type-only class declaration with all its type parameters filled in, so another package can `import { MyNode }` and write `class Extended extends MyNode {}` to build on it.
+- **The `NodeTypes` registry** — a lookup table, keyed by node-type string, of each message-processing (IONode) node's port types (`input`, `outputs`, `complete`, `error`, `status`). Config nodes have no wireable message ports, so they get a class declaration (above) but no registry entry. Every installed package adds its own nodes to this shared table, so the editor can look up any node's port types and type-check a wire drawn between two nodes — even nodes from different packages.
 - **The module default** — `{ nodes: [...] }`, typed from the classes above.
 
 Consumers import these when they reference your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.
