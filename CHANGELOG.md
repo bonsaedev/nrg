@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.37.0](https://github.com/bonsaedev/nrg/compare/v0.36.0...v0.37.0) (2026-07-10)
+
+### Features
+
+* **client:** polish the config form's data-schema editor ([c474ff6](https://github.com/bonsaedev/nrg/commit/c474ff64e762a8953674d89846f63dc8aea0a29d))
+* **server:** rework the node output message envelope ([ee11b94](https://github.com/bonsaedev/nrg/commit/ee11b94340e145c0f33a588cd3ebb8e7674758ae))
+* **vite:** emit node-types.json in dev builds ([e6f0832](https://github.com/bonsaedev/nrg/commit/e6f08322b3ea718f3d9e2fe0b0579ae8a01cf2ca))
+* **vite:** enrich node help from default input/output validation schemas ([b5cfd5c](https://github.com/bonsaedev/nrg/commit/b5cfd5c5ce9be781529d0764c93402bd5d33689d))
+* **vite:** enrich type-driven node help rendering ([d3f2154](https://github.com/bonsaedev/nrg/commit/d3f2154de7a80bca0e646f190482ded11033fe1c))
+* **vite:** group the built-in ports into one Lifecycle outputs table ([7f81255](https://github.com/bonsaedev/nrg/commit/7f812557e3b4b86fec82658d9677bbf7c4f57e5e))
+* **vite:** quieter, clearer dev-server output ([9e5f07a](https://github.com/bonsaedev/nrg/commit/9e5f07a57f0d485a8fbd736304c597fd205bade1))
+* **vite:** recover NodeRef/TypedInput type args for node help ([422e024](https://github.com/bonsaedev/nrg/commit/422e02477c88c9dc4abe512d5dea3b1567468d6e))
+* **vite:** render outputs as one consistent Port|Type table ([dc49109](https://github.com/bonsaedev/nrg/commit/dc49109f6dc96ca04c882d437650e644a4fbd648))
+* **vite:** render the Complete port like Error/Status (inline shape) ([b9fd31f](https://github.com/bonsaedev/nrg/commit/b9fd31fa95a8ac0f237df3aabd81c7be297da87c))
+
+### Bug Fixes
+
+* **client:** persist a cleared per-port field instead of reverting ([f315987](https://github.com/bonsaedev/nrg/commit/f315987bd5476ff79f8dbfc82882a9bc5b4aef35))
+* **vite:** keep Node-RED on a stable port across dev restarts ([7904192](https://github.com/bonsaedev/nrg/commit/79041923b28ebcbbcf6d767faa8b12756a5608ca))
+
+### Refactors
+
+* **vite:** drop the redundant Capabilities section from node help ([4726d4a](https://github.com/bonsaedev/nrg/commit/4726d4a347bc3a1b5b341374369ed7826f17655e))
+* **vite:** fold roleSection into a settings-only helper ([9a580e4](https://github.com/bonsaedev/nrg/commit/9a580e4b7bc941e6b8613a987bd9172d2b57818c))
+
+### Documentation
+
+* add a Message Flow section to Why NRG ([c340c74](https://github.com/bonsaedev/nrg/commit/c340c74a240614624d164b36b4517d4c46de8489))
+* fix code drift and clarify the guide for beginners ([df4ad34](https://github.com/bonsaedev/nrg/commit/df4ad340db2d9c2c725744cfef1558111eed9c47))
+* simplify the README to the scaffold + one node example ([bcdabc0](https://github.com/bonsaedev/nrg/commit/bcdabc07821446e6a68779fbc5ffcf0c15b7fe8f))
+
 ## [0.36.0](https://github.com/bonsaedev/nrg/compare/v0.35.1...v0.36.0) (2026-07-08)
 
 ### Features
