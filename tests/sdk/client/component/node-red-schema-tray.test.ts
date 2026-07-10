@@ -58,14 +58,15 @@ describe("NodeRedSchemaTray", () => {
     return { body, trayOptions };
   }
 
-  test("shows a live error banner for an invalid schema", async () => {
+  test("renders no custom error banner for an invalid schema (Monaco surfaces JSON errors inline)", async () => {
     const { body } = await openTray({
       title: "Schema — Input",
       value: "{ not json",
     });
-    expect(body.querySelector(".nrg-schema-tray-error")?.textContent).toContain(
-      "Invalid JSON",
-    );
+    // The tray opens for invalid input and delegates error display to Monaco's
+    // inline diagnostics — it renders no separate error banner of its own
+    // (see node-red-schema-tray.vue).
+    expect(body.querySelector(".nrg-schema-tray-error")).toBeNull();
   });
 
   test("shows no error banner for a valid schema", async () => {
