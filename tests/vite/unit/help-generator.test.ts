@@ -45,22 +45,92 @@ describe("help-generator", () => {
       expect(row.label).toBe("");
     });
 
-    it("handles NodeRef type", () => {
+    it("handles NodeRef type — node type plus the recovered TS type argument", () => {
+      const row = buildPropertyRow(
+        "server",
+        {
+          type: "string",
+          "x-nrg-node-type": "remote-server",
+          format: "node-id",
+        },
+        true,
+        undefined,
+        "RemoteServer", // recovered from the source NodeRef<RemoteServer>(...) arg
+      );
+      // The internal `node-id` format is not surfaced (it's implied by NodeRef).
+      expect(row.type).toBe('NodeRef<RemoteServer>("remote-server")');
+    });
+
+    it("renders a bare NodeRef when the TS type argument can't be recovered", () => {
       const row = buildPropertyRow(
         "server",
         { type: "string", "x-nrg-node-type": "remote-server" },
         true,
       );
-      expect(row.type).toBe("NodeRef → remote-server");
+      expect(row.type).toBe('NodeRef("remote-server")');
     });
 
-    it("handles TypedInput type", () => {
+    it("handles TypedInput type — with the recovered TS type argument", () => {
+      const row = buildPropertyRow(
+        "target",
+        { "x-nrg-typed-input": true },
+        true,
+        undefined,
+        "string", // recovered from the source TypedInput<string>(...) arg
+      );
+      expect(row.type).toBe("TypedInput<string>");
+    });
+
+    it("renders a bare TypedInput when the TS type argument can't be recovered", () => {
       const row = buildPropertyRow(
         "target",
         { "x-nrg-typed-input": true },
         true,
       );
       expect(row.type).toBe("TypedInput");
+    });
+
+    it("NodeRef uses the EXTRACTED instance type (tsType) as the argument", () => {
+      // The extractor resolves the config field to the referenced node instance
+      // (`SalesforceConnection`) by following imports — the primary source.
+      const row = buildPropertyRow(
+        "connection",
+        { "x-nrg-node-type": "salesforce-connection", format: "node-id" },
+        true,
+        undefined,
+        undefined,
+        "SalesforceConnection", // tsType from node-types.json
+      );
+      expect(row.type).toBe(
+        'NodeRef<SalesforceConnection>("salesforce-connection")',
+      );
+    });
+
+    it("TypedInput uses the extracted TS type (already `TypedInput<T>`) directly", () => {
+      const row = buildPropertyRow(
+        "query",
+        { "x-nrg-typed-input": true },
+        true,
+        undefined,
+        undefined,
+        "TypedInput<string>", // tsType from node-types.json
+      );
+      expect(row.type).toBe("TypedInput<string>");
+    });
+
+    it("surfaces a TypedInput's allowed input modes as an inline [types: …] constraint", () => {
+      const row = buildPropertyRow(
+        "query",
+        {
+          "x-nrg-typed-input": true,
+          "x-nrg-form": { typedInputTypes: ["str", "jsonata", "msg"] },
+        },
+        true,
+        undefined,
+        undefined,
+        "TypedInput<string>",
+      );
+      expect(row.type).toBe("TypedInput<string> [types: str, jsonata, msg]");
     });
 
     it("leaves the type blank for an Unsafe<T>() with no parser-recovered type", () => {
@@ -199,6 +269,52 @@ describe("help-generator", () => {
       expect(labelPos).toBeLessThan(propPos);
     });
 
+    it("HTML-escapes generic types so `<…>` isn't eaten as tags", () => {
+      // Node-RED renders help as HTML; an unescaped `Array<Record<…>>` would
+      // collapse to `Array>` in the browser.
+      const section = generateSchemaSection({
+        title: "Output",
+        t: enUS,
+        typeFields: [
+          {
+            name: "records",
+            type: "Array<Record<string, unknown>>",
+            optional: false,
+          },
+        ],
+      });
+      expect(section).toContain("Array&lt;Record&lt;string, unknown&gt;&gt;");
+      expect(section).not.toContain("Array<Record");
+    });
+
+    it("renders a TypedInput's allowed input modes inline with the type", () => {
+      const section = generateSchemaSection({
+        title: "Properties",
+        t: enUS,
+        schema: {
+          $id: "n:config",
+          properties: {
+            query: {
+              "x-nrg-typed-input": true,
+              "x-nrg-form": { typedInputTypes: ["str", "jsonata", "msg"] },
+            },
+          },
+        },
+      });
+      expect(section).toContain("TypedInput [types: str, jsonata, msg]");
+    });
+
+    it("omits the Description column when includeDescription is false", () => {
+      const section = generateSchemaSection({
+        title: "Output",
+        t: enUS,
+        includeDescription: false,
+        typeFields: [{ name: "records", type: "number", optional: false }],
+      });
+      expect(section).not.toContain("<th>Description</th>");
+      expect(section).toContain("<th>Type</th>");
+    });
+
     it("includes Default column when includeDefault is true", () => {
       const section = generateSchemaSection({
         title: "Test",
@@ -281,7 +397,7 @@ describe("help-generator", () => {
 
       // real properties kept
       expect(section).toContain("<td>connection</td>");
-      expect(section).toContain("NodeRef → salesforce-connection");
+      expect(section).toContain('NodeRef("salesforce-connection")');
       expect(section).toContain("<td>query</td>");
       // nrg system fields hidden
       for (const f of [
@@ -486,6 +602,34 @@ describe("help-generator", () => {
       expect(result.credentials).toEqual({ apiKey: "API Key" });
       expect(result.input).toEqual({ payload: "Payload" });
       expect(result.outputs).toEqual([{ result: "Result" }]);
+    });
+
+    it("normalizes array and bare-string input/output labels to arrays", () => {
+      const arrPath = path.join(tmpDir, "arr.json");
+      fs.writeFileSync(
+        arrPath,
+        JSON.stringify({
+          inputLabels: ["Records"],
+          outputLabels: ["Success", "Failure"],
+        }),
+      );
+      const arr = loadNodeLabels(arrPath);
+      expect(arr.inputLabels).toEqual(["Records"]);
+      expect(arr.outputLabels).toEqual(["Success", "Failure"]);
+
+      // Node-RED allows inputLabels/outputLabels to be a bare string (one port)
+      // — normalize so ports can index into them uniformly.
+      const strPath = path.join(tmpDir, "str.json");
+      fs.writeFileSync(
+        strPath,
+        JSON.stringify({
+          inputLabels: "Query input",
+          outputLabels: "Operation result",
+        }),
+      );
+      const str = loadNodeLabels(strPath);
+      expect(str.inputLabels).toEqual(["Query input"]);
+      expect(str.outputLabels).toEqual(["Operation result"]);
     });
 
     it("returns empty object on invalid JSON", () => {

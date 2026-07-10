@@ -38,13 +38,24 @@ function buildPropertyRow(
   tsType?: string,
 ): PropertyRow {
   let type = "";
-  if (tsType) {
-    // The node's TypeScript type is the source of truth for the Type column.
+  if (schema?.["x-nrg-node-type"]) {
+    // NodeRef: the field's resolved config type is the referenced node instance
+    // (`tsType`, e.g. `SalesforceConnection`, extracted by following imports);
+    // the source-recovered arg is the fallback when there's no extracted type.
+    // Render it as `NodeRef<Instance>("node-type")` — the plain instance name
+    // would hide that it's a reference.
+    const arg = tsType || parsedType;
+    type = arg
+      ? `NodeRef<${arg}>("${schema["x-nrg-node-type"]}")`
+      : `NodeRef("${schema["x-nrg-node-type"]}")`;
+  } else if (tsType) {
+    // The node's TypeScript type is the source of truth — already `TypedInput<T>`,
+    // `Array<…>`, a union, etc.
     type = tsType;
-  } else if (schema?.["x-nrg-node-type"]) {
-    type = `NodeRef → ${schema["x-nrg-node-type"]}`;
   } else if (schema?.["x-nrg-typed-input"]) {
-    type = "TypedInput";
+    // No extracted TS type (e.g. no node-types.json in dev) — recover `T` from
+    // the source `TypedInput<T>()` arg when possible, else a bare TypedInput.
+    type = parsedType ? `TypedInput<${parsedType}>` : "TypedInput";
   } else if (schema?.type) {
     type = String(schema.type);
   } else if (parsedType) {
@@ -66,8 +77,20 @@ function buildPropertyRow(
   if (schema?.minimum !== undefined) constraints.push(`min: ${schema.minimum}`);
   if (schema?.maximum !== undefined) constraints.push(`max: ${schema.maximum}`);
   if (schema?.pattern) constraints.push(`pattern: \`${schema.pattern}\``);
-  if (schema?.format && schema.format !== "password")
+  // `node-id` is NodeRef's internal format (already conveyed by `NodeRef<…>("…")`);
+  // `password` is a credential concern — neither belongs in the Type column.
+  if (
+    schema?.format &&
+    schema.format !== "password" &&
+    schema.format !== "node-id"
+  )
     constraints.push(`format: ${schema.format}`);
+  // A TypedInput field can restrict its input modes (`typedInputTypes` in the
+  // form metadata) — show them alongside the other constraints so the reader
+  // knows what's allowed, e.g. `TypedInput<string> [types: str, jsonata, msg]`.
+  const inputTypes = schema?.["x-nrg-form"]?.typedInputTypes;
+  if (Array.isArray(inputTypes) && inputTypes.length)
+    constraints.push(`types: ${inputTypes.join(", ")}`);
   if (constraints.length) type += ` [${constraints.join(", ")}]`;
 
   const defaultVal =
@@ -129,6 +152,9 @@ interface SchemaSectionOptions {
   labels?: Record<string, string>;
   heading?: string;
   includeDefault?: boolean;
+  /** Show the Description column. Type-driven sections (input/output) have no
+   * schema and therefore no descriptions, so they turn it off. Default `true`. */
+  includeDescription?: boolean;
   /** $id → { prop: typeText }, recovered from source Unsafe<T>() args. */
   unsafeTypes?: UnsafeTypeMap;
   /**
@@ -139,6 +165,88 @@ interface SchemaSectionOptions {
   typeFields?: NodeFieldInfo[];
 }
 
+/**
+ * Escape text for an HTML cell. Node-RED renders node help as HTML, so a Type
+ * like `Array<Record<string, unknown>>` or `NodeRef<Conn>("…")` would otherwise
+ * have its `<…>` eaten as tags (e.g. `Array<Record<…>>` → `Array>`).
+ */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * The property `<table>` (no heading) for a set of rows. Columns are built
+ * dynamically so a flag (labels / default / description) just adds or drops a
+ * column. Cell values that carry TS types or user text are HTML-escaped so
+ * generics (`<…>`) aren't eaten as tags; headers and yes/no are canonical.
+ */
+function buildPropertyTable(
+  rows: PropertyRow[],
+  t: HelpTranslations,
+  includeDefault: boolean,
+  includeDescription: boolean,
+): string {
+  const hasLabels = rows.some((r) => r.label);
+  const c = t.columns;
+  const v = t.values;
+  type Col = {
+    header: string;
+    cell: (r: PropertyRow) => string;
+    width?: string;
+  };
+  const cols: Col[] = [];
+  if (hasLabels)
+    cols.push({ header: c.label, cell: (r) => escapeHtml(r.label) });
+  cols.push({ header: c.property, cell: (r) => escapeHtml(r.name) });
+  cols.push({ header: c.type, cell: (r) => escapeHtml(r.type) });
+  cols.push({ header: c.required, cell: (r) => (r.required ? v.yes : v.no) });
+  if (includeDefault)
+    cols.push({
+      header: c.default,
+      cell: (r) =>
+        r.defaultVal ? `<code>${escapeHtml(r.defaultVal)}</code>` : "",
+    });
+  if (includeDescription)
+    cols.push({
+      header: c.description,
+      cell: (r) => escapeHtml(r.description),
+      width: hasLabels ? "35%" : "40%",
+    });
+
+  const headerCells = cols
+    .map(
+      (col) =>
+        `<th${col.width ? ` style="width:${col.width}"` : ""}>${col.header}</th>`,
+    )
+    .join("");
+  const rowFn = (r: PropertyRow) =>
+    `<tr>${cols.map((col) => `<td>${col.cell(r)}</td>`).join("")}</tr>`;
+  const tableRows = rows.map(rowFn).join("\n");
+
+  return `<div style="overflow-x:auto">
+<table width="100%" style="min-width:500px">
+<thead><tr>${headerCells}</tr></thead>
+<tbody>
+${tableRows}
+</tbody>
+</table>
+</div>`;
+}
+
+/**
+ * A one-row `Type` table (no heading) for a union/primitive value — reads
+ * consistently with the field tables (a bare `<code>` line looks broken).
+ */
+function buildTypeTable(text: string, t: HelpTranslations): string {
+  return (
+    `<div style="overflow-x:auto">\n` +
+    `<table width="100%" style="min-width:500px">\n` +
+    `<thead><tr><th>${t.columns.type}</th></tr></thead>\n` +
+    `<tbody>\n<tr><td>${escapeHtml(text)}</td></tr>\n</tbody>\n` +
+    `</table>\n</div>`
+  );
+}
+
 function generateSchemaSection(options: SchemaSectionOptions): string {
   const {
     title,
@@ -147,6 +255,7 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
     labels,
     heading = "###",
     includeDefault = true,
+    includeDescription = true,
     unsafeTypes,
     typeFields,
   } = options;
@@ -184,42 +293,7 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
 
   if (rows.length === 0) return "";
 
-  const hasLabels = rows.some((r) => r.label);
-  const c = t.columns;
-  const v = t.values;
-
-  let headerCells: string;
-  let rowFn: (r: PropertyRow) => string;
-
-  if (hasLabels && includeDefault) {
-    headerCells = `<th>${c.label}</th><th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th>${c.default}</th><th style="width:35%">${c.description}</th>`;
-    rowFn = (r) =>
-      `<tr><td>${r.label}</td><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.defaultVal ? `<code>${r.defaultVal}</code>` : ""}</td><td>${r.description}</td></tr>`;
-  } else if (hasLabels) {
-    headerCells = `<th>${c.label}</th><th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th style="width:35%">${c.description}</th>`;
-    rowFn = (r) =>
-      `<tr><td>${r.label}</td><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.description}</td></tr>`;
-  } else if (includeDefault) {
-    headerCells = `<th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th>${c.default}</th><th style="width:40%">${c.description}</th>`;
-    rowFn = (r) =>
-      `<tr><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.defaultVal ? `<code>${r.defaultVal}</code>` : ""}</td><td>${r.description}</td></tr>`;
-  } else {
-    headerCells = `<th>${c.property}</th><th>${c.type}</th><th>${c.required}</th><th style="width:40%">${c.description}</th>`;
-    rowFn = (r) =>
-      `<tr><td>${r.name}</td><td>${r.type}</td><td>${r.required ? v.yes : v.no}</td><td>${r.description}</td></tr>`;
-  }
-
-  const tableRows = rows.map(rowFn).join("\n");
-
-  const table = `<div style="overflow-x:auto">
-<table width="100%" style="min-width:500px">
-<thead><tr>${headerCells}</tr></thead>
-<tbody>
-${tableRows}
-</tbody>
-</table>
-</div>`;
-
+  const table = buildPropertyTable(rows, t, includeDefault, includeDescription);
   const headingLevel = heading.length; // "###" = 3, "####" = 4
   const tag = `h${headingLevel}`;
   return `<${tag}>${title}</${tag}>\n${table}\n`;
@@ -231,6 +305,18 @@ interface NodeLabels {
   credentials?: Record<string, string>;
   input?: Record<string, string>;
   outputs?: Record<string, string>[];
+  /** Per-port domain label (Node-RED `inputLabels`) — the single input port. */
+  inputLabels?: string[];
+  /** Per-port domain labels (Node-RED `outputLabels`) — one per output port. */
+  outputLabels?: string[];
+}
+
+/** Node-RED `inputLabels`/`outputLabels` may be a bare string (one port) or an
+ * array (many) — normalize to an array so ports index into it uniformly. */
+function normalizePortLabels(value: unknown): string[] | undefined {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value;
+  return undefined;
 }
 
 function loadNodeLabels(labelPath: string): NodeLabels {
@@ -243,15 +329,28 @@ function loadNodeLabels(labelPath: string): NodeLabels {
       credentials: raw.credentials,
       input: raw.input,
       outputs: raw.outputs,
+      inputLabels: normalizePortLabels(raw.inputLabels),
+      outputLabels: normalizePortLabels(raw.outputLabels),
     };
   } catch {
     return {};
   }
 }
 
+/** Role type texts that carry no useful documentation — a section is skipped. */
+const VACUOUS_ROLE_TYPES = new Set([
+  "any",
+  "unknown",
+  "void",
+  "never",
+  "undefined",
+  "{}",
+]);
+
 /**
  * Render a role that is either an object (a field table) or a primitive/union
- * (a single typed line). Returns "" when there is nothing to show.
+ * (a single-cell Type table). Returns "" when there is nothing to show — an
+ * object with no fields, or a vacuous type like `any`/`unknown`.
  */
 function roleSection(
   title: string,
@@ -262,6 +361,7 @@ function roleSection(
     labels?: Record<string, string>;
     heading?: string;
     includeDefault?: boolean;
+    includeDescription?: boolean;
   } = {},
 ): string {
   if (!role) return "";
@@ -274,12 +374,95 @@ function roleSection(
       labels: opts.labels,
       heading: opts.heading,
       includeDefault: opts.includeDefault ?? false,
+      includeDescription: opts.includeDescription ?? true,
     });
   }
-  // Primitive / union type — no members to table.
+  const text = role.text.trim();
+  // A vacuous type (`any`/`unknown`/…) carries no useful information — skip the
+  // whole section, the same way an `any` input renders nothing.
+  if (VACUOUS_ROLE_TYPES.has(text)) return "";
+  // A union / primitive with no members — show the type itself in a one-row
+  // table so it reads consistently with the field tables.
   const level = (opts.heading ?? "###").length;
-  return `<h${level}>${title}</h${level}>\n<p><code>${role.text}</code></p>\n`;
+  return `<h${level}>${title}</h${level}>\n${buildTypeTable(text, t)}\n`;
 }
+
+/**
+ * Render one message PORT (input or output). Distinct from {@link roleSection}
+ * because a data port must read as ONE message:
+ *
+ * - the port's domain label (`inputLabels` / `outputLabels[i]`, e.g. "Operation
+ *   result") is surfaced — a plain role section drops it;
+ * - an object value can be captioned ("…carries an object with these
+ *   properties:") so its property rows aren't misread as several separate ports.
+ * - a primitive/union value renders a one-row Type table (so a non-object input,
+ *   which the old schema-only path dropped, is documented too).
+ *
+ * The heading text is HTML-escaped (a port name or a label-file string may carry
+ * `<`). Returns "" when the port carries nothing to document (any/unknown/void).
+ */
+function messagePortSection(
+  title: string,
+  role: NodeRoleType,
+  t: HelpTranslations,
+  opts: {
+    /** Domain label for the whole port (from `inputLabels`/`outputLabels`). */
+    portLabel?: string;
+    /** Per-property labels for an object value (from the `input`/`outputs` map). */
+    fieldLabels?: Record<string, string>;
+    heading?: string;
+    /** Object-value framing caption; omitted → no caption row. */
+    caption?: string;
+  } = {},
+): string {
+  const level = (opts.heading ?? "###").length;
+  const head = `<h${level}>${escapeHtml(title)}</h${level}>\n`;
+  // The port's domain label — omitted when it's already the heading (a nameless
+  // tuple port uses the label as its heading, so repeating it is noise).
+  const labelLine =
+    opts.portLabel && opts.portLabel !== title
+      ? `<p><strong>${escapeHtml(opts.portLabel)}</strong></p>\n`
+      : "";
+
+  if (role.fields.length) {
+    const rows = role.fields
+      .filter((f) => !isHiddenField(f.name))
+      .map((f) =>
+        buildPropertyRow(
+          f.name,
+          undefined,
+          !f.optional,
+          opts.fieldLabels?.[f.name],
+          undefined,
+          f.type,
+        ),
+      );
+    if (rows.length === 0) return "";
+    // Caption (output only) so the rows read as the single emitted object's
+    // properties, not as multiple ports.
+    const caption = opts.caption
+      ? `<p><small>${opts.caption}</small></p>\n`
+      : "";
+    return (
+      head +
+      labelLine +
+      caption +
+      buildPropertyTable(rows, t, false, false) +
+      "\n"
+    );
+  }
+
+  const text = role.text.trim();
+  if (VACUOUS_ROLE_TYPES.has(text)) return "";
+  return head + labelLine + buildTypeTable(text, t) + "\n";
+}
+
+/** The built-in ERROR port's fixed shape (see server ports.ts ErrorPortOutput). */
+const ERROR_PORT_SHAPE =
+  "{ error: { name: string; message: string; stack?: string }; source; input }";
+/** The built-in STATUS port's fixed shape (see server ports.ts StatusPortOutput). */
+const STATUS_PORT_SHAPE =
+  '{ status: { fill?: string; shape?: "ring" | "dot"; text?: string } | string; source }';
 
 function generateHelpDoc(
   nodeClass: any,
@@ -291,7 +474,9 @@ function generateHelpDoc(
   const lines: string[] = [];
 
   if (labels.description) {
-    lines.push(`<p>${labels.description}</p>`);
+    // Escaped like every other label-file string — a `<`/`&` in the summary
+    // (e.g. "records < 200") must not be eaten as HTML.
+    lines.push(`<p>${escapeHtml(labels.description)}</p>`);
   }
 
   const configSection = generateSchemaSection({
@@ -327,37 +512,58 @@ function generateHelpDoc(
       });
   if (settingsSection) lines.push(settingsSection);
 
-  // Input — no Default column
+  // Input — type-driven, single port. Surface its domain label (`inputLabels`)
+  // and render an object as a field table or a primitive/union as a Type table
+  // (the old schema-only path dropped a non-object input entirely).
   if (nodeTypes?.input) {
-    const inputSection = generateSchemaSection({
-      title: t.sections.input,
-      typeFields: nodeTypes.input.fields,
+    const inputSection = messagePortSection(
+      t.sections.input,
+      nodeTypes.input,
       t,
-      labels: labels.input,
-      includeDefault: false,
-      unsafeTypes,
-    });
+      {
+        portLabel: labels.inputLabels?.[0],
+        fieldLabels: labels.input,
+      },
+    );
     if (inputSection) lines.push(inputSection);
   }
 
-  // Output(s) — type-driven (shape-aware) from the node's Output generic.
+  // Output(s) — type-driven (shape-aware) from the node's Output generic. Each
+  // port reads as ONE output message: its domain label (outputLabels[i]) is
+  // surfaced and an object value is captioned so its properties don't read as
+  // separate ports.
   if (nodeTypes?.outputs?.length) {
     const ports = nodeTypes.outputs;
+    const outputLabels = labels.outputLabels;
+    const objectCaption = t.captions.objectProperties;
+    let rendered = false;
     if (ports.length === 1 && ports[0].name === undefined) {
-      const section = roleSection(t.sections.output, ports[0].role, t, {
-        labels: labels.outputs?.[0],
+      const section = messagePortSection(t.sections.output, ports[0].role, t, {
+        portLabel: outputLabels?.[0],
+        fieldLabels: labels.outputs?.[0],
+        caption: objectCaption,
       });
-      if (section) lines.push(section);
+      if (section) {
+        lines.push(section);
+        rendered = true;
+      }
     } else {
       const portSections = ports
         .map((port, i) => {
-          const title = port.name ?? `${t.sections.port} ${i + 1}`;
-          const portLabels = port.name
+          // A named port is titled by its name; a positional one prefers its
+          // domain label over the generic "Port N".
+          const title =
+            port.name ?? outputLabels?.[i] ?? `${t.sections.port} ${i + 1}`;
+          const fieldLabels = port.name
             ? (labels.outputs as any)?.[port.name]
             : labels.outputs?.[i];
-          return roleSection(title, port.role, t, {
-            labels: portLabels,
+          // Show the domain label as a caption only when it isn't the heading.
+          const portLabel = port.name ? outputLabels?.[i] : undefined;
+          return messagePortSection(title, port.role, t, {
+            portLabel,
+            fieldLabels,
             heading: "####",
+            caption: objectCaption,
           });
         })
         .filter(Boolean);
@@ -365,8 +571,12 @@ function generateHelpDoc(
         lines.push(
           `<h3>${t.sections.outputs}</h3>\n${portSections.join("\n")}`,
         );
+        rendered = true;
       }
     }
+    // Explain the wire shape the type sections don't reveal: value under the
+    // return property, plus the source/input provenance keys.
+    if (rendered) lines.push(`<p><small>${t.notes.outputEnvelope}</small></p>`);
   }
 
   // Complete port — carries the value returned from input().
@@ -376,6 +586,18 @@ function generateHelpDoc(
     t,
   );
   if (completeSection) lines.push(completeSection);
+
+  // Built-in ERROR and STATUS ports — present on every IONode (enable via
+  // config). Their shapes are framework-fixed (not type-derived), so render them
+  // as static shape tables. Config nodes have no ports, so skip them.
+  if (nodeTypes?.kind === "io") {
+    lines.push(
+      `<h3>${escapeHtml(t.sections.error)}</h3>\n${buildTypeTable(ERROR_PORT_SHAPE, t)}`,
+    );
+    lines.push(
+      `<h3>${escapeHtml(t.sections.status)}</h3>\n${buildTypeTable(STATUS_PORT_SHAPE, t)}`,
+    );
+  }
 
   return lines.join("\n").trim();
 }

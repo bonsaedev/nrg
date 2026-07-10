@@ -260,7 +260,7 @@ describe("adversarial — Output shape variants", () => {
 });
 
 describe("adversarial — complete port from input() return type", () => {
-  it("renders a primitive complete-port type as a clean code line (no leak)", () => {
+  it("renders a primitive complete-port type as a clean one-row Type table (no leak)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
       export default class N extends IONode<{ x: 1 }> {
@@ -274,8 +274,8 @@ describe("adversarial — complete port from input() return type", () => {
 
     const html = help(node);
     expect(html).toContain("Complete");
-    // Rendered as a `<code>number</code>` line, never a method table.
-    expect(html).toContain("<code>number</code>");
+    // Rendered as a one-row Type table, never a method table (no prototype leak).
+    expect(html).toContain("<tr><td>number</td></tr>");
     expect(html).not.toContain("toFixed");
   });
 });
