@@ -408,16 +408,16 @@ describe("buildPackageDts — built-in port envelopes", () => {
     `,
   };
 
-  it("a void node's complete is the assignable standard envelope (carried input + provenance), not never", () => {
+  it("a void node's complete is the assignable standard envelope (source + carried input), not never", () => {
     const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
     // If complete were `never`, this object literal would be unassignable.
+    // `source` and `input` ride the root; a void return omits the `complete` key.
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
        import type { NodeTypes } from "@bonsae/nrg/server";
        const c: NodeTypes["void-node"]["complete"] = {
-         payload: "x",
-         complete: { source: { id: "1", type: "void-node", name: undefined } },
+         source: { id: "1", type: "void-node", name: undefined },
          input: { payload: "x" },
        };
        void c;`,
@@ -425,20 +425,19 @@ describe("buildPackageDts — built-in port envelopes", () => {
     expect(diags).toHaveLength(0);
   });
 
-  it("the input() return improves complete with `output`; a void return has none", () => {
+  it("the input() return rides complete under `complete`; a void return has none", () => {
     const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
        import type { NodeTypes } from "@bonsae/nrg/server";
-       // return-node: input() returns { ok } → carried under \`output\`.
+       // return-node: input() returns { ok } → carried under \`complete\`.
        const out: { ok: boolean } =
-         null as unknown as NodeTypes["return-node"]["complete"]["output"];
+         null as unknown as NodeTypes["return-node"]["complete"]["complete"];
        void out;
-       // void-node: no return → no \`output\` field (and the directive also fails
-       // if complete were \`never\`, since \`never["output"]\` would not error).
-       // @ts-expect-error — a void-returning node's complete carries no \`output\`
-       type _NoOutput = NodeTypes["void-node"]["complete"]["output"];`,
+       // void-node: no return → no \`complete\` field (accessing it errors).
+       // @ts-expect-error — a void-returning node's complete carries no value
+       type _NoComplete = NodeTypes["void-node"]["complete"]["complete"];`,
     );
     expect(diags).toHaveLength(0);
   });

@@ -68,23 +68,23 @@ describe("io-node concurrent-input race", () => {
     await Promise.all([a, b]);
 
     const first = node.sent()[0][0] as {
-      id: string;
+      input: { id: string };
       output: { echoedId: string };
     };
     const second = node.sent()[1][0] as {
-      id: string;
+      input: { id: string };
       output: { echoedId: string };
     };
 
-    // A resumes first. Both its value AND its carried context are A's, even
-    // though B overwrote the shared instance field while A was awaiting —
-    // because the context is scoped to A's invocation. (Pre-fix this was "B".)
+    // A resumes first. Both its value AND its carried context (under `input`) are
+    // A's, even though B overwrote the shared instance field while A was awaiting
+    // — because the context is scoped to A's invocation. (Pre-fix this was "B".)
     expect(first.output.echoedId).toBe("A");
-    expect(first.id).toBe("A");
+    expect(first.input.id).toBe("A");
 
     // B is likewise internally consistent.
     expect(second.output.echoedId).toBe("B");
-    expect(second.id).toBe("B");
+    expect(second.input.id).toBe("B");
   });
 
   it("CONTROL: sequential (awaited) inputs never cross — isolates the cause to overlap", async () => {
@@ -99,17 +99,17 @@ describe("io-node concurrent-input race", () => {
     await node.receive({ id: "B", payload: "b" });
 
     const first = node.sent()[0][0] as {
-      id: string;
+      input: { id: string };
       output: { echoedId: string };
     };
     const second = node.sent()[1][0] as {
-      id: string;
+      input: { id: string };
       output: { echoedId: string };
     };
 
-    expect(first.id).toBe("A");
+    expect(first.input.id).toBe("A");
     expect(first.output.echoedId).toBe("A");
-    expect(second.id).toBe("B");
+    expect(second.input.id).toBe("B");
     expect(second.output.echoedId).toBe("B");
   });
 });

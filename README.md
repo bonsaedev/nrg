@@ -200,7 +200,7 @@ describe("my-node", () => {
     await node.receive({ payload: "world" });
 
     expect(node.sent(0)).toEqual([
-      { payload: "world", output: { text: "hello: world" } },
+      { output: { text: "hello: world" }, input: { payload: "world" } },
     ]);
   });
 });

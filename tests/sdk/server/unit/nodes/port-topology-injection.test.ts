@@ -37,8 +37,9 @@ describe("port topology injection (types-only node behaves like a built node)", 
       config: { errorPort: true },
     });
 
-    // A raw throw rejects receive() AND routes to the error port.
-    await expect(node.receive({ payload: "boom" })).rejects.toThrow("boom");
+    // The error port is the sole handler, so a raw throw is handled there and
+    // receive resolves (no report to Node-RED's Catch mechanism).
+    await node.receive({ payload: "boom" });
 
     // Error port sits AT index 1 (after the single base output) — only correct
     // when the base-output count came from the injected topology.
@@ -66,7 +67,7 @@ describe("port topology injection (types-only node behaves like a built node)", 
     });
     expect(node.baseOutputs).toBe(1);
 
-    await expect(node.receive({ fail: true })).rejects.toThrow("nope");
+    await node.receive({ fail: true }); // handled by the error port
     expect(node.sent(0)).toHaveLength(0);
     expect(node.sent("error")[0].error).toMatchObject({ message: "nope" });
   });

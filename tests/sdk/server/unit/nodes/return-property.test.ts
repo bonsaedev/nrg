@@ -19,6 +19,14 @@ import PpValidateNode from "../fixtures/return-property-test/assign-pp-validate"
 import MultiModeNode from "../fixtures/return-property-test/ctx-multi";
 import NamedModeNode from "../fixtures/return-property-test/ctx-named";
 
+const src = (port: number, portName?: string) => ({
+  id: expect.any(String),
+  type: expect.any(String),
+  name: expect.any(String),
+  port,
+  ...(portName !== undefined ? { portName } : {}),
+});
+
 // The fixture nodes are TYPES-ONLY (no inputSchema/outputsSchema); their port
 // topology lives only in their generics. Un-built source carries no `__nrgPorts`
 // static, so without the harness's build-equivalent injection they would report 0
@@ -45,11 +53,11 @@ describe("returnProperty / output convention", () => {
     const { node } = await createNode(PlainNode);
     await node.receive({ topic: "orders", correlationId: "c1", value: 21 });
 
+    // Default carry: result at `output`, the incoming message under `input`.
     expect(node.sent(0)[0]).toEqual({
-      topic: "orders",
-      correlationId: "c1",
-      value: 21,
       output: { doubled: 42 },
+      source: src(0),
+      input: { topic: "orders", correlationId: "c1", value: 21 },
     });
   });
 
@@ -75,9 +83,12 @@ describe("returnProperty / output convention", () => {
       input: { value: 3, output: "oldest" },
     });
 
+    // The root carries only the result; the whole incoming message (its own
+    // `input` frame included) is recorded under `input`, so the chain is
+    // `msg.input.input.output === "oldest"`.
     expect(node.sent(0)[0]).toEqual({
-      value: 5,
       output: "R",
+      source: src(0),
       input: {
         value: 5,
         input: { value: 3, output: "oldest" },
@@ -91,9 +102,9 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)).toHaveLength(1);
     expect(node.sent(0)[0]).toEqual({
-      topic: "list",
-      size: 2,
       output: [{ id: 0 }, { id: 1 }],
+      source: src(0),
+      input: { topic: "list", size: 2 },
     });
   });
 
@@ -109,8 +120,9 @@ describe("returnProperty / output convention", () => {
     await node.receive({ size: 1 });
 
     expect(node.sent(0)[0]).toEqual({
-      size: 1,
       output: [{ id: 0 }],
+      source: src(0),
+      input: { size: 1 },
     });
   });
 
@@ -121,9 +133,9 @@ describe("returnProperty / output convention", () => {
     await node.receive({ value: 5, keep: true });
 
     expect(node.sent(0)[0]).toEqual({
-      value: 5,
-      keep: true,
       result: { doubled: 10 },
+      source: src(0),
+      input: { value: 5, keep: true },
     });
   });
 
@@ -131,7 +143,11 @@ describe("returnProperty / output convention", () => {
     const { node } = await createNode(CustomDefault);
     await node.receive({ a: 1 });
 
-    expect(node.sent(0)[0]).toEqual({ a: 1, data: "ok" });
+    expect(node.sent(0)[0]).toEqual({
+      data: "ok",
+      source: src(0),
+      input: { a: 1 },
+    });
   });
 
   it("falls back to output when the configured key is empty", async () => {
@@ -141,8 +157,9 @@ describe("returnProperty / output convention", () => {
     await node.receive({ value: 1 });
 
     expect(node.sent(0)[0]).toEqual({
-      value: 1,
       output: { doubled: 2 },
+      source: src(0),
+      input: { value: 1 },
     });
   });
 
@@ -153,8 +170,16 @@ describe("returnProperty / output convention", () => {
     });
     await node.receive({ k: 1 });
 
-    expect(node.sent(0)[0]).toEqual({ k: 1, ok: "A" });
-    expect(node.sent(1)[0]).toEqual({ k: 1, output: "B" });
+    expect(node.sent(0)[0]).toEqual({
+      ok: "A",
+      source: src(0),
+      input: { k: 1 },
+    });
+    expect(node.sent(1)[0]).toEqual({
+      output: "B",
+      source: src(1),
+      input: { k: 1 },
+    });
   });
 
   it("wraps each slot of a multi-port send without sharing the top-level object", async () => {
@@ -162,14 +187,19 @@ describe("returnProperty / output convention", () => {
     await node.receive({ keep: 1 });
 
     const out0 = node.sent(0)[0] as Record<string, unknown>;
-    expect(out0).toEqual({ keep: 1, output: "first" });
+    expect(out0).toEqual({
+      output: "first",
+      source: src(0),
+      input: { keep: 1 },
+    });
     expect(node.sent(1)).toEqual([]);
 
     // mutating a slot's top-level object must not affect anything else
-    out0.keep = 999;
+    out0.output = "mutated";
     expect(node.sent(0)[0]).toEqual({
-      keep: 999,
-      output: "first",
+      output: "mutated",
+      source: src(0),
+      input: { keep: 1 },
     });
   });
 
@@ -178,36 +208,41 @@ describe("returnProperty / output convention", () => {
     await node.receive({ traceId: "x" });
 
     expect(node.sent("success")[0]).toEqual({
-      traceId: "x",
       output: { ok: true },
+      source: src(0, "success"),
+      input: { traceId: "x" },
     });
   });
 
-  it("carry mode keeps context flowing without nesting", async () => {
-    // carry is the fallback when no per-port mode is configured
+  it("carry keeps only the last message under input", async () => {
+    // carry is the fallback when no per-port mode is configured (depth 1).
     const { node } = await createNode(ModeNode);
     await node.receive({ topic: "t" });
 
     expect(node.sent(0)[0]).toEqual({
-      topic: "t",
       output: "R",
+      source: src(0),
+      input: { topic: "t" },
     });
   });
 
-  it("carry mode forwards an existing input untouched", async () => {
+  it("carry strips the incoming message's own history frame", async () => {
+    // The incoming already carries an `input` frame from upstream; carry keeps
+    // the message's other fields but drops that frame, so the chain stays depth 1.
     const { node } = await createNode(ModeNode);
-    await node.receive({ input: { output: "upstream" } });
+    await node.receive({ topic: "z", input: { output: "upstream" } });
 
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      input: { output: "upstream" }, // carried forward, not re-nested
+      source: src(0),
+      input: { topic: "z" }, // upstream's own `input` was stripped
     });
   });
 
-  it("carry keeps a looped message flat across many hops", async () => {
+  it("carry bounds the input chain to one level across many hops", async () => {
     // The motivating case: a delay-loop feeds each send back in as the next
-    // input. Under carry the message must not grow an `input` chain hop to hop
-    // (trace would nest one frame per tick and bloat unboundedly).
+    // input. Under carry the `input` chain must not grow hop to hop (trace would
+    // nest one frame per tick and bloat unboundedly).
     const { node } = await createNode(ModeNode);
     let msg: Record<string, unknown> = { topic: "tick" };
     for (let i = 0; i < 5; i++) {
@@ -215,19 +250,26 @@ describe("returnProperty / output convention", () => {
       msg = node.sent(0).at(-1) as Record<string, unknown>;
     }
 
-    expect(msg).toEqual({ topic: "tick", output: "R" });
-    expect("input" in msg).toBe(false);
+    expect(msg).toEqual({
+      output: "R",
+      source: src(0),
+      input: { output: "R", source: src(0) },
+    });
+    // never grows past depth 1 — the nested frame has no `input` of its own
+    expect("input" in (msg.input as object)).toBe(false);
   });
 
-  it("trace mode nests the input under input", async () => {
+  it("trace mode records the input under input, result-only at the root", async () => {
     const { node } = await createNode(ModeNode, {
       config: { outputContextModes: { 0: "trace" } },
     });
     await node.receive({ topic: "t" });
 
+    // Root has only the result; the incoming `topic` is not re-spread — it stays
+    // reachable under `input`.
     expect(node.sent(0)[0]).toEqual({
-      topic: "t",
       output: "R",
+      source: src(0),
       input: { topic: "t" },
     });
   });
@@ -238,29 +280,36 @@ describe("returnProperty / output convention", () => {
     });
     await node.receive({ topic: "t", input: { a: 1 } });
 
-    expect(node.sent(0)[0]).toEqual({ output: "R" });
+    expect(node.sent(0)[0]).toEqual({ output: "R", source: src(0) });
   });
 
-  it("built-in complete/error ports carry input but not the return key", async () => {
+  it("built-in complete/error ports carry source/input at the root, payload in its block", async () => {
     const { node } = await createNode(BuiltinNode, {
       config: { errorPort: true, completePort: true },
     });
 
     await node.receive({ id: 1 });
-    const complete = node.sent(2)[0] as Record<string, unknown>;
-    expect(complete.complete).toBeDefined();
-    expect(complete.input).toEqual({ id: 1 }); // lineage carried
+    const complete = node.sent(2)[0] as Record<string, any>;
+    // `source` and `input` ride the root, side by side with the port payload.
+    expect(complete.source).toBeDefined();
+    expect(complete.input).toEqual({ id: 1 }); // lineage at the root
+    expect(complete.complete).toBeUndefined(); // void return → no `complete` key
     expect(complete.output).toBeUndefined(); // not return-key-wrapped
+    expect(complete.id).toBeUndefined(); // NOT spread at the root
 
     try {
       await node.receive({ id: 2, boom: true });
     } catch {
       // the thrown error is expected — it feeds the error port
     }
-    const errored = node.sent(1)[0] as Record<string, unknown>;
+    const errored = node.sent(1)[0] as Record<string, any>;
     expect(errored.error).toMatchObject({ message: "kaboom" });
+    expect(errored.error.source).toBeUndefined(); // source is NOT inside `error`
+    expect(errored.source).toBeDefined(); // it rides the root
     expect(errored.input).toEqual({ id: 2, boom: true });
     expect(errored.output).toBeUndefined();
+    expect(errored.id).toBeUndefined(); // failing message NOT spread at the root
+    expect(errored.boom).toBeUndefined();
   });
 
   it("validates the RAW sent value, not the wrapped message", async () => {
@@ -282,9 +331,9 @@ describe("returnProperty / output convention", () => {
     });
     await node.receive({ value: 4, extra: "kept" });
     expect(node.sent(0)[0]).toEqual({
-      value: 4,
-      extra: "kept",
       output: { doubled: 8 },
+      source: src(0),
+      input: { value: 4, extra: "kept" },
     });
   });
 
@@ -299,9 +348,9 @@ describe("returnProperty / output convention", () => {
     // The deferred send belongs to the input that scheduled it (seq:1) — its
     // context is preserved, not replaced by whatever arrived most recently.
     expect(node.sent(0)[0]).toEqual({
-      fire: true,
-      seq: 1,
       output: "late",
+      source: src(0),
+      input: { fire: true, seq: 1 },
     });
   });
 
@@ -319,7 +368,11 @@ describe("returnProperty / output convention", () => {
     // no per-port flag -> a bad value passes through unvalidated
     const a = await createNode(PpValidateNode);
     await a.node.receive({ n: "bad" });
-    expect(a.node.sent(0)[0]).toEqual({ n: "bad", output: { n: "bad" } });
+    expect(a.node.sent(0)[0]).toEqual({
+      output: { n: "bad" },
+      source: src(0),
+      input: { n: "bad" },
+    });
 
     // validateOutputs[0] = true (+ a port schema) -> the bad value is rejected
     const b = await createNode(PpValidateNode, {
@@ -349,9 +402,9 @@ describe("context-mode per-port resolution", () => {
     await node.receive({ topic: "t" });
 
     expect(node.sent(0)[0]).toEqual({
-      topic: "t",
       output: "R",
-      input: { topic: "t" }, // trace
+      source: src(0),
+      input: { topic: "t" }, // trace: result-only root + input frame
     });
   });
 
@@ -362,7 +415,12 @@ describe("context-mode per-port resolution", () => {
     });
     await node.receive({ topic: "t" });
 
-    expect(node.sent(0)[0]).toEqual({ topic: "t", output: "R" }); // carry
+    // carry: result at output, incoming under input
+    expect(node.sent(0)[0]).toEqual({
+      output: "R",
+      source: src(0),
+      input: { topic: "t" },
+    });
   });
 
   it("resolves each port independently on a multi-output node", async () => {
@@ -371,8 +429,12 @@ describe("context-mode per-port resolution", () => {
     });
     await node.receive({ k: 1 });
 
-    expect(node.sent(0)[0]).toEqual({ k: 1, output: "A", input: { k: 1 } }); // trace
-    expect(node.sent(1)[0]).toEqual({ output: "B" }); // reset
+    expect(node.sent(0)[0]).toEqual({
+      output: "A",
+      source: src(0),
+      input: { k: 1 },
+    }); // trace
+    expect(node.sent(1)[0]).toEqual({ output: "B", source: src(1) }); // reset
   });
 
   it("falls back to carry on ports the config does not set (multi-output)", async () => {
@@ -381,8 +443,16 @@ describe("context-mode per-port resolution", () => {
     });
     await node.receive({ k: 1 });
 
-    expect(node.sent(0)[0]).toEqual({ k: 1, output: "A", input: { k: 1 } }); // trace
-    expect(node.sent(1)[0]).toEqual({ k: 1, output: "B" }); // carry
+    expect(node.sent(0)[0]).toEqual({
+      output: "A",
+      source: src(0),
+      input: { k: 1 },
+    }); // trace
+    expect(node.sent(1)[0]).toEqual({
+      output: "B",
+      source: src(1),
+      input: { k: 1 },
+    }); // carry
   });
 
   it("sendToPort resolves the named port's index for the mode", async () => {
@@ -393,8 +463,8 @@ describe("context-mode per-port resolution", () => {
     await node.receive({ traceId: "x" });
 
     expect(node.sent("failure")[0]).toEqual({
-      traceId: "x",
       output: { ok: false },
+      source: src(1, "failure"),
       input: { traceId: "x" },
     });
   });
@@ -407,8 +477,9 @@ describe("context-mode per-port resolution", () => {
     await node.receive({ traceId: "x" });
 
     expect(node.sent("failure")[0]).toEqual({
-      traceId: "x",
       output: { ok: false },
+      source: src(1, "failure"),
+      input: { traceId: "x" },
     }); // carry
   });
 });

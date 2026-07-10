@@ -89,8 +89,8 @@ function buildRegistryAugmentation(nodes: NodeTypeInfo[]): string {
       // Built-in ports carry the DELIVERED message envelope, generic over this
       // node's input (and its input() return, for complete) — so a wire drawn
       // FROM an error/complete port type-checks against the real carried message
-      // (original input + `input` provenance + error data / `output` return),
-      // not a stripped shape. Base `outputs` stay the bare Port value.
+      // (`source` + carried `input`, plus the `error` block or the `complete`
+      // return value), not a stripped shape. Base `outputs` stay the bare Port value.
       `complete: CompletePort<${input}, ${ret}>;`,
       `error: ErrorPort<${input}>;`,
       `status: StatusPort;`,

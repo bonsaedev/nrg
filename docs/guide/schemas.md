@@ -124,19 +124,19 @@ Default values from the schema are used by the editor to initialize new node ins
 ### Output and the message envelope
 
 Every node produces an **`output`**. `this.send(x)` always means "x is the
-result" — never "x is the whole outgoing message". The framework merges the
-value into the incoming message:
+result" — never "x is the whole outgoing message". The framework places the
+value at the return key and keeps the incoming message under **`input`**:
 
 ```
 this.send(result)
-// outgoing: { ...msg, output: result }
+// outgoing: { output: result, input: msg }
 ```
 
-So upstream context propagates automatically. By default (`carry` mode) the
-context flows through without growing; opt into `trace` mode to also keep the
-full prior message under **`input`** as a recoverable **provenance trail**
-(`msg.input.output`…) — see [Context modes](#context-modes). Output data
-validation, when enabled, runs on the result value before the merge.
+So the prior message stays recoverable under `input` (`msg.input.output`…). How
+deep that history goes is the per-port **context mode** — `carry` (default, last
+message only), `trace` (the full `input.input…` chain), or `reset` (no history);
+see [Context modes](#context-modes). Output data validation, when enabled, runs
+on the result value before wrapping.
 
 This means a node sets only `output` — it does not set arbitrary top-level
 message properties. Multi-value results go under `output` as one object:
@@ -175,9 +175,15 @@ const ConfigsSchema = defineSchema(
 - Keys must be valid JavaScript identifiers — validated in the editor and again
   at node construction.
 - Named-port sends (`sendToPort`) resolve the same per-port key by index.
-- Built-in **complete** and **error** ports always carry `input` (so a flow
-  resumed off the complete port — e.g. an iterator continuing after all elements
-  — keeps the same lineage); the **status** port is a notification and stays raw.
+- Built-in **complete** and **error** ports carry `source` (producing node) and
+  the failing/finishing message (`input`) at the **root**, side by side with the
+  port's payload block — the same shape as a data port. The **error** port's data
+  is in `error` (where a Catch node reads it); the **complete** port carries
+  `input()`'s return value under `complete` (a `void` return omits the key). The
+  **status** port is a notification and stays raw. Note: an enabled **error** port
+  is the _sole_ error handler — the error travels its wire and does not also fire
+  Node-RED `catch` nodes (those are the fallback only when
+  a node has no error port).
 
 These per-port settings — validation, return property, and context mode — are
 configured by the flow author in the editor's **Outputs** table:
@@ -214,17 +220,24 @@ seeded to that value; a port without one is seeded to `carry`. Declaring
 
 ![The Outputs table's Context Mode column — every port has an editable dropdown; ports with a declared default are seeded to it, others to carry](/context-modes.png)
 
-The three modes:
+The three modes are one dial — **how deep the `input` history goes**. Every mode
+puts the result at the return key and the incoming message under `input`; the
+outgoing root is always just the result (incoming keys are never re-flattened at
+the root):
 
-- **carry** (default/floor): keep all incoming keys (including any upstream
-  `input`) but don't record this node, so context flows through without the
-  provenance chain growing. The safe default for loops and long chains.
-- **trace**: full provenance — keep all incoming keys and also push the prior
-  message under `input`, so every overwritten value stays recoverable
-  (`msg.input.output`). The chain grows one frame per node; opt in for linear
-  flows that want lineage.
-- **reset**: the outgoing message is only the result — use for source nodes that
-  intentionally start a fresh context.
+- **carry** (default, depth 1): the previous message under `input`, but with
+  **its own** `input` stripped, so the chain never grows past one level.
+  `msg.input.output` is the immediately-previous result; nothing older is kept,
+  and a source's own fields survive exactly one hop, then drop. Loop-safe — the
+  safe default for loops and long chains.
+- **trace** (depth ∞): the previous message under `input`, untouched, so the
+  chain accumulates one frame per node (`msg.input.input`…) — full lineage back
+  to the source. Opt in for linear flows that want a provenance trail.
+- **reset** (depth 0): the outgoing message is only the result — no `input`
+  frame. Use for source nodes that intentionally start fresh.
+
+(A send with no incoming message — a source node, or a send outside any
+`input()` call — records no `input` frame.)
 
 Without a declared `outputContextModes`, every port is seeded to `carry` — but its
 dropdown is still editable and the column is still shown whenever the node has

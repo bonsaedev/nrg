@@ -204,7 +204,14 @@ function attachHelpers<T>(
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
       });
-      const doneFn = vi.fn();
+      // Mirror Node-RED's runtime: `done(err)` routes through `Node._complete`
+      // → `node.error(err, msg)`, so a failure surfaces on the error log exactly
+      // as real Node-RED would. The io-node runtime relies on this for the
+      // no-error-port path (it does NOT call `node.error` itself there — pairing
+      // that with `done(err)` is the classic double-report).
+      const doneFn = vi.fn((err?: unknown) => {
+        if (err instanceof Error) nodeRedNode.error(err.message, msg);
+      });
       await nodeRedNode.emit("input", msg, sendFn, doneFn);
       if (doneFn.mock.calls[0]?.[0] instanceof Error) {
         throw doneFn.mock.calls[0][0];

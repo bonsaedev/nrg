@@ -10,6 +10,14 @@ import NamedEmitOob from "../fixtures/named-ports-test/named-emit-oob";
 import NamedEmitArray from "../fixtures/named-ports-test/named-emit-array";
 import NamedEmitArrayNull from "../fixtures/named-ports-test/named-emit-array-null";
 
+const src = (port: number, portName?: string) => ({
+  id: expect.any(String),
+  type: expect.any(String),
+  name: expect.any(String),
+  port,
+  ...(portName !== undefined ? { portName } : {}),
+});
+
 // The fixture nodes are TYPES-ONLY: their port topology (count + named-port
 // names) lives only in their `Output` generics (a `Port<T>` record, a single
 // object, or a positional tuple) — there is no outputsSchema. Point the topology
@@ -73,7 +81,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent("success")).toEqual([{ output: { payload: "ok" } }]);
+      expect(node.sent("success")).toEqual([
+        { output: { payload: "ok" }, source: src(0, "success") },
+      ]);
       expect(node.sent("failure")).toEqual([]);
     });
 
@@ -86,7 +96,7 @@ describe("named output ports", () => {
 
       expect(node.sent("success")).toEqual([]);
       expect(node.sent("failure")).toEqual([
-        { output: { payload: { reason: "bad" } } },
+        { output: { payload: { reason: "bad" } }, source: src(1, "failure") },
       ]);
     });
 
@@ -97,7 +107,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent("success")).toEqual([{ output: { payload: "ok" } }]);
+      expect(node.sent("success")).toEqual([
+        { output: { payload: "ok" }, source: src(0, "success") },
+      ]);
     });
 
     it("throws for an unknown named port instead of silently dropping", async () => {
@@ -137,7 +149,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent(5)).toEqual([{ output: { payload: "oob" } }]);
+      expect(node.sent(5)).toEqual([
+        { output: { payload: "oob" }, source: src(5) },
+      ]);
       expect(node.sent(0)).toEqual([]);
     });
 
@@ -148,7 +162,9 @@ describe("named output ports", () => {
 
       await node.receive({});
 
-      expect(node.sent(0)).toEqual([{ output: { payload: "by-index" } }]);
+      expect(node.sent(0)).toEqual([
+        { output: { payload: "by-index" }, source: src(0, "success") },
+      ]);
     });
   });
 

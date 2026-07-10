@@ -85,38 +85,54 @@ interface NodeSource {
   name: string | undefined;
 }
 
-/** The authoritative metadata layered onto every error-port message. */
+/**
+ * Provenance stamped on every DATA-port output under `msg.source`: the producing
+ * node ({@link NodeSource}) plus the port the message was sent on. Message-level
+ * metadata (like `_msgid`), NOT part of the typed result — so `msg.output` stays
+ * exactly the author's value. It travels the `input` chain, so `msg.input.source`,
+ * `msg.input.input.source`, … identify the producer of each frame.
+ */
+interface MessageSource extends NodeSource {
+  /** Base output port index the message was sent on. */
+  port: number;
+  /** Named-port name, when the node declares a `Port<T>` record output. */
+  portName?: string;
+}
+
+/** The authoritative metadata in an error-port message's `error` block. `stack`
+ * preserves the thrown Error's trace (non-enumerable on Error, so it is carried
+ * explicitly); absent when the thrown value was not an Error or had no stack. */
 interface ErrorInfo {
   name: string;
   message: string;
-  source: NodeSource;
+  stack?: string;
 }
 
 /**
- * Message emitted on the built-in ERROR port. The failing input rides along —
- * spread at the top level (Catch-node compatible) and preserved under `input` as
- * the provenance frame — alongside the `error` block. `TError` captures the
- * author's extra data: the enumerable own properties of a thrown `Error`
- * subclass, or the `msg` passed to `this.error(message, msg)`. `name`/`message`/
- * `source` stay authoritative over `TError`.
+ * Message emitted on the built-in ERROR port. The `error` block holds the error
+ * data (`name`/`message`/`stack` plus the author's extra fields — the enumerable
+ * own properties of a thrown `Error` subclass, or the `msg` passed to
+ * `this.error(message, msg)`); `source` (the producing node) and `input` (the
+ * failing message) ride the ROOT beside it — the same shape as every other port.
+ * A downstream node reads `msg.error`. `name`/`message`/`stack` stay authoritative
+ * over `TError`.
  */
-type ErrorPortOutput<
-  TInput = unknown,
-  TError extends object = object,
-> = TInput & {
+type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
   error: Omit<TError, keyof ErrorInfo> & ErrorInfo;
+  source: NodeSource;
   input: TInput;
 };
 
 /**
- * Message emitted on the built-in COMPLETE port. The input rides along (spread +
- * under `input`); when `input()` returns a value it is carried under the return
- * key (`output` by default) as `TReturn`. A `void`-returning node omits it.
+ * Message emitted on the built-in COMPLETE port. `source` (who completed it) and
+ * `input` (the message it was processing) ride the root. The `complete` key
+ * carries `input()`'s return value (`TReturn`) when there is one; a `void` return
+ * omits `complete` entirely — arrival on the complete wire is itself the signal.
  */
-type CompletePortOutput<TInput = unknown, TReturn = void> = TInput & {
-  complete: { source: NodeSource };
+type CompletePortOutput<TInput = unknown, TReturn = void> = {
+  source: NodeSource;
   input: TInput;
-} & ([TReturn] extends [void] ? unknown : { output: TReturn });
+} & ([TReturn] extends [void] ? unknown : { complete: TReturn });
 
 /** Message emitted on the built-in STATUS port (no carried input/provenance). */
 interface StatusPortOutput {
@@ -137,6 +153,7 @@ export type {
   IsAny,
   OutputPortNames,
   NodeSource,
+  MessageSource,
   ErrorInfo,
   ErrorPortOutput,
   CompletePortOutput,

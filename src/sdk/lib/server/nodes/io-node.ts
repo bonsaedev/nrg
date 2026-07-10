@@ -16,6 +16,7 @@ import type {
   OutputPortNames,
   PortValue,
   NodeSource,
+  MessageSource,
   ErrorInfo,
   StatusPortOutput,
 } from "./types/ports";
@@ -39,6 +40,24 @@ const RETURN_PROPERTY_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
  * the debug panel by design — it is the node's provenance chain. */
 const INPUT_KEY = "input";
 
+/** Key holding the producing-node provenance on every data-port output. */
+const SOURCE_KEY = "source";
+
+/**
+ * Message keys the framework owns on an outgoing message: the provenance
+ * metadata (`source`/`input`), the built-in port markers, and Node-RED's own
+ * `_msgid`. A return property may not be any of these — it would overwrite a
+ * framework key on the same message — so the config-time check rejects them.
+ */
+const RESERVED_RETURN_PROPERTIES = new Set<string>([
+  SOURCE_KEY,
+  INPUT_KEY,
+  "error",
+  "complete",
+  "status",
+  "_msgid",
+]);
+
 /** The build-injected port topology (see `port-topology-injector`). Framework-
  * owned: the injector stamps it under `NRG_PORTS`, non-writable — never set from
  * node code. It is the ONLY source of a node's ports (TS types → topology). */
@@ -49,17 +68,21 @@ interface NodePortsDescriptor {
 }
 
 /**
- * Controls how an outgoing message carries the incoming message's context:
- * - `"carry"` (default): keep all incoming keys — including any upstream
- *   `input` — but do not record this node, so context flows through without the
- *   provenance chain growing. The safe default for loops and long chains.
- * - `"trace"`: keep all incoming keys and also push the full input under
- *   `input`, so the prior message — including any value the result overwrites —
- *   stays recoverable (`msg.input.output`). The chain accumulates one frame per
- *   node, a provenance trail visible in the debug panel; opt in for linear
- *   flows that want full lineage.
- * - `"reset"`: drop all inherited context; the outgoing message is only the
- *   result at the return key.
+ * How much of the incoming message's history an outgoing message keeps under
+ * `input`. Every mode places the result at the return key (`output` by default)
+ * and the previous message under `input`; they differ ONLY in the DEPTH of that
+ * `input` chain — a single dial. The outgoing root is always just the result at
+ * its return key: incoming keys are never flattened forward, they stay reachable
+ * under `input`.
+ * - `"reset"` (depth 0): only the result — no `input` frame. Use for source
+ *   nodes that intentionally start a fresh message.
+ * - `"carry"` (default, depth 1): the previous message under `input`, but with
+ *   ITS own `input` stripped, so the provenance chain never grows past one level.
+ *   `msg.input.<returnKey>` is the immediately-previous result; nothing older is
+ *   kept, and a source's own fields survive exactly one hop, then drop. Loop-safe.
+ * - `"trace"` (depth ∞): the previous message under `input`, untouched, so the
+ *   chain accumulates one frame per node (`msg.input.input…`) — full lineage back
+ *   to the source, a provenance trail visible in the debug panel.
  */
 export type ContextMode = "carry" | "trace" | "reset";
 
@@ -68,17 +91,16 @@ export type ContextMode = "carry" | "trace" | "reset";
  * schema validation, status updates, and emit port management.
  *
  * Every node has a return key (`"output"` by default): the value passed to
- * `send()` is merged into the incoming message at that key
- * (`{ ...msg, [returnKey]: result }`), so upstream properties propagate. By
- * default the context is carried without growing; the flow author can pick
- * `trace` (keep the full prior message under `input` as a recoverable provenance
- * chain) or `reset` per port in the editor. The return key, output validation,
- * and context mode all resolve per output port; the framework exposes an editable
- * return-property and context-mode control on every node, and declaring
- * `outputReturnProperties` / `outputContextModes` in the `configSchema` only
- * changes each port's default — it does not change that a return key always
- * exists. `this.send(x)` always means "x is the result", never "x is the whole
- * message".
+ * `send()` is placed at that key and the incoming message is kept under `input`
+ * (`{ [returnKey]: result, input: msg }`), so the prior message stays
+ * recoverable. How deep that `input` history goes is the per-port context mode —
+ * `carry` (default, last message only), `trace` (the full `input.input…` chain),
+ * or `reset` (no history). The return key, output validation, and context mode
+ * all resolve per output port; the framework exposes an editable return-property
+ * and context-mode control on every node, and declaring `outputReturnProperties`
+ * / `outputContextModes` in the `configSchema` only changes each port's default —
+ * it does not change that a return key always exists. `this.send(x)` always means
+ * "x is the result", never "x is the whole message".
  *
  * @example
  * ```ts
@@ -88,7 +110,7 @@ export type ContextMode = "carry" | "trace" | "reset";
  *   static readonly color = "#ffffff" as const;
  *
  *   async input(msg: Input) {
- *     // sends { ...msg, output: <result> }
+ *     // sends { output: <result>, input: msg } (carry default: last msg kept)
  *     this.send(msg.output.toUpperCase());
  *   }
  * }
@@ -195,14 +217,18 @@ abstract class IONode<
     const outputReturnProperties = this.config.outputReturnProperties;
     if (outputReturnProperties) {
       for (const [port, key] of Object.entries(outputReturnProperties)) {
-        if (
-          typeof key === "string" &&
-          key.trim() &&
-          !RETURN_PROPERTY_PATTERN.test(key.trim())
-        ) {
+        const trimmed = typeof key === "string" ? key.trim() : "";
+        if (!trimmed) continue;
+        if (!RETURN_PROPERTY_PATTERN.test(trimmed)) {
           throw new NrgError(
             `Invalid return property "${key}" for output port ${port} in ${(this.constructor as typeof IONode).type} — ` +
               `it must be a valid JavaScript identifier (letters, digits, _, $; not starting with a digit)`,
+          );
+        }
+        if (RESERVED_RETURN_PROPERTIES.has(trimmed)) {
+          throw new NrgError(
+            `Reserved return property "${trimmed}" for output port ${port} in ${(this.constructor as typeof IONode).type} — ` +
+              `the framework owns this key on the outgoing message (source/input provenance and the built-in ports). Choose another name.`,
           );
         }
       }
@@ -240,23 +266,19 @@ abstract class IONode<
           this.node.log("Calling input");
           const result = await this.#input(msg as TInput, store);
 
-          // Send to complete port if enabled. Nest the input so a flow
-          // resumed off the complete port (e.g. an iterator continuing after
-          // all elements) carries the same `input` lineage as a normal send.
-          // When input() returns a value (e.g. an async node that awaits work
-          // and yields its result), it rides the complete port under `output`,
-          // so the flow continues with it — `void`/no return keeps today's shape.
-          // Guard before building: the complete-port payload (msg spread +
-          // nodeSource alloc) is otherwise constructed on every successful input
-          // even though the complete port is disabled by default, then discarded
-          // inside #sendToPort.
+          // Send to complete port if enabled. `source` (who completed it) and
+          // `input` (what it was processing) ride the root, side by side — the
+          // same shape as every other port. The `complete` key carries input()'s
+          // return VALUE when there is one (e.g. an async node that awaits work
+          // and yields it); a void return omits `complete` entirely — arrival on
+          // the complete wire is itself the completion signal. Guard before
+          // building: the payload (nodeSource alloc) is otherwise constructed on
+          // every successful input even though the complete port is disabled by
+          // default, then discarded inside #sendToPort.
           if (this.config.completePort) {
             this.#sendToPort("complete", {
-              ...(msg as Record<string, unknown>),
-              ...(result !== undefined ? { output: result } : {}),
-              complete: {
-                source: this.#nodeSource(),
-              },
+              ...(result !== undefined ? { complete: result } : {}),
+              [SOURCE_KEY]: this.#nodeSource(),
               [INPUT_KEY]: msg,
             });
           }
@@ -268,45 +290,62 @@ abstract class IONode<
             error instanceof Error
               ? error.message
               : "Unknown error during input handling";
+          const err = error instanceof Error ? error : new Error(errorMsg);
 
-          // Send to error port if enabled — carry the input lineage too, so
-          // error branches continue the flow with the same context. A thrown
-          // error's own enumerable properties are spread first, so authors can
-          // throw a custom `Error` subclass carrying extra data (e.g.
-          // `class MyError extends Error { constructor(m){ super(m); this.code = …; } }`).
-          // `name`/`message`/`source` are layered last so they stay
-          // authoritative and Catch-node compatible. Only enumerable own props
-          // ride along: `message`/`stack` are non-enumerable, so set extra data
-          // as instance properties and keep it serializable.
-          if (this.config.errorPort && !store.errorEmitted) {
-            const errorData =
-              error && typeof error === "object"
-                ? { ...(error as Record<string, unknown>) }
-                : {};
-            this.#sendToPort("error", {
-              ...(msg as Record<string, unknown>),
-              error: {
-                ...errorData,
-                name: (error as { name?: string })?.name ?? "Error",
-                message: errorMsg,
-                source: this.#nodeSource(),
-              },
-              [INPUT_KEY]: msg,
-            });
-          }
-
-          if (error instanceof Error) {
-            this.node.error(
-              "Error while processing input: " + error.message,
-              msg,
-            );
-            done(error);
+          // A framework NrgError (API misuse — e.g. sendToPort to a built-in
+          // port, an unknown named port) is a developer bug, not runtime data:
+          // surface it loudly via done(err), never swallow it to the error port.
+          if (!(error instanceof NrgError) && this.config.errorPort) {
+            // The node handles the error itself via its error port, so it is the
+            // SOLE handler: emit the clean error message (unless this.error()
+            // already did for this invocation), log it once, and complete
+            // WITHOUT reporting to Node-RED's Catch/done-error mechanism. Routing
+            // there too would report the error twice (done(err) internally calls
+            // node.error(err, msg)) AND stamp `msg.error` on the shared incoming
+            // message — surfacing a second, differently-shaped error under our
+            // `input` frame.
+            if (!store.errorEmitted) {
+              const errorData: Record<string, unknown> =
+                error && typeof error === "object"
+                  ? { ...(error as Record<string, unknown>) }
+                  : {};
+              // Drop undefined-valued own props (e.g. an unset optional field on
+              // a custom Error subclass) — they carry no information, JSON already
+              // omits them, and they only clutter the error object in the debug
+              // panel.
+              for (const k of Object.keys(errorData)) {
+                if (errorData[k] === undefined) delete errorData[k];
+              }
+              // A thrown error's own enumerable properties are spread INTO the
+              // `error` block first, so authors can throw a custom `Error`
+              // subclass carrying extra data (e.g. `this.code = …`). `name`,
+              // `message`, and `stack` are then layered on to preserve the full
+              // Error structure — they are NON-enumerable on an Error, so the
+              // spread above drops them; `name`/`message` stay authoritative and
+              // `stack` (when present) carries the trace. `source` and the failing
+              // message (`input`) ride the ROOT, side by side with `error` — the
+              // same shape as every other port.
+              const stack = error instanceof Error ? error.stack : undefined;
+              this.#sendToPort("error", {
+                error: {
+                  ...errorData,
+                  name: (error as { name?: string })?.name ?? "Error",
+                  message: errorMsg,
+                  ...(stack ? { stack } : {}),
+                },
+                [SOURCE_KEY]: this.#nodeSource(),
+                [INPUT_KEY]: msg,
+              });
+              this.node.error(errorMsg); // log only — no msg, so no Catch routing
+            }
+            done();
           } else {
-            this.node.error(
-              "Unknown error occurred during input handling",
-              msg,
-            );
-            done(new Error(errorMsg));
+            // The node does NOT handle the error (no error port), or it is a
+            // framework misuse — fall back to Node-RED's Catch mechanism.
+            // `done(err)` reports to Catch and logs exactly once (internally it
+            // calls node.error(err, msg)); calling node.error too would
+            // double-report.
+            done(err);
           }
         }
       },
@@ -476,26 +515,51 @@ abstract class IONode<
    */
   #wrapOutgoing(value: unknown, mode: ContextMode, port: number): unknown {
     const key = this.#returnPropertyKey(port);
-    // The carried base is THIS invocation's input msg (per-call, concurrency-
-    // safe). A send made entirely outside an input() call (e.g. a timer set up
-    // in created()) has no scheduling input and so carries no inherited context.
+    // THIS invocation's input msg (per-call, concurrency-safe). A send made
+    // entirely outside an input() call (e.g. a timer set up in created()) has no
+    // scheduling input, so `input` is `{}` — no inherited context to record.
     const input =
       (IONode.#invocation.getStore()?.inputMsg as Record<string, unknown>) ??
       {};
-    if (mode === "reset") {
-      return { [key]: value };
-    }
-    if (mode === "trace") {
-      // preserve the full input under `input` so nothing the result overwrites
-      // is ever lost. Spread is shallow (clone-free, any-object-safe);
-      // Node-RED's runtime clones messages 2..N on fan-out, so per-branch
-      // isolation is handled at delivery.
-      return { ...input, [key]: value, [INPUT_KEY]: input };
-    }
-    // "carry" (default) — keep all incoming keys (including any upstream
-    // `input`) but don't record this node, so context flows through without the
-    // provenance chain growing.
-    return { ...input, [key]: value };
+    // `source` (producing node + port) rides every output as message metadata,
+    // so walking the `input` chain shows which node and port produced each frame.
+    const source = this.#outputSource(port);
+    // Every mode puts the result at the return key and the incoming message under
+    // `input`; they differ ONLY in the DEPTH of that `input` chain (see
+    // ContextMode). A send with no incoming message (a source node, or a send
+    // made outside any input() call) records no `input` frame — there is no prior
+    // message. Node-RED clones messages 2..N on fan-out, so the shared `input`
+    // reference is isolated per branch at delivery.
+    //   reset (depth 0): no `input` frame.
+    //   trace (depth ∞): the incoming message untouched, so the chain grows one
+    //     frame per node (`input.input…`) — full lineage.
+    const frame = (msg: Record<string, unknown>): unknown =>
+      Object.keys(msg).length
+        ? { [key]: value, [SOURCE_KEY]: source, [INPUT_KEY]: msg }
+        : { [key]: value, [SOURCE_KEY]: source };
+    if (mode === "reset") return { [key]: value, [SOURCE_KEY]: source };
+    if (mode === "trace") return frame(input);
+    // carry (depth 1): keep the previous message but strip ITS own `input` frame,
+    // so the chain never grows past one level (loop-safe). A source's own fields
+    // survive exactly one hop, then drop.
+    const lastOnly = { ...input };
+    delete lastOnly[INPUT_KEY];
+    return frame(lastOnly);
+  }
+
+  /**
+   * Provenance stamped on every data-port output under `msg.source`: the
+   * producing node plus the port the message was sent on (with the named-port
+   * name when the node declares a `Port<T>` record). Message metadata, like
+   * `_msgid` — never part of the typed result.
+   */
+  #outputSource(port: number): MessageSource {
+    const portName = this.#namedPortKeys()?.[port];
+    return {
+      ...this.#nodeSource(),
+      port,
+      ...(portName ? { portName } : {}),
+    };
   }
 
   // --- Built-in port management ---
@@ -638,23 +702,32 @@ abstract class IONode<
   }
 
   public override error(message: string, msg?: any) {
-    super.error(message, msg);
     if (msg && this.config.errorPort) {
+      // The node handles the error via its error port, so it is the sole
+      // handler: emit to the port and log the message, but do NOT pass `msg` to
+      // Node-RED's error mechanism — that would route the same error to Catch
+      // nodes too and stamp `msg.error` on the shared message. Same shape as the
+      // auto-emit path: the `error` block at the root (a downstream node reads
+      // `msg.error`), with `source` and the passed message (`input`) beside it.
       this.#sendToPort("error", {
-        ...msg,
         error: {
-          // `name` keeps the error-port payload Catch-node compatible and
-          // consistent with the auto-emit from a thrown error.
+          // `name` keeps the error-port payload consistent with the auto-emit
+          // from a thrown error.
           name: "Error",
           message,
-          source: this.#nodeSource(),
         } satisfies ErrorInfo,
+        [SOURCE_KEY]: this.#nodeSource(),
         [INPUT_KEY]: msg,
       });
+      super.error(message); // log only — no msg, so no Catch routing/mutation
       // Dedupe: if this call also throws, the input handler's catch must not
       // emit a second error-port message for the same failure.
       const store = IONode.#invocation.getStore();
       if (store) store.errorEmitted = true;
+    } else {
+      // No error port (or no msg) — standard Node-RED behavior: routes to Catch
+      // when a msg is given, otherwise just logs.
+      super.error(message, msg);
     }
   }
 

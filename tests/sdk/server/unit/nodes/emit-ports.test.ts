@@ -14,6 +14,14 @@ import SimpleTest from "../fixtures/emit-ports-test/simple-test";
 import ReturnComplete from "../fixtures/emit-ports-test/return-complete-test";
 import VoidComplete from "../fixtures/emit-ports-test/void-complete-test";
 
+const src = (port: number, portName?: string) => ({
+  id: expect.any(String),
+  type: expect.any(String),
+  name: expect.any(String),
+  port,
+  ...(portName !== undefined ? { portName } : {}),
+});
+
 // The fixture nodes are TYPES-ONLY (no inputSchema/outputsSchema); their port
 // topology lives only in their generics. Point the extractor at the fixture tree
 // so createNode stamps the same `__nrgPorts` the production build would inject —
@@ -148,9 +156,9 @@ describe("emit ports", () => {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
-      await expect(
-        node.receive({ payload: "error-then-throw" }),
-      ).rejects.toThrow("Logged then threw");
+      // The error port is the sole handler, so the throw is handled (receive
+      // resolves) rather than reported to Node-RED's Catch mechanism.
+      await node.receive({ payload: "error-then-throw" });
 
       const errorSends = node.sent("error");
       // Deduped: error(msg) emitted, so the input-handler catch did NOT re-emit.
@@ -164,12 +172,13 @@ describe("emit ports", () => {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
-      await expect(node.receive({ payload: "custom-error" })).rejects.toThrow();
+      // Error port is the sole handler → the throw is handled (receive resolves).
+      await node.receive({ payload: "custom-error" });
 
       const errorSends = node.sent("error");
       expect(errorSends).toHaveLength(1);
       const error = errorSends[0].error;
-      // Author's custom fields ride along, plus canonical name/message/source.
+      // Author's custom fields ride along, plus canonical name/message/stack.
       expect(error).toMatchObject({
         name: "CustomError",
         message: "Custom failure",
@@ -177,7 +186,11 @@ describe("emit ports", () => {
         retryable: true,
         detail: { attempt: 2 },
       });
-      expect(error.source).toMatchObject({ type: "emit-test" });
+      // `source` rides the root, beside `error` — not inside it.
+      expect(errorSends[0].source).toMatchObject({ type: "emit-test" });
+      // The full Error structure is preserved: `stack` is non-enumerable, so it
+      // is carried explicitly (not lost to the enumerable-only spread).
+      expect(error.stack).toEqual(expect.any(String));
     });
 
     it("falls back to name 'Error' and a generic message for a non-Error throw", async () => {
@@ -185,9 +198,8 @@ describe("emit ports", () => {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
 
-      await expect(
-        node.receive({ payload: "throw-primitive" }),
-      ).rejects.toThrow();
+      // Error port is the sole handler → the throw is handled (receive resolves).
+      await node.receive({ payload: "throw-primitive" });
 
       const errorSends = node.sent("error");
       expect(errorSends).toHaveLength(1);
@@ -268,7 +280,8 @@ describe("emit ports", () => {
       await node.receive({ payload: "explicit-error" });
 
       const errorSend = node.sent("error")[0];
-      expect(errorSend.error.source).toEqual({
+      // `source` is at the root, a sibling of `error`/`input`.
+      expect(errorSend.source).toEqual({
         id: expect.any(String),
         type: "emit-test",
         name: expect.any(String),
@@ -390,10 +403,11 @@ describe("emit ports", () => {
       const sent = node.sent();
       expect(sent).toHaveLength(1);
       // the value is wrapped under the return key; carry (the default mode)
-      // spreads the incoming context but does not record lineage
+      // keeps the incoming message under `input`
       expect((sent[0] as unknown[])[0]).toEqual({
-        payload: "go",
         output: "record",
+        source: src(0),
+        input: { payload: "go" },
       });
     });
 
@@ -462,31 +476,34 @@ describe("emit ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      expect(sent[0][0]).toEqual(expect.objectContaining({ payload: "hello" }));
+      // carry (default) keeps the incoming message under `input`
+      expect(sent[0][0]).toEqual(
+        expect.objectContaining({ input: { payload: "hello" } }),
+      );
     });
   });
 
   describe("input() return value on the complete port", () => {
-    it("rides the complete port under output when input() returns a value", async () => {
+    it("carries input()'s return value under `complete`, with source/input at the root", async () => {
       const { node } = await createNode(ReturnComplete, {
         config: { completePort: true },
       });
       await node.receive({ payload: "go" });
 
       const completeMsg = node.sent("complete")[0];
-      expect(completeMsg.output).toEqual({ sum: 42 });
-      expect(completeMsg.complete.source.type).toBe("return-complete-test");
+      expect(completeMsg.complete).toEqual({ sum: 42 }); // the return value
+      expect(completeMsg.source.type).toBe("return-complete-test");
     });
 
-    it("keeps the plain completion signal (no output) when input() returns nothing", async () => {
+    it("omits the `complete` key when input() returns nothing (the wire is the signal)", async () => {
       const { node } = await createNode(VoidComplete, {
         config: { completePort: true },
       });
       await node.receive({ payload: "go" });
 
       const completeMsg = node.sent("complete")[0];
-      expect(completeMsg.complete).toBeDefined();
-      expect(completeMsg.output).toBeUndefined();
+      expect(completeMsg.complete).toBeUndefined(); // void return → no `complete` key
+      expect(completeMsg.source).toBeDefined(); // still identified by source at the root
     });
   });
 });

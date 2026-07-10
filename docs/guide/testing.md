@@ -236,10 +236,10 @@ describe("my-node", () => {
     const { node } = await createNode(MyNode);
     await node.receive({ payload: "hello" });
 
-    // send() wraps the result under the return key (`output`) and carries the
-    // incoming msg's fields, so the captured msg is the input plus `output`.
+    // send() wraps the result under the return key (`output`); the default
+    // `carry` context mode keeps the incoming msg under `input`, not at the root.
     expect(node.sent(0)).toEqual([
-      { payload: "hello", output: { uppercased: "HELLO" } },
+      { output: { uppercased: "HELLO" }, input: { payload: "hello" } },
     ]);
     expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
   });
@@ -306,7 +306,7 @@ describe("credentials", () => {
 
     await node.receive({ payload: "test" });
     expect(node.sent(0)).toEqual([
-      { payload: "test", output: { result: "authenticated" } },
+      { output: { result: "authenticated" }, input: { payload: "test" } },
     ]);
   });
 });
@@ -338,7 +338,7 @@ describe("TypedInput", () => {
 
     await node.receive({ payload: "from-msg" });
     expect(node.sent(0)).toEqual([
-      { payload: "from-msg", output: { value: "from-msg" } },
+      { output: { value: "from-msg" }, input: { payload: "from-msg" } },
     ]);
   });
 
@@ -386,10 +386,10 @@ describe("multi-output nodes", () => {
     await node.receive({ payload: 30 });
 
     expect(node.sent(0)).toEqual([
-      { payload: 75, output: { value: 75, label: "above" } },
+      { output: { value: 75, label: "above" }, input: { payload: 75 } },
     ]);
     expect(node.sent(1)).toEqual([
-      { payload: 30, output: { value: 30, label: "below" } },
+      { output: { value: 30, label: "below" }, input: { payload: 30 } },
     ]);
   });
 });
@@ -490,7 +490,7 @@ describe("named output ports (sendToPort)", () => {
 
     await node.receive({ payload: 75 });
     expect(node.sent("success")).toEqual([
-      { payload: 75, output: { result: "passed" } },
+      { output: { result: "passed" }, input: { payload: 75 } },
     ]);
     expect(node.sent("failure")).toHaveLength(0);
   });
@@ -502,7 +502,7 @@ describe("named output ports (sendToPort)", () => {
 
     await node.receive({ payload: 10 });
     expect(node.sent("failure")).toEqual([
-      { payload: 10, output: { error: "below threshold" } },
+      { output: { error: "below threshold" }, input: { payload: 10 } },
     ]);
   });
 });
@@ -723,7 +723,7 @@ A handle to one node in the flow. Harness methods never collide with your node's
 `read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.
 
 ::: tip Reading output
-NRG wraps every `send(result)` as `{ ...incomingMsg, output: result }` — the node's result lives under `output` and incoming fields are preserved at the top level. So assertions read `(await node.read()).output`. (Under the `trace` [context mode](./schemas#context-modes) the prior message is also kept under `input`; the default `carry` mode does not grow that chain.)
+NRG wraps every `send(result)` as `{ output: result, input: incomingMsg }` — the node's result lives under `output` and the incoming message is kept under `input`, never spread at the top level. So assertions read `(await node.read()).output`. (The default `carry` [context mode](./schemas#context-modes) keeps only the immediate previous message under `input`, so the chain stays flat and loop-safe; under `trace` the full lineage is preserved as `input.input.input…`. A send with no incoming message records no `input` frame.)
 :::
 
 ### Examples

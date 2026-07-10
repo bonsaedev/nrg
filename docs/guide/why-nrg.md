@@ -401,7 +401,7 @@ override async input(msg: Input) {
 }
 ```
 
-The loop, its completion, and its failure read top-to-bottom in one method, and on the canvas they are three wires you can follow — not a self-loop plus two nodes coupled by hidden scope. `complete` carries the returned value under `output`; `error` emits `{ ...msg, error: { name, message, source }, input: msg }`, the same shape a Catch node consumes; `status` mirrors `this.status(...)`.
+The loop, its completion, and its failure read top-to-bottom in one method, and on the canvas they are three wires you can follow — not a self-loop plus two nodes coupled by hidden scope. `complete` carries the returned value under the `complete` key; `error` emits `{ error: { name, message, stack }, source, input: msg }` — the `error` block is where a Catch node reads it, but it travels this wire instead of firing a Catch node (the whole point of the explicit port), with `source` and the failing message beside it; `status` mirrors `this.status(...)`.
 
 ## TypedInput Resolution
 

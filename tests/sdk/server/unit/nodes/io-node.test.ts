@@ -13,6 +13,14 @@ import MultiOutput from "../fixtures/io-node-test/multi-output";
 import NamedOutput from "../fixtures/io-node-test/named-output";
 import NoOutput from "../fixtures/io-node-test/no-output";
 
+const src = (port: number, portName?: string) => ({
+  id: expect.any(String),
+  type: expect.any(String),
+  name: expect.any(String),
+  port,
+  ...(portName !== undefined ? { portName } : {}),
+});
+
 // The fixture nodes are TYPES-ONLY (no inputSchema/outputsSchema); their port
 // topology lives only in the generics. In un-built source there is no
 // `__nrgPorts` static, so without the harness's build-equivalent injection a node
@@ -211,9 +219,11 @@ describe("IONode", () => {
 
       // Every send wraps the value under the return key (default "output") and is
       // delivered as a positional array (one slot per port) via the invocation's
-      // send callback while inside input(). carry (the default mode) also keeps
-      // the incoming message's keys, so `payload` rides along.
-      expect(node.sent(0)).toEqual([{ payload: "result", output: "result" }]);
+      // send callback while inside input(). carry (the default mode) keeps the
+      // incoming message under `input`.
+      expect(node.sent(0)).toEqual([
+        { output: "result", source: src(0), input: { payload: "result" } },
+      ]);
     });
 
     it("should fall back to node.send outside input handler", () => {
@@ -223,7 +233,9 @@ describe("IONode", () => {
       const instance = new TestIONode(RED, node, {}, {});
 
       instance.send("test");
-      expect(node.send).toHaveBeenCalledWith([{ output: "test" }]);
+      expect(node.send).toHaveBeenCalledWith([
+        { output: "test", source: src(0) },
+      ]);
     });
 
     it("validates per-port with a schema per output port", async () => {
@@ -408,7 +420,9 @@ describe("IONode", () => {
       // Delivered as a positional array; "err" resolved to index 1 (index 0
       // empty), wrapped under the default return key.
       expect(node.sent(0)).toHaveLength(0);
-      expect(node.sent("err")).toEqual([{ output: { reason: "x" } }]);
+      expect(node.sent("err")).toEqual([
+        { output: { reason: "x" }, source: src(1, "err") },
+      ]);
     });
   });
 
