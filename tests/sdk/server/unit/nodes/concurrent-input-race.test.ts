@@ -67,14 +67,10 @@ describe("io-node concurrent-input race", () => {
     release();
     await Promise.all([a, b]);
 
-    const first = node.sent()[0][0] as {
-      input: { id: string };
-      output: { echoedId: string };
-    };
-    const second = node.sent()[1][0] as {
-      input: { id: string };
-      output: { echoedId: string };
-    };
+    // `Record<string, any>` to read the trace-mode `input` provenance frame,
+    // which the typed port shape doesn't model (same idiom as return-property).
+    const first = node.sent()[0][0] as Record<string, any>;
+    const second = node.sent()[1][0] as Record<string, any>;
 
     // A resumes first. Both its value AND its carried context (under `input`) are
     // A's, even though B overwrote the shared instance field while A was awaiting
@@ -98,14 +94,10 @@ describe("io-node concurrent-input race", () => {
     await node.receive({ id: "A", payload: "a" });
     await node.receive({ id: "B", payload: "b" });
 
-    const first = node.sent()[0][0] as {
-      input: { id: string };
-      output: { echoedId: string };
-    };
-    const second = node.sent()[1][0] as {
-      input: { id: string };
-      output: { echoedId: string };
-    };
+    // `Record<string, any>` to read the trace-mode `input` provenance frame,
+    // which the typed port shape doesn't model (same idiom as return-property).
+    const first = node.sent()[0][0] as Record<string, any>;
+    const second = node.sent()[1][0] as Record<string, any>;
 
     expect(first.input.id).toBe("A");
     expect(first.output.echoedId).toBe("A");

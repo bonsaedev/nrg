@@ -4,7 +4,7 @@ import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { ConfigNode } from "@/sdk/lib/server/nodes/config-node";
 import type TypedInput from "@/sdk/lib/server/typed-input";
 import { NrgError } from "@/sdk/lib/shared/errors";
-import { NRG_NODE, NRG_CONFIG_NODE } from "@/sdk/lib/server/nodes/symbols";
+import { NRG_NODE, NRG_CONFIG_NODE } from "@/sdk/lib/server/symbols";
 import { createRED, createNodeRedNode } from "@mocks/red";
 
 class RemoteServer extends ConfigNode {

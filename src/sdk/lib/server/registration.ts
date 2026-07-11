@@ -3,10 +3,9 @@ import {
   NRG_NODE,
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
-} from "./nodes/symbols";
+} from "./symbols";
 import type { RED, NodeRedNode } from "./red";
-import { initValidator } from "./validation";
-import { initRoutes } from "./api";
+import { init } from "./init";
 import { NrgError } from "../shared/errors";
 import {
   getCredentialsFromSchema,
@@ -126,8 +125,7 @@ type RegistrationFunction = ((RED: RED) => Promise<void>) & {
 function registerTypes(nodes: NodeConstructor[]): RegistrationFunction {
   const fn: RegistrationFunction = Object.assign(
     async function (RED: RED) {
-      initValidator(RED);
-      initRoutes(RED);
+      init(RED); // globals (validator + lane store) + HTTP asset routes
       try {
         RED.log.info("Registering node types in series");
         for (const NodeClass of nodes) {

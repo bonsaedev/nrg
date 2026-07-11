@@ -13,7 +13,7 @@ import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
   NRG_NODE,
-} from "./symbols";
+} from "../symbols";
 import { NrgError } from "../../shared/errors";
 
 /**

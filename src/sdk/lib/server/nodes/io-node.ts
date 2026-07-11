@@ -11,10 +11,16 @@ import type {
   IONodeCredentials,
 } from "./types";
 import { setupContext } from "./context";
-import { NRG_SETUP_INPUT_HANDLER, NRG_PORTS } from "./symbols";
+import {
+  NRG_SETUP_INPUT_HANDLER,
+  NRG_PORTS,
+  NRG_PROTECTED_LANE,
+} from "../symbols";
+import { laneProxy, packageLane } from "../lane-store";
 import type {
   OutputPortNames,
   PortValue,
+  MessageLanes,
   NodeSource,
   MessageSource,
   ErrorInfo,
@@ -107,19 +113,31 @@ export type ContextMode = "carry" | "trace" | "reset";
  * it does not change that a return key always exists. `this.send(x)` always means
  * "x is the result", never "x is the whole message".
  *
+ * The `input()` parameter may be annotated `Input & {@link MessageLanes}` to read
+ * the off-the-wire lanes (`msg.protected` / `msg.private`); write them with the
+ * extra `send()` args. The `Input` GENERIC stays the plain wire shape (it drives
+ * the ports — lanes are not ports). Omitting `& MessageLanes` compiles but hides
+ * the lanes from the handler.
+ *
  * @example
  * ```ts
+ * import { IONode, type MessageLanes } from "@bonsae/nrg/server";
+ *
  * export default class MyNode extends IONode<Config, any, Input, Output> {
  *   static readonly type = "my-node";
  *   static readonly category = "function";
  *   static readonly color = "#ffffff" as const;
  *
- *   async input(msg: Input) {
- *     // sends { output: <result>, input: msg } (carry default: last msg kept)
- *     this.send(msg.output.toUpperCase());
+ *   async input(msg: Input & MessageLanes) {
+ *     const conn = msg.private.conn; // off-wire, package-scoped
+ *     // sends { output: <result>, input: msg } (carry default: last msg kept),
+ *     // and stashes trace/res on the protected/private lanes off the wire:
+ *     this.send(msg.payload.toUpperCase(), { traceId }, { res });
  *   }
  * }
  * ```
+ *
+ * @see {@link MessageLanes} for the off-the-wire `protected` / `private` lanes.
  *
  * @typeParam TConfig - config shape (position 1)
  * @typeParam TCredentials - credentials shape (position 2)
@@ -357,7 +375,7 @@ abstract class IONode<
     );
   }
 
-  public input(msg: TInput): unknown {
+  public input(msg: TInput & MessageLanes): unknown {
     return undefined;
   }
 
@@ -378,6 +396,11 @@ abstract class IONode<
         this.node.log("Input is valid");
       }
     }
+    // Expose the off-the-wire lanes on THIS node's incoming message, scoped to
+    // its package for `private`. Set up per node (re-applied at each hop), so a
+    // downstream node from another package reads its own `private` partition. The
+    // assertion narrows `msg` to carry the lanes for the `this.input(msg)` call.
+    this.#setupLanes(msg);
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
     // lives in the store — there is no shared instance field to race on.
@@ -386,7 +409,42 @@ abstract class IONode<
     );
   }
 
-  public send(msg: TOutput) {
+  /**
+   * Add non-enumerable `protected`/`private` accessors to the incoming message.
+   * Non-enumerable so they never serialize, clone, or show in the debug panel;
+   * each reads the lane store by the message's `_msgid`, `private` partitioned by
+   * this node's package. A core function node gets the bare message and has no
+   * accessor — the lanes are structurally invisible to the flow author.
+   *
+   * An assertion signature: on return, `msg` is known to carry {@link MessageLanes}
+   * so the caller can hand it to `input()`. A non-object message (never produced
+   * by real Node-RED, which always delivers an object) is left untouched.
+   */
+  #setupLanes(msg: TInput): asserts msg is TInput & MessageLanes {
+    if (msg == null || typeof msg !== "object") return;
+    const store = this.RED.laneStore;
+    const pkg = packageLane(this.constructor);
+    Object.defineProperty(msg, "protected", {
+      configurable: true,
+      enumerable: false,
+      get() {
+        return laneProxy(
+          store,
+          (this as { _msgid: string })._msgid,
+          NRG_PROTECTED_LANE,
+        );
+      },
+    });
+    Object.defineProperty(msg, "private", {
+      configurable: true,
+      enumerable: false,
+      get() {
+        return laneProxy(store, (this as { _msgid: string })._msgid, pkg);
+      },
+    });
+  }
+
+  public send(msg: TOutput, protectedData?: object, privateData?: object) {
     // Every emission is delivered as a Node-RED positional array — one slot per
     // base output port — so the captured shape is uniform regardless of arity.
     // Since `node.send([m]) === node.send(m)` for port 0, flow behaviour is
@@ -407,7 +465,46 @@ abstract class IONode<
       return this.#wrapOutgoing(m, this.#resolveContextMode(port), port);
     });
 
+    this.#writeLanes(protectedData, privateData, out);
     this.#deliver(out);
+  }
+
+  /**
+   * Merge the `protected`/`private` args into this message's lanes. Keyed by the
+   * outgoing `_msgid`: an input-triggered send inherits it; a source send (no
+   * invocation) mints one and stamps it on the outgoing frames so a downstream
+   * node reads the same lane. Contributions are STICKY — they persist for the
+   * message's journey, so a middle node's plain `send()` keeps them alive.
+   */
+  #writeLanes(
+    protectedData: object | undefined,
+    privateData: object | undefined,
+    out: unknown[],
+  ): void {
+    if (!protectedData && !privateData) return;
+    const existing = (
+      IONode.#invocation.getStore()?.inputMsg as
+        | Record<string, unknown>
+        | undefined
+    )?.[MSGID_KEY] as string | undefined;
+    // A source send (no incoming message) mints an id in Node-RED's own
+    // lineage-id format via `generateId()`, so the value we stamp as `_msgid`
+    // reads the same as one Node-RED assigns (message-flow debugger, Catch/
+    // Complete grouping, and `_msgid` correlation all key off that format).
+    const msgid = existing ?? this.RED.util.generateId();
+    if (!existing) {
+      for (const m of out) {
+        if (m && typeof m === "object") {
+          const rec = m as Record<string, unknown>;
+          if (rec[MSGID_KEY] === undefined) rec[MSGID_KEY] = msgid;
+        }
+      }
+    }
+    const store = this.RED.laneStore;
+    if (protectedData) store.merge(msgid, NRG_PROTECTED_LANE, protectedData);
+    if (privateData) {
+      store.merge(msgid, packageLane(this.constructor), privateData);
+    }
   }
 
   #deliver(out: unknown) {
@@ -549,7 +646,14 @@ abstract class IONode<
       );
     if (mode === "reset")
       return this.#withMsgid({ [key]: value, [SOURCE_KEY]: source });
-    if (mode === "trace") return frame(input);
+    // trace keeps the full lineage, but forwards a SHALLOW COPY of the incoming
+    // message — `{ ...input }` drops the non-enumerable `protected`/`private`
+    // accessors this node's `#setupLanes` stamped (they're scoped to THIS node's
+    // package), so a different-package downstream node reading `msg.input.private`
+    // can't reach into this package's private partition. Each hop copies before
+    // forwarding, so the whole `input.input…` chain stays lane-free. `carry` is
+    // already safe for the same reason (it spreads `input` below).
+    if (mode === "trace") return frame({ ...input });
     // carry (depth 1): keep the previous message but strip ITS own `input` frame,
     // so the chain never grows past one level (loop-safe). A source's own fields
     // survive exactly one hop, then drop.

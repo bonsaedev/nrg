@@ -1,20 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { initValidator } from "@/sdk/lib/server/validation";
+import { init } from "@/sdk/lib/server/init";
 import { createRED } from "@mocks/red";
 
 describe("NodeRedValidator", () => {
   it("should skip initialization if validator is already set", () => {
     const RED = createRED();
-    initValidator(RED);
+    init(RED);
     const first = RED.validator;
-    initValidator(RED);
+    init(RED);
     expect(RED.validator).toBe(first);
   });
 
   describe("x-nrg-skip-validation keyword", () => {
     it("should accept any data when x-nrg-skip-validation is true", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
 
       const schema = {
         type: "object",
@@ -32,7 +32,7 @@ describe("NodeRedValidator", () => {
     it("should validate node reference matches expected type", () => {
       const RED = createRED();
       RED.registerNode("node-123", { type: "remote-server" });
-      initValidator(RED);
+      init(RED);
 
       const schema = {
         type: "object",
@@ -51,7 +51,7 @@ describe("NodeRedValidator", () => {
     it("should fail when node type does not match", () => {
       const RED = createRED();
       RED.registerNode("node-456", { type: "wrong-type" });
-      initValidator(RED);
+      init(RED);
 
       const schema = {
         $id: "node-type-mismatch-test",
@@ -70,7 +70,7 @@ describe("NodeRedValidator", () => {
 
     it("should pass when value is empty (optional ref)", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
 
       const schema = {
         $id: "node-type-empty-test",
@@ -89,7 +89,7 @@ describe("NodeRedValidator", () => {
 
     it("should fail when node does not exist", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
 
       const schema = {
         $id: "node-type-missing-test",
@@ -110,7 +110,7 @@ describe("NodeRedValidator", () => {
   describe("custom formats", () => {
     it("should validate node-id format", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
 
       const schema = {
         $id: "node-id-format-test",

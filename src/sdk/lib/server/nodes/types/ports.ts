@@ -66,6 +66,34 @@ type OutputPortNames<TOutput> =
         ? keyof TOutput & string
         : never;
 
+/**
+ * The two off-the-wire lanes present on every message a node's `input()`
+ * receives, added by the runtime — NEVER part of the serialized message, so a
+ * flow author's function node and the debug panel can't see them. Each lane lives
+ * in nrg's per-runtime store keyed by `_msgid`, reached through these accessors.
+ *  - `protected`: readable/writable by a node from ANY package.
+ *  - `private`: scoped to the receiving node's OWN package; invisible to others.
+ *
+ * Because a node declares its wire message as the `Input` GENERIC (which drives
+ * the port topology — lanes are not ports), annotate the `input()` parameter with
+ * `Input & MessageLanes` to see `msg.protected` / `msg.private` in intellisense:
+ *
+ * @example
+ * type Wire = { payload: string };               // the `Input` generic
+ * type In = Wire & MessageLanes;                 // the `input()` parameter
+ * class N extends IONode<Config, never, Wire, Out> {
+ *   async input(msg: In) {
+ *     const conn = msg.private.conn;             // package-scoped; `unknown` until narrowed
+ *     this.send(out, { trace }, { conn });       // write the lanes
+ *     delete msg.private.conn;                   // release (bookkeeping only)
+ *   }
+ * }
+ */
+interface MessageLanes {
+  protected: Record<string, unknown>;
+  private: Record<string, unknown>;
+}
+
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
 // on the built-in ports (see io-node.ts `#sendToPort` sites). Formerly derived
@@ -156,6 +184,7 @@ export type {
   PortValue,
   IsAny,
   OutputPortNames,
+  MessageLanes,
   NodeSource,
   MessageSource,
   ErrorInfo,

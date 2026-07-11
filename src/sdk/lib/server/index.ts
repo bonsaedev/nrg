@@ -19,6 +19,7 @@ export type { Port } from "./nodes/types/ports";
 // The built-in lifecycle port message shapes, public so a generated package
 // `index.d.ts` can reference them in its `NodeTypes` registry.
 export type {
+  MessageLanes,
   NodeSource,
   ErrorPortOutput as ErrorPort,
   CompletePortOutput as CompletePort,

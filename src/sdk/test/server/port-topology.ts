@@ -4,7 +4,7 @@ import {
   portTopology,
   type PortTopology,
 } from "@/tools/vite/server/plugins/node-type-info";
-import { NRG_PORTS } from "@/sdk/lib/server/nodes/symbols";
+import { NRG_PORTS } from "@/sdk/lib/server/symbols";
 
 /**
  * Make a SOURCE node behave like a BUILT one in tests.

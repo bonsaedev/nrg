@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { Node } from "@/sdk/lib/server/nodes/node";
 import { registerType } from "@/sdk/lib/server/registration";
-import { initValidator } from "@/sdk/lib/server/validation";
+import { init } from "@/sdk/lib/server/init";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_SETUP_CLOSE_HANDLER } from "@/sdk/lib/server/nodes/symbols";
+import { NRG_SETUP_CLOSE_HANDLER } from "@/sdk/lib/server/symbols";
 
 class ConcreteNode extends Node {
   static override readonly type = "test-node";
@@ -15,7 +15,7 @@ describe("Node", () => {
   describe("constructor", () => {
     it("should set RED, node, and config", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode({ credentials: { apiKey: "secret" } });
       const config = { name: "test" };
 
@@ -27,7 +27,7 @@ describe("Node", () => {
 
     it("should make config read-only via proxy", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const config = { name: "test" };
 
@@ -50,7 +50,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
 
       new ValidatedNode(RED, node, { name: "ab" }, {});
@@ -70,7 +70,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
 
       new ValidNode(RED, node, { name: "hello" }, {});
@@ -90,7 +90,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
 
       new CredNode(RED, node, {}, { apiKey: "ab" });
@@ -101,7 +101,7 @@ describe("Node", () => {
   describe("i18n", () => {
     it("should call RED._ with node type prefix", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -111,7 +111,7 @@ describe("Node", () => {
 
     it("should pass substitutions", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -126,7 +126,7 @@ describe("Node", () => {
     it("should create and track setTimeout", () => {
       vi.useFakeTimers();
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
@@ -141,7 +141,7 @@ describe("Node", () => {
     it("should create and track setInterval", () => {
       vi.useFakeTimers();
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
@@ -156,7 +156,7 @@ describe("Node", () => {
     it("should clear timers on close", async () => {
       vi.useFakeTimers();
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
@@ -190,7 +190,7 @@ describe("Node", () => {
 
       vi.useFakeTimers();
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new LeakyLog(RED, node, {}, {});
       const fn = vi.fn();
@@ -214,7 +214,7 @@ describe("Node", () => {
     it("should support manual clearTimeout", () => {
       vi.useFakeTimers();
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
@@ -230,7 +230,7 @@ describe("Node", () => {
     it("should support manual clearInterval", () => {
       vi.useFakeTimers();
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
@@ -247,7 +247,7 @@ describe("Node", () => {
   describe("logging", () => {
     it("should delegate log to node.log", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -257,7 +257,7 @@ describe("Node", () => {
 
     it("should delegate warn to node.warn", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -267,7 +267,7 @@ describe("Node", () => {
 
     it("should delegate error to node.error", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -281,7 +281,7 @@ describe("Node", () => {
   describe("credentials", () => {
     it("should return node.credentials", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode({ credentials: { apiKey: "secret" } });
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -292,7 +292,7 @@ describe("Node", () => {
   describe("settings", () => {
     it("should return cached settings", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
 
@@ -304,7 +304,7 @@ describe("Node", () => {
   describe("settings registration", () => {
     it("should not pass settings when no settingsSchema", async () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       await registerType(RED, ConcreteNode);
 
       const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
@@ -330,7 +330,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       await registerType(RED, SettingsNode);
 
       const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
@@ -356,7 +356,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       await registerType(RED, HyphenNode);
 
       const registerCall = vi.mocked(RED.nodes.registerType).mock.calls[0];
@@ -380,7 +380,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       RED.settings.settingsValidTimeout = 3000;
 
       SettingsValidNode.validateSettings(RED);
@@ -405,7 +405,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       DefaultSettingsNode.validateSettings(RED);
 
       const node = createNodeRedNode();
@@ -415,7 +415,7 @@ describe("Node", () => {
 
     it("should do nothing when no settingsSchema", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       ConcreteNode.validateSettings(RED);
       // Should not throw
     });
@@ -440,7 +440,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       FuncSettingsNode.validateSettings(RED);
 
       const node = createNodeRedNode();
@@ -452,7 +452,7 @@ describe("Node", () => {
   describe("on", () => {
     it("should delegate to node.on", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new ConcreteNode(RED, node, {}, {});
       const cb = vi.fn();
@@ -474,7 +474,7 @@ describe("Node", () => {
       }
 
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       await registerType(RED, FailingCreatedNode);
 
       const constructorFn = vi.mocked(RED.nodes.registerType).mock.calls[0][1];

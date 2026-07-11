@@ -1,6 +1,6 @@
 import type { RED, NodeRedNode } from "../red";
 import { Node } from "./node";
-import { NRG_CONFIG_NODE } from "./symbols";
+import { NRG_CONFIG_NODE } from "../symbols";
 import type {
   ConfigNodeConfig,
   ConfigNodeContext,

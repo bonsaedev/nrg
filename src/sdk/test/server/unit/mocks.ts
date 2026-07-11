@@ -163,7 +163,9 @@ function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
       encodeObject: vi.fn(),
     },
     version: vi.fn(() => "0.0.0-test"),
+    // Both are populated by globals `init()` via non-enumerable getters.
     validator: undefined as any,
+    laneStore: undefined as any,
     registerNode(id: string, nodeRedNode: Partial<NodeRedNode>) {
       nodes[id] = nodeRedNode;
     },

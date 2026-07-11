@@ -7,7 +7,7 @@ import type {
   NodeContextStore,
   NodeContextScope,
 } from "./node";
-import type { OutputPortNames, PortValue } from "./ports";
+import type { OutputPortNames, PortValue, MessageLanes } from "./ports";
 
 type IONodeContextScope = NodeContextScope;
 
@@ -77,9 +77,12 @@ interface IIONode<
   readonly wires: string[][];
 
   // A returned value (when not `undefined`) rides the complete port under
-  // `output`; `void`/no return keeps the plain completion signal.
-  input(msg: TInput): unknown;
-  send(msg: TOutput): void;
+  // `output`; `void`/no return keeps the plain completion signal. The message
+  // also carries the off-the-wire {@link MessageLanes} accessors.
+  input(msg: TInput & MessageLanes): unknown;
+  // `protectedData`/`privateData` populate the message's off-the-wire lanes for
+  // this signal (see {@link MessageLanes}); they never ride the serialized msg.
+  send(msg: TOutput, protectedData?: object, privateData?: object): void;
   status(status: IONodeStatus): void;
   updateWires(wires: string[][]): void;
   receive(msg: TInput): void;

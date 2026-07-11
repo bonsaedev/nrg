@@ -22,6 +22,31 @@ NRG  --  decided by the flow author, on the wire
 
 In classic Node-RED every node has to remember to pass the message on; miss it once and the flow silently dead-ends — and whoever built the flow can't fix it from the outside. NRG flips this: the node just returns its result, the framework carries the incoming message for you, and the **flow author** decides per output how much of it continues — the last message (`carry`), the full history (`trace`), or a clean slate (`reset`). See [context modes](./schemas#context-modes).
 
+## Live Objects & Hidden Data
+
+Some data can't travel on the wire. A live database connection, an open HTTP `res`, a streaming handle, an OpenTelemetry span, an `AbortController` — these are **live objects**, not JSON. Others *could* be serialized but must stay **hidden from the flow author**: a decrypted access token, a signed correlation id. Node-RED gives a message two places to put data, and neither fits.
+
+### Traditional
+
+**On the message?** Node-RED clones the message between wires, so a live object is deep-cloned — broken, or an outright throw. Node-RED itself hit this wall and hard-coded an exception: `msg.req` and `msg.res` are the **only** two properties it preserves by reference across a clone, precisely so the built-in HTTP In / HTTP Response pair can recover the live response object downstream. Everything else is on its own. Three more problems compound it: anything on `msg` is visible in the debug panel and editable by any function node (a secret leaks, a handle can be tampered with); what actually continues downstream is the **flow author's** call, not yours — they pick `carry`/`trace`/`reset` per wire (see [Message Flow](#message-flow) above), so a `reset` drops the carried fields and data you left on `msg` for a later node can vanish by a wiring decision you don't control; and whenever the message _is_ serialized — shown in the debug panel, persisted to a context store, exported as flow JSON — anything non-JSON (a function, a class instance's methods) is silently dropped.
+
+**In flow/global context?** Context is standing state keyed by a **name**, not bound to a message. Node-RED delivers the next message before the current one finishes, so two messages in flight write the same `flow.get("conn")` key and clobber each other — there is no per-message slot. Context stores are also pluggable and serialization-oriented (memory, localfilesystem, Redis, DynamoDB): live objects don't belong there, and the store is inspectable and writable from the editor and from function nodes. To make it work you'd key everything by `msg._msgid` and clean up by hand — reinventing a per-message registry on a substrate designed for the opposite.
+
+### NRG
+
+**Message lanes.** NRG gives every message two off-the-wire lanes that ride *alongside* it without being *on* it:
+
+```typescript
+this.send(publicMsg, protectedData, privateData);
+
+// a downstream node reads them back off its incoming message:
+msg.protected.span;   // shared across packages
+msg.private.conn;     // scoped to your package only
+delete msg.private.conn; // release when you're done
+```
+
+The data lives in a per-runtime registry keyed by the message's `_msgid`; NRG installs hidden `msg.protected` / `msg.private` accessors on each node's incoming message. It is **never serialized, never cloned, never shown in the debug panel, and invisible to a flow author's function node** — yet any node that needs it reads it by the same message id, and it survives every `carry`/`trace`/`reset` wire choice because it rides the `_msgid`, not the payload. It's the general, safe form of the `req`/`res` escape hatch Node-RED had to special-case for one pair of built-in nodes. See [Message Lanes](./message-lanes).
+
 ## Node Registration
 
 ### Traditional

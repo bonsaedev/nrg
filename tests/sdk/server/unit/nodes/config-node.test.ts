@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { ConfigNode } from "@/sdk/lib/server/nodes/config-node";
-import { initValidator } from "@/sdk/lib/server/validation";
+import { init } from "@/sdk/lib/server/init";
 import { createRED, createNodeRedNode } from "@mocks/red";
 
 class TestConfigNode extends ConfigNode {
@@ -15,7 +15,7 @@ describe("ConfigNode", () => {
 
     it("should set up context with node and global", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
@@ -27,7 +27,7 @@ describe("ConfigNode", () => {
 
     it("should support context as a function with scope", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
@@ -40,7 +40,7 @@ describe("ConfigNode", () => {
   describe("userIds", () => {
     it("should return _users from config", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(
         RED,
@@ -60,7 +60,7 @@ describe("ConfigNode", () => {
       const RED = createRED();
       RED.registerNrgNode("user-1", nrgNode1);
       RED.registerNrgNode("user-2", nrgNode2);
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(
         RED,
@@ -79,7 +79,7 @@ describe("ConfigNode", () => {
       const nrgNode1 = { id: "user-1" };
       const RED = createRED();
       RED.registerNrgNode("user-1", nrgNode1);
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(
         RED,
@@ -99,7 +99,7 @@ describe("ConfigNode", () => {
       const nrgNode = { id: "user-1", type: "my-node" };
       const RED = createRED();
       RED.registerNrgNode("user-1", nrgNode);
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(
         RED,
@@ -113,7 +113,7 @@ describe("ConfigNode", () => {
 
     it("should return undefined for out-of-bounds index", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 
@@ -122,7 +122,7 @@ describe("ConfigNode", () => {
 
     it("should return undefined when node is not found", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestConfigNode(
         RED,
@@ -138,7 +138,7 @@ describe("ConfigNode", () => {
   describe("credentials", () => {
     it("should return node.credentials", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode({ credentials: { secret: "abc" } });
       const instance = new TestConfigNode(RED, node, { _users: [] }, {});
 

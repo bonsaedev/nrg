@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "url";
 import { IONode } from "@/sdk/lib/server/nodes/io-node";
-import { initValidator } from "@/sdk/lib/server/validation";
+import { init } from "@/sdk/lib/server/init";
 import { createRED, createNodeRedNode } from "@mocks/red";
 import { createNode } from "@/sdk/test/server/unit";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
-} from "@/sdk/lib/server/nodes/symbols";
+} from "@/sdk/lib/server/symbols";
 import SingleOutput from "../fixtures/io-node-test/single-output";
 import MultiOutput from "../fixtures/io-node-test/multi-output";
 import NamedOutput from "../fixtures/io-node-test/named-output";
@@ -85,7 +85,7 @@ describe("IONode", () => {
   describe("constructor", () => {
     it("should set up context with node, flow, and global", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -98,7 +98,7 @@ describe("IONode", () => {
 
     it("should support context as a function with scope", async () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -113,7 +113,7 @@ describe("IONode", () => {
   describe("properties", () => {
     it("should expose x, y, g, wires from underlying node", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -154,7 +154,7 @@ describe("IONode", () => {
   describe("input handling", () => {
     it("should call input method with message", async () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -228,7 +228,7 @@ describe("IONode", () => {
 
     it("should fall back to node.send outside input handler", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -429,7 +429,7 @@ describe("IONode", () => {
   describe("status", () => {
     it("should delegate to node.status", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -445,7 +445,7 @@ describe("IONode", () => {
   describe("updateWires", () => {
     it("should delegate to node.updateWires", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
@@ -457,7 +457,7 @@ describe("IONode", () => {
   describe("receive", () => {
     it("should delegate to node.receive", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 

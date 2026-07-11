@@ -1,14 +1,16 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
 import { ensurePortTopology } from "../port-topology";
-import { initValidator } from "@/sdk/lib/server/validation";
+import { initValidator, initLaneStore } from "@/sdk/lib/server/init";
+import { laneProxy, packageLane } from "@/sdk/lib/server/lane-store";
 import type { NodeRedNode } from "@/sdk/lib/server/red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
-} from "@/sdk/lib/server/nodes/symbols";
+  NRG_PROTECTED_LANE,
+} from "@/sdk/lib/server/symbols";
 import type { NodeContextStore } from "@/sdk/lib/server/nodes/types/node";
 import type {
   ErrorPortOutput as CoreErrorPortOutput,
@@ -18,6 +20,7 @@ import type {
   OutputPortNames,
   PortValue,
   IsAny,
+  MessageLanes,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 interface CreateNodeOptions {
@@ -27,7 +30,15 @@ interface CreateNodeOptions {
   overrides?: Partial<NodeRedNode>;
 }
 
-type ExtractInput<T> = T extends { input(msg: infer I): any } ? I : any;
+// The node's declared input type, minus the off-the-wire `MessageLanes` — a node
+// annotates `input(msg: Wire & MessageLanes)` but `receive()` takes the WIRE
+// message (lanes ride the second `receive` arg, never the message), so the lanes
+// are stripped here.
+type ExtractInput<T> = T extends { input(msg: infer I): any }
+  ? I extends object
+    ? Omit<I, keyof MessageLanes>
+    : I
+  : any;
 type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
 
 // The message a named port carries: unwrap a `Port<T>` to its `T` (a schema-
@@ -48,12 +59,22 @@ type PortMessage<T, P extends string> =
  * so it emits from outside any `input()` and carries no incoming message) also
  * collapses to just `{ output: V }` — without this guard `Partial<never>` would
  * poison the intersection to `never`, making `sent()[i][0].output` unreadable.
+ *
+ * `& MessageLanes`: the harness exposes the off-the-wire lanes on each emitted
+ * frame — `private` in the PRODUCER's own package partition, so it reads back what
+ * a SAME-package downstream node would see (a different package reads its own,
+ * empty partition). A producer test asserts `sent(0)[0].protected.x` /
+ * `sent(0)[0].private.x` (the data the node emitted via
+ * `send(msg, protected, private)`). The lanes are non-enumerable, so
+ * `toEqual({ output })` still matches. They ride data-port frames only, never the
+ * built-in error/complete/status frames.
  */
-type WrappedPort<V, TInput> = { output: V } & ([TInput] extends [never]
-  ? unknown
-  : unknown extends TInput
+type WrappedPort<V, TInput> = { output: V } & MessageLanes &
+  ([TInput] extends [never]
     ? unknown
-    : Partial<TInput>);
+    : unknown extends TInput
+      ? unknown
+      : Partial<TInput>);
 
 /**
  * The positional fan-out the runtime delivers for one emission — one wrapped
@@ -121,6 +142,7 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
    * non-object input type passes through unchanged. */
   receive(
     msg: TInput extends object ? TInput & Record<string, unknown> : TInput,
+    lanes?: LaneInput,
   ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
@@ -148,6 +170,35 @@ interface TestNodeContext {
   node: NodeContextStore;
   flow?: NodeContextStore;
   global: NodeContextStore;
+}
+
+/**
+ * The off-the-wire lanes an UPSTREAM node would have attached to the incoming
+ * message, passed as the second `receive()` argument so the node under test reads
+ * them via `msg.protected.*` / `msg.private.*`. `private` is placed in the node's
+ * OWN package partition (what the node sees). Mirrors the producer side: what one
+ * node passes to `send(msg, protected, private)` is what the next receives here.
+ *
+ * @example
+ * // consumer: given a live `res` on the private lane, it should reply
+ * await node.receive({ _msgid: "r1", payload: { ok: true } }, { private: { res } });
+ * expect(res.end).toHaveBeenCalled();
+ */
+interface LaneInput {
+  protected?: Record<string, unknown>;
+  private?: Record<string, unknown>;
+}
+
+/**
+ * Bridges a node's off-the-wire lanes to the test, scoped like the node itself:
+ * shared `protected`, and `private` in the node's own package partition. `seed`
+ * writes incoming lanes (for `receive`'s second arg); `expose` installs the
+ * non-enumerable `protected` / `private` accessors on an emitted frame so a test
+ * can read what the node sent. Both key off the message's `_msgid`.
+ */
+interface LaneBridge {
+  seed(msg: { _msgid?: string }, lanes: LaneInput): void;
+  expose(frame: unknown): void;
 }
 
 interface CreateNodeResult<T> {
@@ -184,11 +235,17 @@ function attachHelpers<T>(
   node: T,
   nodeRedNode: any,
   NodeClass: NodeClass,
+  laneBridge: LaneBridge,
 ): T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>> {
   const sentMessages: any[] = [];
   const statusCalls: any[] = [];
 
   nodeRedNode.send.mockImplementation((msg: any) => {
+    // Expose the off-the-wire lanes on each emitted frame — as a SAME-package
+    // downstream node would read them (`private` uses the producer's own package
+    // partition) — so a producer test asserts what it sent via
+    // `sent(0)[0].protected.x` / `sent(0)[0].private.x`.
+    (Array.isArray(msg) ? msg : [msg]).forEach(laneBridge.expose);
     sentMessages.push(msg);
   });
 
@@ -200,7 +257,10 @@ function attachHelpers<T>(
   // the node itself, so leaving it out of this `Object.assign` source keeps the
   // real context intact and exposed on the returned node.
   const helpers: Omit<TestNodeHelpers, "context"> = {
-    async receive(msg: any): Promise<void> {
+    async receive(msg: any, lanes?: LaneInput): Promise<void> {
+      // Seed the incoming message's off-the-wire lanes (as an upstream node would
+      // have) so the node reads them via `msg.protected` / `msg.private`.
+      if (lanes) laneBridge.seed(msg, lanes);
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
       });
@@ -328,7 +388,48 @@ async function createNode<T extends NodeClass>(
   }
 
   const RED = createRED({ settings });
+  // Just the globals — a unit test serves no HTTP, and the route/asset code uses
+  // `__dirname`, invalid in the harness's ESM bundle.
   initValidator(RED);
+  initLaneStore(RED);
+
+  // Bridge the node's off-the-wire lanes to the test, scoped to the node's own
+  // package for `private` (what the node reads/writes) and the shared partition
+  // for `protected`.
+  const laneStore = RED.laneStore;
+  const lanePartition = packageLane(NodeClass);
+  const laneBridge: LaneBridge = {
+    seed(msg, lanes) {
+      const msgid = msg._msgid;
+      if (msgid == null) {
+        // Lanes key off `_msgid`; seeding without one would silently go nowhere.
+        throw new Error(
+          "receive(): lanes were provided but the message has no `_msgid` — " +
+            "lanes are keyed by `_msgid`, so nothing would be seeded. Give the " +
+            "message an `_msgid` (e.g. receive({ _msgid: 'sig-1', ... }, lanes)).",
+        );
+      }
+      if (lanes.protected)
+        laneStore.merge(msgid, NRG_PROTECTED_LANE, lanes.protected);
+      if (lanes.private) laneStore.merge(msgid, lanePartition, lanes.private);
+    },
+    expose(frame) {
+      if (frame == null || typeof frame !== "object") return;
+      // A frame with no `_msgid` gets an inert lane view (laneProxy handles the
+      // missing id) rather than keying the store by `undefined`.
+      const msgid = (frame as { _msgid?: string })._msgid;
+      Object.defineProperty(frame, "protected", {
+        configurable: true,
+        enumerable: false,
+        get: () => laneProxy(laneStore, msgid, NRG_PROTECTED_LANE),
+      });
+      Object.defineProperty(frame, "private", {
+        configurable: true,
+        enumerable: false,
+        get: () => laneProxy(laneStore, msgid, lanePartition),
+      });
+    },
+  };
 
   for (const [id, value] of Object.entries(configNodes)) {
     RED.registerNrgNode(id, value);
@@ -368,6 +469,7 @@ async function createNode<T extends NodeClass>(
     node,
     nodeRedNode,
     NodeClass,
+    laneBridge,
   );
 
   // Wire up event handlers (same path as production). `created()` is awaited so

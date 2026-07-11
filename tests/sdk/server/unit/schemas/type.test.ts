@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Kind } from "@sinclair/typebox";
 import { SchemaType, defineSchema } from "@/sdk/lib/shared/schemas";
-import { initValidator } from "@/sdk/lib/server/validation";
+import { init } from "@/sdk/lib/server/init";
 import { createRED } from "@mocks/red";
 
 describe("SchemaType", () => {
@@ -291,7 +291,7 @@ describe("defineSchema", () => {
 
     it("works with the validator", () => {
       const RED = createRED();
-      initValidator(RED);
+      init(RED);
 
       const schema = defineSchema(
         {

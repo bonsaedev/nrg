@@ -75,7 +75,7 @@ describe("returnProperty / output convention", () => {
   it("stamps no _msgid when the processed message has none (source-ish)", async () => {
     const { node } = await createNode(PlainNode);
     await node.receive({ value: 21 });
-    expect((node.sent(0)[0] as Record<string, unknown>)._msgid).toBeUndefined();
+    expect((node.sent(0)[0] as Record<string, any>)._msgid).toBeUndefined();
   });
 
   it("trace keeps the overwritten output recoverable under input", async () => {
@@ -213,7 +213,7 @@ describe("returnProperty / output convention", () => {
     const { node } = await createNode(MultiNode);
     await node.receive({ keep: 1 });
 
-    const out0 = node.sent(0)[0] as Record<string, unknown>;
+    const out0 = node.sent(0)[0];
     expect(out0).toEqual({
       output: "first",
       source: src(0),
@@ -274,7 +274,7 @@ describe("returnProperty / output convention", () => {
     let msg: Record<string, unknown> = { topic: "tick" };
     for (let i = 0; i < 5; i++) {
       await node.receive(msg);
-      msg = node.sent(0).at(-1) as Record<string, unknown>;
+      msg = node.sent(0).at(-1)! as Record<string, any>;
     }
 
     expect(msg).toEqual({
