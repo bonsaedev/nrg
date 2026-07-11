@@ -21,6 +21,7 @@ import type {
   PortValue,
   IsAny,
   MessageLanes,
+  MessageMeta,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 interface CreateNodeOptions {
@@ -30,13 +31,13 @@ interface CreateNodeOptions {
   overrides?: Partial<NodeRedNode>;
 }
 
-// The node's declared input type, minus the off-the-wire `MessageLanes` — a node
-// annotates `input(msg: Wire & MessageLanes)` but `receive()` takes the WIRE
-// message (lanes ride the second `receive` arg, never the message), so the lanes
-// are stripped here.
+// The node's declared input type, minus the framework-added `MessageLanes` and
+// `MessageMeta` (`_msgid`) — the base `input(msg)` param is `InputMessage<Wire>`,
+// but `receive()` takes the WIRE message (lanes ride the second `receive` arg,
+// `_msgid` is optional), so both are stripped here.
 type ExtractInput<T> = T extends { input(msg: infer I): any }
   ? I extends object
-    ? Omit<I, keyof MessageLanes>
+    ? Omit<I, keyof MessageLanes | keyof MessageMeta>
     : I
   : any;
 type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;

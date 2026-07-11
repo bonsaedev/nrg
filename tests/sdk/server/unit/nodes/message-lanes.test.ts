@@ -43,6 +43,23 @@ class PortProducer extends IONode<
   }
 }
 
+/** Reads `_msgid` and a private lane WITHOUT annotating the `input` parameter —
+ * proving the base `InputMessage<Input>` (wire + lanes + `_msgid`) is inferred, so
+ * an author declares the wire type ONCE (the generic) and needs no `& MessageLanes`. */
+class OmitReader extends IONode<
+  Record<string, never>,
+  unknown,
+  RawIn,
+  { id: unknown; secret: unknown }
+> {
+  static override readonly type = "lane-omit-reader";
+  static override readonly category = "test";
+  static override readonly color = "#ffffff";
+  override async input(msg) {
+    this.send({ id: msg._msgid, secret: msg.private.secret });
+  }
+}
+
 /** Reads both lanes off the incoming signal and echoes them onto its public
  * output — so a test asserts what it RECEIVED via the observable `sent()`, not a
  * peek inside `input()`. `keys` proves the lanes never appear in enumeration. */
@@ -141,6 +158,17 @@ describe("message lanes (protected / private)", () => {
     // …but the lanes never ride the serialized wire message:
     expect(Object.keys(node.sent(0)[0])).not.toContain("protected");
     expect(Object.keys(node.sent(0)[0])).not.toContain("private");
+  });
+
+  it("un-annotated input() infers the wire type, lanes, and _msgid", async () => {
+    const { node } = await createNode(OmitReader, {});
+    await node.receive(
+      { _msgid: "sig-omit", payload: {} },
+      { private: { secret: 42 } },
+    );
+    const out = node.sent()[0][0].output;
+    expect(out.id).toBe("sig-omit");
+    expect(out.secret).toBe(42);
   });
 
   it("sendToPort carries protected + private on the emitted frame", async () => {

@@ -7,7 +7,7 @@ import type {
   NodeContextStore,
   NodeContextScope,
 } from "./node";
-import type { OutputPortNames, PortValue, MessageLanes } from "./ports";
+import type { OutputPortNames, PortValue, InputMessage } from "./ports";
 
 type IONodeContextScope = NodeContextScope;
 
@@ -77,11 +77,11 @@ interface IIONode<
   readonly wires: string[][];
 
   // A returned value (when not `undefined`) rides the complete port under
-  // `output`; `void`/no return keeps the plain completion signal. The message
-  // also carries the off-the-wire {@link MessageLanes} accessors.
-  input(msg: TInput & MessageLanes): unknown;
+  // `output`; `void`/no return keeps the plain completion signal. The parameter
+  // is an {@link InputMessage} — the wire type plus off-the-wire lanes + `_msgid`.
+  input(msg: InputMessage<TInput>): unknown;
   // `protectedData`/`privateData` populate the message's off-the-wire lanes for
-  // this signal (see {@link MessageLanes}); they never ride the serialized msg.
+  // this signal; they never ride the serialized msg.
   send(msg: TOutput, protectedData?: object, privateData?: object): void;
   status(status: IONodeStatus): void;
   updateWires(wires: string[][]): void;
@@ -90,7 +90,7 @@ interface IIONode<
   readonly baseOutputs: number;
   readonly totalOutputs: number;
   // `protectedData`/`privateData` populate the message's off-the-wire lanes for
-  // this signal (see {@link MessageLanes}), exactly like `send()`.
+  // this signal, exactly like `send()`.
   sendToPort<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,

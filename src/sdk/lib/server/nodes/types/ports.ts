@@ -74,25 +74,50 @@ type OutputPortNames<TOutput> =
  *  - `protected`: readable/writable by a node from ANY package.
  *  - `private`: scoped to the receiving node's OWN package; invisible to others.
  *
- * Because a node declares its wire message as the `Input` GENERIC (which drives
- * the port topology — lanes are not ports), annotate the `input()` parameter with
- * `Input & MessageLanes` to see `msg.protected` / `msg.private` in intellisense:
+ * The base `input(msg)` parameter is {@link InputMessage}`<Input>` — it already
+ * intersects these lanes (plus {@link MessageMeta}) — so the simplest way to read
+ * them is to OMIT the parameter annotation: TypeScript infers `msg` from the base,
+ * where `Input` is the node's wire generic:
  *
  * @example
- * type Wire = { payload: string };               // the `Input` generic
- * type In = Wire & MessageLanes;                 // the `input()` parameter
- * class N extends IONode<Config, never, Wire, Out> {
- *   async input(msg: In) {
- *     const conn = msg.private.conn;             // package-scoped; `unknown` until narrowed
- *     this.send(out, { trace }, { conn });       // write the lanes
- *     delete msg.private.conn;                   // release (bookkeeping only)
+ * class N extends IONode<Config, never, { payload: string }, Out> {
+ *   async input(msg) {                    // no annotation
+ *     const conn = msg.private.conn;      // package-scoped; `unknown` until narrowed
+ *     const id = msg._msgid;              // Node-RED's message id, typed
+ *     this.send(out, { trace }, { conn }); // write the lanes
+ *     delete msg.private.conn;            // release (bookkeeping only)
  *   }
  * }
+ *
+ * Re-annotating the parameter with the raw wire type discards the lanes (a
+ * TypeScript override rule). If you prefer an explicit annotation, spell it
+ * `InputMessage<Input>`.
  */
 interface MessageLanes {
   protected: Record<string, unknown>;
   private: Record<string, unknown>;
 }
+
+/**
+ * Framework message metadata present on every message a node's `input()`
+ * receives, intersected onto the base `input(msg)` parameter alongside
+ * {@link MessageLanes}. `_msgid` is Node-RED's message-lineage id, stamped on
+ * every message — so a node reads `msg._msgid` (for correlation/logging) without
+ * declaring it, as long as it doesn't re-annotate the parameter with a raw type.
+ */
+interface MessageMeta {
+  _msgid: string;
+}
+
+/**
+ * The full message a node's `input()` receives: its wire shape `TInput` plus the
+ * framework-added off-the-wire lanes ({@link MessageLanes}) and metadata
+ * ({@link MessageMeta}). The base `IONode.input(msg)` parameter is
+ * `InputMessage<TInput>`, so OMITTING the parameter annotation infers all of it
+ * from the `Input` generic. Authors who prefer an explicit annotation can spell
+ * it `InputMessage<Input>` instead of `Input & MessageLanes & MessageMeta`.
+ */
+type InputMessage<TInput> = TInput & MessageLanes & MessageMeta;
 
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
@@ -185,6 +210,8 @@ export type {
   IsAny,
   OutputPortNames,
   MessageLanes,
+  MessageMeta,
+  InputMessage,
   NodeSource,
   MessageSource,
   ErrorInfo,

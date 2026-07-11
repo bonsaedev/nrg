@@ -20,6 +20,8 @@ export type { Port } from "./nodes/types/ports";
 // `index.d.ts` can reference them in its `NodeTypes` registry.
 export type {
   MessageLanes,
+  MessageMeta,
+  InputMessage,
   NodeSource,
   ErrorPortOutput as ErrorPort,
   CompletePortOutput as CompletePort,
