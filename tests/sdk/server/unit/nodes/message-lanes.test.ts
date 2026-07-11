@@ -27,6 +27,22 @@ class Producer extends IONode<
   }
 }
 
+/** Emits lanes via `sendToPort` — the lanes ride the emitted frame just like
+ * `send()` (same `#sendToPort` delivery path for numeric and named ports). */
+class PortProducer extends IONode<
+  Record<string, never>,
+  unknown,
+  RawIn,
+  { out: number }
+> {
+  static override readonly type = "lane-port-producer";
+  static override readonly category = "test";
+  static override readonly color = "#ffffff";
+  override async input() {
+    this.sendToPort(0, { out: 1 }, { trace: "abc" }, { secret: 99 });
+  }
+}
+
 /** Reads both lanes off the incoming signal and echoes them onto its public
  * output — so a test asserts what it RECEIVED via the observable `sent()`, not a
  * peek inside `input()`. `keys` proves the lanes never appear in enumeration. */
@@ -124,6 +140,16 @@ describe("message lanes (protected / private)", () => {
     expect(node.sent(0)[0].private.secret).toBe(99);
     // …but the lanes never ride the serialized wire message:
     expect(Object.keys(node.sent(0)[0])).not.toContain("protected");
+    expect(Object.keys(node.sent(0)[0])).not.toContain("private");
+  });
+
+  it("sendToPort carries protected + private on the emitted frame", async () => {
+    const { node } = await createNode(PortProducer, {});
+    await node.receive({ _msgid: "sig-port", payload: {} });
+
+    expect(node.sent(0)[0].protected.trace).toBe("abc");
+    expect(node.sent(0)[0].private.secret).toBe(99);
+    // lanes stay off the serialized frame:
     expect(Object.keys(node.sent(0)[0])).not.toContain("private");
   });
 

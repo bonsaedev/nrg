@@ -89,9 +89,13 @@ interface IIONode<
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
+  // `protectedData`/`privateData` populate the message's off-the-wire lanes for
+  // this signal (see {@link MessageLanes}), exactly like `send()`.
   sendToPort<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
+    protectedData?: object,
+    privateData?: object,
   ): void;
 }
 

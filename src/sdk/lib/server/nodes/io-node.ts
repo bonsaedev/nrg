@@ -734,6 +734,8 @@ abstract class IONode<
   public sendToPort<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
+    protectedData?: object,
+    privateData?: object,
   ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
@@ -757,7 +759,7 @@ abstract class IONode<
     }
     const idx = portIndex ?? 0;
     if (msg == null) {
-      this.#sendToPort(port, msg);
+      this.#sendToPort(port, msg, protectedData, privateData);
       return;
     }
     // Validate the outgoing value exactly as `send()` validates a positional
@@ -768,10 +770,17 @@ abstract class IONode<
     this.#sendToPort(
       port,
       this.#wrapOutgoing(msg, this.#resolveContextMode(idx), idx),
+      protectedData,
+      privateData,
     );
   }
 
-  #sendToPort(port: number | string, msg: unknown) {
+  #sendToPort(
+    port: number | string,
+    msg: unknown,
+    protectedData?: object,
+    privateData?: object,
+  ) {
     let portIndex: number | null;
     if (typeof port === "number") {
       portIndex = port;
@@ -791,6 +800,12 @@ abstract class IONode<
       msg !== null && typeof msg === "object"
         ? this.#withMsgid(msg as Record<string, unknown>)
         : msg;
+    // Off-the-wire lane contributions (sendToPort's protected/private args),
+    // keyed by this message's _msgid exactly like `send()`. Internal built-in
+    // port emissions (status/error/complete) pass none, so this is a no-op there.
+    if (protectedData || privateData) {
+      this.#writeLanes(protectedData, privateData, out);
+    }
     this.node.send(out);
   }
 
