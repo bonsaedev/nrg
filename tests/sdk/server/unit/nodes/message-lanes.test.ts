@@ -9,7 +9,7 @@ import { NRG_PROTECTED_LANE } from "@/sdk/lib/server/symbols";
 // framework intersects the lanes only on the `input()` parameter, so tests take
 // `msg: In` inside the method but pass `RawIn` as the generic — exactly what a
 // real node author sees.
-type RawIn = { payload: unknown; _msgid?: string };
+type RawIn = { payload: unknown };
 type In = RawIn & MessageLanes;
 
 /** Emits values on all three lanes. */
@@ -43,20 +43,22 @@ class PortProducer extends IONode<
   }
 }
 
-/** Reads `_msgid` and a private lane WITHOUT annotating the `input` parameter —
- * proving the base `InputMessage<Input>` (wire + lanes + `_msgid`) is inferred, so
- * an author declares the wire type ONCE (the generic) and needs no `& MessageLanes`. */
+/** Reads a wire field and a private lane WITHOUT annotating the `input` parameter —
+ * proving the base `InputMessage<Input>` (wire + lanes) is inferred, so an author
+ * declares the wire type ONCE (the generic) and needs no `& MessageLanes`. The
+ * framework key `_msgid` is deliberately NOT inferred onto the parameter (a
+ * compile-time proof of that lives in the .test-d.ts). */
 class OmitReader extends IONode<
   Record<string, never>,
   unknown,
   RawIn,
-  { id: unknown; secret: unknown }
+  { payload: unknown; secret: unknown }
 > {
   static override readonly type = "lane-omit-reader";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg) {
-    this.send({ id: msg._msgid, secret: msg.private.secret });
+    this.send({ payload: msg.payload, secret: msg.private.secret });
   }
 }
 
@@ -160,14 +162,14 @@ describe("message lanes (protected / private)", () => {
     expect(Object.keys(node.sent(0)[0])).not.toContain("private");
   });
 
-  it("un-annotated input() infers the wire type, lanes, and _msgid", async () => {
+  it("un-annotated input() infers the wire type and lanes (not _msgid)", async () => {
     const { node } = await createNode(OmitReader, {});
     await node.receive(
-      { _msgid: "sig-omit", payload: {} },
+      { _msgid: "sig-omit", payload: { hi: 1 } },
       { private: { secret: 42 } },
     );
     const out = node.sent()[0][0].output;
-    expect(out.id).toBe("sig-omit");
+    expect(out.payload).toEqual({ hi: 1 });
     expect(out.secret).toBe(42);
   });
 

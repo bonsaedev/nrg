@@ -1,15 +1,15 @@
 import { createNode } from "@/sdk/test/server/unit";
 import { IONode } from "@/sdk/lib/server";
-import type { MessageLanes } from "@/sdk/lib/server";
+import type { InputMessage, MessageLanes } from "@/sdk/lib/server";
 
 // Compile-time proofs for the message-lane types — never executed; `tsc` (via
 // `pnpm validate:tsc`) verifies them. They pin the DX/type guarantees the runtime
 // behavioral tests can't see: the lanes are present and precisely `unknown` (never
-// `any`), they stay OFF the wire `Input` generic, and the harness `receive()`
-// takes the wire message with the lanes stripped.
+// `any`), they stay OFF the wire `Input` generic, `_msgid` is NOT on the parameter,
+// and the harness `receive()` takes the wire message with the lanes stripped.
 
-type Wire = { payload: string; _msgid?: string };
-type Msg = Wire & MessageLanes;
+type Wire = { payload: string };
+type Msg = InputMessage<Wire>;
 
 declare const msg: Msg;
 
@@ -60,3 +60,12 @@ declare const result: Awaited<
 void result.node.receive({ payload: "x", _msgid: "1" });
 const emittedTrace: unknown = result.node.sent(0)[0].protected.trace;
 void emittedTrace;
+
+// (f) `_msgid` is NOT on the `input()` parameter type. It's the framework's
+//     internal lane key, deliberately kept off `InputMessage` so a node author
+//     never sees it in autocomplete and can't read or overwrite it through the
+//     typed parameter (which would fork the message from its lanes). It still
+//     exists at runtime — reaching it takes an explicit cast.
+// @ts-expect-error - _msgid is intentionally absent from InputMessage
+const noMsgid: unknown = msg._msgid;
+void noMsgid;

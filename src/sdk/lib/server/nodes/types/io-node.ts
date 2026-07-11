@@ -78,7 +78,7 @@ interface IIONode<
 
   // A returned value (when not `undefined`) rides the complete port under
   // `output`; `void`/no return keeps the plain completion signal. The parameter
-  // is an {@link InputMessage} — the wire type plus off-the-wire lanes + `_msgid`.
+  // is an {@link InputMessage} — the wire type plus the off-the-wire lanes.
   input(msg: InputMessage<TInput>): unknown;
   // `protectedData`/`privateData` populate the message's off-the-wire lanes for
   // this signal; they never ride the serialized msg.

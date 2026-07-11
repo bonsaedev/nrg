@@ -114,10 +114,11 @@ export type ContextMode = "carry" | "trace" | "reset";
  * "x is the result", never "x is the whole message".
  *
  * The `input()` parameter is {@link InputMessage}`<Input>` — the wire `Input`
- * plus the off-the-wire lanes (`msg.protected` / `msg.private`) and metadata
- * (`msg._msgid`). OMIT the annotation and TypeScript infers all of it from the
- * `Input` generic (which stays the plain wire shape — lanes are not ports).
- * Re-annotating the parameter with the raw wire type discards the lanes and meta.
+ * plus the off-the-wire lanes (`msg.protected` / `msg.private`). OMIT the
+ * annotation and TypeScript infers all of it from the `Input` generic (which
+ * stays the plain wire shape — lanes are not ports). Re-annotating the parameter
+ * with the raw wire type discards the lanes. `_msgid` is deliberately not on the
+ * parameter — it's the framework's internal lane key, not an author-facing field.
  *
  * @example
  * ```ts
@@ -128,7 +129,6 @@ export type ContextMode = "carry" | "trace" | "reset";
  *
  *   async input(msg) {               // no annotation — msg is InputMessage<Input>
  *     const conn = msg.private.conn; // off-wire, package-scoped
- *     const id = msg._msgid;         // Node-RED's message id, typed
  *     // sends { output: <result>, input: msg } (carry default: last msg kept),
  *     // and stashes trace/res on the protected/private lanes off the wire:
  *     this.send(msg.payload.toUpperCase(), { traceId }, { res });
@@ -136,7 +136,7 @@ export type ContextMode = "carry" | "trace" | "reset";
  * }
  * ```
  *
- * @see {@link InputMessage} — the wire type plus lanes and metadata.
+ * @see {@link InputMessage} — the wire type plus the off-the-wire lanes.
  *
  * @typeParam TConfig - config shape (position 1)
  * @typeParam TCredentials - credentials shape (position 2)
@@ -416,9 +416,9 @@ abstract class IONode<
    * accessor — the lanes are structurally invisible to the flow author.
    *
    * An assertion signature: on return, `msg` is known to be an
-   * {@link InputMessage} (wire + lanes + `_msgid`) so the caller can hand it to
-   * `input()`. A non-object message (never produced by real Node-RED, which
-   * always delivers an object) is left untouched.
+   * {@link InputMessage} (wire + lanes) so the caller can hand it to `input()`. A
+   * non-object message (never produced by real Node-RED, which always delivers an
+   * object) is left untouched.
    */
   #setupLanes(msg: TInput): asserts msg is InputMessage<TInput> {
     if (msg == null || typeof msg !== "object") return;
