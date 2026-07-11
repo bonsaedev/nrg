@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.1](https://github.com/bonsaedev/nrg/compare/v0.38.0...v0.38.1) (2026-07-11)
+
+### Bug Fixes
+
+* **server:** preserve _msgid across every node and context mode ([05937e7](https://github.com/bonsaedev/nrg/commit/05937e7798984efa6665804dce6edd3a971801a7))
+
 ## [0.38.0](https://github.com/bonsaedev/nrg/compare/v0.37.0...v0.38.0) (2026-07-10)
 
 ### Features
