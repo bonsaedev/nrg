@@ -61,6 +61,23 @@ describe("returnProperty / output convention", () => {
     });
   });
 
+  it("preserves the incoming _msgid on the outgoing message (lineage)", async () => {
+    const { node } = await createNode(PlainNode);
+    await node.receive({ _msgid: "abc-123", value: 21 });
+    // The node's output inherits the message it was processing — Node-RED forks
+    // a new id only when absent, so a fresh id per hop would break lineage.
+    expect(node.sent(0)[0]).toMatchObject({
+      output: { doubled: 42 },
+      _msgid: "abc-123",
+    });
+  });
+
+  it("stamps no _msgid when the processed message has none (source-ish)", async () => {
+    const { node } = await createNode(PlainNode);
+    await node.receive({ value: 21 });
+    expect((node.sent(0)[0] as Record<string, unknown>)._msgid).toBeUndefined();
+  });
+
   it("trace keeps the overwritten output recoverable under input", async () => {
     const { node } = await createNode(ModeNode, {
       config: { outputContextModes: { 0: "trace" } },

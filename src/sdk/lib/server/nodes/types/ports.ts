@@ -87,8 +87,8 @@ interface NodeSource {
 
 /**
  * Provenance stamped on every DATA-port output under `msg.source`: the producing
- * node ({@link NodeSource}) plus the port the message was sent on. Message-level
- * metadata (like `_msgid`), NOT part of the typed result — so `msg.output` stays
+ * node ({@link NodeSource}) plus the port the message was sent on. It rides the
+ * message ROOT (beside `_msgid`), NOT inside `msg.output` — so `msg.output` stays
  * exactly the author's value. It travels the `input` chain, so `msg.input.source`,
  * `msg.input.input.source`, … identify the producer of each frame.
  */
@@ -115,12 +115,13 @@ interface ErrorInfo {
  * `this.error(message, msg)`); `source` (the producing node) and `input` (the
  * failing message) ride the ROOT beside it — the same shape as every other port.
  * A downstream node reads `msg.error`. `name`/`message`/`stack` stay authoritative
- * over `TError`.
+ * over `TError`. `_msgid` (Node-RED's message-lineage id) rides the root too.
  */
 type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
   error: Omit<TError, keyof ErrorInfo> & ErrorInfo;
   source: NodeSource;
   input: TInput;
+  _msgid: string;
 };
 
 /**
@@ -132,9 +133,11 @@ type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
 type CompletePortOutput<TInput = unknown, TReturn = void> = {
   source: NodeSource;
   input: TInput;
+  _msgid: string;
 } & ([TReturn] extends [void] ? unknown : { complete: TReturn });
 
-/** Message emitted on the built-in STATUS port (no carried input/provenance). */
+/** Message emitted on the built-in STATUS port (no carried input/provenance).
+ * `_msgid` (Node-RED's message-lineage id) rides the root like every message. */
 interface StatusPortOutput {
   status:
     | {
@@ -144,6 +147,7 @@ interface StatusPortOutput {
       }
     | string;
   source: NodeSource;
+  _msgid: string;
 }
 
 export type {

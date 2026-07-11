@@ -22,9 +22,10 @@ function errorProof(m: ErrorPortOutput<In, { code: string }>) {
   const code: string = m.error.code; // author's own field rides `error`
   const source: NodeSource = m.source; // source is at the ROOT
   const input: In = m.input; // failing message at the ROOT
+  const msgid: string = m._msgid; // Node-RED message-lineage id at the ROOT
   // @ts-expect-error — source is NOT nested inside the `error` block
   m.error.source;
-  return { name, message, stack, code, source, input };
+  return { name, message, stack, code, source, input, msgid };
 }
 
 // --- COMPLETE port (with a return value): value under `complete` --------------
@@ -32,7 +33,8 @@ function completeReturnProof(m: CompletePortOutput<In, { ok: boolean }>) {
   const value: { ok: boolean } = m.complete; // return value under `complete`
   const source: NodeSource = m.source;
   const input: In = m.input;
-  return { value, source, input };
+  const msgid: string = m._msgid;
+  return { value, source, input, msgid };
 }
 
 // --- COMPLETE port (void return): source + input only, no `complete` key ------
@@ -47,7 +49,8 @@ function completeVoidProof(m: CompletePortOutput<In, void>) {
 // --- STATUS port: status + source (no input — a notification) -----------------
 function statusRootProof(m: StatusPortOutput) {
   const source: NodeSource = m.source; // source at the root
-  return { status: m.status, source };
+  const msgid: string = m._msgid; // lineage id at the root
+  return { status: m.status, source, msgid };
 }
 
 // --- MessageSource (data-port `msg.source`): node identity + port -------------

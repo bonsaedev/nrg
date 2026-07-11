@@ -43,6 +43,11 @@ const INPUT_KEY = "input";
 /** Key holding the producing-node provenance on every data-port output. */
 const SOURCE_KEY = "source";
 
+/** Node-RED's message-lineage id. A node's output inherits its input's value —
+ * Node-RED mints a fresh one ONLY when absent — so the framework must carry it
+ * forward on every outgoing message rather than let it be regenerated per hop. */
+const MSGID_KEY = "_msgid";
+
 /**
  * Message keys the framework owns on an outgoing message: the provenance
  * metadata (`source`/`input`), the built-in port markers, and Node-RED's own
@@ -55,7 +60,7 @@ const RESERVED_RETURN_PROPERTIES = new Set<string>([
   "error",
   "complete",
   "status",
-  "_msgid",
+  MSGID_KEY,
 ]);
 
 /** The build-injected port topology (see `port-topology-injector`). Framework-
@@ -533,11 +538,17 @@ abstract class IONode<
     //   reset (depth 0): no `input` frame.
     //   trace (depth ∞): the incoming message untouched, so the chain grows one
     //     frame per node (`input.input…`) — full lineage.
+    // Every returned frame is stamped with the incoming `_msgid` (see #withMsgid)
+    // so the message-lineage id is preserved in ALL context modes — including
+    // `reset`, which keeps no `input` frame but must still not fork the id.
     const frame = (msg: Record<string, unknown>): unknown =>
-      Object.keys(msg).length
-        ? { [key]: value, [SOURCE_KEY]: source, [INPUT_KEY]: msg }
-        : { [key]: value, [SOURCE_KEY]: source };
-    if (mode === "reset") return { [key]: value, [SOURCE_KEY]: source };
+      this.#withMsgid(
+        Object.keys(msg).length
+          ? { [key]: value, [SOURCE_KEY]: source, [INPUT_KEY]: msg }
+          : { [key]: value, [SOURCE_KEY]: source },
+      );
+    if (mode === "reset")
+      return this.#withMsgid({ [key]: value, [SOURCE_KEY]: source });
     if (mode === "trace") return frame(input);
     // carry (depth 1): keep the previous message but strip ITS own `input` frame,
     // so the chain never grows past one level (loop-safe). A source's own fields
@@ -545,6 +556,25 @@ abstract class IONode<
     const lastOnly = { ...input };
     delete lastOnly[INPUT_KEY];
     return frame(lastOnly);
+  }
+
+  /**
+   * Preserve Node-RED's message-lineage id: a node's output inherits the
+   * `_msgid` of the message it is processing (Node-RED assigns a fresh one only
+   * when absent — see `Node.prototype.send`). Copying it onto every outgoing
+   * message — in every context mode and on every port — stops the id forking at
+   * each hop, which would otherwise break the message-flow debugger, Catch/
+   * Complete grouping, and any `_msgid`-based correlation. Reads the current
+   * invocation's input; a send outside any input() call (e.g. a source node)
+   * has none, so nothing is stamped and Node-RED assigns one as usual.
+   */
+  #withMsgid(frame: Record<string, unknown>): Record<string, unknown> {
+    const msgid = (
+      IONode.#invocation.getStore()?.inputMsg as
+        | Record<string, unknown>
+        | undefined
+    )?.[MSGID_KEY];
+    return msgid !== undefined ? { ...frame, [MSGID_KEY]: msgid } : frame;
   }
 
   /**
@@ -653,7 +683,10 @@ abstract class IONode<
       }
     }
     const out = new Array(this.#totalOutputs);
-    out[portIndex] = msg;
+    out[portIndex] =
+      msg !== null && typeof msg === "object"
+        ? this.#withMsgid(msg as Record<string, unknown>)
+        : msg;
     this.node.send(out);
   }
 
@@ -695,10 +728,12 @@ abstract class IONode<
 
   public status(status: IONodeStatus) {
     this.node.status(status);
+    // `_msgid` is stamped onto the outgoing message by #withMsgid (or Node-RED
+    // when there is no invocation), so it is intentionally absent here.
     this.#sendToPort("status", {
       status,
       source: this.#nodeSource(),
-    } satisfies StatusPortOutput);
+    } satisfies Omit<StatusPortOutput, "_msgid">);
   }
 
   public override error(message: string, msg?: any) {

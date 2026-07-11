@@ -419,6 +419,7 @@ describe("buildPackageDts — built-in port envelopes", () => {
        const c: NodeTypes["void-node"]["complete"] = {
          source: { id: "1", type: "void-node", name: undefined },
          input: { payload: "x" },
+         _msgid: "m1",
        };
        void c;`,
     );
