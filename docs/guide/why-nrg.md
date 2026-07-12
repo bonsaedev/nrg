@@ -13,6 +13,28 @@ TRADITIONAL  --  decided by the node's author, in code
                             |
                             +-- forget this, and the flow stops (no error)
 
+NRG  --  decided by the flow author, on the wire
+
+   msg --> [ node ] --> result --> next node
+                            |
+                            +-- carry | trace | reset   (chosen per wire)
+```
+
+In classic Node-RED every node has to remember to pass the message on; miss it once and the flow silently dead-ends — and whoever built the flow can't fix it from the outside. NRG flips this: the node just returns its result, the framework carries the incoming message for you, and the **flow author** decides per output how much of it continues — the last message (`carry`), the full history (`trace`), or a clean slate (`reset`). See [context modes](./schemas#context-modes).
+
+## Live Objects & Hidden Data
+
+Some data can't safely ride the wire: **live objects** that break when Node-RED clones the message (a DB connection, an open HTTP `res`, a streaming handle), and **secrets** that must never be seen (a decrypted token, a signed id). Yet this data is often *per-message* — derived from one request and needed by a *different* node downstream — so it still has to travel *with* the message.
+
+### Traditional
+
+Node-RED deep-clones `msg` between wires, so a live socket is corrupted or throws — which is exactly why Node-RED had to hard-code `msg.req` / `msg.res` as the **only** reference-preserved exceptions, just so its own HTTP In / HTTP Response pair could work. A secret is no safer: put a token on `msg` and it shows up verbatim in the debug panel, copy-pasteable, readable or forgeable by any function node. Context is no help either — it's keyed by a **name**, not a message, so two in-flight messages clobber the same `flow.get("conn")`.
+
+### NRG
+
+Every message gets two **off-the-wire channels** — **`private`** (only your package's nodes) and **`protected`** (shared across packages) — that ride *alongside* the message, keyed by its `_msgid`. They're **never cloned, never serialized, and invisible** to the debug panel and function nodes. It's the `req`/`res` special case, generalized and made safe for everyone:
+
+```
           on the wire - cloned between nodes, safe to serialize
    +----------+     msg = { payload, req snapshot }     +---------------+
    | http-in  |---------------------------------------->| http-response |
