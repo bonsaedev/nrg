@@ -397,7 +397,8 @@ const res = { statusCode: 0, end: vi.fn() };
 
 await node.receive(
   { _msgid: "r1", output: { ok: true } },
-  { private: { res } }, // the incoming channels
+  undefined, // no protected channel
+  { res }, // the incoming private channel
 );
 
 expect(res.end).toHaveBeenCalledWith('{"ok":true}');

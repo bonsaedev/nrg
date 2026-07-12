@@ -197,7 +197,8 @@ describe("message channels (protected / private)", () => {
     const { node } = await createNode(ChannelReader, {});
     await node.receive(
       { _msgid: "sig-reader", payload: { hi: 1 } },
-      { private: { secret: 42 } },
+      undefined,
+      { secret: 42 },
     );
     const out = node.sent()[0][0].output;
     expect(out.payload).toEqual({ hi: 1 });
@@ -220,7 +221,8 @@ describe("message channels (protected / private)", () => {
     // Provide the channels an upstream node would have attached to this signal:
     await node.receive(
       { _msgid: "sig-2", payload: {} },
-      { protected: { trace: "abc" }, private: { secret: 99 } },
+      { trace: "abc" },
+      { secret: 99 },
     );
 
     // It echoed what it received onto its output — that's the observable proof:
@@ -237,7 +239,8 @@ describe("message channels (protected / private)", () => {
 
     await node.receive(
       { _msgid: "sig-3", payload: {} },
-      { private: { res: "R" } },
+      undefined,
+      { res: "R" },
     );
 
     const out = node.sent()[0][0].output;
@@ -317,7 +320,8 @@ describe("message channels (protected / private)", () => {
     const { node } = await createNode(Passthrough, {});
     await node.receive(
       { _msgid: "sig-sticky", payload: {} },
-      { protected: { trace: "up" }, private: { secret: 5 } },
+      { trace: "up" },
+      { secret: 5 },
     );
 
     const frame = node.sent(0)[0];
@@ -335,7 +339,7 @@ describe("message channels (protected / private)", () => {
 
     await node.receive(
       { _msgid: "sig-p", payload: {} },
-      { protected: { token: "T" } },
+      { token: "T" },
     );
 
     const out = node.sent()[0][0].output;
