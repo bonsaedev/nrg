@@ -39,6 +39,8 @@ export default defineConfig({
         "src/tools/vite/server/plugins/output-wrapper.ts",
         "src/tools/vite/server/plugins/package-json-generator.ts",
         "src/tools/vite/server/plugins/type-generator.ts",
+        "src/tools/vite/server/plugins/node-type-info.ts",
+        "src/tools/vite/server/plugins/node-types-dts.ts",
       ],
     },
   },
