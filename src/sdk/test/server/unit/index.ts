@@ -3,6 +3,7 @@ import { createRED, createNodeRedNode } from "./mocks";
 import { ensurePortTopology } from "../port-topology";
 import { initValidator, initChannelStore } from "@/sdk/lib/server/init";
 import { channelProxy, packageChannel } from "@/sdk/lib/server/channels-store";
+import { Channels } from "@/sdk/lib/server/nodes/types/ports";
 import type { NodeRedNode } from "@/sdk/lib/server/red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
@@ -70,9 +71,9 @@ type PortMessage<T, P extends string> =
  * `& MessageChannels`: the harness exposes the off-the-wire channels on each emitted
  * frame — `private` in the PRODUCER's own package partition, so it reads back what
  * a SAME-package downstream node would see (a different package reads its own,
- * empty partition). A producer test asserts `sent(0)[0].protected.x` /
- * `sent(0)[0].private.x` (the data the node emitted via
- * `send(msg, protected, private)`). The channels are non-enumerable, so
+ * empty partition). A producer test asserts `sent(0)[0][Channels].protected.x` /
+ * `sent(0)[0][Channels].private.x` (the data the node emitted via
+ * `send(msg, protected, private)`). The `[Channels]` accessor is non-enumerable, so
  * `toEqual({ output })` still matches. They ride data-port frames only, never the
  * built-in error/complete/status frames.
  */
@@ -175,7 +176,7 @@ interface TestNodeContext {
 /**
  * The off-the-wire channels an UPSTREAM node would have attached to the incoming
  * message, passed as the second `receive()` argument so the node under test reads
- * them via `msg.protected.*` / `msg.private.*`. `private` is placed in the node's
+ * them via `msg[Channels].protected.*` / `msg[Channels].private.*`. `private` is placed in the node's
  * OWN package partition (what the node sees). Mirrors the producer side: what one
  * node passes to `send(msg, protected, private)` is what the next receives here.
  *
@@ -263,7 +264,7 @@ function attachHelpers<T>(
   } = {
     async receive(msg: any, channels?: ChannelInput): Promise<void> {
       // Seed the incoming message's off-the-wire channels (as an upstream node would
-      // have) so the node reads them via `msg.protected` / `msg.private`.
+      // have) so the node reads them via `msg[Channels].protected` / `msg[Channels].private`.
       if (channels) channelBridge.seed(msg, channels);
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
@@ -423,15 +424,13 @@ async function createNode<T extends NodeClass>(
       // A frame with no `_msgid` gets an inert channel view (channelProxy handles the
       // missing id) rather than keying the store by `undefined`.
       const msgid = (frame as { _msgid?: string })._msgid;
-      Object.defineProperty(frame, "protected", {
+      Object.defineProperty(frame, Channels, {
         configurable: true,
         enumerable: false,
-        get: () => channelProxy(channelStore, msgid, NRG_PROTECTED_CHANNEL),
-      });
-      Object.defineProperty(frame, "private", {
-        configurable: true,
-        enumerable: false,
-        get: () => channelProxy(channelStore, msgid, channelPartition),
+        get: () => ({
+          protected: channelProxy(channelStore, msgid, NRG_PROTECTED_CHANNEL),
+          private: channelProxy(channelStore, msgid, channelPartition),
+        }),
       });
     },
   };

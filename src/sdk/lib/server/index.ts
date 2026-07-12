@@ -17,6 +17,9 @@ export type { Infer } from "./schemas/types";
 // `Port` — the per-port marker for named/dynamic ports; `Input` / `Outputs` — the
 // input/output gates authors wrap their wire/port types with.
 export type { Port, Input, Outputs } from "./nodes/types/ports";
+// `Channels` — the channel accessor SYMBOL: read or write a message's off-the-wire
+// channel data with `msg[Channels].private` / `msg[Channels].protected`.
+export { Channels } from "./nodes/types/ports";
 
 // The built-in lifecycle port message shapes, public so a generated package
 // `index.d.ts` can reference them in its `NodeTypes` registry.

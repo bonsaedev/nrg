@@ -19,7 +19,7 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
  * @example
  * class CsvParse extends IONode<Config, never, Input<Port<In>>,
  *   Outputs<{ rows: Port<Row[]>; failed: Port<{ line: number; reason: string }> }>> {
- *   async input(msg) { this.send("rows", parse(msg.payload)); } // "rows" | "failed" checked
+ *   async input(msg: Input<Port<In>>) { this.send("rows", parse(msg.payload)); } // "rows" | "failed" checked
  * }
  */
 interface Port<T> {
@@ -91,33 +91,46 @@ type OutputSpec = Record<string, Port<any>> | readonly Port<any>[];
 type Outputs<TPorts extends OutputSpec> = TPorts;
 
 /**
- * The two off-the-wire channels present on every message a node's `input()`
- * receives, added by the runtime — NEVER part of the serialized message, so a
- * flow author's function node and the debug panel can't see them. Each channel lives
- * in nrg's per-runtime store keyed by `_msgid`, reached through these accessors.
- *  - `protected`: readable/writable by a node from ANY package.
- *  - `private`: scoped to the receiving node's OWN package; invisible to others.
+ * The single channel-accessor symbol. Import it to read or write a message's
+ * off-the-wire channels — `msg[Channels].private` / `msg[Channels].protected`. A
+ * SYMBOL key (not a string property), so it can NEVER collide with an author's own
+ * message fields and is invisible to `JSON`, `Object.keys`, and the debug panel for
+ * free. `Symbol.for` (the global registry) makes the key a consumer imports
+ * identical to the one nrg installs the accessor under, across the toolkit/runtime
+ * bundle split. Grouping the channels under ONE symbol keeps the message surface
+ * tidy and leaves room to add further channels without new top-level keys.
+ */
+const Channels: unique symbol = Symbol.for("nrg.channels");
+
+/**
+ * The off-the-wire channels present on every message a node's `input()` receives,
+ * added by the runtime — NEVER part of the serialized message, so a flow author's
+ * function node and the debug panel can't see them. Each channel lives in nrg's
+ * per-runtime store keyed by `_msgid`, reached through the {@link Channels} symbol.
+ *  - `msg[Channels].protected`: readable/writable by a node from ANY package.
+ *  - `msg[Channels].private`: scoped to the receiving node's OWN package; invisible to others.
  *
- * The base `input(msg)` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`
- * that already intersects these channels — so the simplest way to read them is to OMIT
- * the parameter annotation: TypeScript infers `msg` from the base:
+ * Read them from an ANNOTATED `input()` parameter — annotate with the node's own
+ * `Input<Port<…>>` alias. (TypeScript does NOT infer an overridden method's
+ * parameter type from the base class, so an un-annotated `input(msg)` is `any` and
+ * loses all typing — always annotate.)
  *
  * @example
- * class N extends IONode<Config, never, Input<Port<{ payload: string }>>, Out> {
- *   async input(msg) {                     // no annotation
- *     const conn = msg.private.conn;       // package-scoped; `unknown` until narrowed
- *     this.send("out", { trace }, { conn }); // write the channels
- *     delete msg.private.conn;             // release (bookkeeping only)
+ * import { Channels } from "@bonsae/nrg/server";
+ * type NInput = Input<Port<{ payload: string }>>;
+ * class N extends IONode<Config, never, NInput, Out> {
+ *   async input(msg: NInput) {
+ *     const conn = msg[Channels].private.conn;   // package-scoped; `unknown` until narrowed
+ *     this.send("out", { trace }, { conn });     // write the channels
+ *     delete msg[Channels].private.conn;         // release (bookkeeping only)
  *   }
  * }
- *
- * Re-annotating the parameter with the bare wire type discards the channels (a
- * TypeScript override rule). To annotate explicitly, reuse the node's own
- * `Input<Port<…>>` alias.
  */
 interface MessageChannels {
-  protected: Record<string, unknown>;
-  private: Record<string, unknown>;
+  readonly [Channels]: {
+    protected: Record<string, unknown>;
+    private: Record<string, unknown>;
+  };
 }
 
 /**
@@ -141,15 +154,17 @@ interface MessageMeta {
  * the on-the-wire type `TWire`; `Input<>` unwraps that {@link Port} and adds the
  * off-the-wire channels ({@link MessageChannels}). Authors declare it as
  * `type SoqlInput = Input<Port<{ … }>>` and pass it as the node's `TInput` generic;
- * the base `IONode.input(msg: SoqlInput)` parameter is then exactly `TWire` plus
- * the channels, so a node reads `msg.<wireField>` and `msg.private` / `msg.protected` —
- * all typed. Wrapping the wire in `Port<>` mirrors the output side
- * (`Outputs<{ p: Port<T> }>`), so `Port<T>` reads as "a port carrying T" in BOTH
- * directions. The `TInput` generic is constrained `TInput extends Input<Port<unknown>>`,
- * so a bare (unwrapped) wire is rejected — the `Port<>` wrap is enforced; `never`
- * (a source node with no input) still satisfies it. `_msgid` ({@link MessageMeta})
- * stays excluded — it's the framework's internal channel key, not an author-facing
- * field. To annotate `input()` explicitly, reuse the same `Input<Port<…>>` alias.
+ * the annotated `input(msg: SoqlInput)` parameter is then exactly `TWire` plus the
+ * channels, so a node reads `msg.<wireField>` and `msg[Channels].private` /
+ * `msg[Channels].protected` — all typed. Wrapping the wire in `Port<>` mirrors the
+ * output side (`Outputs<{ p: Port<T> }>`), so `Port<T>` reads as "a port carrying T"
+ * in BOTH directions. The `TInput` generic is constrained
+ * `TInput extends Input<Port<unknown>>`, so a bare (unwrapped) wire is rejected — the
+ * `Port<>` wrap is enforced; `never` (a source node with no input) still satisfies
+ * it. `_msgid` ({@link MessageMeta}) stays excluded — it's the framework's internal
+ * channel key, not an author-facing field. ALWAYS annotate `input()` with this alias:
+ * TypeScript does not infer an overridden method's parameter from the base, so an
+ * un-annotated `input(msg)` is `any`.
  */
 type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
   MessageChannels;
@@ -280,3 +295,5 @@ export type {
   CompletePortOutput,
   StatusPortOutput,
 };
+
+export { Channels };

@@ -1,5 +1,5 @@
 import { createNode } from "@/sdk/test/server/unit";
-import { IONode } from "@/sdk/lib/server";
+import { IONode, Channels } from "@/sdk/lib/server";
 import type { Input, Outputs, Port } from "@/sdk/lib/server";
 
 // Compile-time proofs for the message-channel types — never executed; `tsc` (via
@@ -14,18 +14,18 @@ type Msg = Input<Port<Wire>>;
 declare const msg: Msg;
 
 // (a) both channels are visible and are string-keyed records
-const prot: Record<string, unknown> = msg.protected;
-const priv: Record<string, unknown> = msg.private;
+const prot: Record<string, unknown> = msg[Channels].protected;
+const priv: Record<string, unknown> = msg[Channels].private;
 void prot;
 void priv;
 
 // (b) a channel value is `unknown`, NOT `any`. An `any` would silently satisfy the
 //     concrete-typed assignment below; `unknown` does not, so the @ts-expect-error
 //     only holds when the value is genuinely `unknown`.
-// @ts-expect-error - msg.private.res is `unknown`, not assignable to a concrete type
-const concrete: { end(): void } = msg.private.res;
+// @ts-expect-error - msg[Channels].private.res is `unknown`, not assignable to a concrete type
+const concrete: { end(): void } = msg[Channels].private.res;
 void concrete;
-const asUnknown: unknown = msg.private.res;
+const asUnknown: unknown = msg[Channels].private.res;
 void asUnknown;
 
 // (c) the wire shape survives the intersection
@@ -63,9 +63,9 @@ void result.node.receive({ payload: "x", _msgid: "1" });
 // satisfy it and fail this proof (unused @ts-expect-error).
 // @ts-expect-error - the emitted frame's protected.trace is `unknown`
 const emittedConcrete: { end(): void } =
-  result.node.sent(0)[0].protected.trace;
+  result.node.sent(0)[0][Channels].protected.trace;
 void emittedConcrete;
-const emittedTrace: unknown = result.node.sent(0)[0].protected.trace;
+const emittedTrace: unknown = result.node.sent(0)[0][Channels].protected.trace;
 void emittedTrace;
 
 // (f) `_msgid` is NOT on the `input()` parameter type. It's the framework's

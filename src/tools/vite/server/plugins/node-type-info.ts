@@ -1016,17 +1016,14 @@ function defaultExportClass(
 }
 
 /** True when a type is the framework's off-the-wire {@link MessageChannels} — the
- * `protected`/`private` channels the `Input<>` gate intersects onto every input.
- * Matched by BOTH its alias name AND its `protected`+`private` shape, so a user
- * type that merely shares the name (without the channel shape) is never mistaken for
- * it and stripped. */
-function isMessageChannels(checker: ts.TypeChecker, type: ts.Type): boolean {
-  if ((type.aliasSymbol ?? type.getSymbol())?.getName() !== "MessageChannels") {
-    return false;
-  }
+ * `[Protected]`/`[Private]` channels the `Input<>` gate intersects onto every input.
+ * Its members are keyed by nrg's channel SYMBOLS, which can't be matched by string
+ * name through the checker, so it's identified by its nrg-internal alias name
+ * `MessageChannels` — a reliable discriminant a consumer type would not collide with
+ * as an `&`-member of an `Input<Port<…>>`. */
+function isMessageChannels(_checker: ts.TypeChecker, type: ts.Type): boolean {
   return (
-    !!checker.getPropertyOfType(type, "protected") &&
-    !!checker.getPropertyOfType(type, "private")
+    (type.aliasSymbol ?? type.getSymbol())?.getName() === "MessageChannels"
   );
 }
 

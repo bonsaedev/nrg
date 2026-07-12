@@ -48,10 +48,10 @@ Two kinds of data can't safely ride the wire: **live objects** that break when N
 this.send("out", { userId }, { "auth.principal": principal });
 
 // @bonsae/salesforce — a DIFFERENT package reads it back and authorizes
-const token = await (msg.protected["auth.principal"] as Principal).getAccessToken();
+const token = await (msg[Channels].protected["auth.principal"] as Principal).getAccessToken();
 ```
 
-Channel data lives in a per-runtime store keyed by the message's `_msgid`; NRG installs hidden `msg.protected` / `msg.private` accessors on each node's incoming message. It is **never serialized, never cloned, never shown in the debug panel, and invisible to a flow author's function node** — yet any node that needs it reads it back by the same message, and it survives every `carry`/`trace`/`reset` wire choice because it rides the `_msgid`, not the payload. It's the general, safe form of the `req`/`res` escape hatch Node-RED had to special-case for one pair of built-in nodes. Pick `private` vs `protected` by reach — see [Message Channels](./message-channels) for the full decision guide.
+Channel data lives in a per-runtime store keyed by the message's `_msgid`; NRG installs hidden `msg[Channels].protected` / `msg[Channels].private` accessors on each node's incoming message. It is **never serialized, never cloned, never shown in the debug panel, and invisible to a flow author's function node** — yet any node that needs it reads it back by the same message, and it survives every `carry`/`trace`/`reset` wire choice because it rides the `_msgid`, not the payload. It's the general, safe form of the `req`/`res` escape hatch Node-RED had to special-case for one pair of built-in nodes. Pick `private` vs `protected` by reach — see [Message Channels](./message-channels) for the full decision guide.
 
 ## Node Registration
 

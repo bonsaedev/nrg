@@ -13,17 +13,26 @@ Message channels give every message two channels that ride *alongside* it withou
 *on* it:
 
 ```typescript
+import { Channels } from "@bonsae/nrg/server";
+
 this.send("out", publicMsg, protectedData, privateData);
 
 // a downstream node reads them back off its incoming message:
-msg.protected["otel.span"];  // visible to a node from ANY package
-msg.private.conn;            // visible to nodes in YOUR package only
-delete msg.private.conn;     // release it when you're done
+msg[Channels].protected["otel.span"];  // visible to a node from ANY package
+msg[Channels].private.conn;            // visible to nodes in YOUR package only
+delete msg[Channels].private.conn;     // release it when you're done
 ```
+
+`Channels` is a **symbol** exported from `@bonsae/nrg/server`, used as the key on `msg`;
+`msg[Channels]` gives you `{ protected, private }`. A symbol key can never collide with
+your own message fields and is invisible to `JSON`, `Object.keys`, and the debug panel for
+free — which is exactly why the channels use it. The incoming accessor is **read + delete
+only** — write channel data on `send` (`this.send(port, value, protectedData, privateData)`);
+assigning `msg[Channels].private.x = …` throws.
 
 Channel data never rides the wire message. It lives in a per-runtime store keyed by the
 message's `_msgid` (the id every clone of a message shares, which nrg carries across
-every node); nrg installs hidden `msg.protected` / `msg.private` accessors on each
+every node); nrg installs hidden `msg[Channels].protected` / `msg[Channels].private` accessors on each
 node's incoming message. Channel data is **never serialized, never cloned, never shown
 in the debug panel, and invisible to a flow author's function node** — yet any node
 that needs it reads it back by the same message.
@@ -90,7 +99,7 @@ authorize with the caller's credentials.
 
 ```typescript
 // @acme/auth — mints a live principal, stamps it on the shared PROTECTED channel.
-override async input(msg) {                              // no annotation
+override async input(msg: Input<Port<{ request: unknown }>>) {
   const principal = await this.verify(msg);              // { getAccessToken(): Promise<string> }
   this.send("out", msg, { "auth.principal": principal }); // raw token never touches the wire
 }
@@ -98,8 +107,8 @@ override async input(msg) {                              // no annotation
 
 ```typescript
 // @bonsae/salesforce — a DIFFERENT package. Reads the principal off the shared channel.
-override async input(msg) {
-  const principal = msg.protected["auth.principal"] as Principal; // channel values are `unknown`
+override async input(msg: Input<Port<{ payload: unknown }>>) {
+  const principal = msg[Channels].protected["auth.principal"] as Principal; // channel values are `unknown`
   const token = await principal.getAccessToken();
   // ...call Salesforce with `token`
 }
@@ -169,7 +178,7 @@ reinvention *is* message channels; nrg just builds it in, off the wire, and hidd
 
 ::: info Why a function node can't reach a channel
 The channel store is **server-plane** (one per runtime, with a per-package partition for
-`private`), and nrg only installs the `msg.protected` / `msg.private` accessors on *its
+`private`), and nrg only installs the `msg[Channels].protected` / `msg[Channels].private` accessors on *its
 own* nodes' incoming messages. A core function node just receives a plain `msg` — same
 `_msgid`, but no accessor and no way to reach the store. The channels are structurally invisible to the flow author, not merely
 undocumented.
@@ -189,7 +198,7 @@ and write.
 
 ::: tip Namespace your `protected` keys
 `protected` is a shared bus, so two packages can collide on a key. Use a namespaced key —
-`msg.protected["otel.span"]`, not `msg.protected.span`.
+`msg[Channels].protected["otel.span"]`, not `msg[Channels].protected.span`.
 :::
 
 ## Writing and reading channels
@@ -205,43 +214,35 @@ this.send("out", { payload }, { "otel.span": span }, { conn });
 this.send("rows", rows, { "otel.span": span }, { conn });
 ```
 
-A node **reads** the channels back off its incoming message. The channels are already on the
-`input()` parameter type, so the simplest way to get them typed is to **omit the parameter
-annotation** — TypeScript infers `msg` from the base method, where your `TInput` generic
-declares the node's input port:
+A node **reads** the channels back off its incoming message. **Always annotate the
+`input()` parameter** with your node's `Input<Port<…>>` alias — declare the wire type once
+and reuse it as both the generic and the parameter annotation:
 
 ```typescript
-import { IONode, type Input, type Port } from "@bonsae/nrg/server";
+import { IONode, Channels, type Input, type Port } from "@bonsae/nrg/server";
 
-// The input GENERIC is the wire shape (it drives the node's ports — channels are not
-// ports). Leave the input() PARAMETER un-annotated and `msg.private` / `msg.protected`
-// are typed for you.
+// Declare the wire type ONCE and use it in both places: as the input generic (it drives
+// the node's ports) and as the input() parameter annotation (so `msg[Channels]` plus the
+// wire fields are typed).
 type MyNodeInput = Input<Port<{ payload: unknown }>>;
 
 export default class MyNode extends IONode<Config, never, MyNodeInput, MyNodeOutputs> {
   static override readonly type = "my-node";
 
-  override async input(msg) {                    // no annotation
-    const conn = msg.private.conn;               // package-scoped; `unknown` until you narrow it
-    const span = msg.protected["otel.span"];     // shared; `unknown` until you narrow it
+  override async input(msg: MyNodeInput) {
+    const conn = msg[Channels].private.conn;            // package-scoped; `unknown` until you narrow it
+    const span = msg[Channels].protected["otel.span"];  // shared; `unknown` until you narrow it
     // ...
   }
 }
 ```
 
-::: info Un-annotated parameters need `noImplicitAny: false`
-Omitting the annotation relies on `noImplicitAny` being **off** — nrg's shipped
-`tsconfig` sets this, so it works out of the box. Under a stricter `tsconfig` that turns
-`noImplicitAny` on, an un-annotated `input(msg)` is an error; annotate it with your node's
-own `Input<Port<…>>` alias (`MyNodeInput` above), which carries the channels with it.
-:::
-
-::: warning Don't re-annotate with the bare wire type
-Leaving the parameter un-annotated infers the wire shape **plus** the channels. Re-annotating
-it with the plain wire type — `input(msg: { payload: unknown })` — is accepted by TypeScript
-but **discards the channels** from the parameter's static type. If you want an explicit
-annotation, use the same `Input<Port<…>>` type you passed as the generic (`MyNodeInput`
-above), which carries the channels with it.
+::: warning Always annotate `input()`
+TypeScript does **not** infer an overridden method's parameter type from the base class, so
+an un-annotated `input(msg)` is `any` — you lose the wire fields *and* the channels. Annotate
+with your node's `Input<Port<…>>` alias (`MyNodeInput` above). Annotating with the bare wire
+type instead — `input(msg: { payload: unknown })` — compiles but **discards the channels**;
+always use the `Input<Port<…>>` alias, which carries them.
 :::
 
 ::: info `_msgid` is not an author field
@@ -249,7 +250,7 @@ nrg keys the channels by the message's `_msgid` internally, but `_msgid` is **no
 `input()` parameter type — it won't appear in autocomplete, and reading it through the
 typed `msg` is a compile error. It's framework plumbing: overwriting it would fork the
 message from its channels. You never need it — read and write channels through
-`msg.protected` / `msg.private`, and let nrg do the correlation.
+`msg[Channels].protected` / `msg[Channels].private`, and let nrg do the correlation.
 :::
 
 ## Lifecycle: you release, the framework forgets
@@ -257,10 +258,10 @@ message from its channels. You never need it — read and write channels through
 A channel entry is removed with `delete`:
 
 ```typescript
-override async input(msg) {
-  const res = msg.private.res as ServerResponse;
+override async input(msg: Input<Port<{ output: unknown }>>) {
+  const res = msg[Channels].private.res as ServerResponse;
   res.end(JSON.stringify(msg.output));
-  delete msg.private.res; // done with it
+  delete msg[Channels].private.res; // done with it
 }
 ```
 
@@ -312,10 +313,10 @@ type HttpResponseInput = Input<Port<{ payload: unknown }>>;
 export default class HttpResponse extends IONode<Config, never, HttpResponseInput, never> {
   static override readonly type = "http-response";
 
-  override async input(msg) {                       // no annotation
-    const res = msg.private.res as ServerResponse | undefined; // same package → visible
+  override async input(msg: HttpResponseInput) {
+    const res = msg[Channels].private.res as ServerResponse | undefined; // same package → visible
     if (!res) return;                               // already answered, or not ours
-    delete msg.private.res;                         // claim it — answered exactly once
+    delete msg[Channels].private.res;                         // claim it — answered exactly once
     res.statusCode = 200;
     res.end(JSON.stringify(msg.output));
   }
@@ -325,7 +326,7 @@ export default class HttpResponse extends IONode<Config, never, HttpResponseInpu
 Because `private` is keyed by `_msgid`, two overlapping requests never cross wires — each
 HTTP Response replies on the `res` that belongs to *its own* message, even when responses
 complete out of order. Deleting the entry up front also makes the request **answered
-exactly once**: a second HTTP Response for the same signal finds `msg.private.res`
+exactly once**: a second HTTP Response for the same signal finds `msg[Channels].private.res`
 undefined and no-ops. (This is the pattern `@bonsae/node-red-http` uses — plus a `504`
 idle-timeout on the socket, since the resource owns its own release.)
 
@@ -340,7 +341,7 @@ author seeing it and without it going on the wire:
 
 ```typescript
 // @acme/otel — trace-start.ts
-override async input(msg) {
+override async input(msg: Input<Port<{ payload: unknown }>>) {
   const span = tracer.startSpan("flow");
   this.send("out", msg, { "otel.span": span }); // protected: any package can read it
 }
@@ -348,8 +349,8 @@ override async input(msg) {
 
 ```typescript
 // @bonsae/node-red-http — http-request.ts (a DIFFERENT package)
-override async input(msg) {
-  const parent = msg.protected["otel.span"] as Span | undefined;
+override async input(msg: Input<Port<{ payload: unknown }>>) {
+  const parent = msg[Channels].protected["otel.span"] as Span | undefined;
   const child = parent ? tracer.startSpan("http", { parent }) : undefined;
   // ...
 }
@@ -368,7 +369,7 @@ const controller = new AbortController();
 this.send("out", msg, { "abort.signal": controller.signal });
 
 // consumer in another package — honor it
-const signal = msg.protected["abort.signal"] as AbortSignal | undefined;
+const signal = msg[Channels].protected["abort.signal"] as AbortSignal | undefined;
 const res = await fetch(url, { signal });
 ```
 
@@ -383,7 +384,7 @@ node's observable behavior, never by reaching into the store.
 const { node } = await createNode(Producer, {});
 await node.receive({ _msgid: "r1", payload: { a: 1 } });
 
-expect(node.sent(0)[0].private.res).toBe(fakeRes);  // stashed off-wire
+expect(node.sent(0)[0][Channels].private.res).toBe(fakeRes);  // stashed off-wire
 expect(node.sent(0)[0]).not.toHaveProperty("res");  // wire stays clean
 ```
 

@@ -341,7 +341,7 @@ describe("settings", () => {
 describe("TypedInput", () => {
   // Given a node that resolves a TypedInput in its input handler:
   //
-  //   async input(msg) {
+  //   async input(msg: MyNodeInput) {
   //     const value = await this.config.target.resolve(msg);
   //     this.send("out", { value });
   //   }

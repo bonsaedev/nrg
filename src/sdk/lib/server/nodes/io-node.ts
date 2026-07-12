@@ -17,6 +17,7 @@ import {
   NRG_PROTECTED_CHANNEL,
 } from "../symbols";
 import { channelProxy, packageChannel } from "../channels-store";
+import { Channels } from "./types/ports";
 import type {
   OutputPortNames,
   PortValue,
@@ -117,9 +118,10 @@ export type ContextMode = "carry" | "trace" | "reset";
  * "x is the result", never "x is the whole message".
  *
  * The `input()` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`: the
- * wire type plus the off-the-wire channels (`msg.protected` / `msg.private`). OMIT the
- * annotation and TypeScript infers all of it from the generic. Re-annotating the
- * parameter with the bare wire type discards the channels. `_msgid` is deliberately not
+ * wire type plus the off-the-wire channels (`msg[Channels]`). ALWAYS annotate the
+ * parameter with this alias — TypeScript does not infer an overridden method's
+ * parameter from the base, so an un-annotated `input(msg)` is `any`. Annotating with the
+ * bare wire type instead discards the channels. `_msgid` is deliberately not
  * on the parameter — it's the framework's internal channel key, not an author-facing
  * field.
  *
@@ -132,8 +134,8 @@ export type ContextMode = "carry" | "trace" | "reset";
  *   static readonly category = "function";
  *   static readonly color = "#ffffff" as const;
  *
- *   async input(msg) {               // no annotation — msg is the wire + channels
- *     const conn = msg.private.conn; // off-wire, package-scoped
+ *   async input(msg: MyNodeInput) {          // always annotate with your Input alias
+ *     const conn = msg[Channels].private.conn; // off-wire, package-scoped
  *     // sends { output: <result>, input: msg } (carry default: last msg kept),
  *     // and stashes trace/res on the protected/private channels off the wire:
  *     this.send("out", { result: msg.payload.toUpperCase() }, { traceId }, { res });
@@ -420,11 +422,13 @@ abstract class IONode<
   }
 
   /**
-   * Add non-enumerable `protected`/`private` accessors to the incoming message.
-   * Non-enumerable so they never serialize, clone, or show in the debug panel;
-   * each reads the channel store by the message's `_msgid`, `private` partitioned by
-   * this node's package. A core function node gets the bare message and has no
-   * accessor — the channels are structurally invisible to the flow author.
+   * Add the `[Channels]` accessor to the incoming message. SYMBOL-keyed, so it can
+   * never collide with an author's own message fields and is already invisible to
+   * JSON / `Object.keys` / the debug panel (the `enumerable: false` keeps it out of
+   * a symbol-aware clone too). Reading `msg[Channels]` yields `{ protected, private }`
+   * — proxies over the channel store keyed by the message's `_msgid`, `private`
+   * partitioned by this node's package. A core function node gets the bare message
+   * and has no accessor — the channels are structurally invisible to the flow author.
    *
    * Mutates `msg` in place (the caller already holds it as `TInput`). A non-object
    * message (never produced by real Node-RED, which always delivers an object) is
@@ -434,22 +438,15 @@ abstract class IONode<
     if (msg == null || typeof msg !== "object") return;
     const store = this.RED.channelStore;
     const pkg = packageChannel(this.constructor);
-    Object.defineProperty(msg, "protected", {
+    Object.defineProperty(msg, Channels, {
       configurable: true,
       enumerable: false,
       get() {
-        return channelProxy(
-          store,
-          (this as { _msgid: string })._msgid,
-          NRG_PROTECTED_CHANNEL,
-        );
-      },
-    });
-    Object.defineProperty(msg, "private", {
-      configurable: true,
-      enumerable: false,
-      get() {
-        return channelProxy(store, (this as { _msgid: string })._msgid, pkg);
+        const msgid = (this as { _msgid: string })._msgid;
+        return {
+          protected: channelProxy(store, msgid, NRG_PROTECTED_CHANNEL),
+          private: channelProxy(store, msgid, pkg),
+        };
       },
     });
   }

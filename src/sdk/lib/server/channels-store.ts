@@ -1,11 +1,19 @@
 import { NRG_MODULE_PRIVATE_CHANNEL, NRG_PRIVATE_CHANNEL } from "./symbols";
+import { NrgError } from "../shared/errors";
+
+/** Thrown when an author ASSIGNS to a channel (`msg[Channels].private.x = …`).
+ * Channel data is written on send — the incoming accessor is read + delete only. */
+const ASSIGN_MESSAGE =
+  "Cannot assign to a message channel. Channel data is written on send — " +
+  "`send(port, value, protectedData, privateData)`. The `msg[Channels]` accessor is " +
+  "read + delete only (e.g. `delete msg[Channels].private.x`).";
 
 /**
  * The off-the-wire message channels: `protected` and `private`.
  *
  * Neither ever rides the wire message — both live here, in a per-runtime store
  * keyed by the message's `_msgid` (the id every clone of a message shares),
- * reachable only through the `msg.protected` / `msg.private` accessors nrg
+ * reachable only through the `msg[Channels].protected` / `msg[Channels].private` accessors nrg
  * installs on a node's incoming message. A flow author's function node gets the
  * bare wire message and can't reach either channel.
  *
@@ -15,7 +23,7 @@ import { NRG_MODULE_PRIVATE_CHANNEL, NRG_PRIVATE_CHANNEL } from "./symbols";
  * private data is invisible even to another package's nodes. The partition-key
  * symbols live in `./symbols` (their cross-bundle home).
  *
- * Entries are removed explicitly (`delete msg.private.x`, framework bookkeeping
+ * Entries are removed explicitly (`delete msg[Channels].private.x`, framework bookkeeping
  * only — the resource owns its own release) and swept on an idle TTL as a
  * backstop for messages that are dropped/abandoned before anyone deletes them.
  */
@@ -108,11 +116,12 @@ class ChannelStore {
   }
 }
 
-/** A live view over one (message, partition): reads/writes/deletes hit the store.
- * A message with no `_msgid` gets an INERT view (reads `undefined`, writes/deletes
- * no-op) rather than keying the store by `undefined` — which would let any two
- * id-less messages share one partition. Real Node-RED always delivers a `_msgid`,
- * so this only guards a malformed test message. */
+/** A live READ + DELETE view over one (message, partition): reads and deletes hit
+ * the store; ASSIGNMENT throws (channels are written on send, never by mutating the
+ * incoming message). A message with no `_msgid` gets an INERT view (reads `undefined`,
+ * deletes no-op, assignment still throws) rather than keying the store by `undefined`
+ * — which would let any two id-less messages share one partition. Real Node-RED always
+ * delivers a `_msgid`, so this only guards a malformed test message. */
 function channelProxy(
   store: ChannelStore,
   msgid: string | undefined,
@@ -121,7 +130,9 @@ function channelProxy(
   if (msgid == null) {
     return new Proxy(Object.create(null) as Record<string, unknown>, {
       get: () => undefined,
-      set: () => true,
+      set: () => {
+        throw new NrgError(ASSIGN_MESSAGE);
+      },
       deleteProperty: () => true,
       has: () => false,
       ownKeys: () => [],
@@ -131,9 +142,10 @@ function channelProxy(
   return new Proxy(Object.create(null) as Record<string, unknown>, {
     get: (_t, key) =>
       typeof key === "string" ? store.get(msgid, partition, key) : undefined,
-    set: (_t, key, value) => {
-      if (typeof key === "string") store.set(msgid, partition, key, value);
-      return true;
+    // Assignment is a misuse — channels are written on send, not by mutating the
+    // incoming message. Throw loudly rather than silently writing a second path.
+    set: () => {
+      throw new NrgError(ASSIGN_MESSAGE);
     },
     deleteProperty: (_t, key) => {
       if (typeof key === "string") store.delete(msgid, partition, key);
@@ -147,7 +159,7 @@ function channelProxy(
         ? {
             enumerable: true,
             configurable: true,
-            writable: true,
+            writable: false,
             value: store.get(msgid, partition, key),
           }
         : undefined,
