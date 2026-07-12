@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.39.0](https://github.com/bonsaedev/nrg/compare/v0.38.1...v0.39.0) (2026-07-12)
+
+### Features
+
+* **server:** carry protected/private lanes through sendToPort ([bcc0ac0](https://github.com/bonsaedev/nrg/commit/bcc0ac0f461652a533c8a68850d3705d2de8a680))
+* **server:** constrained I/O generics, unified send, hidden _msgid ([bc62e02](https://github.com/bonsaedev/nrg/commit/bc62e0215dc933863cb82ad10bc320c43b1bdc24))
+* **server:** expose lanes + _msgid on input() without annotation ([5633df7](https://github.com/bonsaedev/nrg/commit/5633df766197b0574bd88605d719372faa7b9ff1))
+* **server:** message lanes for off-the-wire, package-scoped data ([355dc12](https://github.com/bonsaedev/nrg/commit/355dc12cd3dd505c2228710786bb6ed051124380))
+* **server:** symbol-keyed message channels — msg[Channels].private / .protected ([6601986](https://github.com/bonsaedev/nrg/commit/6601986711e184332d3250db22649112780f7d8f))
+
+### Bug Fixes
+
+* **server:** hide _msgid from the input() parameter type ([de3a70c](https://github.com/bonsaedev/nrg/commit/de3a70c63e10345df7ac7073f378c9ba30552d62))
+* **server:** inherit _msgid on the complete/error auto-emits ([e4a70f5](https://github.com/bonsaedev/nrg/commit/e4a70f59e469533372174b35614d0033677cc210))
+* **server:** reject an out-of-range numeric send() ([86dcdea](https://github.com/bonsaedev/nrg/commit/86dcdea82a9a8ce4bd2c5fde59f9e15d5ee7d8ff))
+* **server:** sound typing for index-signature output, numeric send, sent(index) ([8d19be7](https://github.com/bonsaedev/nrg/commit/8d19be71d82ae7f24fd06c0773e5947fd3f94604))
+* **vite:** drop array/collection prototype members from role field docs ([4c313e8](https://github.com/bonsaedev/nrg/commit/4c313e80e41983be2690e42e6c771c153d4c9d0f))
+* **vite:** exclude reserved port names from extracted named ports ([25bbac6](https://github.com/bonsaedev/nrg/commit/25bbac61a528c4ea5348c936dafb2ff895b8197e))
+* **vite:** generated package d.ts satisfies IONode's InputSpec/OutputSpec ([f521033](https://github.com/bonsaedev/nrg/commit/f52103344b86c0b0120d124000c9ac9173c42d3d))
+
+### Refactors
+
+* rename message lanes → channels ([13844e0](https://github.com/bonsaedev/nrg/commit/13844e0f8028b79848cd8759334d39a5083b59a6))
+* **server:** channels use a { protected, private } object + named channel types ([82e6452](https://github.com/bonsaedev/nrg/commit/82e645272e8d6abeff383d3c51b85534a3d94934))
+* **server:** remove vestigial NamedPortsBrand ([3cd81aa](https://github.com/bonsaedev/nrg/commit/3cd81aafe05da99c8122cf29f7f8366a5458d4b4))
+* **test:** receive() seeds channels positionally, mirroring send() ([cec0683](https://github.com/bonsaedev/nrg/commit/cec0683e444d1317efa25286a335fe7b42031ce4))
+
+### Documentation
+
+* clarify port-spec constraints and drop a stale comment ([303cea9](https://github.com/bonsaedev/nrg/commit/303cea9754eaef999dfed3db25e51ad262f6f9eb))
+* clean up the README example ([e419491](https://github.com/bonsaedev/nrg/commit/e4194913188bc1715eefc695de3c9f2908974d2d))
+* give message channels its own section ([04ae966](https://github.com/bonsaedev/nrg/commit/04ae966b42b4cf527bd381ce9d8b5834c00d79e3))
+* migrate examples to the constrained-I/O API ([78756d7](https://github.com/bonsaedev/nrg/commit/78756d774c09d4be7cabda8dcc095bd03e77b8ac))
+* rework message lanes guide + why-nrg pitch ([28d3272](https://github.com/bonsaedev/nrg/commit/28d3272c18151c4d21228d34871ff23a962561e9))
+
 ## [0.38.1](https://github.com/bonsaedev/nrg/compare/v0.38.0...v0.38.1) (2026-07-11)
 
 ### Bug Fixes
