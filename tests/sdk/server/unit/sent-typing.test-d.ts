@@ -46,15 +46,18 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     void bad;
   });
 
-  // --- tuple (positional) multi-output -------------------------------------
-  it("types a tuple output positionally at sent()[i][0] / [i][1]", async () => {
+  // --- converted tuple → named-port multi-output ---------------------------
+  it("types a converted tuple's named ports precisely via sent(name)", async () => {
     const { node } = await createNode(TdTuple);
-    const a: string = node.sent()[0][0].output.a;
-    const b: number = node.sent()[0][1].output.b;
+    // Precise per-port access is by NAME. Positional `sent()[i][0]`/`[i][1]` is the
+    // sound UNION of the ports' values (record key order is not type-recoverable),
+    // so `sent(name)` is the precise accessor.
+    const a: string = node.sent("out0")[0].output.a;
+    const b: number = node.sent("out1")[0].output.b;
     void a;
     void b;
-    // @ts-expect-error port 1 holds { b: number }, it has no `a`
-    const bad: string = node.sent()[0][1].output.a;
+    // @ts-expect-error port out1 holds { b: number }, it has no `a`
+    const bad: string = node.sent("out1")[0].output.a;
     void bad;
   });
 
@@ -75,7 +78,7 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     void badOk;
     // @ts-expect-error "missing" is not a declared port
     node.sent("missing");
-    // @ts-expect-error named-port nodes emit via sendToPort; send(map) is unsound
+    // @ts-expect-error named-port nodes emit via send(name, value); send(map) is unsound
     node.send({ success: { ok: "y" }, failure: { err: 1 } });
   });
 
@@ -89,20 +92,20 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     void ok;
     void err;
     // @ts-expect-error "success" carries a string message, not a number
-    node.sendToPort("success", 1);
+    node.send("success", 1);
     // @ts-expect-error "missing" is not a declared port
-    node.sendToPort("missing", "x");
+    node.send("missing", "x");
   });
 
   // --- M1(b): a single object-of-objects output must NOT expose its fields as
   //     ports (the old gate matched it as a record → fake, silently-dropped ports).
   it("treats a single object-of-objects output as ONE port", async () => {
     const { node } = await createNode(TdSingleObjOfObj);
-    // it is ONE output port (port 0), addressed by send()/index — not by field.
+    // it is ONE output port (port 0), addressed by send("out", …)/index — not by field.
     const v: number = node.sent()[0][0].output.meta.v;
     void v;
     // @ts-expect-error "meta" is a field of the single output, not an output port
-    node.sendToPort("meta", { v: 1 });
+    node.send("meta", { v: 1 });
   });
 
   // --- M1(d): an untyped output (Output = any) stays permissive: any port
@@ -128,5 +131,17 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     // @ts-expect-error output.event.id is a string, not a number
     const bad: number = node.sent()[0][0].output.event.id;
     void bad;
+  });
+
+  // --- receive() is typed from the WIRE even for the idiomatic no-parameter
+  //     input() style — NOT silently `unknown` (which would let a wrong wire pass).
+  it("types receive() from the wire for a no-parameter input()", async () => {
+    // TdSingle declares Input<Port<{ in: string }>> and `override async input()`
+    // with NO parameter — the wire is recovered from the node's own receive() param.
+    const { node } = await createNode(TdSingle);
+    await node.receive({ in: "ok" }); // the wire shape (extra props allowed)
+    // @ts-expect-error — a wrong wire is rejected; if receive() were `unknown`-typed
+    // (the bug) this would compile and silently pass a bad message.
+    await node.receive({ wrong: true });
   });
 });

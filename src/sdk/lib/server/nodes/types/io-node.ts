@@ -7,7 +7,14 @@ import type {
   NodeContextStore,
   NodeContextScope,
 } from "./node";
-import type { OutputPortNames, PortValue, InputMessage } from "./ports";
+import type {
+  OutputPortNames,
+  PortValue,
+  Port,
+  OutputSpec,
+  InputSpec,
+  OmitMessageLanes,
+} from "./ports";
 
 type IONodeContextScope = NodeContextScope;
 
@@ -65,8 +72,8 @@ type IONodeContext = {
 interface IIONode<
   TConfig = any,
   TCredentials = any,
-  TInput = any,
-  TOutput = any,
+  TInput extends InputSpec = any,
+  TOutput extends OutputSpec = any,
   TSettings = any,
 > extends INode<TConfig, TCredentials, TSettings> {
   readonly config: IONodeConfig<TConfig>;
@@ -77,21 +84,24 @@ interface IIONode<
   readonly wires: string[][];
 
   // A returned value (when not `undefined`) rides the complete port under
-  // `output`; `void`/no return keeps the plain completion signal. The parameter
-  // is an {@link InputMessage} — the wire type plus the off-the-wire lanes.
-  input(msg: InputMessage<TInput>): unknown;
-  // `protectedData`/`privateData` populate the message's off-the-wire lanes for
-  // this signal; they never ride the serialized msg.
-  send(msg: TOutput, protectedData?: object, privateData?: object): void;
+  // `output`; `void`/no return keeps the plain completion signal. `TInput` is the
+  // wrapped message type (`Input<…>`), so the parameter already carries the
+  // off-the-wire lanes alongside the wire fields.
+  input(msg: TInput): unknown;
   status(status: IONodeStatus): void;
   updateWires(wires: string[][]): void;
-  receive(msg: TInput): void;
+  // `receive` drives the handler with a raw WIRE message — the lanes are installed
+  // by the framework, so callers pass {@link OmitMessageLanes}`<TInput>`, not the
+  // wrapped type.
+  receive(msg: OmitMessageLanes<TInput>): void;
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
-  // `protectedData`/`privateData` populate the message's off-the-wire lanes for
-  // this signal, exactly like `send()`.
-  sendToPort<P extends OutputPortNames<TOutput> | number>(
+  // Emit a value on one output port, addressed by NAME (a named `Port` record) or
+  // by numeric index (a dynamic `Port<T>[]`). `protectedData`/`privateData` populate
+  // the message's off-the-wire lanes for this signal; they never ride the serialized
+  // msg. Built-in error/complete/status ports are framework-managed — not `send`-able.
+  send<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
     protectedData?: object,

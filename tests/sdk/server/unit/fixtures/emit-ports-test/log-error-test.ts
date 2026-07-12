@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 const ConfigSchema = defineSchema(
@@ -12,14 +18,14 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = { payload?: unknown };
+type LogErrorTestInput = Input<Port<{ payload?: unknown }>>;
+type LogErrorTestOutputs = Outputs<{ out: Port<{ payload?: unknown }> }>;
 
 class LogErrorTest extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  LogErrorTestInput,
+  LogErrorTestOutputs
 > {
   static override readonly type = "log-error-test";
   static override readonly configSchema = ConfigSchema;

@@ -6,9 +6,11 @@
       "@/*": ["../src/*"],
       "@mocks/*": ["./sdk/server/mocks/*"],
       "@bonsae/nrg/server": ["../src/sdk/lib/server/index.ts"],
+      "@bonsae/nrg/test/server/unit": ["../src/sdk/test/server/unit/index.ts"],
       "@bonsae/nrg-runtime": ["../src/sdk/lib/runtime.ts"]
     }
   },
   "include": ["**/*.ts"],
+  "files": ["../src/sdk/test/server/unit/sent-augment.d.ts"],
   "exclude": ["node_modules", "fixtures/**", "sdk/client/**"]
 }

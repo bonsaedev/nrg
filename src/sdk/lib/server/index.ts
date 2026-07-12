@@ -14,14 +14,15 @@ export type { RED, NodeRedSettings } from "./red";
 // `TypedInput<T>` wrapper) — as does `Port`, the per-port marker for declaring
 // named/typed output ports directly in the `Output` generic.
 export type { Infer } from "./schemas/types";
-export type { Port } from "./nodes/types/ports";
+// `Port` — the per-port marker for named/dynamic ports; `Input` / `Outputs` — the
+// input/output gates authors wrap their wire/port types with.
+export type { Port, Input, Outputs } from "./nodes/types/ports";
 
 // The built-in lifecycle port message shapes, public so a generated package
 // `index.d.ts` can reference them in its `NodeTypes` registry.
 export type {
   MessageLanes,
   MessageMeta,
-  InputMessage,
   NodeSource,
   ErrorPortOutput as ErrorPort,
   CompletePortOutput as CompletePort,

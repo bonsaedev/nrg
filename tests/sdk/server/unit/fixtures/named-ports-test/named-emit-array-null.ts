@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Two positional ports; on input it emits a positional array whose FIRST slot
@@ -15,23 +21,24 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = [
-  { payload: string } | null,
-  { payload: { reason: string } } | null,
-];
+type NamedEmitArrayNullInput = Input<Port<{ payload?: unknown }>>;
+type NamedEmitArrayNullOutputs = Outputs<{
+  out0: Port<{ payload: string } | null>;
+  out1: Port<{ payload: { reason: string } } | null>;
+}>;
 
 class NamedEmitArrayNull extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  NamedEmitArrayNullInput,
+  NamedEmitArrayNullOutputs
 > {
   static override readonly type = "named-emit-array-null";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.send([null, { payload: { reason: "test" } }]);
+    this.send("out0", null);
+    this.send("out1", { payload: { reason: "test" } });
   }
 }
 

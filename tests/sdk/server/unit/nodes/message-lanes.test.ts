@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createNode } from "@/sdk/test/server/unit";
 import { IONode, defineModule } from "@/sdk/lib/server";
-import type { MessageLanes } from "@/sdk/lib/server";
+import type { MessageLanes, Input, Outputs, Port } from "@/sdk/lib/server";
 import { LaneStore, laneProxy, packageLane } from "@/sdk/lib/server/lane-store";
 import { NRG_PROTECTED_LANE } from "@/sdk/lib/server/symbols";
 
@@ -12,34 +12,41 @@ import { NRG_PROTECTED_LANE } from "@/sdk/lib/server/symbols";
 type RawIn = { payload: unknown };
 type In = RawIn & MessageLanes;
 
+// These nodes are declared INLINE (not in a `src/server` tree), so the build-time
+// port-name extractor never runs on them and their named "out" port has no
+// resolvable index at runtime. They therefore emit by NUMERIC index (`send(0, …)`)
+// — the documented escape hatch for a node whose topology isn't extracted. The
+// lane behaviour under test is identical for named and numeric ports (both take
+// the same `#sendToPort` delivery path).
+
 /** Emits values on all three lanes. */
 class Producer extends IONode<
   Record<string, never>,
   unknown,
-  RawIn,
-  { out: number }
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ out: number }> }>
 > {
   static override readonly type = "lane-producer";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
-    this.send({ out: 1 }, { trace: "abc" }, { secret: 99 });
+    this.send(0, { out: 1 }, { trace: "abc" }, { secret: 99 });
   }
 }
 
-/** Emits lanes via `sendToPort` — the lanes ride the emitted frame just like
- * `send()` (same `#sendToPort` delivery path for numeric and named ports). */
+/** Emits lanes via `send` to a numeric port — the lanes ride the emitted frame
+ * exactly as they do for a named port (same `#sendToPort` delivery path). */
 class PortProducer extends IONode<
   Record<string, never>,
   unknown,
-  RawIn,
-  { out: number }
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ out: number }> }>
 > {
   static override readonly type = "lane-port-producer";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
-    this.sendToPort(0, { out: 1 }, { trace: "abc" }, { secret: 99 });
+    this.send(0, { out: 1 }, { trace: "abc" }, { secret: 99 });
   }
 }
 
@@ -51,14 +58,14 @@ class PortProducer extends IONode<
 class OmitReader extends IONode<
   Record<string, never>,
   unknown,
-  RawIn,
-  { payload: unknown; secret: unknown }
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ payload: unknown; secret: unknown }> }>
 > {
   static override readonly type = "lane-omit-reader";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg) {
-    this.send({ payload: msg.payload, secret: msg.private.secret });
+    this.send(0, { payload: msg.payload, secret: msg.private.secret });
   }
 }
 
@@ -68,14 +75,14 @@ class OmitReader extends IONode<
 class Consumer extends IONode<
   Record<string, never>,
   unknown,
-  RawIn,
-  { trace: unknown; secret: unknown; keys: string[] }
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ trace: unknown; secret: unknown; keys: string[] }> }>
 > {
   static override readonly type = "lane-consumer";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg: In) {
-    this.send({
+    this.send(0, {
       trace: msg.protected.trace,
       secret: msg.private.secret,
       keys: Object.keys(msg), // lanes must NOT appear here
@@ -88,8 +95,8 @@ class Consumer extends IONode<
 class Deleter extends IONode<
   Record<string, never>,
   unknown,
-  RawIn,
-  { before: unknown; after: unknown }
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ before: unknown; after: unknown }> }>
 > {
   static override readonly type = "lane-deleter";
   static override readonly category = "test";
@@ -97,7 +104,7 @@ class Deleter extends IONode<
   override async input(msg: In) {
     const before = msg.private.res;
     delete msg.private.res;
-    this.send({ before, after: msg.private.res });
+    this.send(0, { before, after: msg.private.res });
   }
 }
 
@@ -105,8 +112,8 @@ class Deleter extends IONode<
 class ProtectedDeleter extends IONode<
   Record<string, never>,
   unknown,
-  RawIn,
-  { before: unknown; after: unknown }
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ before: unknown; after: unknown }> }>
 > {
   static override readonly type = "lane-protected-deleter";
   static override readonly category = "test";
@@ -114,7 +121,7 @@ class ProtectedDeleter extends IONode<
   override async input(msg: In) {
     const before = msg.protected.token;
     delete msg.protected.token;
-    this.send({ before, after: msg.protected.token });
+    this.send(0, { before, after: msg.protected.token });
   }
 }
 
@@ -125,13 +132,13 @@ class Source extends IONode<
   Record<string, never>,
   unknown,
   never,
-  { tick: number }
+  Outputs<{ out: Port<{ tick: number }> }>
 > {
   static override readonly type = "lane-source";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async created() {
-    this.send({ tick: 1 }, { trace: "src" }, { secret: 7 });
+    this.send(0, { tick: 1 }, { trace: "src" }, { secret: 7 });
   }
 }
 
@@ -173,7 +180,7 @@ describe("message lanes (protected / private)", () => {
     expect(out.secret).toBe(42);
   });
 
-  it("sendToPort carries protected + private on the emitted frame", async () => {
+  it("send to a numeric port carries protected + private on the emitted frame", async () => {
     const { node } = await createNode(PortProducer, {});
     await node.receive({ _msgid: "sig-port", payload: {} });
 
@@ -293,15 +300,30 @@ describe("message lanes (protected / private)", () => {
   });
 
   it("defineModule scopes private per package; protected stays shared", () => {
-    class PkgA1 extends IONode<Record<string, never>, unknown, RawIn, never> {
+    class PkgA1 extends IONode<
+      Record<string, never>,
+      unknown,
+      Input<Port<RawIn>>,
+      never
+    > {
       static override readonly type = "pkg-a1";
       override async input() {}
     }
-    class PkgA2 extends IONode<Record<string, never>, unknown, RawIn, never> {
+    class PkgA2 extends IONode<
+      Record<string, never>,
+      unknown,
+      Input<Port<RawIn>>,
+      never
+    > {
       static override readonly type = "pkg-a2";
       override async input() {}
     }
-    class PkgB extends IONode<Record<string, never>, unknown, RawIn, never> {
+    class PkgB extends IONode<
+      Record<string, never>,
+      unknown,
+      Input<Port<RawIn>>,
+      never
+    > {
       static override readonly type = "pkg-b";
       override async input() {}
     }

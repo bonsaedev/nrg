@@ -374,7 +374,7 @@ describe("emit ports", () => {
     });
   });
 
-  describe("sendToPort", () => {
+  describe("send", () => {
     it.each(["error", "complete", "status"] as const)(
       "throws when called with built-in port '%s'",
       async (port) => {
@@ -387,7 +387,7 @@ describe("emit ports", () => {
         });
 
         await expect(node.receive({ payload: "go" })).rejects.toThrow(
-          `sendToPort("${port}") is not allowed`,
+          `send("${port}") is not allowed`,
         );
       },
     );
@@ -406,10 +406,11 @@ describe("emit ports", () => {
       const sent = node.sent();
       expect(sent).toHaveLength(1);
       // the value is wrapped under the return key; carry (the default mode)
-      // keeps the incoming message under `input`
+      // keeps the incoming message under `input`. Index 0 resolves to the node's
+      // named port "out", so `source` carries the resolved `portName`.
       expect((sent[0] as unknown[])[0]).toEqual({
         output: "record",
-        source: src(0),
+        source: src(0, "out"),
         input: { payload: "go" },
       });
     });
@@ -435,11 +436,13 @@ describe("emit ports", () => {
     });
   });
 
-  describe("send() truncation", () => {
-    it("truncates a send() array to baseOutputs so built-in port slots are unreachable", async () => {
-      // Two base output ports, but built-in error/status ports are enabled
-      // (totalOutputs is 4). Sending more values than base ports must truncate
-      // to baseOutputs so a stray value can never land in an error/status slot.
+  describe("author sends never reach built-in port slots", () => {
+    it("named sends land only in declared base ports, never in error/status slots", async () => {
+      // Two named base output ports (out0/out1), with built-in error/status ports
+      // enabled (totalOutputs is 4: base@0,1 + error@2 + status@3). Each `send` is
+      // its own emission — there is no array form to overflow — and a named port
+      // ALWAYS resolves to its declared base index, so an author send is
+      // structurally incapable of landing in a built-in port slot.
       // (completePort is left off so its automatic emission doesn't add noise.)
       const { node } = await createNode(TruncateTest, {
         config: {
@@ -451,23 +454,17 @@ describe("emit ports", () => {
 
       await node.receive({ payload: "go" });
 
-      const sent = node.sent();
-      expect(sent).toHaveLength(1);
-
-      const ports = sent[0];
-      // exactly baseOutputs slots — the two extra values are dropped, so they
-      // cannot reach the built-in error/complete/status port slots
-      expect(ports).toHaveLength(2);
-      expect(ports[0]).toEqual(
+      // Two named sends → two emissions, each addressing exactly one base port.
+      expect(node.sent()).toHaveLength(2);
+      expect(node.sent("out0")).toEqual([
         expect.objectContaining({ output: { payload: "port-0" } }),
-      );
-      expect(ports[1]).toEqual(
+      ]);
+      expect(node.sent("out1")).toEqual([
         expect.objectContaining({ output: { payload: "port-1" } }),
-      );
-      const leaked = ports.some((m: any) =>
-        ["should-be-dropped", "also-dropped"].includes(m?.output?.payload),
-      );
-      expect(leaked).toBe(false);
+      ]);
+      // The built-in slots are never touched by an author send.
+      expect(node.sent("error")).toHaveLength(0);
+      expect(node.sent("status")).toHaveLength(0);
     });
   });
 

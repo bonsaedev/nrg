@@ -1,17 +1,22 @@
-import { IONode } from "@/sdk/lib/server";
+import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 
 // A types-first node that resolves an i18n key and emits it. One input port and
-// one output port come from the generics.
-type Input = { payload?: unknown };
-type Output = { payload: string };
+// one named output port come from the generics.
+type TestI18nNodeInput = Input<Port<{ payload?: unknown }>>;
+type TestI18nNodeOutputs = Outputs<{ out: Port<{ payload: string }> }>;
 
-class TestI18nNode extends IONode<any, Record<string, never>, Input, Output> {
+class TestI18nNode extends IONode<
+  any,
+  Record<string, never>,
+  TestI18nNodeInput,
+  TestI18nNodeOutputs
+> {
   static override readonly type = "test-i18n";
   static override readonly category = "function";
 
-  override async input(_msg: Input) {
+  override async input(_msg: TestI18nNodeInput) {
     const label = this.i18n("greeting");
-    this.send({ payload: label });
+    this.send("out", { payload: label });
   }
 }
 

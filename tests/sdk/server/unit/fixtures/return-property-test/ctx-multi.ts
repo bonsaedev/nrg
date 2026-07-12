@@ -1,20 +1,21 @@
-import { IONode } from "@/sdk/lib/server";
+import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 
-// Types-first fixture with two positional (tuple) output ports — one value per
+// Types-first fixture with two named output ports (`out0`, `out1`) — one value per
 // port, so each port's resolved context mode can be asserted independently.
-type Input = { k?: unknown };
-type Output = [unknown, unknown];
+type CtxMultiInput = Input<Port<{ k?: unknown }>>;
+type CtxMultiOutputs = Outputs<{ out0: Port<unknown>; out1: Port<unknown> }>;
 
 class CtxMulti extends IONode<
   Record<string, never>,
   Record<string, never>,
-  Input,
-  Output
+  CtxMultiInput,
+  CtxMultiOutputs
 > {
   static override readonly type = "ctx-multi";
 
   override async input() {
-    this.send(["A", "B"]);
+    this.send("out0", "A");
+    this.send("out1", "B");
   }
 }
 

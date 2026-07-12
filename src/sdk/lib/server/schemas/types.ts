@@ -50,7 +50,7 @@ type ResolvedStatic<T> =
  *   port map, tagged with {@link NamedPortsBrand} so named-port routing is sound.
  *
  * The record form produces a simple mapped type that resolves eagerly,
- * giving `sendToPort()` proper autocomplete in class-based nodes.
+ * giving `send()` proper autocomplete in class-based nodes.
  */
 type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
   ? ResolvedStatic<Static<T>>

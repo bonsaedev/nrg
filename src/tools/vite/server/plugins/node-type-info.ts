@@ -1006,6 +1006,77 @@ function defaultExportClass(
   return referencedName ? classByName(referencedName) : undefined;
 }
 
+/** True when a type is the framework's off-the-wire {@link MessageLanes} — the
+ * `protected`/`private` lanes the `Input<>` gate intersects onto every input.
+ * Matched by BOTH its alias name AND its `protected`+`private` shape, so a user
+ * type that merely shares the name (without the lane shape) is never mistaken for
+ * it and stripped. */
+function isMessageLanes(checker: ts.TypeChecker, type: ts.Type): boolean {
+  if ((type.aliasSymbol ?? type.getSymbol())?.getName() !== "MessageLanes") {
+    return false;
+  }
+  return (
+    !!checker.getPropertyOfType(type, "protected") &&
+    !!checker.getPropertyOfType(type, "private")
+  );
+}
+
+/**
+ * The pure WIRE type of a node's input, rendered with the off-the-wire lanes
+ * stripped. `Input<Port<Wire>>` resolves to `Wire & MessageLanes`, but a
+ * CONNECTION carries — and `receive()` takes — only `Wire`; the lanes must never
+ * leak into the wiring registry or docs (an upstream port's plain value can't
+ * satisfy `& MessageLanes`, which would make every real wire un-connectable).
+ *
+ * Handles every shape the `& MessageLanes` distributes into:
+ *  - a UNION `Input<Port<A | B>>` → `(A & lanes) | (B & lanes)`: strip each arm,
+ *    rejoin with `|`;
+ *  - an INTERSECTION `Input<Port<A & B>>` → drop the lane member(s), render the
+ *    rest SEPARATELY and rejoin with `&` (never flattening the lanes back in as
+ *    `protected`/`private` properties);
+ *  - a plain object → rendered as-is.
+ * Returns `undefined` when nothing but lanes remains — an untyped
+ * `Input<Port<unknown>>` resolves to just `MessageLanes` — so the caller renders
+ * one untyped port.
+ */
+function renderWireInput(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  at: ts.Node,
+  imports: Map<ts.Symbol, ImportInfo>,
+  ctx: LocalDeclCtx,
+): NodeRoleType | undefined {
+  const roleOf = (t: ts.Type): NodeRoleType =>
+    renderRole(checker, t, at, imports, ctx) ?? {
+      text: render(checker, t, at),
+      fields: [],
+    };
+  const join = (parts: NodeRoleType[], sep: " & " | " | "): NodeRoleType => ({
+    text: parts.map((p) => p.text).join(sep),
+    ...(parts.some((p) => p.resolved !== undefined)
+      ? { resolved: parts.map((p) => p.resolved ?? p.text).join(sep) }
+      : {}),
+    // an intersection merges its members' fields; a union has no single field set
+    fields: sep === " & " ? parts.flatMap((p) => p.fields) : [],
+  });
+
+  if (type.isUnion()) {
+    const arms = type.types
+      .map((t) => renderWireInput(checker, t, at, imports, ctx))
+      .filter((r): r is NodeRoleType => r !== undefined);
+    if (arms.length === 0) return undefined;
+    return arms.length === 1 ? arms[0] : join(arms, " | ");
+  }
+  if (type.isIntersection()) {
+    const kept = type.types.filter((t) => !isMessageLanes(checker, t));
+    if (kept.length === 0) return undefined; // only lanes → untyped wire
+    const parts = kept.map(roleOf);
+    return parts.length === 1 ? parts[0] : join(parts, " & ");
+  }
+  if (isMessageLanes(checker, type)) return undefined;
+  return roleOf(type);
+}
+
 /**
  * Assign each positional type argument to its semantic role on `info`
  * (config/credentials/input/settings render directly; output is shape-aware).
@@ -1036,8 +1107,13 @@ function assignRoleTypes(
       // `any`/`unknown` DO make an (untyped) input — renderRole returns undefined
       // for them, so fall back to a bare rendered role so `info.input` is set.
       if (isAbsentPort(checker, argType)) return;
-      info.input = renderRole(checker, argType, at, imports, ctx) ?? {
-        text: render(checker, argType, at),
+      // Show the WIRE type (what a connection carries / `receive()` takes), NOT the
+      // off-the-wire lanes the `Input<>` gate intersects on — else the wiring
+      // registry input would be `Wire & MessageLanes` and no upstream port could
+      // connect to it. Handles union / intersection / plain wires; `undefined`
+      // means the wire is untyped (only lanes remained) → one untyped port.
+      info.input = renderWireInput(checker, argType, at, imports, ctx) ?? {
+        text: "unknown",
         fields: [],
       };
       return;

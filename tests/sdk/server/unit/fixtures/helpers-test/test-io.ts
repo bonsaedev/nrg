@@ -1,4 +1,11 @@
-import { IONode, type Infer, type RED } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+  type RED,
+} from "@/sdk/lib/server";
 import {
   defineSchema,
   SchemaType,
@@ -20,14 +27,14 @@ const TestIOSchema = defineSchema(
 );
 
 type TestIOConfig = Infer<typeof TestIOSchema>;
-type Input = { payload?: unknown };
-type Output = { payload: string };
+type TestIONodeInput = Input<Port<{ payload?: unknown }>>;
+type TestIONodeOutputs = Outputs<{ out: Port<{ payload: string }> }>;
 
 class TestIONode extends IONode<
   TestIOConfig,
   Record<string, never>,
-  Input,
-  Output
+  TestIONodeInput,
+  TestIONodeOutputs
 > {
   static override readonly type = "test-io";
   static override readonly category = "function";
@@ -43,9 +50,9 @@ class TestIONode extends IONode<
     this.log("io node created");
   }
 
-  override async input(msg: Input) {
+  override async input(msg: TestIONodeInput) {
     const greeting = this.config.greeting;
-    this.send({ payload: `${greeting} ${msg.payload}` });
+    this.send("out", { payload: `${greeting} ${msg.payload}` });
     this.status({ fill: "green", text: "ok" });
   }
 

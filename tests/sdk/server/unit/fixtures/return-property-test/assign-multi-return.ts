@@ -1,21 +1,25 @@
-import { IONode } from "@/sdk/lib/server";
+import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 
-// Types-first fixture with two positional (tuple) output ports. One value per
+// Types-first fixture with two named output ports (`out0`, `out1`). One value per
 // port; each port's return property resolves independently from
 // `config.outputReturnProperties`.
-type Input = { k?: unknown };
-type Output = [unknown, unknown];
+type AssignMultiReturnInput = Input<Port<{ k?: unknown }>>;
+type AssignMultiReturnOutputs = Outputs<{
+  out0: Port<unknown>;
+  out1: Port<unknown>;
+}>;
 
 class AssignMultiReturn extends IONode<
   Record<string, never>,
   Record<string, never>,
-  Input,
-  Output
+  AssignMultiReturnInput,
+  AssignMultiReturnOutputs
 > {
   static override readonly type = "assign-multi-return";
 
   override async input() {
-    this.send(["A", "B"]);
+    this.send("out0", "A");
+    this.send("out1", "B");
   }
 }
 

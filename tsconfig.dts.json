@@ -17,5 +17,10 @@
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.vue", "dist"]
+  "exclude": [
+    "src/**/*.vue",
+    "dist",
+    "src/sdk/test/server/shims",
+    "src/sdk/test/server/unit/sent-augment.d.ts"
+  ]
 }

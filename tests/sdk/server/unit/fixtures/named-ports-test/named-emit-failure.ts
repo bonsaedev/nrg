@@ -1,4 +1,10 @@
-import { IONode, type Infer, type Port } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Two named ports; on input it routes to the SECOND named port ("failure").
@@ -13,23 +19,23 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = {
+type NamedEmitFailureInput = Input<Port<{ payload?: unknown }>>;
+type NamedEmitFailureOutputs = Outputs<{
   success: Port<{ payload: string }>;
   failure: Port<{ payload: { reason: string } }>;
-};
+}>;
 
 class NamedEmitFailure extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  NamedEmitFailureInput,
+  NamedEmitFailureOutputs
 > {
   static override readonly type = "named-emit-failure";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.sendToPort("failure", { payload: { reason: "bad" } });
+    this.send("failure", { payload: { reason: "bad" } });
   }
 }
 

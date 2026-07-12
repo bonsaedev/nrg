@@ -56,7 +56,7 @@ describe("returnProperty / output convention", () => {
     // Default carry: result at `output`, the incoming message under `input`.
     expect(node.sent(0)[0]).toEqual({
       output: { doubled: 42 },
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "orders", correlationId: "c1", value: 21 },
     });
   });
@@ -105,7 +105,7 @@ describe("returnProperty / output convention", () => {
     // `msg.input.input.output === "oldest"`.
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      source: src(0),
+      source: src(0, "out"),
       input: {
         value: 5,
         input: { value: 3, output: "oldest" },
@@ -120,7 +120,7 @@ describe("returnProperty / output convention", () => {
     expect(node.sent(0)).toHaveLength(1);
     expect(node.sent(0)[0]).toEqual({
       output: [{ id: 0 }, { id: 1 }],
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "list", size: 2 },
     });
   });
@@ -138,7 +138,7 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: [{ id: 0 }],
-      source: src(0),
+      source: src(0, "out"),
       input: { size: 1 },
     });
   });
@@ -151,7 +151,7 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       result: { doubled: 10 },
-      source: src(0),
+      source: src(0, "out"),
       input: { value: 5, keep: true },
     });
   });
@@ -172,7 +172,7 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       data: "ok",
-      source: src(0),
+      source: src(0, "out"),
       input: { a: 1 },
     });
   });
@@ -185,7 +185,7 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: { doubled: 2 },
-      source: src(0),
+      source: src(0, "out"),
       input: { value: 1 },
     });
   });
@@ -199,12 +199,12 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       ok: "A",
-      source: src(0),
+      source: src(0, "out0"),
       input: { k: 1 },
     });
     expect(node.sent(1)[0]).toEqual({
       output: "B",
-      source: src(1),
+      source: src(1, "out1"),
       input: { k: 1 },
     });
   });
@@ -216,7 +216,7 @@ describe("returnProperty / output convention", () => {
     const out0 = node.sent(0)[0];
     expect(out0).toEqual({
       output: "first",
-      source: src(0),
+      source: src(0, "out0"),
       input: { keep: 1 },
     });
     expect(node.sent(1)).toEqual([]);
@@ -225,7 +225,7 @@ describe("returnProperty / output convention", () => {
     out0.output = "mutated";
     expect(node.sent(0)[0]).toEqual({
       output: "mutated",
-      source: src(0),
+      source: src(0, "out0"),
       input: { keep: 1 },
     });
   });
@@ -248,7 +248,7 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "t" },
     });
   });
@@ -261,7 +261,7 @@ describe("returnProperty / output convention", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "z" }, // upstream's own `input` was stripped
     });
   });
@@ -279,8 +279,8 @@ describe("returnProperty / output convention", () => {
 
     expect(msg).toEqual({
       output: "R",
-      source: src(0),
-      input: { output: "R", source: src(0) },
+      source: src(0, "out"),
+      input: { output: "R", source: src(0, "out") },
     });
     // never grows past depth 1 — the nested frame has no `input` of its own
     expect("input" in (msg.input as object)).toBe(false);
@@ -296,7 +296,7 @@ describe("returnProperty / output convention", () => {
     // reachable under `input`.
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "t" },
     });
   });
@@ -307,7 +307,7 @@ describe("returnProperty / output convention", () => {
     });
     await node.receive({ topic: "t", input: { a: 1 } });
 
-    expect(node.sent(0)[0]).toEqual({ output: "R", source: src(0) });
+    expect(node.sent(0)[0]).toEqual({ output: "R", source: src(0, "out") });
   });
 
   it("built-in complete/error ports carry source/input at the root, payload in its block", async () => {
@@ -359,7 +359,7 @@ describe("returnProperty / output convention", () => {
     await node.receive({ value: 4, extra: "kept" });
     expect(node.sent(0)[0]).toEqual({
       output: { doubled: 8 },
-      source: src(0),
+      source: src(0, "out"),
       input: { value: 4, extra: "kept" },
     });
   });
@@ -376,7 +376,7 @@ describe("returnProperty / output convention", () => {
     // context is preserved, not replaced by whatever arrived most recently.
     expect(node.sent(0)[0]).toEqual({
       output: "late",
-      source: src(0),
+      source: src(0, "out"),
       input: { fire: true, seq: 1 },
     });
   });
@@ -397,7 +397,7 @@ describe("returnProperty / output convention", () => {
     await a.node.receive({ n: "bad" });
     expect(a.node.sent(0)[0]).toEqual({
       output: { n: "bad" },
-      source: src(0),
+      source: src(0, "out"),
       input: { n: "bad" },
     });
 
@@ -430,7 +430,7 @@ describe("context-mode per-port resolution", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "t" }, // trace: result-only root + input frame
     });
   });
@@ -445,7 +445,7 @@ describe("context-mode per-port resolution", () => {
     // carry: result at output, incoming under input
     expect(node.sent(0)[0]).toEqual({
       output: "R",
-      source: src(0),
+      source: src(0, "out"),
       input: { topic: "t" },
     });
   });
@@ -458,10 +458,10 @@ describe("context-mode per-port resolution", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: "A",
-      source: src(0),
+      source: src(0, "out0"),
       input: { k: 1 },
     }); // trace
-    expect(node.sent(1)[0]).toEqual({ output: "B", source: src(1) }); // reset
+    expect(node.sent(1)[0]).toEqual({ output: "B", source: src(1, "out1") }); // reset
   });
 
   it("falls back to carry on ports the config does not set (multi-output)", async () => {
@@ -472,12 +472,12 @@ describe("context-mode per-port resolution", () => {
 
     expect(node.sent(0)[0]).toEqual({
       output: "A",
-      source: src(0),
+      source: src(0, "out0"),
       input: { k: 1 },
     }); // trace
     expect(node.sent(1)[0]).toEqual({
       output: "B",
-      source: src(1),
+      source: src(1, "out1"),
       input: { k: 1 },
     }); // carry
   });

@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import {
   defineSchema,
   SchemaType,
@@ -25,23 +31,30 @@ const CredentialSchema = defineSchema(
 
 type CredConfig = Infer<typeof CredentialNodeSchema>;
 type CredCreds = Infer<typeof CredentialSchema>;
-type Input = { payload?: unknown };
-type Output = { payload: string; auth: string };
+type TestCredNodeInput = Input<Port<{ payload?: unknown }>>;
+type TestCredNodeOutputs = Outputs<{
+  out: Port<{ payload: string; auth: string }>;
+}>;
 
-class TestCredNode extends IONode<CredConfig, CredCreds, Input, Output> {
+class TestCredNode extends IONode<
+  CredConfig,
+  CredCreds,
+  TestCredNodeInput,
+  TestCredNodeOutputs
+> {
   static override readonly type = "test-cred";
   static override readonly category = "function";
   static override readonly configSchema: Schema = CredentialNodeSchema;
   static override readonly credentialsSchema: Schema = CredentialSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: TestCredNodeInput) {
     const key = this.credentials?.apiKey;
     if (!key) {
       this.warn("no api key");
       return;
     }
     const resolved = await this.config.endpoint.resolve(msg);
-    this.send({ payload: resolved, auth: key });
+    this.send("out", { payload: resolved, auth: key });
   }
 }
 

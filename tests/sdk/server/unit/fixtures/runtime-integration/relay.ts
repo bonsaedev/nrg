@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Relays a fixed marker on every input. Its single input port (from the `Input`
@@ -9,15 +15,20 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = { relayed: boolean };
+type RelayInput = Input<Port<{ payload?: unknown }>>;
+type RelayOutputs = Outputs<{ out: Port<{ relayed: boolean }> }>;
 
-class Relay extends IONode<Config, Record<string, never>, Input, Output> {
+class Relay extends IONode<
+  Config,
+  Record<string, never>,
+  RelayInput,
+  RelayOutputs
+> {
   static override readonly type = "relay";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.send({ relayed: true });
+    this.send("out", { relayed: true });
   }
 }
 

@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A types-only node with a SINGLE object output (one unnamed port) — no named
@@ -15,14 +21,14 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = { payload: string };
+type NamedSinglePortInput = Input<Port<{ payload?: unknown }>>;
+type NamedSinglePortOutputs = Outputs<{ out: Port<{ payload: string }> }>;
 
 class NamedSinglePort extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  NamedSinglePortInput,
+  NamedSinglePortOutputs
 > {
   static override readonly type = "named-single-port";
   static override readonly configSchema = ConfigSchema;

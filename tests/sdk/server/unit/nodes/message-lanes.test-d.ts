@@ -1,6 +1,6 @@
 import { createNode } from "@/sdk/test/server/unit";
 import { IONode } from "@/sdk/lib/server";
-import type { InputMessage, MessageLanes } from "@/sdk/lib/server";
+import type { Input, Outputs, Port } from "@/sdk/lib/server";
 
 // Compile-time proofs for the message-lane types — never executed; `tsc` (via
 // `pnpm validate:tsc`) verifies them. They pin the DX/type guarantees the runtime
@@ -9,7 +9,7 @@ import type { InputMessage, MessageLanes } from "@/sdk/lib/server";
 // and the harness `receive()` takes the wire message with the lanes stripped.
 
 type Wire = { payload: string };
-type Msg = InputMessage<Wire>;
+type Msg = Input<Port<Wire>>;
 
 declare const msg: Msg;
 
@@ -45,8 +45,8 @@ void noLanesOnWire;
 class LaneProofNode extends IONode<
   Record<string, never>,
   unknown,
-  Wire,
-  { out: number }
+  Input<Port<Wire>>,
+  Outputs<{ out: Port<{ out: number }> }>
 > {
   static override readonly type = "ml-type-proof";
   static override readonly category = "test";
@@ -62,10 +62,10 @@ const emittedTrace: unknown = result.node.sent(0)[0].protected.trace;
 void emittedTrace;
 
 // (f) `_msgid` is NOT on the `input()` parameter type. It's the framework's
-//     internal lane key, deliberately kept off `InputMessage` so a node author
-//     never sees it in autocomplete and can't read or overwrite it through the
-//     typed parameter (which would fork the message from its lanes). It still
-//     exists at runtime — reaching it takes an explicit cast.
-// @ts-expect-error - _msgid is intentionally absent from InputMessage
+//     internal lane key, deliberately kept off the `Input<Port<…>>` message so a
+//     node author never sees it in autocomplete and can't read or overwrite it
+//     through the typed parameter (which would fork the message from its lanes).
+//     It still exists at runtime — reaching it takes an explicit cast.
+// @ts-expect-error - _msgid is intentionally absent from the input message
 const noMsgid: unknown = msg._msgid;
 void noMsgid;

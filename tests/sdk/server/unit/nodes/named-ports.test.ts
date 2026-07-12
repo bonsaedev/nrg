@@ -9,6 +9,7 @@ import NamedEmitIndex from "../fixtures/named-ports-test/named-emit-index";
 import NamedEmitOob from "../fixtures/named-ports-test/named-emit-oob";
 import NamedEmitArray from "../fixtures/named-ports-test/named-emit-array";
 import NamedEmitArrayNull from "../fixtures/named-ports-test/named-emit-array-null";
+import NoNamedOutput from "../fixtures/named-ports-test/no-named-output";
 
 const src = (port: number, portName?: string) => ({
   id: expect.any(String),
@@ -121,7 +122,7 @@ describe("named output ports", () => {
       // reaching a stale name (here via an `as` bypass) must fail loudly,
       // not vanish.
       expect(() =>
-        (node as { sendToPort: (p: string, m: unknown) => void }).sendToPort(
+        (node as { send: (p: string, m: unknown) => void }).send(
           "nonexistent",
           { payload: "test" },
         ),
@@ -129,16 +130,18 @@ describe("named output ports", () => {
       expect(node.sent()).toHaveLength(0);
     });
 
-    it("throws when the node has no named ports (single/absent output)", async () => {
-      const { node } = await createNode(NamedSinglePort, {
+    it("throws when the node has no named ports (a node with no output ports)", async () => {
+      // Under named-always a single record output IS named, so the only
+      // no-named-ports node is one with `never` (or dynamic index-addressed)
+      // output — reaching a name on it must fail loudly, not vanish.
+      const { node } = await createNode(NoNamedOutput, {
         config: { errorPort: false, completePort: false, statusPort: false },
       });
 
       expect(() =>
-        (node as { sendToPort: (p: string, m: unknown) => void }).sendToPort(
-          "success",
-          { payload: "x" },
-        ),
+        (node as { send: (p: string, m: unknown) => void }).send("success", {
+          payload: "x",
+        }),
       ).toThrow(/no named output ports/i);
     });
 
@@ -182,8 +185,10 @@ describe("named output ports", () => {
 
       await node.receive({});
 
+      // Each `send` is its own emission: the valid out0 value passes its schema
+      // and the null out1 is skipped — both emit, neither throws.
       const sent = node.sent();
-      expect(sent).toHaveLength(1);
+      expect(sent).toHaveLength(2);
     });
 
     it("skips null ports during per-port validation", async () => {
@@ -199,8 +204,10 @@ describe("named output ports", () => {
 
       await node.receive({});
 
+      // The null out0 is skipped (no validation), the valid out1 passes its
+      // schema — two emissions, no throw.
       const sent = node.sent();
-      expect(sent).toHaveLength(1);
+      expect(sent).toHaveLength(2);
     });
   });
 });

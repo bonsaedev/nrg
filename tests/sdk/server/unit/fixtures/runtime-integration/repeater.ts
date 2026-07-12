@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Emits `count` messages on its single output port. One input and one output port
@@ -9,16 +15,21 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { count: number };
-type Output = { i: number };
+type RepeaterInput = Input<Port<{ count: number }>>;
+type RepeaterOutputs = Outputs<{ out: Port<{ i: number }> }>;
 
-class Repeater extends IONode<Config, Record<string, never>, Input, Output> {
+class Repeater extends IONode<
+  Config,
+  Record<string, never>,
+  RepeaterInput,
+  RepeaterOutputs
+> {
   static override readonly type = "repeater";
   static override readonly configSchema = ConfigSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: RepeaterInput) {
     const count = msg.count;
-    for (let i = 0; i < count; i++) this.send({ i });
+    for (let i = 0; i < count; i++) this.send("out", { i });
   }
 }
 

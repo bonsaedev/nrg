@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A types-only node: its one input port and one base output port come from the
@@ -15,8 +21,8 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = { payload?: unknown };
+type EmitTestInput = Input<Port<{ payload?: unknown }>>;
+type EmitTestOutputs = Outputs<{ out: Port<{ payload?: unknown }> }>;
 
 // A custom Error subclass carrying extra data, as a node author would build.
 class CustomError extends Error {
@@ -36,11 +42,16 @@ class CustomError extends Error {
   }
 }
 
-class EmitTest extends IONode<Config, Record<string, never>, Input, Output> {
+class EmitTest extends IONode<
+  Config,
+  Record<string, never>,
+  EmitTestInput,
+  EmitTestOutputs
+> {
   static override readonly type = "emit-test";
   static override readonly configSchema = ConfigSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: EmitTestInput) {
     const payload = msg.payload;
     if (payload === "error") {
       throw new Error("Test error");
@@ -66,7 +77,7 @@ class EmitTest extends IONode<Config, Record<string, never>, Input, Output> {
       this.status({ fill: "green", shape: "dot", text: "ok" });
       return;
     }
-    this.send(msg);
+    this.send("out", msg);
   }
 }
 

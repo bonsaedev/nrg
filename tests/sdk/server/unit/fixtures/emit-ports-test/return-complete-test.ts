@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 const ConfigSchema = defineSchema(
@@ -12,14 +18,14 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = { sum?: number };
+type ReturnCompleteInput = Input<Port<{ payload?: unknown }>>;
+type ReturnCompleteOutputs = Outputs<{ out: Port<{ sum?: number }> }>;
 
 class ReturnComplete extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  ReturnCompleteInput,
+  ReturnCompleteOutputs
 > {
   static override readonly type = "return-complete-test";
   static override readonly configSchema = ConfigSchema;

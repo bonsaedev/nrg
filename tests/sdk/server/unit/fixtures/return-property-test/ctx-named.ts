@@ -1,24 +1,24 @@
-import { IONode, type Port } from "@/sdk/lib/server";
+import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 
 // Types-first fixture with CUSTOM NAMED ports (a `Port<T>` record). Sends to
-// "failure" (index 1) so `sendToPort` resolving the named port's index for the
-// context mode can be asserted.
-type Input = { traceId?: string };
-type Output = {
+// "failure" (index 1) so `send` resolving the named port's index for the context
+// mode can be asserted.
+type CtxNamedInput = Input<Port<{ traceId?: string }>>;
+type CtxNamedOutputs = Outputs<{
   success: Port<Record<string, unknown>>;
   failure: Port<{ ok: boolean }>;
-};
+}>;
 
 class CtxNamed extends IONode<
   Record<string, never>,
   Record<string, never>,
-  Input,
-  Output
+  CtxNamedInput,
+  CtxNamedOutputs
 > {
   static override readonly type = "ctx-named";
 
   override async input() {
-    this.sendToPort("failure", { ok: false });
+    this.send("failure", { ok: false });
   }
 }
 

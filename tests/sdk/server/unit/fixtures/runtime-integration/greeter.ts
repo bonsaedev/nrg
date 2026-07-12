@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import type Greeting from "./greeting-config";
 
@@ -14,16 +20,21 @@ const GreeterSchema = defineSchema(
 );
 
 type Config = Infer<typeof GreeterSchema>;
-type Input = { who: string };
-type Output = { text: string };
+type GreeterInput = Input<Port<{ who: string }>>;
+type GreeterOutputs = Outputs<{ out: Port<{ text: string }> }>;
 
-class Greeter extends IONode<Config, Record<string, never>, Input, Output> {
+class Greeter extends IONode<
+  Config,
+  Record<string, never>,
+  GreeterInput,
+  GreeterOutputs
+> {
   static override readonly type = "greeter";
   static override readonly configSchema = GreeterSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: GreeterInput) {
     const source = this.config.source;
-    this.send({ text: `${source.greeting}, ${msg.who}` });
+    this.send("out", { text: `${source.greeting}, ${msg.who}` });
   }
 }
 

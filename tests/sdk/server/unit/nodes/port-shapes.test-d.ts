@@ -4,6 +4,8 @@ import type {
   StatusPortOutput,
   MessageSource,
   NodeSource,
+  OutputPortNames,
+  Port,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 // Type-level proof that the built-in port message shapes match the runtime
@@ -14,6 +16,21 @@ import type {
 
 type In = { payload: string };
 
+// --- Reserved built-in port names ("error"/"complete"/"status") are NOT
+//     addressable data-port names. A data port that shares one of those names must
+//     not be `send()`-targetable at the type level (the runtime throws on it), so
+//     OutputPortNames excludes them.
+type ReservedPortNames = OutputPortNames<{
+  error: Port<{ code: number }>;
+  ok: Port<{ value: string }>;
+}>;
+const addressableOk: ReservedPortNames = "ok";
+void addressableOk;
+// @ts-expect-error — "error" is a reserved built-in port name; `send("error", …)`
+// throws at runtime, so it is excluded from the addressable output names.
+const notAddressableError: ReservedPortNames = "error";
+void notAddressableError;
+
 // --- ERROR port: `error` block at root, `source` + `input` beside it ----------
 function errorProof(m: ErrorPortOutput<In, { code: string }>) {
   const name: string = m.error.name;
@@ -22,10 +39,12 @@ function errorProof(m: ErrorPortOutput<In, { code: string }>) {
   const code: string = m.error.code; // author's own field rides `error`
   const source: NodeSource = m.source; // source is at the ROOT
   const input: In = m.input; // failing message at the ROOT
-  const msgid: string = m._msgid; // Node-RED message-lineage id at the ROOT
+  // @ts-expect-error — `_msgid` rides the message at runtime but is deliberately
+  // NOT typed (framework-internal lineage/lane key, hidden from authors)
+  m._msgid;
   // @ts-expect-error — source is NOT nested inside the `error` block
   m.error.source;
-  return { name, message, stack, code, source, input, msgid };
+  return { name, message, stack, code, source, input };
 }
 
 // --- COMPLETE port (with a return value): value under `complete` --------------
@@ -33,8 +52,9 @@ function completeReturnProof(m: CompletePortOutput<In, { ok: boolean }>) {
   const value: { ok: boolean } = m.complete; // return value under `complete`
   const source: NodeSource = m.source;
   const input: In = m.input;
-  const msgid: string = m._msgid;
-  return { value, source, input, msgid };
+  // @ts-expect-error — `_msgid` is deliberately not typed (hidden from authors)
+  m._msgid;
+  return { value, source, input };
 }
 
 // --- COMPLETE port (void return): source + input only, no `complete` key ------
@@ -49,8 +69,9 @@ function completeVoidProof(m: CompletePortOutput<In, void>) {
 // --- STATUS port: status + source (no input — a notification) -----------------
 function statusRootProof(m: StatusPortOutput) {
   const source: NodeSource = m.source; // source at the root
-  const msgid: string = m._msgid; // lineage id at the root
-  return { status: m.status, source, msgid };
+  // @ts-expect-error — `_msgid` is deliberately not typed (hidden from authors)
+  m._msgid;
+  return { status: m.status, source };
 }
 
 // --- MessageSource (data-port `msg.source`): node identity + port -------------

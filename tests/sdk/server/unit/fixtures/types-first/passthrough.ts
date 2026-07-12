@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A node whose output is genuinely dynamic: an explicit `unknown` output declares
@@ -13,16 +19,21 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = unknown;
+type PassthroughInput = Input<Port<{ payload?: unknown }>>;
+type PassthroughOutputs = Outputs<{ out: Port<unknown> }>;
 
-class Passthrough extends IONode<Config, Record<string, never>, Input, Output> {
+class Passthrough extends IONode<
+  Config,
+  Record<string, never>,
+  PassthroughInput,
+  PassthroughOutputs
+> {
   static override readonly type = "types-first-passthrough";
   static override readonly configSchema = ConfigSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: PassthroughInput) {
     if ((msg as { fail?: boolean }).fail) throw new Error("nope");
-    this.send(msg.payload);
+    this.send("out", msg.payload);
   }
 }
 

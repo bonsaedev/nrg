@@ -187,13 +187,13 @@ describe("buildPackageDts", () => {
     expect(dts).toContain("success: Port<{ payload: string; }>");
     expect(dts).toContain("failure: Port<{ error: string; }>");
     expect(dts).toMatch(/import type \{[^}]*\bPort\b/);
-    // A subclass therefore keeps two NAMED ports — `sendToPort("success", …)`
+    // A subclass therefore keeps two NAMED ports — `send("success", …)`
     // only type-checks when the named-ness survived inheritance.
     const diags = compilePackage(
       dts,
       `import { CsvParser } from "acme-nodes";
        export class Mine extends CsvParser {
-         demo() { this.sendToPort("success", { payload: "x" }); }
+         demo() { this.send("success", { payload: "x" }); }
        }`,
     );
     expect(diags).toHaveLength(0);
@@ -221,6 +221,97 @@ describe("buildPackageDts", () => {
        const _: NodeTypes["consumer"]["input"] = null as unknown as NodeTypes["csv-parser"]["outputs"][1];`,
     );
     expect(diags.length).toBeGreaterThan(0);
+  });
+
+  it("strips off-the-wire lanes from the wiring input so a plain upstream value connects (Input<Port<Wire>> → bare Wire)", () => {
+    // A REAL node types its input via the gate: `Input<Port<Wire>>`, which resolves
+    // to `Wire & MessageLanes`. The registry/wiring input MUST be the bare `Wire`
+    // (what a connection carries / `receive()` takes) — if the off-the-wire lanes
+    // leaked into it, no upstream port's plain value could ever satisfy
+    // `& MessageLanes` and every real wire would be un-connectable.
+    const dts = buildPackageDts(
+      extractPkg({
+        laned: `
+          import { IONode } from "@bonsae/nrg/server";
+          import type { Input, Outputs, Port } from "@bonsae/nrg/server";
+          type LanedInput = Input<Port<{ payload: string }>>;
+          type LanedOutputs = Outputs<{ out: Port<{ ok: boolean }> }>;
+          export default class Laned extends IONode<{ c: 1 }, never, LanedInput, LanedOutputs> {
+            static readonly type = "laned";
+            async input(_msg: LanedInput) { this.send("out", { ok: true }); }
+          }`,
+      }),
+    );
+    // the input port is the WIRE type, with NO `MessageLanes` anywhere
+    expect(dts).toContain("input: { payload: string; };");
+    expect(dts).not.toContain("MessageLanes");
+    // and the built-in ports are generic over the bare wire, not the laned shape
+    expect(dts).toContain("error: ErrorPort<{ payload: string; }>");
+    // a plain upstream value (no lanes) type-checks against the input port
+    const diags = compilePackage(
+      dts,
+      `import "acme-nodes";
+       import type { NodeTypes } from "@bonsae/nrg/server";
+       const _: NodeTypes["laned"]["input"] = { payload: "x" };
+       void _;`,
+    );
+    expect(diags).toHaveLength(0);
+  });
+
+  it("strips lanes from a MULTI-member wire input (Input<Port<A & B>>) too", () => {
+    // The rare multi-member wire takes the text/field fallback (not the clean
+    // single-member type strip) — verify no `MessageLanes` survives there either.
+    const dts = buildPackageDts(
+      extractPkg({
+        multi: `
+          import { IONode } from "@bonsae/nrg/server";
+          import type { Input, Outputs, Port } from "@bonsae/nrg/server";
+          type Wire = { a: string } & { b: number };
+          export default class Multi extends IONode<{ c: 1 }, never, Input<Port<Wire>>, Outputs<{ out: Port<{ ok: true }> }>> {
+            static readonly type = "multi";
+            async input(_m: Input<Port<Wire>>) { this.send("out", { ok: true }); }
+          }`,
+      }),
+    );
+    expect(dts).not.toContain("MessageLanes");
+    // both wire members survive; a plain value with both connects
+    const diags = compilePackage(
+      dts,
+      `import "acme-nodes";
+       import type { NodeTypes } from "@bonsae/nrg/server";
+       const _: NodeTypes["multi"]["input"] = { a: "x", b: 1 };
+       void _;`,
+    );
+    expect(diags).toHaveLength(0);
+  });
+
+  it("strips lanes from a UNION wire input (Input<Port<A | B>>) — distributes to (A&lanes)|(B&lanes))", () => {
+    // `(A | B) & MessageLanes` DISTRIBUTES to a top-level union `(A & lanes) | (B &
+    // lanes)`, so the lane-strip must recurse into each union arm — else lanes leak
+    // on every arm and no upstream port could connect to a union-typed input.
+    const dts = buildPackageDts(
+      extractPkg({
+        uni: `
+          import { IONode } from "@bonsae/nrg/server";
+          import type { Input, Outputs, Port } from "@bonsae/nrg/server";
+          type Wire = { a: string } | { b: number };
+          export default class Uni extends IONode<{ c: 1 }, never, Input<Port<Wire>>, Outputs<{ out: Port<{ ok: true }> }>> {
+            static readonly type = "uni";
+            async input(_m: Input<Port<Wire>>) { this.send("out", { ok: true }); }
+          }`,
+      }),
+    );
+    expect(dts).not.toContain("MessageLanes");
+    // each arm's plain value connects to the union input
+    const diags = compilePackage(
+      dts,
+      `import "acme-nodes";
+       import type { NodeTypes } from "@bonsae/nrg/server";
+       const a: NodeTypes["uni"]["input"] = { a: "x" };
+       const b: NodeTypes["uni"]["input"] = { b: 1 };
+       void a; void b;`,
+    );
+    expect(diags).toHaveLength(0);
   });
 
   it("enriches built-in error/complete ports with the node's input (and return)", () => {
@@ -412,6 +503,8 @@ describe("buildPackageDts — built-in port envelopes", () => {
     const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
     // If complete were `never`, this object literal would be unassignable.
     // `source` and `input` ride the root; a void return omits the `complete` key.
+    // `_msgid` rides the message at runtime but is deliberately untyped, so the
+    // envelope is exactly `{ source, input }`.
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
@@ -419,7 +512,6 @@ describe("buildPackageDts — built-in port envelopes", () => {
        const c: NodeTypes["void-node"]["complete"] = {
          source: { id: "1", type: "void-node", name: undefined },
          input: { payload: "x" },
-         _msgid: "m1",
        };
        void c;`,
     );

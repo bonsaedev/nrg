@@ -768,6 +768,16 @@ function copyShims() {
     "dist/toolkit/types/shims/lib/shared/schema-options.d.ts",
   );
 
+  // Test-tier shim: the `sent()` augmentation of `IONode` (targets the shipped
+  // `@bonsae/nrg/server`). The base TEST tsconfigs load it via `files`, so a
+  // consumer that `extends` them types `node.sent(...)` with no extra setup. Kept
+  // out of the lib bundles — `sent` is test-only.
+  mkdirSync("dist/toolkit/types/shims/test/server", { recursive: true });
+  copyFileSync(
+    "src/sdk/test/server/shims/sent.d.ts",
+    "dist/toolkit/types/shims/test/server/sent.d.ts",
+  );
+
   console.log("✓ Copied lib shims → dist/toolkit/types/shims/lib/");
 }
 

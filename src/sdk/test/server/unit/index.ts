@@ -16,9 +16,9 @@ import type {
   ErrorPortOutput as CoreErrorPortOutput,
   CompletePortOutput as CoreCompletePortOutput,
   StatusPortOutput as CoreStatusPortOutput,
-  NamedPortsBrand,
-  OutputPortNames,
   PortValue,
+  Port,
+  IsPortRecord,
   IsAny,
   MessageLanes,
   MessageMeta,
@@ -31,16 +31,22 @@ interface CreateNodeOptions {
   overrides?: Partial<NodeRedNode>;
 }
 
-// The node's declared input type, minus the framework-added `MessageLanes` and
-// `MessageMeta` (`_msgid`) — the base `input(msg)` param is `InputMessage<Wire>`,
-// but `receive()` takes the WIRE message (lanes ride the second `receive` arg,
-// `_msgid` is optional), so both are stripped here.
-type ExtractInput<T> = T extends { input(msg: infer I): any }
-  ? I extends object
-    ? Omit<I, keyof MessageLanes | keyof MessageMeta>
-    : I
-  : any;
-type ExtractOutput<T> = T extends { send(msg: infer O): any } ? O : any;
+// The node's WIRE input type — read from the node's OWN `receive(msg)` parameter,
+// which the base IONode types as `OmitMessageLanes<TInput>` straight from the CLASS
+// generic (already lanes-/`_msgid`-free). Reading `input()`'s parameter instead
+// collapses to `unknown` for the idiomatic no-argument `input()` style (a zero-arg
+// method still satisfies `{ input(msg: infer I) }` with `I = unknown`), which would
+// make `receive()` silently accept any value — the same lossiness that keeps
+// `TOutput` off the node class, so we recover the wire from `receive` (typed from
+// the in-scope generic) exactly as `sent()` recovers `TOutput` from the shim.
+type ExtractInput<T> = T extends { receive(msg: infer M): any } ? M : any;
+// `sent()` is typed from the node's declared `TOutput` — but `TOutput` can't be
+// recovered from a passed node class (the constrained `send(port, value)`
+// signature keeps it only inside conditional types like `OutputPortNames<TOutput>`,
+// which TS won't run backwards). So `sent()` is declared right on `IONode`, where
+// `TOutput`/`TInput` are in scope, via the `sent-augment.d.ts` shim — loaded by
+// the base TEST tsconfigs (test-only; absent from a production build). It is
+// therefore already on the returned node and is NOT part of `TestNodeHelpers`.
 
 // The message a named port carries: unwrap a `Port<T>` to its `T` (a schema-
 // derived branded record isn't wrapped, so `PortValue` passes it through).
@@ -91,16 +97,18 @@ type WrappedPort<V, TInput> = { output: V } & MessageLanes &
 type PortTuple<TOutput, TInput> =
   IsAny<TOutput> extends true
     ? any[]
-    : TOutput extends readonly [any, ...any[]]
-      ? { [K in keyof TOutput]: WrappedPort<TOutput[K], TInput> }
-      : [TOutput] extends [NamedPortsBrand]
-        ? [Exclude<keyof TOutput, keyof NamedPortsBrand>] extends [never]
-          ? [WrappedPort<Omit<TOutput, keyof NamedPortsBrand>, TInput>]
-          : WrappedPort<
-              TOutput[Exclude<keyof TOutput, keyof NamedPortsBrand>],
-              TInput
-            >[]
-        : [WrappedPort<TOutput, TInput>];
+    : [TOutput] extends [never]
+      ? never[]
+      : TOutput extends readonly Port<any>[]
+        ? // dynamic ports: N slots, each carrying the element `Port`'s value
+          WrappedPort<PortValue<TOutput[number]>, TInput>[]
+        : IsPortRecord<TOutput> extends true
+          ? // named ports: one slot per port; each carries that port's value.
+            // A single-key record collapses to a precise one-value union
+            // (`sent()[i][0].output`); a multi-key record is the sound union of
+            // its ports' values — use `sent(name)` for a precise single port.
+            WrappedPort<PortValue<TOutput[keyof TOutput]>, TInput>[]
+          : [WrappedPort<TOutput, TInput>];
 
 // Built-in port output shapes come from the runtime (single source of truth) — the
 // mock only layers on the test-delivery semantics: real emissions also spread
@@ -135,7 +143,7 @@ function builtinPortIndex(node: any, name: string): number | undefined {
   return config.statusPort ? index : -1;
 }
 
-interface TestNodeHelpers<TInput = any, TOutput = any> {
+interface TestNodeHelpers<TInput = any> {
   /** Drive the node's input handler with a Node-RED message. For an object
    * input the declared shape is required while arbitrary extra message
    * properties (`topic`, `_msgid`, correlation ids, …) are allowed — a real
@@ -147,18 +155,9 @@ interface TestNodeHelpers<TInput = any, TOutput = any> {
   ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
-  /** All raw emissions, each a positional array — `sent()[i][0]` is port 0 of
-   * emission `i`, typed from the node's declared output. Read one port directly
-   * with `sent(name)` / `sent(port)`, including the built-in lifecycle ports by
-   * name: `sent("error")`, `sent("complete")`, `sent("status")`. */
-  sent(): PortTuple<TOutput, TInput>[];
-  sent(port: "error"): ErrorPortOutput[];
-  sent(port: "complete"): CompletePortOutput[];
-  sent(port: "status"): StatusPortOutput[];
-  sent<P extends OutputPortNames<TOutput>>(
-    port: P,
-  ): WrappedPort<PortMessage<TOutput, P>, TInput>[];
-  sent(port: number): WrappedPort<unknown, TInput>[];
+  // `sent()` lives on IONode via the `sent-augment.d.ts` shim (so it types from
+  // the node's in-scope `TOutput`); it is already present on the returned node and
+  // intentionally NOT re-declared here.
   statuses(): any[];
   logged(level?: "info" | "warn" | "error" | "debug"): string[];
   warned(): string[];
@@ -203,7 +202,7 @@ interface LaneBridge {
 }
 
 interface CreateNodeResult<T> {
-  node: T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>>;
+  node: T & TestNodeHelpers<ExtractInput<T>>;
   RED: MockRED;
   /** The error thrown by `created()`, if any — `undefined` when it succeeded.
    * `createNode` never rejects on a failing `created()` (production constructs
@@ -237,7 +236,7 @@ function attachHelpers<T>(
   nodeRedNode: any,
   NodeClass: NodeClass,
   laneBridge: LaneBridge,
-): T & TestNodeHelpers<ExtractInput<T>, ExtractOutput<T>> {
+): T & TestNodeHelpers<ExtractInput<T>> {
   const sentMessages: any[] = [];
   const statusCalls: any[] = [];
 
@@ -256,8 +255,12 @@ function attachHelpers<T>(
 
   // `context` is intentionally omitted — it's already set as an own property on
   // the node itself, so leaving it out of this `Object.assign` source keeps the
-  // real context intact and exposed on the returned node.
-  const helpers: Omit<TestNodeHelpers, "context"> = {
+  // real context intact and exposed on the returned node. `sent` is typed on
+  // IONode via the shim (not part of `TestNodeHelpers`); its runtime impl is
+  // attached here with a loose signature — the precise overloads come from the shim.
+  const helpers: Omit<TestNodeHelpers, "context"> & {
+    sent(port?: number | string): any[];
+  } = {
     async receive(msg: any, lanes?: LaneInput): Promise<void> {
       // Seed the incoming message's off-the-wire lanes (as an upstream node would
       // have) so the node reads them via `msg.protected` / `msg.private`.
@@ -497,3 +500,24 @@ async function createNode<T extends NodeClass>(
 export { createNode };
 export { createRED } from "./mocks";
 export type { MockRED } from "./mocks";
+// Type-only helpers consumed by the `sent()` module-augmentation shim
+// (`sent-augment.d.ts`), which declares `sent()` on IONode itself from the node's
+// in-scope `TOutput`. Exported so the shipped shim can reference them across the
+// package boundary; not part of the everyday harness surface.
+export type {
+  PortTuple,
+  WrappedPort,
+  PortMessage,
+  ExtractInput,
+  ErrorPortOutput,
+  CompletePortOutput,
+  StatusPortOutput,
+};
+// Re-exported so the shim can source ALL its type deps from this one entry
+// (resolvable in nrg's own tests via a path alias and in a consumer via the
+// shipped package), rather than reaching into `@bonsae/nrg/server` internals.
+export type {
+  OutputPortNames,
+  InputSpec,
+  OutputSpec,
+} from "@/sdk/lib/server/nodes/types/ports";

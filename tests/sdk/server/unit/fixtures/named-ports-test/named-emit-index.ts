@@ -1,4 +1,10 @@
-import { IONode, type Infer, type Port } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Two named ports; on input it routes to port 0 by NUMERIC INDEX (rather than
@@ -14,23 +20,23 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = {
+type NamedEmitIndexInput = Input<Port<{ payload?: unknown }>>;
+type NamedEmitIndexOutputs = Outputs<{
   success: Port<{ payload: string }>;
   failure: Port<{ payload: { reason: string } }>;
-};
+}>;
 
 class NamedEmitIndex extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  NamedEmitIndexInput,
+  NamedEmitIndexOutputs
 > {
   static override readonly type = "named-emit-index";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.sendToPort(0, { payload: "by-index" });
+    this.send(0, { payload: "by-index" });
   }
 }
 

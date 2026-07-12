@@ -135,17 +135,24 @@ describe("IONode", () => {
       expect(NamedOutput.inputs).toBe(1);
     });
 
-    it("is undefined for a single output", async () => {
+    it("returns the single name for a one-key record output", async () => {
+      // Named-always: a single output is a one-key `Port<T>` record, so it still
+      // has a name ("out") — there is no unnamed/positional single port.
       await createNode(SingleOutput);
-      expect(SingleOutput.outputPortNames).toBeUndefined();
+      expect(SingleOutput.outputPortNames).toEqual(["out"]);
       expect(SingleOutput.outputs).toBe(1);
     });
 
-    it("is undefined for a positional tuple and for no output", async () => {
+    it("returns the names for a multi-key record output", async () => {
+      // A multi-output is likewise a `Port<T>` record (out0/out1) — every port
+      // is named; there is no positional tuple form.
       await createNode(MultiOutput);
-      await createNode(NoOutput);
-      expect(MultiOutput.outputPortNames).toBeUndefined();
+      expect(MultiOutput.outputPortNames).toEqual(["out0", "out1"]);
       expect(MultiOutput.outputs).toBe(2);
+    });
+
+    it("is undefined for no output", async () => {
+      await createNode(NoOutput);
       expect(NoOutput.outputPortNames).toBeUndefined();
       expect(NoOutput.outputs).toBe(0);
     });
@@ -220,9 +227,14 @@ describe("IONode", () => {
       // Every send wraps the value under the return key (default "output") and is
       // delivered as a positional array (one slot per port) via the invocation's
       // send callback while inside input(). carry (the default mode) keeps the
-      // incoming message under `input`.
+      // incoming message under `input`. The node emits to its named port "out", so
+      // `source` carries the resolved `portName`.
       expect(node.sent(0)).toEqual([
-        { output: "result", source: src(0), input: { payload: "result" } },
+        {
+          output: "result",
+          source: src(0, "out"),
+          input: { payload: "result" },
+        },
       ]);
     });
 
@@ -232,7 +244,7 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
-      instance.send("test");
+      instance.send(0, "test");
       expect(node.send).toHaveBeenCalledWith([
         { output: "test", source: src(0) },
       ]);
@@ -247,10 +259,16 @@ describe("IONode", () => {
       });
 
       // Valid: first port has data, second is null (skipped).
-      expect(() => node.send([{ result: "ok" }, null])).not.toThrow();
+      expect(() => {
+        node.send("out0", { result: "ok" });
+        node.send("out1", null);
+      }).not.toThrow();
 
       // Invalid: first port has an empty result.
-      expect(() => node.send([{ result: "" }, null])).toThrow();
+      expect(() => {
+        node.send("out0", { result: "" });
+        node.send("out1", null);
+      }).toThrow();
     });
 
     it("validates output against the config.outputSchemas override", async () => {
@@ -270,8 +288,8 @@ describe("IONode", () => {
       });
 
       // single output port → the raw value is the port-0 value.
-      expect(() => node.send({ n: 1 })).not.toThrow();
-      expect(() => node.send({ wrong: "x" })).toThrow();
+      expect(() => node.send("out", { n: 1 })).not.toThrow();
+      expect(() => node.send("out", { wrong: "x" })).toThrow();
     });
 
     it("honors a per-port validateOutputs map", async () => {
@@ -284,11 +302,20 @@ describe("IONode", () => {
       });
 
       // Port 0 off: an invalid value passes through unvalidated.
-      expect(() => node.send([{ result: "" }, null])).not.toThrow();
+      expect(() => {
+        node.send("out0", { result: "" });
+        node.send("out1", null);
+      }).not.toThrow();
       // Port 1 on: an invalid value throws.
-      expect(() => node.send([null, { error: "" }])).toThrow();
+      expect(() => {
+        node.send("out0", null);
+        node.send("out1", { error: "" });
+      }).toThrow();
       // Port 1 valid passes.
-      expect(() => node.send([null, { error: "boom" }])).not.toThrow();
+      expect(() => {
+        node.send("out0", null);
+        node.send("out1", { error: "boom" });
+      }).not.toThrow();
     });
 
     it("does not validate a port absent from the validateOutputs map", async () => {
@@ -301,9 +328,15 @@ describe("IONode", () => {
       });
 
       // Port 0 is validated.
-      expect(() => node.send([{ result: "" }, null])).toThrow();
+      expect(() => {
+        node.send("out0", { result: "" });
+        node.send("out1", null);
+      }).toThrow();
       // Port 1 has no flag entry -> not validated.
-      expect(() => node.send([null, { error: "" }])).not.toThrow();
+      expect(() => {
+        node.send("out0", null);
+        node.send("out1", { error: "" });
+      }).not.toThrow();
     });
 
     it("validates an array sent from a single-output node as the value", async () => {
@@ -322,9 +355,9 @@ describe("IONode", () => {
       });
 
       // Valid: the array value matches the array schema.
-      expect(() => node.send(["a", "b"])).not.toThrow();
+      expect(() => node.send("out", ["a", "b"])).not.toThrow();
       // Invalid: an element fails the item schema.
-      expect(() => node.send(["a", ""])).toThrow();
+      expect(() => node.send("out", ["a", ""])).toThrow();
     });
 
     it("should validate output when validateOutputs is on", async () => {
@@ -335,7 +368,7 @@ describe("IONode", () => {
         },
       });
 
-      expect(() => node.send({ result: "" })).toThrow();
+      expect(() => node.send("out", { result: "" })).toThrow();
     });
 
     it("lets an empty subschema carry non-data values past validation", async () => {
@@ -359,15 +392,18 @@ describe("IONode", () => {
       });
 
       // The function in the empty-schema field passes validation.
-      expect(() => node.send({ handler: () => {}, name: "ok" })).not.toThrow();
+      expect(() =>
+        node.send("out", { handler: () => {}, name: "ok" }),
+      ).not.toThrow();
       // Discriminating: the empty-schema field is exempt, but the sibling data
       // field is still validated — an empty name throws.
-      expect(() => node.send({ handler: () => {}, name: "" })).toThrow();
+      expect(() => node.send("out", { handler: () => {}, name: "" })).toThrow();
     });
 
-    it("validates a named-port send (sendToPort) against that port's schema", async () => {
-      // sendToPort is the primary emission path for named `Port` outputs, so
-      // opt-in per-port output validation applies to it just like send().
+    it("validates a named-port send against that port's schema", async () => {
+      // send(name, …) is the emission path for named `Port` outputs, so
+      // opt-in per-port output validation applies to a named port just like a
+      // numeric one.
       const { node } = await createNode(NamedOutput, {
         config: {
           validateOutputs: { 0: true },
@@ -382,8 +418,8 @@ describe("IONode", () => {
       });
 
       // Valid → delivered; invalid → throws (which routes to the error port).
-      expect(() => node.sendToPort("ok", { value: 1 })).not.toThrow();
-      expect(() => node.sendToPort("ok", { value: "nope" })).toThrow();
+      expect(() => node.send("ok", { value: 1 })).not.toThrow();
+      expect(() => node.send("ok", { value: "nope" })).toThrow();
     });
 
     it("catches a configured output-validation failure during input() and reports it", async () => {
@@ -408,14 +444,14 @@ describe("IONode", () => {
       ).rejects.toBeInstanceOf(Error);
     });
 
-    it("routes sendToPort by name via the injected topology (no schema)", async () => {
+    it("routes send by name via the injected topology (no schema)", async () => {
       // A schema-free node whose named ports come from the Output generic
-      // (injected as `__nrgPorts`). sendToPort("err") resolves the name through
-      // the injected outputNames and delivers to that port — with NO schema to
-      // fall back on.
+      // (injected as `__nrgPorts`). send("err") resolves the name through the
+      // injected outputNames and delivers to that port — with NO schema to fall
+      // back on.
       const { node } = await createNode(NamedOutput);
 
-      node.sendToPort("err", { reason: "x" });
+      node.send("err", { reason: "x" });
 
       // Delivered as a positional array; "err" resolved to index 1 (index 0
       // empty), wrapped under the default return key.

@@ -1,4 +1,11 @@
-import { IONode, ConfigNode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  ConfigNode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A TYPES-FIRST fixture for the server-plane NodeRef proof. Its ports come purely
@@ -33,14 +40,14 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = unknown;
+type NodeRefProbeInput = Input<Port<{ payload?: unknown }>>;
+type NodeRefProbeOutputs = Outputs<{ out: Port<unknown> }>;
 
 class NodeRefProbe extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  NodeRefProbeInput,
+  NodeRefProbeOutputs
 > {
   static override readonly type = "node-ref-probe";
   static override readonly configSchema = ConfigSchema;

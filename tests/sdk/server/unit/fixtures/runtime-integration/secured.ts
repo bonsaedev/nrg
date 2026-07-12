@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Echoes its credentials, to verify they reach the deployed node. One input and
@@ -15,16 +21,21 @@ const CredentialsSchema = defineSchema(
 
 type Config = Infer<typeof ConfigSchema>;
 type Credentials = Infer<typeof CredentialsSchema>;
-type Input = { payload?: unknown };
-type Output = { token: string | undefined };
+type SecuredInput = Input<Port<{ payload?: unknown }>>;
+type SecuredOutputs = Outputs<{ out: Port<{ token: string | undefined }> }>;
 
-class Secured extends IONode<Config, Credentials, Input, Output> {
+class Secured extends IONode<
+  Config,
+  Credentials,
+  SecuredInput,
+  SecuredOutputs
+> {
   static override readonly type = "secured";
   static override readonly configSchema = ConfigSchema;
   static override readonly credentialsSchema = CredentialsSchema;
 
   override async input() {
-    this.send({ token: this.credentials?.token });
+    this.send("out", { token: this.credentials?.token });
   }
 }
 

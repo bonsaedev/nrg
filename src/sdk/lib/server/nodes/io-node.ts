@@ -20,7 +20,10 @@ import { laneProxy, packageLane } from "../lane-store";
 import type {
   OutputPortNames,
   PortValue,
-  InputMessage,
+  Port,
+  OutputSpec,
+  InputSpec,
+  OmitMessageLanes,
   NodeSource,
   MessageSource,
   ErrorInfo,
@@ -113,30 +116,32 @@ export type ContextMode = "carry" | "trace" | "reset";
  * it does not change that a return key always exists. `this.send(x)` always means
  * "x is the result", never "x is the whole message".
  *
- * The `input()` parameter is {@link InputMessage}`<Input>` — the wire `Input`
- * plus the off-the-wire lanes (`msg.protected` / `msg.private`). OMIT the
- * annotation and TypeScript infers all of it from the `Input` generic (which
- * stays the plain wire shape — lanes are not ports). Re-annotating the parameter
- * with the raw wire type discards the lanes. `_msgid` is deliberately not on the
- * parameter — it's the framework's internal lane key, not an author-facing field.
+ * The `input()` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`: the
+ * wire type plus the off-the-wire lanes (`msg.protected` / `msg.private`). OMIT the
+ * annotation and TypeScript infers all of it from the generic. Re-annotating the
+ * parameter with the bare wire type discards the lanes. `_msgid` is deliberately not
+ * on the parameter — it's the framework's internal lane key, not an author-facing
+ * field.
  *
  * @example
  * ```ts
- * export default class MyNode extends IONode<Config, any, Input, Output> {
+ * type MyNodeInput = Input<Port<{ payload: string }>>;
+ * type MyNodeOutputs = Outputs<{ out: Port<{ result: string }> }>;
+ * export default class MyNode extends IONode<Config, any, MyNodeInput, MyNodeOutputs> {
  *   static readonly type = "my-node";
  *   static readonly category = "function";
  *   static readonly color = "#ffffff" as const;
  *
- *   async input(msg) {               // no annotation — msg is InputMessage<Input>
+ *   async input(msg) {               // no annotation — msg is the wire + lanes
  *     const conn = msg.private.conn; // off-wire, package-scoped
  *     // sends { output: <result>, input: msg } (carry default: last msg kept),
  *     // and stashes trace/res on the protected/private lanes off the wire:
- *     this.send(msg.payload.toUpperCase(), { traceId }, { res });
+ *     this.send("out", { result: msg.payload.toUpperCase() }, { traceId }, { res });
  *   }
  * }
  * ```
  *
- * @see {@link InputMessage} — the wire type plus the off-the-wire lanes.
+ * @see {@link Input} — the wire port plus the off-the-wire lanes.
  *
  * @typeParam TConfig - config shape (position 1)
  * @typeParam TCredentials - credentials shape (position 2)
@@ -152,8 +157,8 @@ export type ContextMode = "carry" | "trace" | "reset";
 abstract class IONode<
   TConfig = any,
   TCredentials = any,
-  TInput = any,
-  TOutput = any,
+  TInput extends InputSpec = any,
+  TOutput extends OutputSpec = any,
   TSettings = any,
 >
   extends Node<TConfig, TCredentials, TSettings>
@@ -314,7 +319,7 @@ abstract class IONode<
               : "Unknown error during input handling";
           const err = error instanceof Error ? error : new Error(errorMsg);
 
-          // A framework NrgError (API misuse — e.g. sendToPort to a built-in
+          // A framework NrgError (API misuse — e.g. send() to a built-in
           // port, an unknown named port) is a developer bug, not runtime data:
           // surface it loudly via done(err), never swallow it to the error port.
           if (!(error instanceof NrgError) && this.config.errorPort) {
@@ -374,7 +379,7 @@ abstract class IONode<
     );
   }
 
-  public input(msg: InputMessage<TInput>): unknown {
+  public input(msg: TInput): unknown {
     return undefined;
   }
 
@@ -397,8 +402,8 @@ abstract class IONode<
     }
     // Expose the off-the-wire lanes on THIS node's incoming message, scoped to
     // its package for `private`. Set up per node (re-applied at each hop), so a
-    // downstream node from another package reads its own `private` partition. The
-    // assertion narrows `msg` to carry the lanes for the `this.input(msg)` call.
+    // downstream node from another package reads its own `private` partition —
+    // `msg` (already `TInput`) is mutated in place to carry the lane accessors.
     this.#setupLanes(msg);
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
@@ -415,12 +420,11 @@ abstract class IONode<
    * this node's package. A core function node gets the bare message and has no
    * accessor — the lanes are structurally invisible to the flow author.
    *
-   * An assertion signature: on return, `msg` is known to be an
-   * {@link InputMessage} (wire + lanes) so the caller can hand it to `input()`. A
-   * non-object message (never produced by real Node-RED, which always delivers an
-   * object) is left untouched.
+   * Mutates `msg` in place (the caller already holds it as `TInput`). A non-object
+   * message (never produced by real Node-RED, which always delivers an object) is
+   * left untouched.
    */
-  #setupLanes(msg: TInput): asserts msg is InputMessage<TInput> {
+  #setupLanes(msg: unknown): void {
     if (msg == null || typeof msg !== "object") return;
     const store = this.RED.laneStore;
     const pkg = packageLane(this.constructor);
@@ -442,31 +446,6 @@ abstract class IONode<
         return laneProxy(store, (this as { _msgid: string })._msgid, pkg);
       },
     });
-  }
-
-  public send(msg: TOutput, protectedData?: object, privateData?: object) {
-    // Every emission is delivered as a Node-RED positional array — one slot per
-    // base output port — so the captured shape is uniform regardless of arity.
-    // Since `node.send([m]) === node.send(m)` for port 0, flow behaviour is
-    // unchanged; only the recorded/asserted shape becomes consistent.
-    //
-    // A multi-output node uses Node-RED's array-as-ports convention (one value
-    // per port). A single-output node always treats the argument as the value
-    // (arrays included) — hence the `baseOutputs > 1` guard, which keeps a
-    // single-output `send([a, b])` meaning "the value at port 0 is [a, b]".
-    const multi = this.#baseOutputs > 1 && Array.isArray(msg);
-    const values = multi
-      ? (msg as unknown[]).slice(0, this.#baseOutputs)
-      : [msg];
-
-    const out = values.map((m, port) => {
-      if (m == null) return m; // preserve sparse/null slots
-      this.#validatePort(m, port);
-      return this.#wrapOutgoing(m, this.#resolveContextMode(port), port);
-    });
-
-    this.#writeLanes(protectedData, privateData, out);
-    this.#deliver(out);
   }
 
   /**
@@ -731,7 +710,7 @@ abstract class IONode<
    * throw an error or call `this.error()` for the error port, and the complete
    * port is sent automatically on successful input processing.
    */
-  public sendToPort<P extends OutputPortNames<TOutput> | number>(
+  public send<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
     protectedData?: object,
@@ -739,7 +718,7 @@ abstract class IONode<
   ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
-        `sendToPort("${port}") is not allowed. Built-in ports are managed by the framework.`,
+        `send("${port}") is not allowed. Built-in ports are managed by the framework.`,
       );
     }
     const portIndex =
@@ -751,10 +730,10 @@ abstract class IONode<
       const keys = this.#namedPortKeys();
       throw new NrgError(
         keys && keys.length
-          ? `sendToPort("${port}") — unknown output port. Valid named ports: ${keys
+          ? `send("${port}") — unknown output port. Valid named ports: ${keys
               .map((n) => `"${n}"`)
               .join(", ")}.`
-          : `sendToPort("${port}") — this node has no named output ports. Declare named ports with a Port<T> record in the node's Output generic, or send to a numeric port index.`,
+          : `send("${port}") — this node has no named output ports. Declare named ports with a Port<T> record in the node's Output generic, or send to a numeric port index.`,
       );
     }
     const idx = portIndex ?? 0;
@@ -762,10 +741,9 @@ abstract class IONode<
       this.#sendToPort(port, msg, protectedData, privateData);
       return;
     }
-    // Validate the outgoing value exactly as `send()` validates a positional
-    // port: `sendToPort` is the PRIMARY emission path for named `Port` outputs,
-    // so opt-in per-port output validation must apply here too (built-in ports
-    // already returned above). A failure throws and routes to the error port.
+    // `send` is the emission path for every author output (named or dynamic), so
+    // opt-in per-port output validation applies here (built-in ports already
+    // returned above). A failure throws and routes to the error port.
     this.#validatePort(msg, idx);
     this.#sendToPort(
       port,
@@ -789,7 +767,7 @@ abstract class IONode<
       if (portIndex === null) return;
     } else {
       portIndex = this.#getNamedPortIndex(port);
-      // Defensive: the public sendToPort already threw on an unknown named port,
+      // Defensive: the public send() already threw on an unknown named port,
       // so this is unreachable from there — but never silently drop.
       if (portIndex === null) {
         throw new NrgError(`Unknown output port "${port}".`);
@@ -800,13 +778,15 @@ abstract class IONode<
       msg !== null && typeof msg === "object"
         ? this.#withMsgid(msg as Record<string, unknown>)
         : msg;
-    // Off-the-wire lane contributions (sendToPort's protected/private args),
-    // keyed by this message's _msgid exactly like `send()`. Internal built-in
-    // port emissions (status/error/complete) pass none, so this is a no-op there.
+    // Off-the-wire lane contributions (send's protected/private args), keyed by
+    // this message's _msgid. Internal built-in port emissions (status/error/
+    // complete) pass none, so this is a no-op there.
     if (protectedData || privateData) {
       this.#writeLanes(protectedData, privateData, out);
     }
-    this.node.send(out);
+    // Deliver through the invocation-scoped path (concurrency-safe); falls back to
+    // node.send outside an input() call (e.g. the built-in port auto-emits).
+    this.#deliver(out);
   }
 
   /** The declared named output ports (from the injected `Output`-generic
@@ -889,7 +869,7 @@ abstract class IONode<
     this.node.updateWires(wires);
   }
 
-  public receive(msg: TInput) {
+  public receive(msg: OmitMessageLanes<TInput>) {
     this.node.receive(msg);
   }
 

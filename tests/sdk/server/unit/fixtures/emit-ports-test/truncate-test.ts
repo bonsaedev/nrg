@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 const ConfigSchema = defineSchema(
@@ -12,28 +18,27 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-// Two positional base output ports come from a tuple output — built-in
-// error/status ports are appended after them, so an over-length send() must
-// truncate to baseOutputs (2) rather than leak into a built-in port slot.
-type Output = [{ payload?: unknown }, { payload?: unknown }];
+type TruncateTestInput = Input<Port<{ payload?: unknown }>>;
+// Two named base output ports come from a tuple output (out0/out1) — built-in
+// error/status ports are appended after them, so a send can only ever address a
+// declared base port and never leak into a built-in port slot.
+type TruncateTestOutputs = Outputs<{
+  out0: Port<{ payload?: unknown }>;
+  out1: Port<{ payload?: unknown }>;
+}>;
 
 class TruncateTest extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  TruncateTestInput,
+  TruncateTestOutputs
 > {
   static override readonly type = "truncate-test";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    (this as any).send([
-      { payload: "port-0" },
-      { payload: "port-1" },
-      { payload: "should-be-dropped" },
-      { payload: "also-dropped" },
-    ]);
+    this.send("out0", { payload: "port-0" });
+    this.send("out1", { payload: "port-1" });
   }
 }
 

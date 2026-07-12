@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // Types-first fixture proving a node-author DEFAULT return property per port. The
@@ -15,20 +21,20 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = unknown;
+type AssignCustomDefaultInput = Input<Port<{ payload?: unknown }>>;
+type AssignCustomDefaultOutputs = Outputs<{ out: Port<unknown> }>;
 
 class AssignCustomDefault extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  AssignCustomDefaultInput,
+  AssignCustomDefaultOutputs
 > {
   static override readonly type = "assign-custom-default";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.send("ok");
+    this.send("out", "ok");
   }
 }
 

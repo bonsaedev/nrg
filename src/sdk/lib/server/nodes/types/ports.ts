@@ -8,7 +8,7 @@
 
 /**
  * String-key phantom brand stamped on the record form of {@link Infer} — a
- * named-port output map. It lets `sendToPort`, `send`, and the test toolkit tell
+ * named-port output map. It lets `send` and the test toolkit tell
  * a named-port record apart from a single object output WITHOUT a fragile
  * structural `Record<string, Record<string, any>>` guess (which a primitive-valued
  * port, or an object-of-objects single output, both defeat). STRING key, never a
@@ -32,9 +32,9 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
  * schema-typed port: `Port<Infer<typeof schema>>`.
  *
  * @example
- * class CsvParse extends IONode<Config, never, In,
- *   { rows: Port<Row[]>; failed: Port<{ line: number; reason: string }> }> {
- *   async input(msg: In) { this.sendToPort("rows", parse(msg.payload)); } // "rows" | "failed" checked
+ * class CsvParse extends IONode<Config, never, Input<Port<In>>,
+ *   Outputs<{ rows: Port<Row[]>; failed: Port<{ line: number; reason: string }> }>> {
+ *   async input(msg) { this.send("rows", parse(msg.payload)); } // "rows" | "failed" checked
  * }
  */
 interface Port<T> {
@@ -51,20 +51,52 @@ type IsPortRecord<TOutput> = [keyof TOutput] extends [never]
     ? true
     : false;
 
+/** The built-in lifecycle port names — RESERVED. A node emits to them via
+ * `this.error()` / `this.status()` and the auto-emitted complete port, never
+ * `send("error", …)` (the runtime throws on that). Excluded from the addressable
+ * named-port keys so a data port that happens to share one of these names can't be
+ * `send()`-targeted at the type level (which would type-check but throw). */
+type BuiltinPortName = "error" | "complete" | "status";
+
 /**
  * The addressable named-port keys of an output type: the record's port names
- * when its values are {@link Port}s (or it carries the legacy
- * {@link NamedPortsBrand}); `string` when it's `any`; else `never` (a single
- * object output, a single `Port`, a tuple, or no outputs has no named ports).
+ * (minus the reserved {@link BuiltinPortName}s) when its values are {@link Port}s
+ * (or it carries the legacy {@link NamedPortsBrand}); `string` when it's `any`;
+ * else `never` (a single object output, a single `Port`, a tuple, or no outputs
+ * has no named ports).
  */
 type OutputPortNames<TOutput> =
   IsAny<TOutput> extends true
     ? string
     : TOutput extends NamedPortsBrand
-      ? Exclude<keyof TOutput, keyof NamedPortsBrand> & string
+      ? Exclude<keyof TOutput & string, keyof NamedPortsBrand | BuiltinPortName>
       : IsPortRecord<TOutput> extends true
-        ? keyof TOutput & string
+        ? Exclude<keyof TOutput & string, BuiltinPortName>
         : never;
+
+/**
+ * The constraint on a node's `TOutput` generic — the set of valid output shapes:
+ * a record of NAMED {@link Port}s (static ports), an array of {@link Port}s
+ * (dynamic, index-addressed ports), or `never` (a sink). Every port is named except
+ * the dynamic array; a bare unnamed `Port<T>` and a raw plain object are both
+ * rejected — name each port with {@link Outputs}.
+ */
+type OutputSpec = Record<string, Port<any>> | readonly Port<any>[];
+
+/**
+ * `Outputs<TPorts>` — the output gate. Every port is NAMED: pass a record mapping
+ * each port name to a {@link Port}. A single output is therefore a one-key record —
+ * there are no unnamed/positional ports, so the framework never has to guess a
+ * port's identity. Authors wrap their ports and pass it as the `TOutput` generic
+ * (`type FooOutputs = Outputs<{ … }>`):
+ *  - `Outputs<{ result: Port<{ payload: number }> }>` → one named port `result`
+ *  - `Outputs<{ ok: Port<A>; err: Port<B> }>`         → two named ports `ok` / `err`
+ *  - `Outputs<Port<T>[]>`                              → N dynamic ports (by index)
+ * `never` (a sink) needs no wrapping. A plain object or a bare unnamed `Port<T>` is
+ * rejected at the `Outputs<>` call — name each port. Emission is always by name (or
+ * index for the dynamic array): `this.send("ok", value)`.
+ */
+type Outputs<TPorts extends OutputSpec> = TPorts;
 
 /**
  * The two off-the-wire lanes present on every message a node's `input()`
@@ -74,23 +106,22 @@ type OutputPortNames<TOutput> =
  *  - `protected`: readable/writable by a node from ANY package.
  *  - `private`: scoped to the receiving node's OWN package; invisible to others.
  *
- * The base `input(msg)` parameter is {@link InputMessage}`<Input>` — it already
- * intersects these lanes — so the simplest way to read them is to OMIT the
- * parameter annotation: TypeScript infers `msg` from the base, where `Input` is
- * the node's wire generic:
+ * The base `input(msg)` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`
+ * that already intersects these lanes — so the simplest way to read them is to OMIT
+ * the parameter annotation: TypeScript infers `msg` from the base:
  *
  * @example
- * class N extends IONode<Config, never, { payload: string }, Out> {
- *   async input(msg) {                    // no annotation
- *     const conn = msg.private.conn;      // package-scoped; `unknown` until narrowed
- *     this.send(out, { trace }, { conn }); // write the lanes
- *     delete msg.private.conn;            // release (bookkeeping only)
+ * class N extends IONode<Config, never, Input<Port<{ payload: string }>>, Out> {
+ *   async input(msg) {                     // no annotation
+ *     const conn = msg.private.conn;       // package-scoped; `unknown` until narrowed
+ *     this.send("out", { trace }, { conn }); // write the lanes
+ *     delete msg.private.conn;             // release (bookkeeping only)
  *   }
  * }
  *
- * Re-annotating the parameter with the raw wire type discards the lanes (a
- * TypeScript override rule). If you prefer an explicit annotation, spell it
- * `InputMessage<Input>`.
+ * Re-annotating the parameter with the bare wire type discards the lanes (a
+ * TypeScript override rule). To annotate explicitly, reuse the node's own
+ * `Input<Port<…>>` alias.
  */
 interface MessageLanes {
   protected: Record<string, unknown>;
@@ -100,7 +131,7 @@ interface MessageLanes {
 /**
  * Framework-internal message metadata. `_msgid` is Node-RED's message-lineage id
  * and nrg's off-the-wire lane key. It is DELIBERATELY NOT part of
- * {@link InputMessage} — a node author never sees `msg._msgid` in autocomplete and
+ * {@link Input} — a node author never sees `msg._msgid` in autocomplete and
  * can't read or overwrite it through the typed parameter, because doing so would
  * fork the message from its lanes and break correlation. The framework reads it
  * internally (via a cast) to key the lane store, and the test harness's
@@ -114,16 +145,42 @@ interface MessageMeta {
 }
 
 /**
- * The full message a node's `input()` receives: its wire shape `TInput` plus the
- * framework-added off-the-wire lanes ({@link MessageLanes}). The base
- * `IONode.input(msg)` parameter is `InputMessage<TInput>`, so OMITTING the
- * parameter annotation infers the wire shape and both lanes from the `Input`
- * generic. `_msgid` ({@link MessageMeta}) is intentionally excluded — it's the
- * framework's internal lane key, not an author-facing field. Authors who prefer
- * an explicit annotation can spell it `InputMessage<Input>` instead of
- * `Input & MessageLanes`.
+ * `Input<Port<TWire>>` — the input gate. A node's single input is a PORT carrying
+ * the on-the-wire type `TWire`; `Input<>` unwraps that {@link Port} and adds the
+ * off-the-wire lanes ({@link MessageLanes}). Authors declare it as
+ * `type SoqlInput = Input<Port<{ … }>>` and pass it as the node's `TInput` generic;
+ * the base `IONode.input(msg: SoqlInput)` parameter is then exactly `TWire` plus
+ * the lanes, so a node reads `msg.<wireField>` and `msg.private` / `msg.protected` —
+ * all typed. Wrapping the wire in `Port<>` mirrors the output side
+ * (`Outputs<{ p: Port<T> }>`), so `Port<T>` reads as "a port carrying T" in BOTH
+ * directions. The `TInput` generic is constrained `TInput extends Input<Port<unknown>>`,
+ * so a bare (unwrapped) wire is rejected — the `Port<>` wrap is enforced; `never`
+ * (a source node with no input) still satisfies it. `_msgid` ({@link MessageMeta})
+ * stays excluded — it's the framework's internal lane key, not an author-facing
+ * field. To annotate `input()` explicitly, reuse the same `Input<Port<…>>` alias.
  */
-type InputMessage<TInput> = TInput & MessageLanes;
+type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
+  MessageLanes;
+
+/**
+ * The constraint on a node's `TInput` generic — the set of valid input shapes:
+ * an {@link Input} of any {@link Port} (the wire plus the off-the-wire lanes),
+ * which reduces to "carries the {@link MessageLanes}". Symmetric to
+ * {@link OutputSpec} on the output side, so the node generics read
+ * `TInput extends InputSpec` / `TOutput extends OutputSpec`. `never` (a source
+ * node with no input) satisfies it.
+ */
+type InputSpec = Input<Port<unknown>>;
+
+/**
+ * Recover the pure WIRE type from a wrapped {@link Input} by stripping the lanes —
+ * used wherever the framework needs the on-the-wire shape (the `receive` message,
+ * the `msg.input` provenance frame, port topology). `never` (a source) stays
+ * `never` so its `receive` is uncallable.
+ */
+type OmitMessageLanes<TInput> = [TInput] extends [never]
+  ? never
+  : Omit<TInput, keyof MessageLanes>;
 
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
@@ -174,13 +231,14 @@ interface ErrorInfo {
  * `this.error(message, msg)`); `source` (the producing node) and `input` (the
  * failing message) ride the ROOT beside it — the same shape as every other port.
  * A downstream node reads `msg.error`. `name`/`message`/`stack` stay authoritative
- * over `TError`. `_msgid` (Node-RED's message-lineage id) rides the root too.
+ * over `TError`. Node-RED's `_msgid` rides the root at runtime but is deliberately
+ * NOT typed here — the framework's lineage/lane key stays hidden from authors,
+ * exactly as it is on the input side (see {@link MessageMeta}).
  */
 type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
   error: Omit<TError, keyof ErrorInfo> & ErrorInfo;
   source: NodeSource;
   input: TInput;
-  _msgid: string;
 };
 
 /**
@@ -188,15 +246,17 @@ type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
  * `input` (the message it was processing) ride the root. The `complete` key
  * carries `input()`'s return value (`TReturn`) when there is one; a `void` return
  * omits `complete` entirely — arrival on the complete wire is itself the signal.
+ * Node-RED's `_msgid` rides the root at runtime but is deliberately not typed here
+ * (framework-internal, hidden from authors — see {@link MessageMeta}).
  */
 type CompletePortOutput<TInput = unknown, TReturn = void> = {
   source: NodeSource;
   input: TInput;
-  _msgid: string;
 } & ([TReturn] extends [void] ? unknown : { complete: TReturn });
 
 /** Message emitted on the built-in STATUS port (no carried input/provenance).
- * `_msgid` (Node-RED's message-lineage id) rides the root like every message. */
+ * Node-RED's `_msgid` rides the root at runtime but is deliberately not typed here
+ * (framework-internal, hidden from authors — see {@link MessageMeta}). */
 interface StatusPortOutput {
   status:
     | {
@@ -206,7 +266,6 @@ interface StatusPortOutput {
       }
     | string;
   source: NodeSource;
-  _msgid: string;
 }
 
 export type {
@@ -214,10 +273,15 @@ export type {
   Port,
   PortValue,
   IsAny,
+  IsPortRecord,
   OutputPortNames,
+  Outputs,
+  OutputSpec,
   MessageLanes,
   MessageMeta,
-  InputMessage,
+  Input,
+  InputSpec,
+  OmitMessageLanes,
   NodeSource,
   MessageSource,
   ErrorInfo,

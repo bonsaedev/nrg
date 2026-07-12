@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import {
   defineSchema,
   SchemaType,
@@ -14,16 +20,21 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { count?: number };
-type Output = { count: number };
+type CounterInput = Input<Port<{ count?: number }>>;
+type CounterOutputs = Outputs<{ out: Port<{ count: number }> }>;
 
-export default class Counter extends IONode<Config, any, Input, Output> {
+export default class Counter extends IONode<
+  Config,
+  any,
+  CounterInput,
+  CounterOutputs
+> {
   static override readonly type = "ctx-counter";
   static override readonly configSchema: Schema = ConfigSchema;
 
   override async input() {
     const n = (await this.context.flow.get<number>("count")) ?? 0;
     await this.context.flow.set("count", n + 1);
-    this.send({ count: n + 1 });
+    this.send("out", { count: n + 1 });
   }
 }

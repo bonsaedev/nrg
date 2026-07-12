@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A types-only IO node: its one input and one output port come from the generics,
@@ -9,15 +15,20 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { value: number };
-type Output = { doubled: number };
+type IntDoublerInput = Input<Port<{ value: number }>>;
+type IntDoublerOutputs = Outputs<{ out: Port<{ doubled: number }> }>;
 
-class IntDoubler extends IONode<Config, Record<string, never>, Input, Output> {
+class IntDoubler extends IONode<
+  Config,
+  Record<string, never>,
+  IntDoublerInput,
+  IntDoublerOutputs
+> {
   static override readonly type = "int-doubler";
   static override readonly configSchema = ConfigSchema;
 
-  override async input(msg: Input) {
-    this.send({ doubled: msg.value * 2 });
+  override async input(msg: IntDoublerInput) {
+    this.send("out", { doubled: msg.value * 2 });
   }
 }
 

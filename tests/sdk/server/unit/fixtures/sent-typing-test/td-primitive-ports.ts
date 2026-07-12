@@ -1,24 +1,24 @@
-import { IONode, type Port } from "@/sdk/lib/server";
+import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 
 // Types-first fixture proving a record with PRIMITIVE-valued ports stays fully
 // addressable: each value is a `Port<primitive>` marker, so both ports keep their
 // names (a bare `string`/`number` value would not read as a named port).
-type Output = {
+type TdPrimitivePortsOutputs = Outputs<{
   success: Port<string>;
   failure: Port<number>;
-};
+}>;
 
 class TdPrimitivePorts extends IONode<
   Record<string, never>,
   Record<string, never>,
-  unknown,
-  Output
+  Input<Port<unknown>>,
+  TdPrimitivePortsOutputs
 > {
   static override readonly type = "td-primitive-ports";
 
   override async input() {
-    this.sendToPort("success", "ok");
-    this.sendToPort("failure", 1);
+    this.send("success", "ok");
+    this.send("failure", 1);
   }
 }
 

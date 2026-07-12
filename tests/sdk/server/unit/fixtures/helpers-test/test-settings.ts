@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import {
   defineSchema,
   SchemaType,
@@ -16,22 +22,22 @@ const SettingsSchema = defineSchema(
 );
 
 type Settings = Infer<typeof SettingsSchema>;
-type Input = { payload?: unknown };
-type Output = { payload: number };
+type TestSettingsNodeInput = Input<Port<{ payload?: unknown }>>;
+type TestSettingsNodeOutputs = Outputs<{ out: Port<{ payload: number }> }>;
 
 class TestSettingsNode extends IONode<
   any,
   Record<string, never>,
-  Input,
-  Output,
+  TestSettingsNodeInput,
+  TestSettingsNodeOutputs,
   Settings
 > {
   static override readonly type = "test-settings";
   static override readonly category = "function";
   static override readonly settingsSchema: Schema = SettingsSchema;
 
-  override async input(_msg: Input) {
-    this.send({ payload: this.settings.timeout });
+  override async input(_msg: TestSettingsNodeInput) {
+    this.send("out", { payload: this.settings.timeout });
   }
 }
 

@@ -1,4 +1,10 @@
-import { IONode, type Infer } from "@/sdk/lib/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 const ConfigSchema = defineSchema(
@@ -12,20 +18,20 @@ const ConfigSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload?: unknown };
-type Output = { output?: unknown };
+type SendToPortNumericInput = Input<Port<{ payload?: unknown }>>;
+type SendToPortNumericOutputs = Outputs<{ out: Port<{ output?: unknown }> }>;
 
 class SendToPortNumeric extends IONode<
   Config,
   Record<string, never>,
-  Input,
-  Output
+  SendToPortNumericInput,
+  SendToPortNumericOutputs
 > {
   static override readonly type = "sendtoport-numeric-test";
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.sendToPort(0, "record");
+    this.send(0, "record");
   }
 }
 
