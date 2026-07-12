@@ -34,10 +34,9 @@ import { Readable } from "node:stream";
 import { ConfigsSchema } from "@/schemas/http-request";
 
 type Config = Infer<typeof ConfigsSchema>;
-type HttpRequestInput = Input<Port<{ path: string }>>; // ← input port, wire type inline (no schema needed)
-
+type HttpRequestInput = Input<Port<{ path: string }>>;
 type HttpRequestOutputs = Outputs<{
-  body: Port<Readable>; // ← named port, non-data, no schema
+  body: Port<Readable>;
   failed: Port<{ status: number; message: string }>;
 }>;
 
@@ -51,7 +50,7 @@ export default class HttpRequest extends IONode<Config, never, HttpRequestInput,
       this.send("failed", { status: res.status, message: res.statusText });
       return;
     }
-    this.send("body", Readable.fromWeb(res.body!)); // the stream, not its bytes
+    this.send("body", Readable.fromWeb(res.body!));
   }
 }
 ```
