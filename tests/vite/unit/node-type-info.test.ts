@@ -228,6 +228,29 @@ describe("extractNodeTypes — class API", () => {
     expect(names.some((n) => n.startsWith("__@"))).toBe(false);
   });
 
+  it("excludes reserved built-in names (error/complete/status) from named ports", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      import type { Port } from "@bonsae/nrg/server";
+      type Output = {
+        error: Port<{ a: 1 }>;
+        ok: Port<{ b: 2 }>;
+        status: Port<{ c: 3 }>;
+      };
+      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
+        static readonly type = "my-node";
+      }
+    `);
+    // "error"/"status" collide with reserved lifecycle ports → dropped to mirror
+    // the type-level OutputPortNames; only the real data port "ok" survives, at
+    // index 0, so topology + wiring + the send runtime all agree.
+    expect(node.outputs?.map((o) => o.name)).toEqual(["ok"]);
+    expect(portTopology(node)).toMatchObject({
+      outputs: 1,
+      outputNames: ["ok"],
+    });
+  });
+
   it("omits outputs when the Output type is absent (never)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";

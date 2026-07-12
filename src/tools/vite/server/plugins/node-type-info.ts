@@ -807,6 +807,13 @@ function renderRole(
 /** The brand property on a `Port<T>` value (see schemas/types). */
 const PORT_BRAND = "__nrg_port";
 
+/** Built-in lifecycle port names, RESERVED — mirrors OutputPortNames (ports.ts).
+ * A data port sharing one of these is unaddressable at the type level (excluded
+ * from OutputPortNames, rejected by the runtime send guard), so it is dropped
+ * from the extracted named ports too — otherwise the editor would show a dead
+ * wire and the topology would be out of step with `send()`. */
+const RESERVED_PORT_NAMES = new Set(["error", "complete", "status"]);
+
 /** True when a type is a tuple (positional multi-output). */
 function isTupleType(checker: ts.TypeChecker, type: ts.Type): boolean {
   return typeof checker.isTupleType === "function" && checker.isTupleType(type);
@@ -890,11 +897,17 @@ function extractOutputs(
   }
 
   if (isPortRecord(checker, outputType)) {
-    return checker.getPropertiesOfType(outputType).map((p, index) => ({
-      name: p.getName(),
-      index,
-      role: portRole(checker.getTypeOfSymbolAtLocation(p, at)),
-    }));
+    // Drop reserved built-in names (error/complete/status): the type-level
+    // OutputPortNames already excludes them, so such a port is unaddressable —
+    // keeping the topology, the type surface, and the send runtime in agreement.
+    return checker
+      .getPropertiesOfType(outputType)
+      .filter((p) => !RESERVED_PORT_NAMES.has(p.getName()))
+      .map((p, index) => ({
+        name: p.getName(),
+        index,
+        role: portRole(checker.getTypeOfSymbolAtLocation(p, at)),
+      }));
   }
 
   return [{ index: 0, role: portRole(outputType) }];
