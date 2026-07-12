@@ -44,8 +44,8 @@ Two kinds of data can't safely ride the wire: **live objects** that break when N
 
 ```typescript
 // @acme/auth — mints a live principal, stamps it on the shared protected channel
-// send(port, value, protectedData?, privateData?)
-this.send("out", { userId }, { "auth.principal": principal });
+// send(port, value, { protected?, private? })
+this.send("out", { userId }, { protected: { "auth.principal": principal } });
 
 // @bonsae/salesforce — a DIFFERENT package reads it back and authorizes
 const token = await (msg[Channels].protected["auth.principal"] as Principal).getAccessToken();

@@ -1,8 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
 import { createNode } from "@/sdk/test/server/unit";
 import { IONode, defineModule, Channels } from "@/sdk/lib/server";
-import type { MessageChannels, Input, Outputs, Port } from "@/sdk/lib/server";
-import { ChannelStore, channelProxy, packageChannel } from "@/sdk/lib/server/channels-store";
+import type {
+  WithMessageChannels,
+  Input,
+  Outputs,
+  Port,
+} from "@/sdk/lib/server";
+import {
+  ChannelStore,
+  channelProxy,
+  packageChannel,
+} from "@/sdk/lib/server/channels-store";
 import { NRG_PROTECTED_CHANNEL } from "@/sdk/lib/server/symbols";
 
 // `RawIn` is the on-the-wire shape a node declares as its `Input` generic; the
@@ -10,7 +19,7 @@ import { NRG_PROTECTED_CHANNEL } from "@/sdk/lib/server/symbols";
 // `msg: In` inside the method but pass `RawIn` as the generic — exactly what a
 // real node author sees.
 type RawIn = { payload: unknown };
-type In = RawIn & MessageChannels;
+type In = RawIn & WithMessageChannels;
 
 // These nodes are declared INLINE (not in a `src/server` tree), so the build-time
 // port-name extractor never runs on them and their named "out" port has no
@@ -30,7 +39,11 @@ class Producer extends IONode<
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
-    this.send(0, { out: 1 }, { trace: "abc" }, { secret: 99 });
+    this.send(
+      0,
+      { out: 1 },
+      { protected: { trace: "abc" }, private: { secret: 99 } },
+    );
   }
 }
 
@@ -46,7 +59,11 @@ class PortProducer extends IONode<
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
-    this.send(0, { out: 1 }, { trace: "abc" }, { secret: 99 });
+    this.send(
+      0,
+      { out: 1 },
+      { protected: { trace: "abc" }, private: { secret: 99 } },
+    );
   }
 }
 
@@ -64,7 +81,10 @@ class ChannelReader extends IONode<
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg: In) {
-    this.send(0, { payload: msg.payload, secret: msg[Channels].private.secret });
+    this.send(0, {
+      payload: msg.payload,
+      secret: msg[Channels].private.secret,
+    });
   }
 }
 
@@ -137,7 +157,11 @@ class Source extends IONode<
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async created() {
-    this.send(0, { tick: 1 }, { trace: "src" }, { secret: 7 });
+    this.send(
+      0,
+      { tick: 1 },
+      { protected: { trace: "src" }, private: { secret: 7 } },
+    );
   }
 }
 
@@ -197,8 +221,7 @@ describe("message channels (protected / private)", () => {
     const { node } = await createNode(ChannelReader, {});
     await node.receive(
       { _msgid: "sig-reader", payload: { hi: 1 } },
-      undefined,
-      { secret: 42 },
+      { private: { secret: 42 } },
     );
     const out = node.sent()[0][0].output;
     expect(out.payload).toEqual({ hi: 1 });
@@ -221,8 +244,7 @@ describe("message channels (protected / private)", () => {
     // Provide the channels an upstream node would have attached to this signal:
     await node.receive(
       { _msgid: "sig-2", payload: {} },
-      { trace: "abc" },
-      { secret: 99 },
+      { protected: { trace: "abc" }, private: { secret: 99 } },
     );
 
     // It echoed what it received onto its output — that's the observable proof:
@@ -239,8 +261,7 @@ describe("message channels (protected / private)", () => {
 
     await node.receive(
       { _msgid: "sig-3", payload: {} },
-      undefined,
-      { res: "R" },
+      { private: { res: "R" } },
     );
 
     const out = node.sent()[0][0].output;
@@ -320,8 +341,7 @@ describe("message channels (protected / private)", () => {
     const { node } = await createNode(Passthrough, {});
     await node.receive(
       { _msgid: "sig-sticky", payload: {} },
-      { trace: "up" },
-      { secret: 5 },
+      { protected: { trace: "up" }, private: { secret: 5 } },
     );
 
     const frame = node.sent(0)[0];
@@ -339,7 +359,7 @@ describe("message channels (protected / private)", () => {
 
     await node.receive(
       { _msgid: "sig-p", payload: {} },
-      { token: "T" },
+      { protected: { token: "T" } },
     );
 
     const out = node.sent()[0][0].output;

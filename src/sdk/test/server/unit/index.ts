@@ -21,7 +21,7 @@ import type {
   Port,
   IsPortRecord,
   IsAny,
-  MessageChannels,
+  WithMessageChannels,
   MessageMeta,
 } from "@/sdk/lib/server/nodes/types/ports";
 
@@ -68,16 +68,16 @@ type PortMessage<T, P extends string> =
  * collapses to just `{ output: V }` — without this guard `Partial<never>` would
  * poison the intersection to `never`, making `sent()[i][0].output` unreadable.
  *
- * `& MessageChannels`: the harness exposes the off-the-wire channels on each emitted
+ * `& WithMessageChannels`: the harness exposes the off-the-wire channels on each emitted
  * frame — `private` in the PRODUCER's own package partition, so it reads back what
  * a SAME-package downstream node would see (a different package reads its own,
  * empty partition). A producer test asserts `sent(0)[0][Channels].protected.x` /
  * `sent(0)[0][Channels].private.x` (the data the node emitted via
- * `send(msg, protected, private)`). The `[Channels]` accessor is non-enumerable, so
+ * `send(port, value, { protected, private })`). The `[Channels]` accessor is non-enumerable, so
  * `toEqual({ output })` still matches. They ride data-port frames only, never the
  * built-in error/complete/status frames.
  */
-type WrappedPort<V, TInput> = { output: V } & MessageChannels &
+type WrappedPort<V, TInput> = { output: V } & WithMessageChannels &
   ([TInput] extends [never]
     ? unknown
     : unknown extends TInput
@@ -151,16 +151,15 @@ interface TestNodeHelpers<TInput = any> {
    * Node-RED message always carries more than the validated input schema. A
    * non-object input type passes through unchanged.
    *
-   * `protectedData` / `privateData` seed the off-the-wire channels an UPSTREAM node
-   * would have attached — the SAME positional shape as the producer side,
-   * `send(port, value, protectedData, privateData)` — so the node reads them via
-   * `msg[Channels].protected` / `msg[Channels].private`. `private` is seeded in the
-   * node's OWN package partition (what it sees). Seed only `private` with
-   * `receive(msg, undefined, { … })`. Requires an `_msgid` (channels key off it). */
+   * `channels` seeds the off-the-wire channels an UPSTREAM node would have attached
+   * — the SAME shape as the producer side, `send(port, value, { protected, private })`
+   * — so the node reads them via `msg[Channels].protected` / `msg[Channels].private`.
+   * `private` is seeded in the node's OWN package partition (what it sees). Seed only
+   * `private` with `receive(msg, { private: { … } })`. Requires an `_msgid` (channels
+   * key off it). */
   receive(
     msg: TInput extends object ? TInput & Record<string, unknown> : TInput,
-    protectedData?: object,
-    privateData?: object,
+    channels?: { protected?: object; private?: object },
   ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
@@ -184,15 +183,14 @@ interface TestNodeContext {
 /**
  * Bridges a node's off-the-wire channels to the test, scoped like the node itself:
  * shared `protected`, and `private` in the node's own package partition. `seed`
- * writes incoming channels (from `receive`'s positional `protectedData`/`privateData`
- * args); `expose` installs the non-enumerable `[Channels]` accessor on an emitted
- * frame so a test can read what the node sent. Both key off the message's `_msgid`.
+ * writes incoming channels (from `receive`'s `channels` arg); `expose` installs the
+ * non-enumerable `[Channels]` accessor on an emitted frame so a test can read what
+ * the node sent. Both key off the message's `_msgid`.
  */
 interface ChannelBridge {
   seed(
     msg: { _msgid?: string },
-    protectedData?: object,
-    privateData?: object,
+    channels?: { protected?: object; private?: object },
   ): void;
   expose(frame: unknown): void;
 }
@@ -259,14 +257,13 @@ function attachHelpers<T>(
   } = {
     async receive(
       msg: any,
-      protectedData?: object,
-      privateData?: object,
+      channels?: { protected?: object; private?: object },
     ): Promise<void> {
       // Seed the incoming message's off-the-wire channels (as an upstream node's
-      // send(msg, protected, private) would have) so the node reads them via
+      // send(msg, { protected, private }) would have) so the node reads them via
       // `msg[Channels].protected` / `msg[Channels].private`.
-      if (protectedData || privateData)
-        channelBridge.seed(msg, protectedData, privateData);
+      if (channels?.protected || channels?.private)
+        channelBridge.seed(msg, channels);
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
       });
@@ -405,19 +402,20 @@ async function createNode<T extends NodeClass>(
   const channelStore = RED.channelStore;
   const channelPartition = packageChannel(NodeClass);
   const channelBridge: ChannelBridge = {
-    seed(msg, protectedData, privateData) {
+    seed(msg, channels) {
       const msgid = msg._msgid;
       if (msgid == null) {
         // Channels key off `_msgid`; seeding without one would silently go nowhere.
         throw new Error(
           "receive(): channels were provided but the message has no `_msgid` — " +
             "channels are keyed by `_msgid`, so nothing would be seeded. Give the " +
-            "message an `_msgid` (e.g. receive({ _msgid: 'sig-1', ... }, protectedData, privateData)).",
+            "message an `_msgid` (e.g. receive({ _msgid: 'sig-1', ... }, { private: { … } })).",
         );
       }
-      if (protectedData)
-        channelStore.merge(msgid, NRG_PROTECTED_CHANNEL, protectedData);
-      if (privateData) channelStore.merge(msgid, channelPartition, privateData);
+      if (channels?.protected)
+        channelStore.merge(msgid, NRG_PROTECTED_CHANNEL, channels.protected);
+      if (channels?.private)
+        channelStore.merge(msgid, channelPartition, channels.private);
     },
     expose(frame) {
       if (frame == null || typeof frame !== "object") return;

@@ -229,10 +229,10 @@ describe("buildPackageDts", () => {
 
   it("strips off-the-wire channels from the wiring input so a plain upstream value connects (Input<Port<Wire>> → bare Wire)", () => {
     // A REAL node types its input via the gate: `Input<Port<Wire>>`, which resolves
-    // to `Wire & MessageChannels`. The registry/wiring input MUST be the bare `Wire`
+    // to `Wire & WithMessageChannels`. The registry/wiring input MUST be the bare `Wire`
     // (what a connection carries / `receive()` takes) — if the off-the-wire channels
     // leaked into it, no upstream port's plain value could ever satisfy
-    // `& MessageChannels` and every real wire would be un-connectable.
+    // `& WithMessageChannels` and every real wire would be un-connectable.
     const dts = buildPackageDts(
       extractPkg({
         channeled: `
@@ -290,7 +290,7 @@ describe("buildPackageDts", () => {
   });
 
   it("strips channels from a UNION wire input (Input<Port<A | B>>) — distributes to (A&channels)|(B&channels))", () => {
-    // `(A | B) & MessageChannels` DISTRIBUTES to a top-level union `(A & channels) | (B &
+    // `(A | B) & WithMessageChannels` DISTRIBUTES to a top-level union `(A & channels) | (B &
     // channels)`, so the channel-strip must recurse into each union arm — else channels leak
     // on every arm and no upstream port could connect to a union-typed input.
     const dts = buildPackageDts(

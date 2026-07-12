@@ -98,9 +98,10 @@ interface IIONode<
   readonly baseOutputs: number;
   readonly totalOutputs: number;
   // Emit a value on one output port, addressed by NAME (a named `Port` record) or
-  // by numeric index (a dynamic `Port<T>[]`). `protectedData`/`privateData` populate
-  // the message's off-the-wire channels for this signal; they never ride the serialized
-  // msg. Built-in error/complete/status ports are framework-managed — not `send`-able.
+  // by numeric index (a dynamic `Port<T>[]`). The `channels` object populates the
+  // message's off-the-wire channels for this signal (`protected`/`private`); they
+  // never ride the serialized msg. Built-in error/complete/status ports are
+  // framework-managed — not `send`-able.
   send<P extends OutputPortNames<TOutput> | number>(
     port: P,
     msg: P extends keyof TOutput
@@ -108,8 +109,7 @@ interface IIONode<
       : P extends number
         ? PortValue<TOutput[keyof TOutput]>
         : unknown,
-    protectedData?: object,
-    privateData?: object,
+    channels?: { protected?: object; private?: object },
   ): void;
 }
 

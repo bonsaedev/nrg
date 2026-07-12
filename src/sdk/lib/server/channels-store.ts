@@ -5,7 +5,7 @@ import { NrgError } from "../shared/errors";
  * Channel data is written on send — the incoming accessor is read + delete only. */
 const ASSIGN_MESSAGE =
   "Cannot assign to a message channel. Channel data is written on send — " +
-  "`send(port, value, protectedData, privateData)`. The `msg[Channels]` accessor is " +
+  "`send(port, value, { protected, private })`. The `msg[Channels]` accessor is " +
   "read + delete only (e.g. `delete msg[Channels].private.x`).";
 
 /**

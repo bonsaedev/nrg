@@ -1015,26 +1015,26 @@ function defaultExportClass(
   return referencedName ? classByName(referencedName) : undefined;
 }
 
-/** True when a type is the framework's off-the-wire {@link MessageChannels} — the
- * `[Protected]`/`[Private]` channels the `Input<>` gate intersects onto every input.
- * Its members are keyed by nrg's channel SYMBOLS, which can't be matched by string
- * name through the checker, so it's identified by its nrg-internal alias name
- * `MessageChannels` — a reliable discriminant a consumer type would not collide with
- * as an `&`-member of an `Input<Port<…>>`. */
-function isMessageChannels(_checker: ts.TypeChecker, type: ts.Type): boolean {
+/** True when a type is the framework's off-the-wire channel CARRIER
+ * ({@link WithMessageChannels}) — the symbol-keyed accessor the `Input<>` gate
+ * intersects onto every input. Its member is keyed by nrg's `Channels` SYMBOL, which
+ * can't be matched by string name through the checker, so the carrier is identified
+ * by its nrg-internal alias name `WithMessageChannels` — a reliable discriminant a
+ * consumer type would not collide with as an `&`-member of an `Input<Port<…>>`. */
+function isChannelCarrier(_checker: ts.TypeChecker, type: ts.Type): boolean {
   return (
-    (type.aliasSymbol ?? type.getSymbol())?.getName() === "MessageChannels"
+    (type.aliasSymbol ?? type.getSymbol())?.getName() === "WithMessageChannels"
   );
 }
 
 /**
  * The pure WIRE type of a node's input, rendered with the off-the-wire channels
- * stripped. `Input<Port<Wire>>` resolves to `Wire & MessageChannels`, but a
+ * stripped. `Input<Port<Wire>>` resolves to `Wire & WithMessageChannels`, but a
  * CONNECTION carries — and `receive()` takes — only `Wire`; the channels must never
  * leak into the wiring registry or docs (an upstream port's plain value can't
- * satisfy `& MessageChannels`, which would make every real wire un-connectable).
+ * satisfy `& WithMessageChannels`, which would make every real wire un-connectable).
  *
- * Handles every shape the `& MessageChannels` distributes into:
+ * Handles every shape the `& WithMessageChannels` distributes into:
  *  - a UNION `Input<Port<A | B>>` → `(A & channels) | (B & channels)`: strip each arm,
  *    rejoin with `|`;
  *  - an INTERSECTION `Input<Port<A & B>>` → drop the channel member(s), render the
@@ -1042,7 +1042,7 @@ function isMessageChannels(_checker: ts.TypeChecker, type: ts.Type): boolean {
  *    `protected`/`private` properties);
  *  - a plain object → rendered as-is.
  * Returns `undefined` when nothing but channels remains — an untyped
- * `Input<Port<unknown>>` resolves to just `MessageChannels` — so the caller renders
+ * `Input<Port<unknown>>` resolves to just `WithMessageChannels` — so the caller renders
  * one untyped port.
  */
 function renderWireInput(
@@ -1074,12 +1074,12 @@ function renderWireInput(
     return arms.length === 1 ? arms[0] : join(arms, " | ");
   }
   if (type.isIntersection()) {
-    const kept = type.types.filter((t) => !isMessageChannels(checker, t));
+    const kept = type.types.filter((t) => !isChannelCarrier(checker, t));
     if (kept.length === 0) return undefined; // only channels → untyped wire
     const parts = kept.map(roleOf);
     return parts.length === 1 ? parts[0] : join(parts, " & ");
   }
-  if (isMessageChannels(checker, type)) return undefined;
+  if (isChannelCarrier(checker, type)) return undefined;
   return roleOf(type);
 }
 

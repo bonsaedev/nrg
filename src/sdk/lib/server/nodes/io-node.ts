@@ -726,6 +726,12 @@ abstract class IONode<
    * framework and cannot be sent to directly. Use `this.status()` for status,
    * throw an error or call `this.error()` for the error port, and the complete
    * port is sent automatically on successful input processing.
+   *
+   * The optional `channels` argument writes off-the-wire data to the message's
+   * channel store (keyed by its `_msgid`): `protected` targets the package-shared
+   * partition, `private` this package's own. It is reachable downstream via
+   * `msg[Channels]` and never rides the serialized message. A single object (not
+   * positional args) so new channels stay additive.
    */
   public send<P extends OutputPortNames<TOutput> | number>(
     port: P,
@@ -736,8 +742,7 @@ abstract class IONode<
           // sound union of every port's value (record key order isn't recoverable)
           PortValue<TOutput[keyof TOutput]>
         : unknown,
-    protectedData?: object,
-    privateData?: object,
+    channels?: { protected?: object; private?: object },
   ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(
@@ -783,7 +788,7 @@ abstract class IONode<
     }
     const idx = portIndex ?? 0;
     if (msg == null) {
-      this.#sendToPort(port, msg, protectedData, privateData);
+      this.#sendToPort(port, msg, channels);
       return;
     }
     // `send` is the emission path for every author output (named or dynamic), so
@@ -793,16 +798,14 @@ abstract class IONode<
     this.#sendToPort(
       port,
       this.#wrapOutgoing(msg, this.#resolveContextMode(idx), idx),
-      protectedData,
-      privateData,
+      channels,
     );
   }
 
   #sendToPort(
     port: number | string,
     msg: unknown,
-    protectedData?: object,
-    privateData?: object,
+    channels?: { protected?: object; private?: object },
   ) {
     let portIndex: number | null;
     if (typeof port === "number") {
@@ -826,8 +829,8 @@ abstract class IONode<
     // Off-the-wire channel contributions (send's protected/private args), keyed by
     // this message's _msgid. Internal built-in port emissions (status/error/
     // complete) pass none, so this is a no-op there.
-    if (protectedData || privateData) {
-      this.#writeChannels(protectedData, privateData, out);
+    if (channels?.protected || channels?.private) {
+      this.#writeChannels(channels.protected, channels.private, out);
     }
     // Deliver through the invocation-scoped path (concurrency-safe); falls back to
     // node.send outside an input() call (e.g. the built-in port auto-emits).

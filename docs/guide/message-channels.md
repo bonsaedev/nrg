@@ -15,7 +15,7 @@ Message channels give every message two channels that ride *alongside* it withou
 ```typescript
 import { Channels } from "@bonsae/nrg/server";
 
-this.send("out", publicMsg, protectedData, privateData);
+this.send("out", publicMsg, { protected: protectedData, private: privateData });
 
 // a downstream node reads them back off its incoming message:
 msg[Channels].protected["otel.span"];  // visible to a node from ANY package
@@ -27,7 +27,7 @@ delete msg[Channels].private.conn;     // release it when you're done
 `msg[Channels]` gives you `{ protected, private }`. A symbol key can never collide with
 your own message fields and is invisible to `JSON`, `Object.keys`, and the debug panel for
 free — which is exactly why the channels use it. The incoming accessor is **read + delete
-only** — write channel data on `send` (`this.send(port, value, protectedData, privateData)`);
+only** — write channel data on `send` (`this.send(port, value, { protected, private })`);
 assigning `msg[Channels].private.x = …` throws.
 
 Channel data never rides the wire message. It lives in a per-runtime store keyed by the
@@ -203,15 +203,15 @@ and write.
 
 ## Writing and reading channels
 
-You **write** channels through `send`'s 3rd and 4th arguments — the port and value come first,
-then optional `protected` and `private` bags:
+You **write** channels through `send`'s 3rd argument — a single `{ protected, private }`
+object (either key optional), after the port and value:
 
 ```typescript
-// send(portNameOrIndex, value, protectedData?, privateData?)
-this.send("out", { payload }, { "otel.span": span }, { conn });
+// send(portNameOrIndex, value, { protected?, private? })
+this.send("out", { payload }, { protected: { "otel.span": span }, private: { conn } });
 
-// same channels, a named port
-this.send("rows", rows, { "otel.span": span }, { conn });
+// either key is optional — private only, no `undefined` placeholder:
+this.send("rows", rows, { private: { conn } });
 ```
 
 A node **reads** the channels back off its incoming message. **Always annotate the

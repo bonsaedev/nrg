@@ -102,13 +102,18 @@ type Outputs<TPorts extends OutputSpec> = TPorts;
  */
 const Channels: unique symbol = Symbol.for("nrg.channels");
 
+/** A single off-the-wire channel: an open bag of string-keyed values, read (and
+ * `delete`-d) through the `msg[Channels]` accessor and written on `send`. */
+type MessageChannel = Record<string, unknown>;
+
 /**
- * The off-the-wire channels present on every message a node's `input()` receives,
- * added by the runtime — NEVER part of the serialized message, so a flow author's
- * function node and the debug panel can't see them. Each channel lives in nrg's
- * per-runtime store keyed by `_msgid`, reached through the {@link Channels} symbol.
- *  - `msg[Channels].protected`: readable/writable by a node from ANY package.
- *  - `msg[Channels].private`: scoped to the receiving node's OWN package; invisible to others.
+ * What `msg[Channels]` returns — the off-the-wire channels present on every message
+ * a node's `input()` receives, added by the runtime and NEVER part of the serialized
+ * message, so a flow author's function node and the debug panel can't see them. Each
+ * channel lives in nrg's per-runtime store keyed by `_msgid`, reached through the
+ * {@link Channels} symbol.
+ *  - `protected`: readable/writable by a node from ANY package.
+ *  - `private`: scoped to the receiving node's OWN package; invisible to others.
  *
  * Read them from an ANNOTATED `input()` parameter — annotate with the node's own
  * `Input<Port<…>>` alias. (TypeScript does NOT infer an overridden method's
@@ -121,16 +126,25 @@ const Channels: unique symbol = Symbol.for("nrg.channels");
  * class N extends IONode<Config, never, NInput, Out> {
  *   async input(msg: NInput) {
  *     const conn = msg[Channels].private.conn;   // package-scoped; `unknown` until narrowed
- *     this.send("out", { trace }, { conn });     // write the channels
+ *     this.send("out", { trace }, { private: { conn } });  // write the channels
  *     delete msg[Channels].private.conn;         // release (bookkeeping only)
  *   }
  * }
  */
 interface MessageChannels {
-  readonly [Channels]: {
-    protected: Record<string, unknown>;
-    private: Record<string, unknown>;
-  };
+  protected: MessageChannel;
+  private: MessageChannel;
+}
+
+/**
+ * Carries the symbol-keyed channel accessor. {@link Input} intersects this onto a
+ * node's input wire type so `msg[Channels]` resolves to {@link MessageChannels}; the
+ * wiring `.d.ts` generator strips it back off, so a connection carries only the plain
+ * wire type. Hand-annotate with `Wire & WithMessageChannels` only when you are not
+ * using the `Input<Port<Wire>>` gate (which adds it for you).
+ */
+interface WithMessageChannels {
+  readonly [Channels]: MessageChannels;
 }
 
 /**
@@ -167,7 +181,7 @@ interface MessageMeta {
  * un-annotated `input(msg)` is `any`.
  */
 type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
-  MessageChannels;
+  WithMessageChannels;
 
 /**
  * The constraint on a node's `TInput` generic — the set of valid input shapes:
@@ -187,7 +201,7 @@ type InputSpec = Input<Port<unknown>>;
  */
 type OmitMessageChannels<TInput> = [TInput] extends [never]
   ? never
-  : Omit<TInput, keyof MessageChannels>;
+  : Omit<TInput, keyof WithMessageChannels>;
 
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
@@ -283,7 +297,9 @@ export type {
   OutputPortNames,
   Outputs,
   OutputSpec,
+  MessageChannel,
   MessageChannels,
+  WithMessageChannels,
   MessageMeta,
   Input,
   InputSpec,
