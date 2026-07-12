@@ -1,4 +1,10 @@
-import { IONode, type Infer, type Port } from "@bonsae/nrg/server";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@bonsae/nrg/server";
 import { type Schema, SchemaType, defineSchema } from "@bonsae/nrg/schema";
 
 // Schema-free PORT topology: NO inputSchema / outputsSchema — the input port and
@@ -10,19 +16,24 @@ const ConfigSchema = defineSchema(
   { $id: "port-node:configs" },
 );
 type Config = Infer<typeof ConfigSchema>;
-type Input = { payload: string };
-type Output = {
+type PortNodeInput = Input<Port<{ payload: string }>>;
+type PortNodeOutput = Outputs<{
   ok: Port<{ value: number }>;
   err: Port<{ reason: string }>;
-};
+}>;
 
-export default class PortNode extends IONode<Config, never, Input, Output> {
+export default class PortNode extends IONode<
+  Config,
+  never,
+  PortNodeInput,
+  PortNodeOutput
+> {
   static override readonly type = "port-node";
   static override readonly category = "function";
   static override readonly color: `#${string}` = "#a6bbcf";
   static override readonly configSchema: Schema = ConfigSchema;
 
-  async input(msg: Input) {
-    this.sendToPort("ok", { value: msg.payload.length });
+  async input(msg: PortNodeInput) {
+    this.send("ok", { value: msg.payload.length });
   }
 }

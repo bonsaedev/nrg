@@ -16,6 +16,6 @@ export default class TestNode extends IONode<Config, Credentials> {
   static override readonly credentialsSchema: Schema = CredentialsSchema;
 
   async input(msg: any) {
-    this.send(msg);
+    this.send(0, msg);
   }
 }
