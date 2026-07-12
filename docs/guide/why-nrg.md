@@ -44,7 +44,8 @@ Two kinds of data can't safely ride the wire: **live objects** that break when N
 
 ```typescript
 // @acme/auth — mints a live principal, stamps it on the shared protected lane
-this.send(msg, { "auth.principal": principal });
+// send(port, value, protectedData?, privateData?)
+this.send("out", { userId }, { "auth.principal": principal });
 
 // @bonsae/salesforce — a DIFFERENT package reads it back and authorizes
 const token = await (msg.protected["auth.principal"] as Principal).getAccessToken();
@@ -107,25 +108,36 @@ RED.nodes.registerType('my-node', {
 
 ### NRG
 
-One TypeScript file for the node. Schema drives the editor form, validation, and type inference. No HTML, no jQuery.
+One TypeScript file for the node. Input and output types are plain TypeScript — you declare them directly, no schema required. A config schema drives the editor form and validation. No HTML, no jQuery.
 
 ```typescript
 // server/nodes/my-node.ts
-import { IONode, type Infer } from "@bonsae/nrg/server";
-import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@bonsae/nrg/server";
+import { ConfigsSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
-type Input = Infer<typeof InputSchema>;
-type Output = Infer<typeof OutputSchema>;
+type MyNodeInput = Input<Port<{ payload: string }>>;
+type MyNodeOutputs = Outputs<{ out: Port<{ uppercased: string }> }>;
 
-export default class MyNode extends IONode<Config, never, Input, Output> {
+export default class MyNode extends IONode<
+  Config,
+  never,
+  MyNodeInput,
+  MyNodeOutputs
+> {
   static override readonly type = "my-node";
   static override readonly category = "my-category";
   static override readonly color = "#FFFFFF";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input(msg: Input) {
-    this.send({ uppercased: msg.payload.toUpperCase() });
+  override async input(msg: MyNodeInput) {
+    this.send("out", { uppercased: msg.payload.toUpperCase() });
   }
 }
 ```
@@ -169,25 +181,36 @@ module.exports = function(RED) {
 
 ### NRG
 
-Full TypeScript with types inferred from your schemas. Config, credentials, input, output, and settings are all typed. Catch errors at compile time.
+Full TypeScript — config, credentials, input, output, and settings are all typed. Catch errors at compile time.
 
 ```typescript
-import { IONode, type Infer } from "@bonsae/nrg/server";
-import { ConfigsSchema, InputSchema, OutputSchema } from "@/schemas/my-node";
+import {
+  IONode,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@bonsae/nrg/server";
+import { ConfigsSchema } from "@/schemas/my-node";
 
 type Config = Infer<typeof ConfigsSchema>;
-type Input = Infer<typeof InputSchema>;
-type Output = Infer<typeof OutputSchema>;
+type MyNodeInput = Input<Port<{ payload: string }>>;
+type MyNodeOutputs = Outputs<{ out: Port<{ processedTime: number }> }>;
 
-export default class MyNode extends IONode<Config, never, Input, Output> {
+export default class MyNode extends IONode<
+  Config,
+  never,
+  MyNodeInput,
+  MyNodeOutputs
+> {
   static override readonly type = "my-node";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: MyNodeInput) {
     // msg.paylaod → compile error: Property 'paylaod' does not exist
     // this.config.server → typed as RemoteServer instance
     // this.config.name → typed as string
-    this.send({ processedTime: Date.now() });
+    this.send("out", { processedTime: Date.now() });
   }
 }
 ```
@@ -221,15 +244,15 @@ Node-RED can only load a node with `require()` (the older CommonJS format), but 
 
 ```typescript
 // Just import it. NRG handles the rest.
-import { IONode } from "@bonsae/nrg/server";
+import { IONode, type Input, type Port } from "@bonsae/nrg/server";
 import { someUtil } from 'esm-only-package';
 
 export default class MyNode extends IONode {
   static override readonly type = "my-node";
 
-  override async input(msg: { payload: unknown }) {
+  override async input(msg: Input<Port<{ payload: unknown }>>) {
     const result = someUtil(msg.payload);
-    this.send({ result });
+    this.send("out", { result });
   }
 }
 ```
@@ -365,8 +388,8 @@ this.on('input', function(msg, send, done) {
 An async method. `done()` is called automatically when it returns or rejects.
 
 ```typescript
-override async input(msg: Input) {
-  this.send({ uppercased: msg.payload.toUpperCase() });
+override async input(msg: MyNodeInput) {
+  this.send("out", { uppercased: msg.payload.toUpperCase() });
 }
 ```
 
@@ -396,11 +419,11 @@ this.on('input', function(msg, send, done) {
 Write an async `input`. You can call `this.send()` from anywhere — after an `await`, inside a `.then`, or from a timer — and NRG still knows which incoming message it belongs to. Behind the scenes each `input()` call runs in its own isolated scope, so two messages handled at the same time never mix up each other's data, and you never have to stash anything on `this`. `done()` is called for you when the method finishes; and if you turn on the complete port, a returned value is sent out of it.
 
 ```typescript
-override async input(msg: Input) {
+override async input(msg: Input<Port<{ payload: string }>>) {
   const result = await fetchRemote(msg.payload);
   // Resolves this message's context even after awaiting — no threading
   // `send`/`done`, no correlation ids, no races.
-  this.send({ result });
+  this.send("out", { result });
 }
 ```
 
@@ -442,9 +465,9 @@ The iterator is one node with three outputs: the **each** output for the loop bo
 ```
 
 ```typescript
-override async input(msg: Input) {
+override async input(msg: Input<Port<{ items: string[] }>>) {
   for (const item of msg.items) {
-    this.send({ item });                // each element → `each` output → Process Item
+    this.send("each", { item });        // each element → `each` output → Process Item
   }
   return { count: msg.items.length };   // → `complete` port → Summarize
   // a throw (or this.error(message, msg)) → `error` port → Notify Ops
@@ -484,7 +507,7 @@ Async, typed, one line.
 
 ```typescript
 const result: string = await this.config.target.resolve(msg);
-this.send({ result });
+this.send("out", { result });
 ```
 
 ## Config Node References

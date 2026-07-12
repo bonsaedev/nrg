@@ -71,37 +71,43 @@ See [Custom Form Component](/guide/creating-a-node#custom-form-component) for a 
 
 Because topology comes from the generics, a schema can be the single source of truth for **both** validation and the type: author the schema, derive the type with `Infer`, and pass it to the generic. The type still drives the ports and wiring; `Infer` just keeps it in lock-step with the schema so they can't drift.
 
-For a single output port, wrap the derived type in `Port<…>` inside the `TOutput` record; the same schema can validate what the port emits:
+For a single output port, wrap the derived type in `Port<…>` inside the `Outputs<…>` record; the same schema can validate what the port emits:
 
 ```typescript
-import { IONode, type Infer, type Port } from "@bonsae/nrg/server";
+import { IONode, type Infer, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 import { ConfigSchema, InputSchema } from "@/schemas/api";
 
 const OkSchema = defineSchema({ value: SchemaType.Number() }, { $id: "api:ok" });
 
+type ApiInput = Input<Port<Infer<typeof InputSchema>>>; // input wire type from the schema
+type ApiOutputs = Outputs<{ ok: Port<Infer<typeof OkSchema>> }>; // one named "ok" port, typed from OkSchema
+
 export default class Api extends IONode<
   Infer<typeof ConfigSchema>, // config type from the schema
   never,
-  Infer<typeof InputSchema>, // input message type from the schema
-  { ok: Port<Infer<typeof OkSchema>> } // one named "ok" port, typed from OkSchema
+  ApiInput,
+  ApiOutputs
 > {
   static override readonly type = "api";
 
-  override async input(msg: Infer<typeof InputSchema>) {
-    this.sendToPort("ok", { value: 1 }); // typed from the "ok" port's Port<T>
+  override async input(msg: ApiInput) {
+    this.send("ok", { value: 1 }); // typed from the "ok" port's Port<T>
   }
 }
 ```
 
-`Infer` also accepts a **record of schemas** and produces a named-port output map, so you can derive the whole `TOutput` from one place:
+For **multiple** named ports, wrap each derived type in `Port<…>` inside the `Outputs<…>` record — one place, one schema per port:
 
 ```typescript
-const Outputs = { ok: OkSchema, err: ErrSchema };
+type RouterOutputs = Outputs<{
+  ok: Port<Infer<typeof OkSchema>>;
+  err: Port<Infer<typeof ErrSchema>>;
+}>;
 
-class Router extends IONode<Config, never, Input, Infer<typeof Outputs>> {
-  override async input(msg: Input) {
-    this.sendToPort("ok", { value: 1 }); // "ok" | "err" typed from the record
+class Router extends IONode<Config, never, RouterInput, RouterOutputs> {
+  override async input(msg: RouterInput) {
+    this.send("ok", { value: 1 }); // "ok" | "err" — both typed from their schemas
   }
 }
 ```
@@ -123,13 +129,13 @@ Default values from the schema are used by the editor to initialize new node ins
 
 ### Output and the message envelope
 
-Whatever you pass to `this.send(x)` is treated as the result value — never as the
-whole outgoing message. The framework wraps it for you: it puts your value under
+The value you pass to `this.send("out", value)` is treated as the result — never as
+the whole outgoing message. The framework wraps it for you: it puts your value under
 **`output`** and keeps the message that came in under **`input`** (so you can
 still read `msg.input.output`). Example:
 
 ```
-this.send(result)
+this.send("out", result)
 // outgoing: { output: result, source: { id, type, name, port }, input: msg }
 ```
 
@@ -143,7 +149,7 @@ This means a node sets only `output` — it does not set arbitrary top-level
 message properties. Multi-value results go under `output` as one object:
 
 ```typescript
-this.send({ records, totalSize, done }); // msg.output = { records, totalSize, done }
+this.send("out", { records, totalSize, done }); // msg.output = { records, totalSize, done }
 ```
 
 To interoperate with Node-RED core nodes (which key on `msg.payload`,
@@ -175,7 +181,7 @@ const ConfigsSchema = defineSchema(
 - Keyed by output port index; a missing or empty entry falls back to `"output"`.
 - Keys must be valid JavaScript identifiers — validated in the editor and again
   at node construction.
-- Named-port sends (`sendToPort`) resolve the same per-port key by index.
+- Named-port sends (`this.send("name", value)`) resolve the same per-port key by index.
 - Built-in **complete** and **error** ports carry `source` (producing node) and
   the failing/finishing message (`input`) at the **root**, side by side with the
   port's payload block — the same shape as a data port. The **error** port's data
@@ -193,7 +199,7 @@ configured by the flow author in the editor's **Outputs** table:
 
 #### Context modes {#context-modes}
 
-`send()` and `sendToPort()` take no mode argument — how each output carries the
+`send()` takes no mode argument — how each output carries the
 incoming context is resolved **per port** from config, falling back to `carry`.
 The flow author can always pick a mode for **any** port in the editor. Declaring
 `outputContextModes` only lets the node **author** change a port's starting value
@@ -239,8 +245,8 @@ the root):
 
 Without a declared `outputContextModes`, every port is seeded to `carry` — but its
 dropdown is still editable and the column is still shown whenever the node has
-output ports. Named-port sends (`sendToPort`) resolve the same per-port mode by
-index.
+output ports. Named-port sends (`this.send("name", value)`) resolve the same per-port
+mode by index.
 
 The framework never deep-clones (so streams, Buffers, and class instances pass
 through intact); Node-RED's runtime clones messages 2..N on fan-out, so parallel
@@ -261,11 +267,19 @@ export const CredentialsSchema = defineSchema(
 ```
 
 ```typescript
-export default class MyNode extends IONode<Config, Credentials> {
+type MyNodeInput = Input<Port<{ payload: string }>>;
+type MyNodeOutputs = Outputs<{ out: Port<{ result: string }> }>;
+
+export default class MyNode extends IONode<
+  Config,
+  Credentials,
+  MyNodeInput,
+  MyNodeOutputs
+> {
   static override readonly configSchema = ConfigsSchema;
   static override readonly credentialsSchema = CredentialsSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: MyNodeInput) {
     const apiKey = this.credentials?.apiKey;
     // ...
   }
@@ -303,7 +317,8 @@ do **not** convert data. So if your node needs a value in a specific runtime sha
 convert it yourself:
 
 ```typescript
-override async input(msg: Input) {
+// type MyNodeInput = Input<Port<{ count: number }>>;
+override async input(msg: MyNodeInput) {
   // `msg.count` is TYPED as number for you, but at runtime it's whatever the
   // upstream node actually sent — coerce it yourself if that matters.
   const count = Number(msg.count);
@@ -384,7 +399,7 @@ export const ConfigsSchema = defineSchema(
 
 A port validates when the flow author turns on its _Validate_ toggle (which sets `config.validateOutputs[port]`) and a schema exists for that port. Only ports you seed a default for are overridable in the editor. Validation is a pure predicate — it never coerces or defaults the outgoing value.
 
-Port **count and names** come from the `Output` generic, not from these schemas — a single type is one port, a `Port<T>` record is named ports, a tuple is positional ports. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs) and [Named Output Ports](./creating-a-node#named-output-ports).
+Port **count and names** come from the `Output` generic, not from these schemas — a one-key `Outputs<{ out: Port<T> }>` is a single named port, a multi-key `Port<T>` record is multiple named ports, and an `Outputs<Port<T>[]>` array is dynamic index-addressed ports. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs) and [Named Output Ports](./creating-a-node#named-output-ports).
 
 ## Configuring validation in the editor {#editor-schema-overrides}
 
@@ -424,17 +439,25 @@ generic, so a non-data value just needs a plain type — there is nothing to
 validate:
 
 ```typescript
-import { IONode } from "@bonsae/nrg/server";
+import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 
 type Connection = { query(sql: string): Promise<unknown[]> };
-type Output = { connection: Connection; rowCount: number };
+type OpenConnectionInput = Input<Port<{ payload: unknown }>>;
+type OpenConnectionOutputs = Outputs<{
+  out: Port<{ connection: Connection; rowCount: number }>;
+}>;
 
-export default class OpenConnection extends IONode<Config, any, Input, Output> {
+export default class OpenConnection extends IONode<
+  Config,
+  any,
+  OpenConnectionInput,
+  OpenConnectionOutputs
+> {
   static override readonly type = "db-open";
   static override readonly configSchema = ConfigsSchema;
 
   override async input() {
-    this.send({ connection: pool, rowCount: 0 }); // pool passes through intact
+    this.send("out", { connection: pool, rowCount: 0 }); // pool passes through intact
   }
 }
 ```
@@ -450,20 +473,26 @@ wire and works downstream unchanged. A node can emit a `Readable` on a typed
 port:
 
 ```typescript
-import { IONode, type Port } from "@bonsae/nrg/server";
+import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import { Readable } from "node:stream";
 
-type Output = { body: Port<Readable> };
+type FetchStreamInput = Input<Port<{ url: string }>>;
+type FetchStreamOutputs = Outputs<{ body: Port<Readable> }>;
 
-export default class FetchStream extends IONode<Config, any, { url: string }, Output> {
+export default class FetchStream extends IONode<
+  Config,
+  any,
+  FetchStreamInput,
+  FetchStreamOutputs
+> {
   static override readonly type = "fetch-stream";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input(msg: { url: string }) {
+  override async input(msg: FetchStreamInput) {
     const res = await fetch(msg.url);
     // Send the Readable itself — the wire moves the STREAM object, not its
     // bytes. A downstream node receives this exact instance and can `.pipe()` it.
-    this.sendToPort("body", Readable.fromWeb(res.body!));
+    this.send("body", Readable.fromWeb(res.body!));
   }
 }
 ```
@@ -548,12 +577,21 @@ const SettingsSchema = defineSchema(
   { $id: "my-node:settings" }
 );
 
-export default class MyNode extends IONode<Config, any, Input, any, Settings> {
+type MyNodeInput = Input<Port<{ path: string }>>;
+type MyNodeOutputs = Outputs<{ out: Port<{ url: string }> }>;
+
+export default class MyNode extends IONode<
+  Config,
+  any,
+  MyNodeInput,
+  MyNodeOutputs,
+  Settings
+> {
   static override readonly settingsSchema = SettingsSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: MyNodeInput) {
     const endpoint = this.settings.apiEndpoint;
-    // ...
+    this.send("out", { url: `${endpoint}${msg.path}` });
   }
 }
 ```

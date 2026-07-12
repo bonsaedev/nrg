@@ -361,7 +361,7 @@ The `v-model` binds the whole `{ value, type }` object; the component emits the 
 At runtime, `this.config.target` is a `TypedInput` instance with `.type`, `.value`, and `.resolve()`:
 
 ```typescript
-override async input(msg: Input) {
+override async input(msg: MyNodeInput) {
   const target = this.config.target;
   this.log(`Type: ${target.type}, Value: ${target.value}`);
 
@@ -574,20 +574,22 @@ twice. Derive the type from the schema instead — the schema becomes the single
 source of truth, and you get runtime validation for free.
 
 Take a SOQL query node. It emits the query result on one output port, so authors
-often hand-write the port type:
+often hand-write the port's message type inline:
 
 ```typescript
-// The Output type spells out a shape a schema could describe just as well:
-type Output = {
-  records: Record<string, unknown>[];
-  totalSize: number;
-  done: boolean;
-};
+// The port's message type spells out a shape a schema could describe just as well:
+type SoqlOutputs = Outputs<{
+  out: Port<{
+    records: Record<string, unknown>[];
+    totalSize: number;
+    done: boolean;
+  }>;
+}>;
 ```
 
 That type is compile-time only — it draws the port and type-checks wires, but the
 framework never validates what you actually `send()`, and the editor has no
-`Output` shape to show. Describe the shape once as a schema and let the type fall
+output shape to show. Describe the shape once as a schema and let the type fall
 out of it:
 
 ```typescript
@@ -608,15 +610,18 @@ export const OutputSchema = defineSchema(
 
 ```typescript
 // src/server/nodes/soql.ts
-import { IONode, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import { OutputSchema } from "@/schemas/soql";
 
-type Output = Infer<typeof OutputSchema>; // { records: Record<string, unknown>[]; totalSize: number; done: boolean }
+// Compose the inferred shape into a named output port — Infer types the port's
+// message; Outputs<{ out: Port<…> }> is what declares the port itself.
+type SoqlInput = Input<Port<{ query: string }>>;
+type SoqlOutputs = Outputs<{ out: Port<Infer<typeof OutputSchema>> }>;
 
-export default class Soql extends IONode<Config, any, Input, Output> {
+export default class Soql extends IONode<Config, any, SoqlInput, SoqlOutputs> {
   static override readonly type = "soql";
   static override readonly configSchema = ConfigsSchema;
-  // The output port and its type come from the `Output` generic above.
+  // The output port and its type come from the `SoqlOutputs` generic above.
   // ...
 }
 ```
@@ -624,14 +629,14 @@ export default class Soql extends IONode<Config, any, Input, Output> {
 Deriving from the schema keeps one description in one place:
 
 1. **No duplication** — change the shape in one place; the type follows, and the
-   editor has an `Output` shape to show.
+   editor has an output shape to show.
 2. **A schema to validate against** — the same shape can back per-port runtime
    data validation, which is a **config-schema framework control**
    (`SchemaType.OutputSchemas`), never a static on the class. See
    [Configuring validation in the editor](./schemas#editor-schema-overrides).
 
-The `Output` type is what draws the port and type-checks wires; runtime data
-validation is optional and layered on separately. See
+The `SoqlOutputs` generic is what draws the port and type-checks wires; runtime
+data validation is optional and layered on separately. See
 [The editor form](#the-editor-form) for exactly what surfaces each section.
 
 ## Define the Node
@@ -641,7 +646,14 @@ Nodes are defined server-side and handle runtime logic. Create `src/server/nodes
 > Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
 
 ```typescript
-import { IONode, type RED, type Infer } from "@bonsae/nrg/server";
+import {
+  IONode,
+  type RED,
+  type Infer,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@bonsae/nrg/server";
 import {
   ConfigsSchema,
   CredentialsSchema,
@@ -653,14 +665,15 @@ export type Credentials = Infer<typeof CredentialsSchema>;
 export type Settings = Infer<typeof SettingsSchema>;
 
 // Ports and wiring come from these two types — no input/output schema needed.
-type Input = { output: string }; // the message input() receives → 1 input port
-type Output = string; // a single output port carrying a string
+// The input is a port carrying a wire type; the output is one named port `out`.
+type MyNodeInput = Input<Port<{ payload: string }>>; // → 1 input port
+type MyNodeOutputs = Outputs<{ out: Port<{ greeting: string }> }>; // → 1 output port
 
 export default class MyNode extends IONode<
   Config,
   Credentials,
-  Input,
-  Output,
+  MyNodeInput,
+  MyNodeOutputs,
   Settings
 > {
   static override readonly type = "my-node";
@@ -678,11 +691,11 @@ export default class MyNode extends IONode<
     this.log(`Using endpoint: ${this.settings.apiEndpoint}`);
   }
 
-  override async input(msg: Input) {
+  override async input(msg: MyNodeInput) {
     const apiKey = this.credentials?.apiKey;
-    // send the result value — the framework puts it at the `output` key and
-    // keeps the incoming message under `input` (the default carry mode)
-    this.send(`${this.config.prefix}: ${msg.output}`);
+    // send the port's value by name — the framework puts it at the `output` key
+    // and keeps the incoming message under `input` (the default carry mode)
+    this.send("out", { greeting: `${this.config.prefix}: ${msg.payload}` });
   }
 
   override async closed(removed?: boolean) {
@@ -702,7 +715,7 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 ```
 
 - **`TInput`** is the message your `input(msg)` handler receives. A **present** type gives the node **one input port** — and that includes `any`/`unknown`, for a config-driven node that is merely triggered and never reads `msg` directly. Only **`never`** means **no input** (a source node).
-- **`TOutput`** is the node's output port(s). A single type — or `any`/`unknown` for a genuinely dynamic payload — is **one output port** (emit with `this.send(value)`); a record of [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports** (emit with `this.sendToPort(name, value)`). **`never`** means **no output** (a sink node).
+- **`TOutput`** is the node's output port(s), declared with [`Outputs<…>`](#declaring-output-ports-with-port). A single named port — `Outputs<{ out: Port<T> }>`, or `any`/`unknown` for a genuinely dynamic payload — is **one output port**; a record of several [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports**. Either way you emit by port name with `this.send(name, value)`. **`never`** means **no output** (a sink node).
 
 **A port exists unless its generic is `never`** (or `void`/`undefined`). So `any` and `unknown` each make one untyped port; `never` is the single way to say "no port here".
 
@@ -726,36 +739,36 @@ At build time NRG reads these generics and stamps the node's real port count and
 
 #### Declaring output ports with `Port<T>` {#declaring-output-ports-with-port}
 
-A bare record type is ambiguous — `TOutput = { a: A; b: B }` could mean _one_ object port with fields `a`/`b`, or _two_ ports named `a`/`b`. The **`Port<T>`** marker removes the ambiguity: wrap each port's message type in `Port<…>` and NRG reads the record as **named ports**.
+A bare record type is ambiguous — `{ a: A; b: B }` could mean _one_ object port with fields `a`/`b`, or _two_ ports named `a`/`b`. The **`Port<T>`** marker removes the ambiguity: wrap each port's message type in `Port<…>`, hand the record to `Outputs<…>`, and NRG reads it as **named ports**.
 
 ```typescript
-import { IONode, type Port } from "@bonsae/nrg/server";
+import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 
 type Config = { name: string };
-type Input = { payload: string };
-type Output = {
+type PortNodeInput = Input<Port<{ payload: string }>>;
+type PortNodeOutputs = Outputs<{
   ok: Port<{ value: number }>;
   err: Port<{ reason: string }>;
-};
+}>;
 
-export default class PortNode extends IONode<Config, never, Input, Output> {
+export default class PortNode extends IONode<Config, never, PortNodeInput, PortNodeOutputs> {
   static override readonly type = "port-node";
   static override readonly category = "function";
   static override readonly color = "#a6bbcf";
 
-  override async input(msg: Input) {
-    this.sendToPort("ok", { value: msg.payload.length });
-    //              ^^^^ autocompletes "ok" | "err"; the value is
-    //                   type-checked against that port's message type
+  override async input(msg: PortNodeInput) {
+    this.send("ok", { value: msg.payload.length });
+    //        ^^^^ autocompletes "ok" | "err"; the value is
+    //             type-checked against that port's message type
   }
 }
 ```
 
-This node ships **no `inputSchema` or `outputsSchema`** — its one input port and two named output ports (`ok`, `err`) come entirely from the generics.
+This node ships **no `inputSchema` or `outputSchemas`** — its one input port and two named output ports (`ok`, `err`) come entirely from the generics.
 
-- A **single** output port needs no `Port` — `TOutput = number[]` is one port, emitted with `this.send(rows)`.
-- `sendToPort(name, value)` autocompletes the port name and checks `value` against that port's `Port<T>`. You can also send by numeric index (`sendToPort(0, …)`), in record order.
-- `Port` is a **type-only** marker (erased at runtime), exported from `@bonsae/nrg/server`.
+- A **single** output port is still a named port — `Outputs<{ rows: Port<number[]> }>` is one port, emitted with `this.send("rows", rows)`.
+- `send(name, value)` autocompletes the port name and checks `value` against that port's `Port<T>`. You can also send by numeric index (`send(0, …)`), in record order.
+- `Port`, `Input`, and `Outputs` are **type-only** markers (erased at runtime), exported from `@bonsae/nrg/server`.
 
 #### Topology is types-only {#schema-driven-topology}
 
@@ -769,61 +782,52 @@ For ports that carry **non-data** values (a function, class instance, `Buffer`, 
 
 #### Named Output Ports
 
-You get named output ports from a `Port<T>` record in the `Output` generic. Port names appear as labels in the editor and `sendToPort()` gets full autocomplete and per-port type safety. The example below passes an `Output` generic whose keys are `Port<T>` markers:
+You get named output ports from a `Port<T>` record wrapped in `Outputs<…>`. Port names appear as labels in the editor and `send()` gets full autocomplete and per-port type safety. The example below passes an `Outputs<…>` generic whose keys are `Port<T>` markers:
 
 ```typescript
-import { IONode, type Port } from "@bonsae/nrg/server";
+import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import { ConfigsSchema, type Config } from "@/schemas/router";
 
 type Success = { ok: true; id: string };
 type Failure = { reason: string };
-type Output = { success: Port<Success>; failure: Port<Failure> };
+type RouterInput = Input<Port<{ payload: unknown }>>;
+type RouterOutputs = Outputs<{ success: Port<Success>; failure: Port<Failure> }>;
 
-export default class Router extends IONode<Config, any, Input, Output> {
+export default class Router extends IONode<Config, any, RouterInput, RouterOutputs> {
   static override readonly type = "router";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: RouterInput) {
     try {
       const result = await process(msg);
       // Type-safe: the value must match the "success" port's type
-      this.sendToPort("success", { ok: true, id: result.id });
-      //              ^^^^^^^^^ autocompletes: "success" | "failure"
+      this.send("success", { ok: true, id: result.id });
+      //        ^^^^^^^^^ autocompletes: "success" | "failure"
     } catch (err) {
       // Type-safe: the value must match the "failure" port's type
-      this.sendToPort("failure", { reason: String(err) });
+      this.send("failure", { reason: String(err) });
     }
   }
 }
 ```
 
-You can also send by numeric index — port order follows the `Output` record's key order:
+You can also send by numeric index — port order follows the `Outputs` record's key order:
 
 ```typescript
-this.sendToPort(0, msg); // same as sendToPort("success", msg)
-this.sendToPort(1, msg); // same as sendToPort("failure", msg)
+this.send(0, msg); // same as this.send("success", msg)
+this.send(1, msg); // same as this.send("failure", msg)
 ```
 
-Positional `send()` takes a tuple — each element is a port's value or `null`.
-**Use it only when `TOutput` is itself a tuple** like `[Success, Failure]`:
-
-```typescript
-// type Output = [Success, Failure]
-this.send([successMsg, null]); // send to port 0
-this.send([null, failureMsg]); // send to port 1
-```
-
-If your `Output` is instead a **named record** (`{ success: Port<…>; failure: Port<…> }`),
-do **not** use the array form — `send()` expects the object map (`{ success, failure }`),
-so TypeScript rejects `[msg, null]` even though it happens to work at runtime. For
-named ports, always prefer `this.sendToPort("success", msg)`.
+Whichever form you use, the first argument is always the port — its name or its
+index. There is no positional object or tuple overload; `send()` addresses one
+port per call.
 
 ::: tip When to use named ports
-Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `sendToPort()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
+Use named ports whenever your node has multiple outputs with distinct purposes. The port names provide self-documenting labels in the editor and `send()` gives you per-port type safety — you can't accidentally send a success message to the failure port.
 :::
 
 ::: warning Reserved port names
-The names `"error"`, `"complete"`, and `"status"` are reserved for built-in ports and cannot be used as port names (keys in the `Output` record). Use descriptive alternatives like `"failed"` instead of `"error"`. `sendToPort()` only works with user-defined output ports — built-in ports are managed by the framework through `this.status()`, `this.error()`, and automatic completion.
+The names `"error"`, `"complete"`, and `"status"` are reserved for built-in ports and cannot be used as port names (keys in the `Outputs` record). Use descriptive alternatives like `"failed"` instead of `"error"`. `send()` only works with user-defined output ports — built-in ports are managed by the framework through `this.status()`, `this.error()`, and automatic completion.
 :::
 
 ### Static Properties
@@ -851,8 +855,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(result)` | Send the node's result to the next node. The framework wraps it as `{ <returnProperty>: result, source: { id, type, name, port }, input: msg }`; how deep the incoming history is kept under `input` is resolved per output port (default `carry`) — see [Context modes](./schemas#context-modes). |
-| `this.sendToPort(port, msg)` | Send the result to a user-defined output port by index or name. The port's context mode resolves the same way. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
+| `this.send(port, value)` | Send `value` out of a user-defined output port, addressed by name or index. The framework wraps it as `{ <returnProperty>: value, source: { id, type, name, port }, input: msg }`; how deep the incoming history is kept under `input` is resolved per output port (default `carry`) — see [Context modes](./schemas#context-modes). Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -1036,7 +1039,7 @@ it. Returning nothing (or `undefined`) omits the `complete` key entirely (arriva
 on the complete wire is itself the signal), so this is backward-compatible.
 
 ```typescript
-override async input(msg: Input): Promise<Summary> {
+override async input(msg: Input<Port<{ items: unknown[] }>>): Promise<Summary> {
   const results = await Promise.all(this.collect(msg));
   // continues on the complete port as
   //   { complete: <summary>, source, input: msg }
@@ -1070,7 +1073,7 @@ class RateLimitError extends Error {
   }
 }
 
-override async input(msg: Input) {
+override async input(msg: Input<Port<{ payload: unknown }>>) {
   throw new RateLimitError(2000);
   // error port: { error: { name: "RateLimitError", message: "rate limited",
   //                        retryAfterMs: 2000 }, source, input: msg }
@@ -1086,7 +1089,7 @@ Discriminate on `error.name` (realm-safe) rather than `instanceof`. Requires
 #### Example: node with error and status ports
 
 ```typescript
-import { IONode, type Infer } from "@bonsae/nrg/server";
+import { IONode, type Infer, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
 const ConfigsSchema = defineSchema(
@@ -1100,18 +1103,18 @@ const ConfigsSchema = defineSchema(
 );
 
 type Config = Infer<typeof ConfigsSchema>;
-type Input = Record<string, unknown>; // one input port
-type Output = unknown; // one (untyped) output port
+type HttpClientInput = Input<Port<Record<string, unknown>>>; // one input port
+type HttpClientOutputs = Outputs<{ out: Port<unknown> }>; // one (untyped) output port
 
-export default class HttpClient extends IONode<Config, any, Input, Output> {
+export default class HttpClient extends IONode<Config, any, HttpClientInput, HttpClientOutputs> {
   static override readonly type = "http-client";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: HttpClientInput) {
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
     const response = await fetch(this.config.url);
     this.status({ fill: "green", shape: "dot", text: "done" });
-    this.send(await response.json());
+    this.send("out", await response.json());
   }
 }
 ```
@@ -1119,7 +1122,7 @@ export default class HttpClient extends IONode<Config, any, Input, Output> {
 If the user enables both `errorPort` and `statusPort`, the node gets 3 outputs: data (port 0), error (port 1), and status (port 2). If they leave both off, the node has a single output as usual.
 
 ::: tip Error port replaces Catch; complete/status run alongside
-The **complete** and **status** ports work _alongside_ Node-RED's built-in `complete` and `status` nodes — enabling a port doesn't disable the implicit behavior, both fire. The **error** port is different: when it is enabled it becomes the **sole** error handler, so a thrown error (or `this.error(message, msg)`) travels its wire and does **not** also trigger Node-RED `catch` nodes — routing to both would report the same error twice and stamp a second, differently-shaped error onto the message. Node-RED's `catch` mechanism is the fallback **only when a node has no error port**. (A framework misuse — e.g. `sendToPort("error")` — is a developer bug, not runtime data, so it always surfaces loudly regardless of the error port.)
+The **complete** and **status** ports work _alongside_ Node-RED's built-in `complete` and `status` nodes — enabling a port doesn't disable the implicit behavior, both fire. The **error** port is different: when it is enabled it becomes the **sole** error handler, so a thrown error (or `this.error(message, msg)`) travels its wire and does **not** also trigger Node-RED `catch` nodes — routing to both would report the same error twice and stamp a second, differently-shaped error onto the message. Node-RED's `catch` mechanism is the fallback **only when a node has no error port**. (A framework misuse — e.g. `send("error", …)` to a reserved built-in port — is a developer bug, not runtime data, so it always surfaces loudly regardless of the error port.)
 :::
 
 ## The editor form

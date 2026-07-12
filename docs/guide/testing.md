@@ -49,7 +49,7 @@ pnpm add -D @vitest/coverage-v8        # for Node.js tests (server unit, server 
 
 Server **unit** tests instantiate your node class with mocked Node-RED internals and exercise it in-process. `createNode` wires up the full lifecycle (`registered()`, `created()`, input handlers, close) so you test real behavior, not stubs.
 
-Both server test tiers give your node the same ports it has in production. If your node declares its ports only through the `IONode` generics (no `inputSchema`/`outputsSchema`), the harness reads those types and wires the ports up for you: the normal outputs, any named `Port<T>` outputs, and the built-in `error`/`complete`/`status` ports. No extra setup is needed.
+Both server test tiers give your node the same ports it has in production. A node's port topology comes entirely from its `IONode` generics — the input `Input<Port<T>>` and the `Outputs<{ … }>` record — so the harness reads those types and wires the ports up for you: the input port, each named `Port<T>` output, and the built-in `error`/`complete`/`status` ports. No extra setup is needed. (A config `inputSchema`/`outputSchemas` only validates the _data_ crossing a port; it never adds or removes ports.)
 
 Server **integration** tests boot a real, headless Node-RED runtime, register your node classes through the same path production uses, deploy a flow, and drive it with real messages. Use them to verify the things mocks can't: that a config node resolves through a real `NodeRef`, that credentials reach a deployed node, that wired nodes pass messages, and that context stores persist across a flow.
 
@@ -126,6 +126,10 @@ No additional dependencies needed — NRG provides the test utilities and mocks.
   "include": ["**/*.ts", "../../../src/server/**/*.ts"]
 }
 ```
+
+::: warning
+Scope your test files with **`include`**, not `files`. The base tsconfig delivers the `node.sent()` typing via its own `files` array, and a child `files` **replaces** the base's (while `include` is additive) — so a child `files` silently drops the shim and `node.sent()` fails to type-check.
+:::
 
 #### 3. Create a vitest config
 
@@ -212,7 +216,7 @@ Every node returned by `createNode` has these helpers:
 ```typescript
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
-import { IONode, type Port } from "@bonsae/nrg/server";
+import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import MyNode from "../../../src/server/nodes/my-node";
 import Splitter from "../../../src/server/nodes/splitter";
 import Router from "../../../src/server/nodes/router";
@@ -339,7 +343,7 @@ describe("TypedInput", () => {
   //
   //   async input(msg) {
   //     const value = await this.config.target.resolve(msg);
-  //     this.send({ value });
+  //     this.send("out", { value });
   //   }
 
   it("should resolve msg property via TypedInput", async () => {
@@ -407,19 +411,21 @@ describe("multi-output nodes", () => {
 
 describe("named output ports", () => {
   it("routes to ports by name", async () => {
-    // A types-only node whose two named ports come from the `Port<T>` generics —
-    // no `outputsSchema`. The harness stamps the same topology the build injects,
-    // so `sent(name)` resolves by name (like `sendToPort` in the node).
-    //   import { IONode, type Port } from "@bonsae/nrg/server";
-    type Output = {
+    // A node whose two named ports come from the `Outputs<{ … }>` generic — the
+    // types are the only source of topology. The harness stamps the same ports the
+    // build injects, so `sent(name)` resolves by name (like `send(name, …)` in the
+    // node).
+    //   import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+    type RouterInput = Input<Port<{ payload: number }>>;
+    type RouterOutputs = Outputs<{
       ok: Port<{ value: number }>;
       err: Port<{ reason: string }>;
-    };
-    class Router extends IONode<Config, never, { payload: number }, Output> {
+    }>;
+    class Router extends IONode<any, never, RouterInput, RouterOutputs> {
       static override readonly type = "router";
-      override async input(msg: { payload: number }) {
-        if (msg.payload > 0) this.sendToPort("ok", { value: msg.payload });
-        else this.sendToPort("err", { reason: "non-positive" });
+      override async input(msg: RouterInput) {
+        if (msg.payload > 0) this.send("ok", { value: msg.payload });
+        else this.send("err", { reason: "non-positive" });
       }
     }
 
@@ -458,7 +464,7 @@ describe("context store", () => {
   });
 });
 
-class ErrorNode extends IONode<any, any, { payload: string }> {
+class ErrorNode extends IONode<any, any, Input<Port<{ payload: string }>>> {
   static override readonly type = "error-test";
   override async input() {
     throw new Error("something broke");
@@ -485,14 +491,20 @@ describe("i18n", () => {
   });
 });
 
-describe("named output ports (sendToPort)", () => {
-  // Given a node whose two named ports come from a `Port<T>` Output generic:
+describe("named output ports (send by name)", () => {
+  // Given a node whose two named ports come from a `Port<T>` Outputs generic:
   //
-  //   type Output = {
+  //   type RouterInput = Input<Port<{ payload: number }>>;
+  //   type RouterOutputs = Outputs<{
   //     success: Port<{ result: string }>;
   //     failure: Port<{ error: string }>;
-  //   };
-  //   class Router extends IONode<Config, any, Input, Output> { ... }
+  //   }>;
+  //   class Router extends IONode<Config, any, RouterInput, RouterOutputs> {
+  //     override async input(msg: RouterInput) {
+  //       if (msg.payload >= this.config.threshold) this.send("success", { result: "passed" });
+  //       else this.send("failure", { error: "below threshold" });
+  //     }
+  //   }
 
   it("should route messages to named ports", async () => {
     const { node } = await createNode(Router, {
@@ -563,7 +575,11 @@ describe("built-in emit ports", () => {
         this.retryAfterMs = retryAfterMs;
       }
     }
-    class RateLimitedNode extends IONode<any, any, { payload: string }> {
+    class RateLimitedNode extends IONode<
+      any,
+      any,
+      Input<Port<{ payload: string }>>
+    > {
       static override readonly type = "rate-limited";
       override async input() {
         throw new RateLimitError(2000);
@@ -592,9 +608,10 @@ describe("built-in emit ports", () => {
 
   it("should ride the value returned by input() on the complete port", async () => {
     // A node whose input() returns a value:
-    class ReturningNode extends IONode<any, any, { payload: string }> {
+    type ReturningInput = Input<Port<{ payload: string }>>;
+    class ReturningNode extends IONode<any, any, ReturningInput> {
       static override readonly type = "returning";
-      override async input(msg: { payload: string }) {
+      override async input(msg: ReturningInput) {
         return { id: msg.payload, ok: true };
       }
     }
@@ -752,13 +769,22 @@ import {
   startRuntime,
   type Runtime,
 } from "@bonsae/nrg/test/server/integration";
-import { IONode, ConfigNode } from "@bonsae/nrg/server";
+import {
+  IONode,
+  ConfigNode,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@bonsae/nrg/server";
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
-class Doubler extends IONode<any, any, { value: number }, { doubled: number }> {
+type DoublerInput = Input<Port<{ value: number }>>;
+type DoublerOutputs = Outputs<{ out: Port<{ doubled: number }> }>;
+
+class Doubler extends IONode<any, any, DoublerInput, DoublerOutputs> {
   static override readonly type = "doubler";
-  override async input(msg: { value: number }) {
-    this.send({ doubled: msg.value * 2 });
+  override async input(msg: DoublerInput) {
+    this.send("out", { doubled: msg.value * 2 });
   }
 }
 
@@ -801,15 +827,18 @@ class Greeting extends ConfigNode {
   }
 }
 
-class Greeter extends IONode<any, any, { who: string }, { text: string }> {
+type GreeterInput = Input<Port<{ who: string }>>;
+type GreeterOutputs = Outputs<{ out: Port<{ text: string }> }>;
+
+class Greeter extends IONode<any, any, GreeterInput, GreeterOutputs> {
   static override readonly type = "greeter";
   static override readonly configSchema = defineSchema(
     { source: SchemaType.NodeRef<Greeting>("greeting-config") },
     { $id: "greeter:config" },
   );
-  override async input(msg: { who: string }) {
+  override async input(msg: GreeterInput) {
     const source = this.config.source as unknown as Greeting;
-    this.send({ text: `${source.greeting}, ${msg.who}` });
+    this.send("out", { text: `${source.greeting}, ${msg.who}` });
   }
 }
 

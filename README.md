@@ -24,34 +24,34 @@ Scaffold a new project with everything wired up:
 pnpm create @bonsae/nrg
 ```
 
-Then define a node by extending `IONode`. Port topology comes from the `Input`/`Output` type generics; the config schema drives the editor form and validation:
+Then define a node by extending `IONode`. Port topology comes from the `Input`/`Outputs` type generics; the config schema drives the editor form and validation:
 
 **src/server/nodes/http-request.ts**
 
 ```typescript
-import { IONode, type Infer, type Port } from "@bonsae/nrg/server";
+import { IONode, type Infer, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
 import { Readable } from "node:stream";
-import { ConfigsSchema, RequestSchema } from "@/schemas/http-request";
+import { ConfigsSchema } from "@/schemas/http-request";
 
 type Config = Infer<typeof ConfigsSchema>;
-type Input = Infer<typeof RequestSchema>; // ← input type inferred from a schema
+type HttpRequestInput = Input<Port<{ path: string }>>; // ← input port, wire type inline (no schema needed)
 
-type Output = {
+type HttpRequestOutputs = Outputs<{
   body: Port<Readable>; // ← named port, non-data, no schema
   failed: Port<{ status: number; message: string }>;
-};
+}>;
 
-export default class HttpRequest extends IONode<Config, never, Input, Output> {
+export default class HttpRequest extends IONode<Config, never, HttpRequestInput, HttpRequestOutputs> {
   static override readonly type = "http-request";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input(msg: Input) {
+  override async input(msg: HttpRequestInput) {
     const res = await fetch(`${this.config.baseUrl}${msg.path}`);
     if (!res.ok) {
-      this.sendToPort("failed", { status: res.status, message: res.statusText });
+      this.send("failed", { status: res.status, message: res.statusText });
       return;
     }
-    this.sendToPort("body", Readable.fromWeb(res.body!)); // the stream, not its bytes
+    this.send("body", Readable.fromWeb(res.body!)); // the stream, not its bytes
   }
 }
 ```

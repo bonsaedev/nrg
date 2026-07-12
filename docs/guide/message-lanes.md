@@ -13,7 +13,7 @@ Message lanes give every message two channels that ride *alongside* it without b
 *on* it:
 
 ```typescript
-this.send(publicMsg, protectedData, privateData);
+this.send("out", publicMsg, protectedData, privateData);
 
 // a downstream node reads them back off its incoming message:
 msg.protected["otel.span"];  // visible to a node from ANY package
@@ -90,9 +90,9 @@ authorize with the caller's credentials.
 
 ```typescript
 // @acme/auth — mints a live principal, stamps it on the shared PROTECTED lane.
-override async input(msg) {                       // no annotation
-  const principal = await this.verify(msg);       // { getAccessToken(): Promise<string> }
-  this.send(msg, { "auth.principal": principal }); // raw token never touches the wire
+override async input(msg) {                              // no annotation
+  const principal = await this.verify(msg);              // { getAccessToken(): Promise<string> }
+  this.send("out", msg, { "auth.principal": principal }); // raw token never touches the wire
 }
 ```
 
@@ -194,31 +194,31 @@ and write.
 
 ## Writing and reading lanes
 
-Both `send()` and `sendToPort()` take the public message first, then optional `protected`
-and `private` bags:
+You **write** lanes through `send`'s 3rd and 4th arguments — the port and value come first,
+then optional `protected` and `private` bags:
 
 ```typescript
-// send(publicMsg, protectedData?, privateData?)
-this.send({ payload }, { "otel.span": span }, { conn });
+// send(portNameOrIndex, value, protectedData?, privateData?)
+this.send("out", { payload }, { "otel.span": span }, { conn });
 
-// sendToPort(port, publicMsg, protectedData?, privateData?) — same lanes, one port
-this.sendToPort("rows", rows, { "otel.span": span }, { conn });
+// same lanes, a named port
+this.send("rows", rows, { "otel.span": span }, { conn });
 ```
 
-A node reads the lanes back off its incoming message. The lanes are already on the
+A node **reads** the lanes back off its incoming message. The lanes are already on the
 `input()` parameter type, so the simplest way to get them typed is to **omit the parameter
-annotation** — TypeScript infers `msg` from the base method, where your `Input` generic is
-the plain wire shape:
+annotation** — TypeScript infers `msg` from the base method, where your `TInput` generic
+declares the node's input port:
 
 ```typescript
-import { IONode } from "@bonsae/nrg/server";
+import { IONode, type Input, type Port } from "@bonsae/nrg/server";
 
-// The `Input` GENERIC is the wire shape (it drives the node's ports — lanes are not
+// The input GENERIC is the wire shape (it drives the node's ports — lanes are not
 // ports). Leave the input() PARAMETER un-annotated and `msg.private` / `msg.protected`
 // are typed for you.
-type Input = { payload: unknown };
+type MyNodeInput = Input<Port<{ payload: unknown }>>;
 
-export default class MyNode extends IONode<Config, never, Input, Output> {
+export default class MyNode extends IONode<Config, never, MyNodeInput, MyNodeOutputs> {
   static override readonly type = "my-node";
 
   override async input(msg) {                    // no annotation
@@ -229,11 +229,12 @@ export default class MyNode extends IONode<Config, never, Input, Output> {
 }
 ```
 
-::: warning Don't re-annotate with the raw wire type
-Leaving the parameter un-annotated infers `InputMessage<Input>` (wire **plus** lanes).
-Re-annotating it with the bare wire type — `input(msg: Input)` — is accepted by TypeScript
+::: warning Don't re-annotate with the bare wire type
+Leaving the parameter un-annotated infers the wire shape **plus** the lanes. Re-annotating
+it with the plain wire type — `input(msg: { payload: unknown })` — is accepted by TypeScript
 but **discards the lanes** from the parameter's static type. If you want an explicit
-annotation, spell it `InputMessage<Input>`, not `Input`.
+annotation, use the same `Input<Port<…>>` type you passed as the generic (`MyNodeInput`
+above), which carries the lanes with it.
 :::
 
 ::: info `_msgid` is not an author field
@@ -276,24 +277,32 @@ ride the wire (it's a live socket, and cloning would break it) and must stay hid
 flow author. Both nodes are in the same package, so `private` fits:
 
 ```typescript
-// @acme/http — http-in.ts  (a SOURCE node: Input = never)
-export default class HttpIn extends IONode<Config, never, never, Output> {
+// @acme/http — http-in.ts  (a SOURCE node: TInput = never)
+import { IONode, type Outputs, type Port } from "@bonsae/nrg/server";
+
+type HttpInOutputs = Outputs<{ out: Port<{ payload: unknown }> }>;
+
+export default class HttpIn extends IONode<Config, never, never, HttpInOutputs> {
   static override readonly type = "http-in";
 
   override async created() {
     this.RED.httpNode.get(this.config.url, (req, res) => {
       // Emit the clone-safe snapshot on the wire; stash the LIVE `res` on the
-      // private lane (3rd arg). nrg mints an `_msgid` for this source send, keys
+      // private lane (4th arg). nrg mints an `_msgid` for this source send, keys
       // the lane by it, and carries that id across every downstream node.
-      this.send({ payload: req.query }, undefined, { res });
+      this.send("out", { payload: req.query }, undefined, { res });
     });
   }
 }
 ```
 
 ```typescript
-// @acme/http — http-response.ts  (a SINK node: Output = never)
-export default class HttpResponse extends IONode<Config, never, Input, never> {
+// @acme/http — http-response.ts  (a SINK node: TOutput = never)
+import { IONode, type Input, type Port } from "@bonsae/nrg/server";
+
+type HttpResponseInput = Input<Port<{ payload: unknown }>>;
+
+export default class HttpResponse extends IONode<Config, never, HttpResponseInput, never> {
   static override readonly type = "http-response";
 
   override async input(msg) {                       // no annotation
@@ -326,7 +335,7 @@ author seeing it and without it going on the wire:
 // @acme/otel — trace-start.ts
 override async input(msg) {
   const span = tracer.startSpan("flow");
-  this.send(msg, { "otel.span": span }); // protected: any package can read it
+  this.send("out", msg, { "otel.span": span }); // protected: any package can read it
 }
 ```
 
@@ -349,7 +358,7 @@ long-running node from any package honors it:
 ```typescript
 // producer — stamp the signal
 const controller = new AbortController();
-this.send(msg, { "abort.signal": controller.signal });
+this.send("out", msg, { "abort.signal": controller.signal });
 
 // consumer in another package — honor it
 const signal = msg.protected["abort.signal"] as AbortSignal | undefined;
