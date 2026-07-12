@@ -48,8 +48,8 @@ type ExtractInput<T> = T extends { receive(msg: infer M): any } ? M : any;
 // the base TEST tsconfigs (test-only; absent from a production build). It is
 // therefore already on the returned node and is NOT part of `TestNodeHelpers`.
 
-// The message a named port carries: unwrap a `Port<T>` to its `T` (a schema-
-// derived branded record isn't wrapped, so `PortValue` passes it through).
+// The message a named port carries: unwrap the port's `Port<T>` to its `T` (a
+// non-Port value passes through `PortValue` unchanged).
 type PortMessage<T, P extends string> =
   T extends Record<string, any>
     ? P extends keyof T

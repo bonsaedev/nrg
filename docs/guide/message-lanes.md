@@ -229,6 +229,13 @@ export default class MyNode extends IONode<Config, never, MyNodeInput, MyNodeOut
 }
 ```
 
+::: info Un-annotated parameters need `noImplicitAny: false`
+Omitting the annotation relies on `noImplicitAny` being **off** — nrg's shipped
+`tsconfig` sets this, so it works out of the box. Under a stricter `tsconfig` that turns
+`noImplicitAny` on, an un-annotated `input(msg)` is an error; annotate it with your node's
+own `Input<Port<…>>` alias (`MyNodeInput` above), which carries the lanes with it.
+:::
+
 ::: warning Don't re-annotate with the bare wire type
 Leaving the parameter un-annotated infers the wire shape **plus** the lanes. Re-annotating
 it with the plain wire type — `input(msg: { payload: unknown })` — is accepted by TypeScript

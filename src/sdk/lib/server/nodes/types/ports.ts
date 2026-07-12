@@ -82,6 +82,11 @@ type OutputSpec = Record<string, Port<any>> | readonly Port<any>[];
  * `never` (a sink) needs no wrapping. A plain object or a bare unnamed `Port<T>` is
  * rejected at the `Outputs<>` call — name each port. Emission is always by name (or
  * index for the dynamic array): `this.send("ok", value)`.
+ *
+ * Each port must be REQUIRED. An optional entry (`{ ok?: Port<A> }`) makes the
+ * record's values include `undefined`, so it fails the {@link IsPortRecord} test
+ * and NONE of its keys become addressable ({@link OutputPortNames} is `never`) —
+ * a port either exists or it does not, so declare every port required.
  */
 type Outputs<TPorts extends OutputSpec> = TPorts;
 
