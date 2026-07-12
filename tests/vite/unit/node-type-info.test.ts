@@ -207,6 +207,27 @@ describe("extractNodeTypes — class API", () => {
     expect(names).not.toContain("__nrg_port");
   });
 
+  it("does not leak array prototype/symbol members as fields for an array-typed port", () => {
+    const [node] = extract(`
+      import { IONode } from "@bonsae/nrg/server";
+      import type { Port } from "@bonsae/nrg/server";
+      type Output = { rows: Port<{ id: number }[]> };
+      export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
+        static readonly type = "my-node";
+      }
+    `);
+    const rows = node.outputs?.find((o) => o.name === "rows");
+    expect(rows).toBeDefined();
+    // The port carries an array — its documented type IS the array (in role.text),
+    // and it exposes NO per-field rows: `push`/`length`/`__@iterator` must not
+    // leak in as documentable fields.
+    expect(rows?.role.fields).toEqual([]);
+    const names = rows?.role.fields.map((f) => f.name) ?? [];
+    expect(names).not.toContain("push");
+    expect(names).not.toContain("length");
+    expect(names.some((n) => n.startsWith("__@"))).toBe(false);
+  });
+
   it("omits outputs when the Output type is absent (never)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";

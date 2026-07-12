@@ -754,15 +754,24 @@ function objectFields(
   at: ts.Node,
 ): NodeFieldInfo[] {
   if ((type.flags & DOCUMENTABLE_FIELDS) === 0) return [];
+  // An array / tuple role documents its ELEMENT type (carried in the role's
+  // `text`), never per-field rows — its "properties" are prototype methods
+  // (`push`, `map`, `length`) and symbol members (`__@iterator`), not fields.
+  if (isArrayType(checker, type) || isTupleType(checker, type)) return [];
   const fields: NodeFieldInfo[] = [];
   for (const prop of checker.getPropertiesOfType(type)) {
+    const name = prop.getName();
+    // Skip members that can't be a documentable named field: private (`#x`) and
+    // computed / symbol-keyed members (escaped `__@…`) — the same guard
+    // renderStructure uses, so a Map/iterable role never emits `__@iterator`.
+    if (name.startsWith("#") || name.startsWith("__@")) continue;
     const optional = (prop.getFlags() & ts.SymbolFlags.Optional) !== 0;
     let propType = checker.getTypeOfSymbolAtLocation(prop, at);
     // Optionality is carried by the `optional` flag — don't also append
     // `| undefined` to the rendered type.
     if (optional) propType = checker.getNonNullableType(propType);
     fields.push({
-      name: prop.getName(),
+      name,
       type: render(checker, propType, at),
       optional,
     });
@@ -801,6 +810,11 @@ const PORT_BRAND = "__nrg_port";
 /** True when a type is a tuple (positional multi-output). */
 function isTupleType(checker: ts.TypeChecker, type: ts.Type): boolean {
   return typeof checker.isTupleType === "function" && checker.isTupleType(type);
+}
+
+/** True when a type is an array (`T[]` / `Array<T>` / `ReadonlyArray<T>`). */
+function isArrayType(checker: ts.TypeChecker, type: ts.Type): boolean {
+  return typeof checker.isArrayType === "function" && checker.isArrayType(type);
 }
 
 /** The message type inside a `Port<T>`, or undefined when `type` is not a Port. */
