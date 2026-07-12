@@ -27,13 +27,18 @@ const roleText = (r?: {
   resolved?: string;
 }): string | undefined => r?.resolved ?? r?.text;
 
-/** Reconstruct the `Output` generic from the shape-aware ports. Named ports are
- * re-wrapped in `Port<…>` so the inheritable class preserves its named-ness — a
- * consumer who `extends` it keeps N named ports (a bare `{ … }` would collapse to
- * one object port). Positional ports stay a tuple; a single output stays itself. */
+/** Reconstruct the `Output` generic from the shape-aware ports, in a form that
+ * satisfies the `TOutput extends OutputSpec` constraint so the inheritable class
+ * declaration compiles. Ports are re-wrapped in `Port<…>` — a consumer who
+ * `extends` it keeps N named ports (a bare `{ … }` would collapse to one object
+ * port, and a bare tuple isn't a `Port[]`):
+ *  - named ports → a `Port` record (`{ ok: Port<…> }` — `Record<string, Port>`);
+ *  - positional ports → a readonly `Port` tuple (`readonly [Port<A>, Port<B>]`);
+ *  - a single untyped port (`any`) stays itself (already OutputSpec-valid);
+ *  - no output (a sink) → `never`. */
 function outputTypeText(node: NodeTypeInfo): string {
   const ports = node.outputs;
-  if (!ports || ports.length === 0) return "unknown";
+  if (!ports || ports.length === 0) return "never";
   if (ports.length === 1 && ports[0].name === undefined)
     return roleText(ports[0].role)!;
   if (ports[0].name !== undefined) {
@@ -41,18 +46,25 @@ function outputTypeText(node: NodeTypeInfo): string {
       .map((p) => `${p.name}: Port<${roleText(p.role)}>`)
       .join("; ")} }`;
   }
-  return `[${ports.map((p) => roleText(p.role)).join(", ")}]`;
+  return `readonly [${ports
+    .map((p) => `Port<${roleText(p.role)}>`)
+    .join(", ")}]`;
 }
 
 /** (a) An inheritable `export declare class` with resolved generics. */
 function buildClassDecl(node: NodeTypeInfo): string {
   const base = node.kind === "io" ? "IONode" : "ConfigNode";
+  // The wiring extractor strips the off-the-wire channels from the input, but the
+  // class's `TInput` must satisfy `Input<Port<unknown>>` — so re-wrap the stripped
+  // wire as `Input<Port<Wire>>` (or `never` for a source node with no input).
+  const wire = roleText(node.input);
+  const inputGeneric = wire !== undefined ? `Input<Port<${wire}>>` : "never";
   const generics =
     node.kind === "io"
       ? [
           roleText(node.config) ?? "unknown",
           roleText(node.credentials) ?? "never",
-          roleText(node.input) ?? "unknown",
+          inputGeneric,
           outputTypeText(node),
           roleText(node.settings) ?? "unknown",
         ]
@@ -65,9 +77,9 @@ function buildClassDecl(node: NodeTypeInfo): string {
   const members = [`static readonly type: ${JSON.stringify(node.type)};`];
   if (node.kind === "io") {
     const ret = roleText(node.complete) ?? "void";
-    members.push(
-      `input(msg: ${roleText(node.input) ?? "unknown"}): Promise<${ret}>;`,
-    );
+    // The parameter stays the bare wire (readable, and a valid bivariant override
+    // of `IONode.input(msg: TInput)`).
+    members.push(`input(msg: ${wire ?? "never"}): Promise<${ret}>;`);
   }
 
   return `export declare class ${node.className} extends ${base}<${generics.join(
@@ -128,15 +140,22 @@ function buildPackageDts(
     classNodes.some((n) => n.kind === "io") && "IONode",
     classNodes.some((n) => n.kind === "config") && "ConfigNode",
   ].filter((x): x is string => Boolean(x));
-  // A class node with named outputs re-wraps them in `Port<…>` (see
-  // outputTypeText), so the surface must import `Port`.
-  const hasNamedOutputs = classNodes.some((n) => n.outputKind === "named");
+  // A class's re-wrapped input generic is `Input<Port<Wire>>`, and its outputs are
+  // `Port`-wrapped (named record / positional tuple) unless it's a single untyped
+  // port — so import `Input`/`Port` exactly when a class declaration uses them.
+  const classIoNodes = classNodes.filter((n) => n.kind === "io");
+  const anyClassInput = classIoNodes.some((n) => n.input !== undefined);
+  const anyClassOutputPort = classIoNodes.some((n) => {
+    const p = n.outputs;
+    return !!p && p.length > 0 && !(p.length === 1 && p[0].name === undefined);
+  });
   const typeImports = [
     hasFunctional && "NodeConstructor",
     ioNodes.length && "ErrorPort",
     ioNodes.length && "CompletePort",
     ioNodes.length && "StatusPort",
-    hasNamedOutputs && "Port",
+    anyClassInput && "Input",
+    (anyClassInput || anyClassOutputPort) && "Port",
   ].filter((x): x is string => Boolean(x));
 
   const parts: string[] = [];
