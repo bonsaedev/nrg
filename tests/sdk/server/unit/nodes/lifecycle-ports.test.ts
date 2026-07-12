@@ -481,6 +481,17 @@ describe("lifecycle ports", () => {
       // Nothing was misdelivered onto the error port.
       expect(node.sent("error")).toHaveLength(0);
     });
+
+    it("rejects a negative / non-integer numeric send", async () => {
+      const { node } = await createNode(NumericOob, {
+        config: { targetPort: -1 },
+      });
+
+      await expect(node.receive({ payload: "go" })).rejects.toThrow(
+        "non-negative integer",
+      );
+      expect(node.sent()).toHaveLength(0);
+    });
   });
 
   describe("no built-in port flags in schema", () => {
