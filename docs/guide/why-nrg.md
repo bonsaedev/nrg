@@ -24,34 +24,41 @@ In classic Node-RED every node has to remember to pass the message on; miss it o
 
 ## Live Objects & Hidden Data
 
-Two kinds of data can't safely ride the wire: **live objects** that break when Node-RED clones the message (a DB connection, an open HTTP `res`, a streaming handle, an OpenTelemetry span, an `AbortController`), and **secrets** that could be serialized but must never be seen — a decrypted access token, a signed correlation id. Node-RED gives a message two places to put data (`msg` and context) and neither is safe for either kind.
-
-**"Why would a secret be on a message at all — isn't that what a config node's credentials are for?"** Static credentials are perfect when the secret is *per-deployment*: a fixed API key, shared by every message. But some secrets are *per-message*. An auth node verifies *this* request and mints a token for *this* caller (multi-tenant, per-user); a node exchanges or refreshes a short-lived token at runtime; a node decrypts a field that a later node needs. That data is derived from one in-flight message and consumed by a *different* node downstream — so it has to travel *with* the message. The wire is the only channel bound to a single message, which is exactly why per-message data wants to live there. It just isn't safe to carry a secret — and that's the gap channels fill: the wire's per-message binding, without the exposure.
+Some data can't safely ride the wire: **live objects** that break when Node-RED clones the message (a DB connection, an open HTTP `res`, a streaming handle), and **secrets** that must never be seen (a decrypted token, a signed id). Yet this data is often *per-message* — derived from one request and needed by a *different* node downstream — so it still has to travel *with* the message.
 
 ### Traditional
 
-**Three ways `msg` fails you:**
-
-1. **Secrets leak.** Put a token on `msg` and it shows up verbatim in the debug panel — `msg.access_token: "eyJhbGci…"`, copy-pasteable, and any function node can read or overwrite it.
-2. **Live objects break.** Node-RED deep-clones `msg` between wires, so a live socket or connection is corrupted or throws — which is exactly why Node-RED had to hard-code `msg.req` / `msg.res` as the *only* two reference-preserved exceptions, so its own HTTP In / HTTP Response pair could work at all.
-3. **You don't decide what continues.** The **flow author** picks `carry`/`trace`/`reset` per wire (see [Message Flow](#message-flow) above), so a `reset` drops the fields you left for a later node — and anything non-JSON on `msg` is silently dropped whenever the message is serialized (debug panel, context store, exported flow).
-
-**In flow/global context?** Context is standing state keyed by a **name**, not bound to a message. Node-RED delivers the next message before the current one finishes, so two messages in flight write the same `flow.get("conn")` key and clobber each other — there is no per-message slot. Context stores are also pluggable and serialization-oriented (memory, localfilesystem, Redis, DynamoDB): live objects don't belong there, and the store is inspectable and writable from the editor and from function nodes. To make it work you'd key everything by `msg._msgid` and clean up by hand — reinventing a per-message registry on a substrate designed for the opposite.
+Node-RED deep-clones `msg` between wires, so a live socket is corrupted or throws — which is exactly why Node-RED had to hard-code `msg.req` / `msg.res` as the **only** reference-preserved exceptions, just so its own HTTP In / HTTP Response pair could work. A secret is no safer: put a token on `msg` and it shows up verbatim in the debug panel, copy-pasteable, readable or forgeable by any function node. Context is no help either — it's keyed by a **name**, not a message, so two in-flight messages clobber the same `flow.get("conn")`.
 
 ### NRG
 
-**Message channels.** NRG gives every message two off-the-wire channels that ride *alongside* it without being *on* it — one **`private`** (scoped to your package), one **`protected`** (shared across packages). The flagship: an auth node stamps a *live* principal on the **protected** channel, and a Salesforce node in a *different* package authorizes with it — the raw token never rides the wire, never hits the debug panel, and can't be forged by a function node:
+Every message gets two **off-the-wire channels** — **`private`** (only your package's nodes) and **`protected`** (shared across packages) — that ride *alongside* the message, keyed by its `_msgid`. They're **never cloned, never serialized, and invisible** to the debug panel and function nodes. It's the `req`/`res` special case, generalized and made safe for everyone:
 
-```typescript
-// @acme/auth — mints a live principal, stamps it on the shared protected channel
-// send(port, value, { protected?, private? })
-this.send("out", { userId }, { protected: { "auth.principal": principal } });
-
-// @bonsae/salesforce — a DIFFERENT package reads it back and authorizes
-const token = await (msg[Channels].protected["auth.principal"] as Principal).getAccessToken();
+```
+              on the wire — cloned between nodes, safe to serialize
+   ┌──────────┐     msg = { payload, req snapshot }     ┌───────────────┐
+   │ http-in  │ ───────────────────────────────────────▶│ http-response │
+   └──────────┘                                          └───────────────┘
+         ╎                                                       ╏
+         ╎         res — a live socket, can't be cloned          ╏
+         └╌╌╌╌╌╌╌╌ private channel · keyed by _msgid ╌╌╌╌╌╌╌╌╌╌╌╌┘
+                     off the wire · never cloned · never logged
 ```
 
-Channel data lives in a per-runtime store keyed by the message's `_msgid`; NRG installs hidden `msg[Channels].protected` / `msg[Channels].private` accessors on each node's incoming message. It is **never serialized, never cloned, never shown in the debug panel, and invisible to a flow author's function node** — yet any node that needs it reads it back by the same message, and it survives every `carry`/`trace`/`reset` wire choice because it rides the `_msgid`, not the payload. It's the general, safe form of the `req`/`res` escape hatch Node-RED had to special-case for one pair of built-in nodes. Pick `private` vs `protected` by reach — see [Message Channels](./message-channels) for the full decision guide.
+`http-in` sends only a clone-safe request snapshot on the wire and parks the live `res` on its **private** channel; `http-response`, anywhere downstream, reads the socket back and replies. The channel rides the `_msgid`, so it survives every `carry`/`trace`/`reset` and any nodes in between:
+
+```typescript
+import { Channels } from "@bonsae/nrg/server";
+
+// http-in: snapshot on the wire, live socket on the private channel
+this.send("out", { payload, req }, { private: { res } });
+
+// http-response: read the socket back off the same message, then release it
+const res = msg[Channels].private.res;
+delete msg[Channels].private.res;
+```
+
+The **`protected`** channel is the same idea with wider reach — an auth node stamps a live principal there and a node in a *different* package authorizes with it, the raw token never touching the wire. Pick `private` vs `protected` by reach — see [Message Channels](./message-channels) for the full guide.
 
 ## Node Registration
 
@@ -156,7 +163,7 @@ import MyNode from "./nodes/my-node";
 export default defineModule({ nodes: [MyNode] });
 ```
 
-## Fully TypeScript
+## Type-Safe
 
 ### Traditional
 

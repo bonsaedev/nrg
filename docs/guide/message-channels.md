@@ -101,7 +101,7 @@ authorize with the caller's credentials.
 // @acme/auth — mints a live principal, stamps it on the shared PROTECTED channel.
 override async input(msg: Input<Port<{ request: unknown }>>) {
   const principal = await this.verify(msg);              // { getAccessToken(): Promise<string> }
-  this.send("out", msg, { "auth.principal": principal }); // raw token never touches the wire
+  this.send("out", msg, { protected: { "auth.principal": principal } }); // raw token never touches the wire
 }
 ```
 
@@ -175,6 +175,7 @@ reinvention *is* message channels; nrg just builds it in, off the wire, and hidd
 | Holds live/non-serializable objects | No | No (serialization-oriented) | **Yes (in-process store)** |
 | Hidden from the flow author | No | No | **Yes** |
 | Concurrency-safe across in-flight messages | Yes | No | **Yes** |
+| Survives a process restart | No | Yes (persistent store) | No (in-memory only) |
 
 ::: info Why a function node can't reach a channel
 The channel store is **server-plane** (one per runtime, with a per-package partition for
@@ -269,13 +270,27 @@ override async input(msg: Input<Port<{ output: unknown }>>) {
 resource. **The resource owns its own release.** You call `res.end()`, `conn.release()`,
 `span.end()`; `delete` just tells the framework to forget the reference.
 
-For the happy path, an explicit `delete` when you're finished is all you need. As a
-backstop, nrg sweeps abandoned messages on an idle TTL (default 5 min, reset by any channel
-read or write), so a flow that drops a message before anyone deletes its channels won't leak
-the store entry forever — but an actively-used message is never swept mid-flight. There is
-deliberately **no GC hook, no `WeakMap`, no finalizer, and no dispose callback** — those
-are non-deterministic or don't survive the message being cloned, and they'd give a false
-sense that the framework manages your resource's lifetime. It doesn't; you do.
+For the happy path, an explicit `delete` when you're finished is all you need.
+
+**Auto-purge — the backstop.** If a flow drops a message before anyone deletes its
+channels (a node throws, a request is abandoned, a branch dead-ends), nrg sweeps the entry
+on an **idle TTL — 5 minutes by default, reset by every read or write** to that message's
+channels. So an actively-used message is never swept mid-flight; only a genuinely abandoned
+one ages out. It exists to **prevent leaks**: without it, an undeleted entry — which may
+hold a secret or a live handle — would pin memory and keep sensitive data alive long after
+its message is gone. There is deliberately **no GC hook, no `WeakMap`, no finalizer, and no
+dispose callback** — those are non-deterministic or don't survive the message being cloned,
+and they'd give a false sense that the framework manages your resource's lifetime. It
+doesn't; you do — `delete` the entry and release the resource, and treat the TTL as a
+safety net, not a cleanup strategy.
+
+**In-memory only.** The channel store lives in the runtime's process memory — it is
+**never persisted, and is gone on a restart or crash**, along with every in-flight message
+it belonged to. That's the right model for what channels hold (a live socket or a
+per-request token can't outlive the process anyway), but it's a key difference from a
+[context store](./creating-a-node#context-storage), which *can* persist (localfilesystem,
+Redis, DynamoDB). Anything that must survive a restart is durable state — put it in a
+persistent context store or a real datastore, never a channel.
 
 ## Example: `private` — the HTTP claim-check
 
@@ -295,10 +310,10 @@ export default class HttpIn extends IONode<Config, never, never, HttpInOutputs> 
 
   override async created() {
     this.RED.httpNode.get(this.config.url, (req, res) => {
-      // Emit the clone-safe snapshot on the wire; stash the LIVE `res` on the
-      // private channel (4th arg). nrg mints an `_msgid` for this source send, keys
-      // the channel by it, and carries that id across every downstream node.
-      this.send("out", { payload: req.query }, undefined, { res });
+      // Emit the clone-safe snapshot on the wire; stash the LIVE `res` on the private
+      // channel (the 3rd arg's `private` key). nrg mints an `_msgid` for this source
+      // send, keys the channel by it, and carries that id across every downstream node.
+      this.send("out", { payload: req.query }, { private: { res } });
     });
   }
 }
@@ -343,7 +358,7 @@ author seeing it and without it going on the wire:
 // @acme/otel — trace-start.ts
 override async input(msg: Input<Port<{ payload: unknown }>>) {
   const span = tracer.startSpan("flow");
-  this.send("out", msg, { "otel.span": span }); // protected: any package can read it
+  this.send("out", msg, { protected: { "otel.span": span } }); // protected: any package can read it
 }
 ```
 
@@ -366,7 +381,7 @@ long-running node from any package honors it:
 ```typescript
 // producer — stamp the signal
 const controller = new AbortController();
-this.send("out", msg, { "abort.signal": controller.signal });
+this.send("out", msg, { protected: { "abort.signal": controller.signal } });
 
 // consumer in another package — honor it
 const signal = msg[Channels].protected["abort.signal"] as AbortSignal | undefined;
@@ -397,8 +412,7 @@ const res = { statusCode: 0, end: vi.fn() };
 
 await node.receive(
   { _msgid: "r1", output: { ok: true } },
-  undefined, // no protected channel
-  { res }, // the incoming private channel
+  { private: { res } }, // the incoming private channel
 );
 
 expect(res.end).toHaveBeenCalledWith('{"ok":true}');
