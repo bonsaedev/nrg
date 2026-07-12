@@ -38,7 +38,7 @@ const guardNodes = {
   status: SendToPortGuardStatus,
 } as const;
 
-describe("emit ports", () => {
+describe("lifecycle ports", () => {
   let prevSrc: string | undefined;
 
   beforeAll(() => {
