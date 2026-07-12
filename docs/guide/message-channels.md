@@ -249,7 +249,7 @@ always use the `Input<Port<…>>` alias, which carries them.
 nrg keys the channels by the message's `_msgid` internally, but `_msgid` is **not** on the
 `input()` parameter type — it won't appear in autocomplete, and reading it through the
 typed `msg` is a compile error. It's framework plumbing: overwriting it would fork the
-message from its channels. You never need it — read and write channels through
+message from its channels. You never need it — write channels on `send`, read them through
 `msg[Channels].protected` / `msg[Channels].private`, and let nrg do the correlation.
 :::
 
