@@ -299,6 +299,17 @@ HTTP Response node, further down the flow, must reply on that exact `res`. The `
 ride the wire (it's a live socket, and cloning would break it) and must stay hidden from the
 flow author. Both nodes are in the same package, so `private` fits:
 
+```
+          on the wire - cloned between nodes, safe to serialize
+   +----------+     msg = { payload, req snapshot }     +---------------+
+   | http-in  |---------------------------------------->| http-response |
+   +----+-----+                                         +-------+-------+
+        :                                                       :
+        :         res - a live socket, can't be cloned          :
+        +.......... private channel, keyed by _msgid ...........+
+                off the wire, never cloned, never logged
+```
+
 ```typescript
 // @acme/http — http-in.ts  (a SOURCE node: TInput = never)
 import { IONode, type Outputs, type Port } from "@bonsae/nrg/server";
