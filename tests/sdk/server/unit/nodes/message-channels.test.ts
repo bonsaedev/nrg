@@ -1,32 +1,32 @@
 import { describe, it, expect, vi } from "vitest";
 import { createNode } from "@/sdk/test/server/unit";
 import { IONode, defineModule } from "@/sdk/lib/server";
-import type { MessageLanes, Input, Outputs, Port } from "@/sdk/lib/server";
-import { LaneStore, laneProxy, packageLane } from "@/sdk/lib/server/lane-store";
-import { NRG_PROTECTED_LANE } from "@/sdk/lib/server/symbols";
+import type { MessageChannels, Input, Outputs, Port } from "@/sdk/lib/server";
+import { ChannelStore, channelProxy, packageChannel } from "@/sdk/lib/server/channels-store";
+import { NRG_PROTECTED_CHANNEL } from "@/sdk/lib/server/symbols";
 
 // `RawIn` is the on-the-wire shape a node declares as its `Input` generic; the
-// framework intersects the lanes only on the `input()` parameter, so tests take
+// framework intersects the channels only on the `input()` parameter, so tests take
 // `msg: In` inside the method but pass `RawIn` as the generic — exactly what a
 // real node author sees.
 type RawIn = { payload: unknown };
-type In = RawIn & MessageLanes;
+type In = RawIn & MessageChannels;
 
 // These nodes are declared INLINE (not in a `src/server` tree), so the build-time
 // port-name extractor never runs on them and their named "out" port has no
 // resolvable index at runtime. They therefore emit by NUMERIC index (`send(0, …)`)
 // — the documented escape hatch for a node whose topology isn't extracted. The
-// lane behaviour under test is identical for named and numeric ports (both take
+// channel behaviour under test is identical for named and numeric ports (both take
 // the same `#sendToPort` delivery path).
 
-/** Emits values on all three lanes. */
+/** Emits values on all three channels. */
 class Producer extends IONode<
   Record<string, never>,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ out: number }> }>
 > {
-  static override readonly type = "lane-producer";
+  static override readonly type = "channel-producer";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
@@ -34,7 +34,7 @@ class Producer extends IONode<
   }
 }
 
-/** Emits lanes via `send` to a numeric port — the lanes ride the emitted frame
+/** Emits channels via `send` to a numeric port — the channels ride the emitted frame
  * exactly as they do for a named port (same `#sendToPort` delivery path). */
 class PortProducer extends IONode<
   Record<string, never>,
@@ -42,7 +42,7 @@ class PortProducer extends IONode<
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ out: number }> }>
 > {
-  static override readonly type = "lane-port-producer";
+  static override readonly type = "channel-port-producer";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
@@ -50,9 +50,9 @@ class PortProducer extends IONode<
   }
 }
 
-/** Reads a wire field and a private lane WITHOUT annotating the `input` parameter —
- * proving the base `InputMessage<Input>` (wire + lanes) is inferred, so an author
- * declares the wire type ONCE (the generic) and needs no `& MessageLanes`. The
+/** Reads a wire field and a private channel WITHOUT annotating the `input` parameter —
+ * proving the base `InputMessage<Input>` (wire + channels) is inferred, so an author
+ * declares the wire type ONCE (the generic) and needs no `& MessageChannels`. The
  * framework key `_msgid` is deliberately NOT inferred onto the parameter (a
  * compile-time proof of that lives in the .test-d.ts). */
 class OmitReader extends IONode<
@@ -61,7 +61,7 @@ class OmitReader extends IONode<
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ payload: unknown; secret: unknown }> }>
 > {
-  static override readonly type = "lane-omit-reader";
+  static override readonly type = "channel-omit-reader";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg) {
@@ -69,23 +69,23 @@ class OmitReader extends IONode<
   }
 }
 
-/** Reads both lanes off the incoming signal and echoes them onto its public
+/** Reads both channels off the incoming signal and echoes them onto its public
  * output — so a test asserts what it RECEIVED via the observable `sent()`, not a
- * peek inside `input()`. `keys` proves the lanes never appear in enumeration. */
+ * peek inside `input()`. `keys` proves the channels never appear in enumeration. */
 class Consumer extends IONode<
   Record<string, never>,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ trace: unknown; secret: unknown; keys: string[] }> }>
 > {
-  static override readonly type = "lane-consumer";
+  static override readonly type = "channel-consumer";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg: In) {
     this.send(0, {
       trace: msg.protected.trace,
       secret: msg.private.secret,
-      keys: Object.keys(msg), // lanes must NOT appear here
+      keys: Object.keys(msg), // channels must NOT appear here
     });
   }
 }
@@ -98,7 +98,7 @@ class Deleter extends IONode<
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ before: unknown; after: unknown }> }>
 > {
-  static override readonly type = "lane-deleter";
+  static override readonly type = "channel-deleter";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg: In) {
@@ -108,14 +108,14 @@ class Deleter extends IONode<
   }
 }
 
-/** Same as Deleter, but for the shared `protected` lane. */
+/** Same as Deleter, but for the shared `protected` channel. */
 class ProtectedDeleter extends IONode<
   Record<string, never>,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ before: unknown; after: unknown }> }>
 > {
-  static override readonly type = "lane-protected-deleter";
+  static override readonly type = "channel-protected-deleter";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input(msg: In) {
@@ -127,14 +127,14 @@ class ProtectedDeleter extends IONode<
 
 /** A SOURCE node (no input port): emits from `created()` with no incoming
  * message, so `send()` must mint a fresh `_msgid` and stamp it on the outgoing
- * frame for the lanes to be recoverable downstream. */
+ * frame for the channels to be recoverable downstream. */
 class Source extends IONode<
   Record<string, never>,
   unknown,
   never,
   Outputs<{ out: Port<{ tick: number }> }>
 > {
-  static override readonly type = "lane-source";
+  static override readonly type = "channel-source";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async created() {
@@ -142,52 +142,52 @@ class Source extends IONode<
   }
 }
 
-/** A pass-through MIDDLE node: a PLAIN `send()` with NO lane args that never
- * reads the lanes either. The upstream's contributions must persist on the
+/** A pass-through MIDDLE node: a PLAIN `send()` with NO channel args that never
+ * reads the channels either. The upstream's contributions must persist on the
  * emitted frame — they live in the store keyed by `_msgid`, which the plain send
- * inherits — proving the STICKY-lane guarantee (see #writeLanes). */
+ * inherits — proving the STICKY-channel guarantee (see #writeChannels). */
 class Passthrough extends IONode<
   Record<string, never>,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ ok: boolean }> }>
 > {
-  static override readonly type = "lane-passthrough";
+  static override readonly type = "channel-passthrough";
   static override readonly category = "test";
   static override readonly color = "#ffffff";
   override async input() {
-    this.send(0, { ok: true }); // plain send — no lane args, no lane reads
+    this.send(0, { ok: true }); // plain send — no channel args, no channel reads
   }
 }
 
-describe("message lanes (protected / private)", () => {
-  it("laneProxy reads / writes / deletes through the store", () => {
-    const store = new LaneStore();
-    const lane = laneProxy(store, "m", NRG_PROTECTED_LANE);
+describe("message channels (protected / private)", () => {
+  it("channelProxy reads / writes / deletes through the store", () => {
+    const store = new ChannelStore();
+    const channel = channelProxy(store, "m", NRG_PROTECTED_CHANNEL);
 
-    lane.x = 1;
-    expect(lane.x).toBe(1);
-    expect(store.get("m", NRG_PROTECTED_LANE, "x")).toBe(1);
-    expect("x" in lane).toBe(true);
+    channel.x = 1;
+    expect(channel.x).toBe(1);
+    expect(store.get("m", NRG_PROTECTED_CHANNEL, "x")).toBe(1);
+    expect("x" in channel).toBe(true);
 
-    delete lane.x;
-    expect(lane.x).toBeUndefined();
-    expect("x" in lane).toBe(false);
+    delete channel.x;
+    expect(channel.x).toBeUndefined();
+    expect("x" in channel).toBe(false);
   });
 
   it("a producer emits protected + private on the outgoing signal", async () => {
     const { node } = await createNode(Producer, {});
     await node.receive({ _msgid: "sig-1", payload: {} });
 
-    // The sender asserts what it output on each lane, read off the emitted frame:
+    // The sender asserts what it output on each channel, read off the emitted frame:
     expect(node.sent(0)[0].protected.trace).toBe("abc");
     expect(node.sent(0)[0].private.secret).toBe(99);
-    // …but the lanes never ride the serialized wire message:
+    // …but the channels never ride the serialized wire message:
     expect(Object.keys(node.sent(0)[0])).not.toContain("protected");
     expect(Object.keys(node.sent(0)[0])).not.toContain("private");
   });
 
-  it("un-annotated input() infers the wire type and lanes (not _msgid)", async () => {
+  it("un-annotated input() infers the wire type and channels (not _msgid)", async () => {
     const { node } = await createNode(OmitReader, {});
     await node.receive(
       { _msgid: "sig-omit", payload: { hi: 1 } },
@@ -204,14 +204,14 @@ describe("message lanes (protected / private)", () => {
 
     expect(node.sent(0)[0].protected.trace).toBe("abc");
     expect(node.sent(0)[0].private.secret).toBe(99);
-    // lanes stay off the serialized frame:
+    // channels stay off the serialized frame:
     expect(Object.keys(node.sent(0)[0])).not.toContain("private");
   });
 
   it("a consumer receives protected + private, hidden from enumeration", async () => {
     const { node } = await createNode(Consumer, {});
 
-    // Provide the lanes an upstream node would have attached to this signal:
+    // Provide the channels an upstream node would have attached to this signal:
     await node.receive(
       { _msgid: "sig-2", payload: {} },
       { protected: { trace: "abc" }, private: { secret: 99 } },
@@ -221,7 +221,7 @@ describe("message lanes (protected / private)", () => {
     const out = node.sent()[0][0].output;
     expect(out.trace).toBe("abc");
     expect(out.secret).toBe(99);
-    // The author-facing enumeration never reveals the lanes:
+    // The author-facing enumeration never reveals the channels:
     expect(out.keys).not.toContain("protected");
     expect(out.keys).not.toContain("private");
   });
@@ -239,59 +239,59 @@ describe("message lanes (protected / private)", () => {
     expect(out.after).toBeUndefined(); // gone after
   });
 
-  it("a laneProxy enumerates its keys (Object.keys / spread / descriptors)", () => {
-    const store = new LaneStore();
-    const lane = laneProxy(store, "m", NRG_PROTECTED_LANE);
-    lane.a = 1;
-    lane.b = 2;
+  it("a channelProxy enumerates its keys (Object.keys / spread / descriptors)", () => {
+    const store = new ChannelStore();
+    const channel = channelProxy(store, "m", NRG_PROTECTED_CHANNEL);
+    channel.a = 1;
+    channel.b = 2;
 
-    expect(Object.keys(lane).sort()).toEqual(["a", "b"]);
-    expect({ ...lane }).toEqual({ a: 1, b: 2 });
-    expect(Object.getOwnPropertyDescriptor(lane, "a")).toMatchObject({
+    expect(Object.keys(channel).sort()).toEqual(["a", "b"]);
+    expect({ ...channel }).toEqual({ a: 1, b: 2 });
+    expect(Object.getOwnPropertyDescriptor(channel, "a")).toMatchObject({
       enumerable: true,
       configurable: true,
       value: 1,
     });
-    expect(Object.getOwnPropertyDescriptor(lane, "missing")).toBeUndefined();
+    expect(Object.getOwnPropertyDescriptor(channel, "missing")).toBeUndefined();
   });
 
-  it("a laneProxy for a message with no _msgid is inert", () => {
-    const store = new LaneStore();
-    const lane = laneProxy(store, undefined, NRG_PROTECTED_LANE);
+  it("a channelProxy for a message with no _msgid is inert", () => {
+    const store = new ChannelStore();
+    const channel = channelProxy(store, undefined, NRG_PROTECTED_CHANNEL);
 
-    lane.a = 1; // no-op — nothing is keyed under `undefined`
-    expect(lane.a).toBeUndefined();
-    expect(Object.keys(lane)).toEqual([]);
-    expect("a" in lane).toBe(false);
+    channel.a = 1; // no-op — nothing is keyed under `undefined`
+    expect(channel.a).toBeUndefined();
+    expect(Object.keys(channel)).toEqual([]);
+    expect("a" in channel).toBe(false);
   });
 
   it("sweeps only idle signals on the TTL, keeps active ones, and re-arms", () => {
     vi.useFakeTimers();
     try {
-      const store = new LaneStore({ ttlMs: 1000, sweepMs: 100 });
-      store.set("dead", NRG_PROTECTED_LANE, "x", 1);
-      store.set("alive", NRG_PROTECTED_LANE, "y", 2);
+      const store = new ChannelStore({ ttlMs: 1000, sweepMs: 100 });
+      store.set("dead", NRG_PROTECTED_CHANNEL, "x", 1);
+      store.set("alive", NRG_PROTECTED_CHANNEL, "y", 2);
 
       vi.advanceTimersByTime(600);
-      expect(store.get("alive", NRG_PROTECTED_LANE, "y")).toBe(2); // touch → stays warm
+      expect(store.get("alive", NRG_PROTECTED_CHANNEL, "y")).toBe(2); // touch → stays warm
 
       vi.advanceTimersByTime(600); // "dead" now idle > ttl; "alive" touched at 600
-      expect(store.get("dead", NRG_PROTECTED_LANE, "x")).toBeUndefined(); // swept
-      expect(store.get("alive", NRG_PROTECTED_LANE, "y")).toBe(2); // survived
+      expect(store.get("dead", NRG_PROTECTED_CHANNEL, "x")).toBeUndefined(); // swept
+      expect(store.get("alive", NRG_PROTECTED_CHANNEL, "y")).toBe(2); // survived
 
       // Let "alive" go idle → swept, sweeper self-stops when the store empties,
       // then a later write re-arms it and that entry ages out too.
       vi.advanceTimersByTime(2000);
-      expect(store.get("alive", NRG_PROTECTED_LANE, "y")).toBeUndefined();
-      store.set("reborn", NRG_PROTECTED_LANE, "z", 3);
+      expect(store.get("alive", NRG_PROTECTED_CHANNEL, "y")).toBeUndefined();
+      store.set("reborn", NRG_PROTECTED_CHANNEL, "z", 3);
       vi.advanceTimersByTime(2000);
-      expect(store.get("reborn", NRG_PROTECTED_LANE, "z")).toBeUndefined();
+      expect(store.get("reborn", NRG_PROTECTED_CHANNEL, "z")).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("a source send (no incoming _msgid) mints one and carries the lanes", async () => {
+  it("a source send (no incoming _msgid) mints one and carries the channels", async () => {
     const { node } = await createNode(Source, {});
     // created() already emitted — no node.receive, so there is no incoming _msgid.
     expect(node.sent()).toHaveLength(1);
@@ -299,12 +299,12 @@ describe("message lanes (protected / private)", () => {
     const frame = node.sent(0)[0];
     // a fresh _msgid was minted and stamped on the outgoing frame...
     expect((frame as Record<string, any>)._msgid).toEqual(expect.any(String));
-    // ...and both lanes resolve through it:
+    // ...and both channels resolve through it:
     expect(frame.protected.trace).toBe("src");
     expect(frame.private.secret).toBe(7);
   });
 
-  it("STICKY lanes persist across a plain middle send (same _msgid)", async () => {
+  it("STICKY channels persist across a plain middle send (same _msgid)", async () => {
     const { node } = await createNode(Passthrough, {});
     await node.receive(
       { _msgid: "sig-sticky", payload: {} },
@@ -312,7 +312,7 @@ describe("message lanes (protected / private)", () => {
     );
 
     const frame = node.sent(0)[0];
-    // The plain send neither wrote nor read lanes, yet the upstream contributions
+    // The plain send neither wrote nor read channels, yet the upstream contributions
     // still resolve on the emitted frame: they live in the store keyed by _msgid,
     // which the emitted frame inherits.
     expect(frame.protected.trace).toBe("up");
@@ -366,16 +366,16 @@ describe("message lanes (protected / private)", () => {
     defineModule({ nodes: [PkgB] }); // a different package
 
     // same package → same partition; different package → different partition
-    expect(packageLane(PkgA1)).toBe(packageLane(PkgA2));
-    expect(packageLane(PkgA1)).not.toBe(packageLane(PkgB));
+    expect(packageChannel(PkgA1)).toBe(packageChannel(PkgA2));
+    expect(packageChannel(PkgA1)).not.toBe(packageChannel(PkgB));
 
-    const store = new LaneStore();
-    store.set("sig", packageLane(PkgA1), "secret", 1);
+    const store = new ChannelStore();
+    store.set("sig", packageChannel(PkgA1), "secret", 1);
     // a same-package node reads it; a different-package node cannot:
-    expect(store.get("sig", packageLane(PkgA2), "secret")).toBe(1);
-    expect(store.get("sig", packageLane(PkgB), "secret")).toBeUndefined();
+    expect(store.get("sig", packageChannel(PkgA2), "secret")).toBe(1);
+    expect(store.get("sig", packageChannel(PkgB), "secret")).toBeUndefined();
     // protected is shared regardless of package:
-    store.set("sig", NRG_PROTECTED_LANE, "trace", "T");
-    expect(store.get("sig", NRG_PROTECTED_LANE, "trace")).toBe("T");
+    store.set("sig", NRG_PROTECTED_CHANNEL, "trace", "T");
+    expect(store.get("sig", NRG_PROTECTED_CHANNEL, "trace")).toBe("T");
   });
 });

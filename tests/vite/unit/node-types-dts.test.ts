@@ -227,44 +227,44 @@ describe("buildPackageDts", () => {
     expect(diags.length).toBeGreaterThan(0);
   });
 
-  it("strips off-the-wire lanes from the wiring input so a plain upstream value connects (Input<Port<Wire>> → bare Wire)", () => {
+  it("strips off-the-wire channels from the wiring input so a plain upstream value connects (Input<Port<Wire>> → bare Wire)", () => {
     // A REAL node types its input via the gate: `Input<Port<Wire>>`, which resolves
-    // to `Wire & MessageLanes`. The registry/wiring input MUST be the bare `Wire`
-    // (what a connection carries / `receive()` takes) — if the off-the-wire lanes
+    // to `Wire & MessageChannels`. The registry/wiring input MUST be the bare `Wire`
+    // (what a connection carries / `receive()` takes) — if the off-the-wire channels
     // leaked into it, no upstream port's plain value could ever satisfy
-    // `& MessageLanes` and every real wire would be un-connectable.
+    // `& MessageChannels` and every real wire would be un-connectable.
     const dts = buildPackageDts(
       extractPkg({
-        laned: `
+        channeled: `
           import { IONode } from "@bonsae/nrg/server";
           import type { Input, Outputs, Port } from "@bonsae/nrg/server";
-          type LanedInput = Input<Port<{ payload: string }>>;
-          type LanedOutputs = Outputs<{ out: Port<{ ok: boolean }> }>;
-          export default class Laned extends IONode<{ c: 1 }, never, LanedInput, LanedOutputs> {
-            static readonly type = "laned";
-            async input(_msg: LanedInput) { this.send("out", { ok: true }); }
+          type ChanneledInput = Input<Port<{ payload: string }>>;
+          type ChanneledOutputs = Outputs<{ out: Port<{ ok: boolean }> }>;
+          export default class Channeled extends IONode<{ c: 1 }, never, ChanneledInput, ChanneledOutputs> {
+            static readonly type = "channeled";
+            async input(_msg: ChanneledInput) { this.send("out", { ok: true }); }
           }`,
       }),
     );
-    // the input port is the WIRE type, with NO `MessageLanes` anywhere
+    // the input port is the WIRE type, with NO `MessageChannels` anywhere
     expect(dts).toContain("input: { payload: string; };");
-    expect(dts).not.toContain("MessageLanes");
-    // and the built-in ports are generic over the bare wire, not the laned shape
+    expect(dts).not.toContain("MessageChannels");
+    // and the built-in ports are generic over the bare wire, not the channeled shape
     expect(dts).toContain("error: ErrorPort<{ payload: string; }>");
-    // a plain upstream value (no lanes) type-checks against the input port
+    // a plain upstream value (no channels) type-checks against the input port
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
        import type { NodeTypes } from "@bonsae/nrg/server";
-       const _: NodeTypes["laned"]["input"] = { payload: "x" };
+       const _: NodeTypes["channeled"]["input"] = { payload: "x" };
        void _;`,
     );
     expect(diags).toHaveLength(0);
   });
 
-  it("strips lanes from a MULTI-member wire input (Input<Port<A & B>>) too", () => {
+  it("strips channels from a MULTI-member wire input (Input<Port<A & B>>) too", () => {
     // The rare multi-member wire takes the text/field fallback (not the clean
-    // single-member type strip) — verify no `MessageLanes` survives there either.
+    // single-member type strip) — verify no `MessageChannels` survives there either.
     const dts = buildPackageDts(
       extractPkg({
         multi: `
@@ -277,7 +277,7 @@ describe("buildPackageDts", () => {
           }`,
       }),
     );
-    expect(dts).not.toContain("MessageLanes");
+    expect(dts).not.toContain("MessageChannels");
     // both wire members survive; a plain value with both connects
     const diags = compilePackage(
       dts,
@@ -289,9 +289,9 @@ describe("buildPackageDts", () => {
     expect(diags).toHaveLength(0);
   });
 
-  it("strips lanes from a UNION wire input (Input<Port<A | B>>) — distributes to (A&lanes)|(B&lanes))", () => {
-    // `(A | B) & MessageLanes` DISTRIBUTES to a top-level union `(A & lanes) | (B &
-    // lanes)`, so the lane-strip must recurse into each union arm — else lanes leak
+  it("strips channels from a UNION wire input (Input<Port<A | B>>) — distributes to (A&channels)|(B&channels))", () => {
+    // `(A | B) & MessageChannels` DISTRIBUTES to a top-level union `(A & channels) | (B &
+    // channels)`, so the channel-strip must recurse into each union arm — else channels leak
     // on every arm and no upstream port could connect to a union-typed input.
     const dts = buildPackageDts(
       extractPkg({
@@ -305,7 +305,7 @@ describe("buildPackageDts", () => {
           }`,
       }),
     );
-    expect(dts).not.toContain("MessageLanes");
+    expect(dts).not.toContain("MessageChannels");
     // each arm's plain value connects to the union input
     const diags = compilePackage(
       dts,

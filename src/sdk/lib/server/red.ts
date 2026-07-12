@@ -3,7 +3,7 @@ import type { EventEmitter } from "node:events";
 import type { Express, RequestHandler } from "express";
 import type { INode } from "./nodes";
 import type { Validator } from "../shared/validator";
-import type { LaneStore } from "./lane-store";
+import type { ChannelStore } from "./channels-store";
 
 interface NodeRedSettings {
   userDir?: string;
@@ -357,11 +357,11 @@ interface RED {
   /** @internal — framework validator, set by globals `init()` */
   readonly validator: Validator;
   /**
-   * @internal — off-the-wire message-lane store, set by globals `init()` (see
-   * ./lane-store). Non-enumerable; holds each message's `protected` /
-   * `private` lane data keyed by `_msgid`, never serialized onto the message.
+   * @internal — off-the-wire message-channel store, set by globals `init()` (see
+   * ./channels-store). Non-enumerable; holds each message's `protected` /
+   * `private` channel data keyed by `_msgid`, never serialized onto the message.
    */
-  readonly laneStore: LaneStore;
+  readonly channelStore: ChannelStore;
 }
 
 interface NodeRedContextStore {

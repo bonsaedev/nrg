@@ -1,5 +1,5 @@
 import { Validator } from "../shared/validator";
-import { LaneStore } from "./lane-store";
+import { ChannelStore } from "./channels-store";
 import { initRoutes } from "./api";
 import type { RED } from "./red";
 
@@ -42,17 +42,17 @@ function initValidator(RED: RED): void {
 }
 
 /**
- * Creates the off-the-wire message-lane store (see ./lane-store) once per
+ * Creates the off-the-wire message-channel store (see ./channels-store) once per
  * runtime, exposed like the validator: a non-enumerable, non-configurable getter
  * with no setter. Guarded so a second call is a no-op.
  */
-function initLaneStore(RED: RED): void {
-  if (RED.laneStore) return;
+function initChannelStore(RED: RED): void {
+  if (RED.channelStore) return;
 
-  const laneStore = new LaneStore();
+  const channelStore = new ChannelStore();
 
-  Object.defineProperty(RED, "laneStore", {
-    get: () => laneStore,
+  Object.defineProperty(RED, "channelStore", {
+    get: () => channelStore,
     enumerable: false,
     configurable: false,
   });
@@ -60,12 +60,12 @@ function initLaneStore(RED: RED): void {
 
 /**
  * Initializes nrg on a Node-RED runtime — the per-runtime globals (validator +
- * lane store) and the HTTP asset routes — once per runtime, from `registerTypes`.
+ * channel store) and the HTTP asset routes — once per runtime, from `registerTypes`.
  *
  * Node-RED calls every installed nrg package's register fn on the SAME `RED`, so
  * every step is idempotent AND ensured INDEPENDENTLY: a validator already put
- * there by a package that registered first (possibly an older nrg with no lane
- * store) must not stop this package from getting its lane store. Each sub-init
+ * there by a package that registered first (possibly an older nrg with no channel
+ * store) must not stop this package from getting its channel store. Each sub-init
  * guards on its own target, so nothing short-circuits the others.
  *
  * The globals sub-inits are exported for the test harness, which sets up only the
@@ -74,8 +74,8 @@ function initLaneStore(RED: RED): void {
  */
 function init(RED: RED): void {
   initValidator(RED);
-  initLaneStore(RED);
+  initChannelStore(RED);
   initRoutes(RED);
 }
 
-export { init, initValidator, initLaneStore };
+export { init, initValidator, initChannelStore };

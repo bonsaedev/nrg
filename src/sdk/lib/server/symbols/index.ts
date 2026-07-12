@@ -9,7 +9,7 @@ export {
   NRG_PORTS,
 } from "./node";
 export {
-  NRG_PROTECTED_LANE,
-  NRG_PRIVATE_LANE,
-  NRG_MODULE_PRIVATE_LANE,
-} from "./lane-store";
+  NRG_PROTECTED_CHANNEL,
+  NRG_PRIVATE_CHANNEL,
+  NRG_MODULE_PRIVATE_CHANNEL,
+} from "./channels-store";

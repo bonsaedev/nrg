@@ -1015,13 +1015,13 @@ function defaultExportClass(
   return referencedName ? classByName(referencedName) : undefined;
 }
 
-/** True when a type is the framework's off-the-wire {@link MessageLanes} — the
- * `protected`/`private` lanes the `Input<>` gate intersects onto every input.
+/** True when a type is the framework's off-the-wire {@link MessageChannels} — the
+ * `protected`/`private` channels the `Input<>` gate intersects onto every input.
  * Matched by BOTH its alias name AND its `protected`+`private` shape, so a user
- * type that merely shares the name (without the lane shape) is never mistaken for
+ * type that merely shares the name (without the channel shape) is never mistaken for
  * it and stripped. */
-function isMessageLanes(checker: ts.TypeChecker, type: ts.Type): boolean {
-  if ((type.aliasSymbol ?? type.getSymbol())?.getName() !== "MessageLanes") {
+function isMessageChannels(checker: ts.TypeChecker, type: ts.Type): boolean {
+  if ((type.aliasSymbol ?? type.getSymbol())?.getName() !== "MessageChannels") {
     return false;
   }
   return (
@@ -1031,21 +1031,21 @@ function isMessageLanes(checker: ts.TypeChecker, type: ts.Type): boolean {
 }
 
 /**
- * The pure WIRE type of a node's input, rendered with the off-the-wire lanes
- * stripped. `Input<Port<Wire>>` resolves to `Wire & MessageLanes`, but a
- * CONNECTION carries — and `receive()` takes — only `Wire`; the lanes must never
+ * The pure WIRE type of a node's input, rendered with the off-the-wire channels
+ * stripped. `Input<Port<Wire>>` resolves to `Wire & MessageChannels`, but a
+ * CONNECTION carries — and `receive()` takes — only `Wire`; the channels must never
  * leak into the wiring registry or docs (an upstream port's plain value can't
- * satisfy `& MessageLanes`, which would make every real wire un-connectable).
+ * satisfy `& MessageChannels`, which would make every real wire un-connectable).
  *
- * Handles every shape the `& MessageLanes` distributes into:
- *  - a UNION `Input<Port<A | B>>` → `(A & lanes) | (B & lanes)`: strip each arm,
+ * Handles every shape the `& MessageChannels` distributes into:
+ *  - a UNION `Input<Port<A | B>>` → `(A & channels) | (B & channels)`: strip each arm,
  *    rejoin with `|`;
- *  - an INTERSECTION `Input<Port<A & B>>` → drop the lane member(s), render the
- *    rest SEPARATELY and rejoin with `&` (never flattening the lanes back in as
+ *  - an INTERSECTION `Input<Port<A & B>>` → drop the channel member(s), render the
+ *    rest SEPARATELY and rejoin with `&` (never flattening the channels back in as
  *    `protected`/`private` properties);
  *  - a plain object → rendered as-is.
- * Returns `undefined` when nothing but lanes remains — an untyped
- * `Input<Port<unknown>>` resolves to just `MessageLanes` — so the caller renders
+ * Returns `undefined` when nothing but channels remains — an untyped
+ * `Input<Port<unknown>>` resolves to just `MessageChannels` — so the caller renders
  * one untyped port.
  */
 function renderWireInput(
@@ -1077,12 +1077,12 @@ function renderWireInput(
     return arms.length === 1 ? arms[0] : join(arms, " | ");
   }
   if (type.isIntersection()) {
-    const kept = type.types.filter((t) => !isMessageLanes(checker, t));
-    if (kept.length === 0) return undefined; // only lanes → untyped wire
+    const kept = type.types.filter((t) => !isMessageChannels(checker, t));
+    if (kept.length === 0) return undefined; // only channels → untyped wire
     const parts = kept.map(roleOf);
     return parts.length === 1 ? parts[0] : join(parts, " & ");
   }
-  if (isMessageLanes(checker, type)) return undefined;
+  if (isMessageChannels(checker, type)) return undefined;
   return roleOf(type);
 }
 
@@ -1117,10 +1117,10 @@ function assignRoleTypes(
       // for them, so fall back to a bare rendered role so `info.input` is set.
       if (isAbsentPort(checker, argType)) return;
       // Show the WIRE type (what a connection carries / `receive()` takes), NOT the
-      // off-the-wire lanes the `Input<>` gate intersects on — else the wiring
-      // registry input would be `Wire & MessageLanes` and no upstream port could
+      // off-the-wire channels the `Input<>` gate intersects on — else the wiring
+      // registry input would be `Wire & MessageChannels` and no upstream port could
       // connect to it. Handles union / intersection / plain wires; `undefined`
-      // means the wire is untyped (only lanes remained) → one untyped port.
+      // means the wire is untyped (only channels remained) → one untyped port.
       info.input = renderWireInput(checker, argType, at, imports, ctx) ?? {
         text: "unknown",
         fields: [],

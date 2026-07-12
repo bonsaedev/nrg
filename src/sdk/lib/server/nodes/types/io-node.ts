@@ -13,7 +13,7 @@ import type {
   Port,
   OutputSpec,
   InputSpec,
-  OmitMessageLanes,
+  OmitMessageChannels,
 } from "./ports";
 
 type IONodeContextScope = NodeContextScope;
@@ -86,20 +86,20 @@ interface IIONode<
   // A returned value (when not `undefined`) rides the complete port under
   // `output`; `void`/no return keeps the plain completion signal. `TInput` is the
   // wrapped message type (`Input<…>`), so the parameter already carries the
-  // off-the-wire lanes alongside the wire fields.
+  // off-the-wire channels alongside the wire fields.
   input(msg: TInput): unknown;
   status(status: IONodeStatus): void;
   updateWires(wires: string[][]): void;
-  // `receive` drives the handler with a raw WIRE message — the lanes are installed
-  // by the framework, so callers pass {@link OmitMessageLanes}`<TInput>`, not the
+  // `receive` drives the handler with a raw WIRE message — the channels are installed
+  // by the framework, so callers pass {@link OmitMessageChannels}`<TInput>`, not the
   // wrapped type.
-  receive(msg: OmitMessageLanes<TInput>): void;
+  receive(msg: OmitMessageChannels<TInput>): void;
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
   // Emit a value on one output port, addressed by NAME (a named `Port` record) or
   // by numeric index (a dynamic `Port<T>[]`). `protectedData`/`privateData` populate
-  // the message's off-the-wire lanes for this signal; they never ride the serialized
+  // the message's off-the-wire channels for this signal; they never ride the serialized
   // msg. Built-in error/complete/status ports are framework-managed — not `send`-able.
   send<P extends OutputPortNames<TOutput> | number>(
     port: P,

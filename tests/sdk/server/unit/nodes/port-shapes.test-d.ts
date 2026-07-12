@@ -76,7 +76,7 @@ function errorProof(m: ErrorPortOutput<In, { code: string }>) {
   const source: NodeSource = m.source; // source is at the ROOT
   const input: In = m.input; // failing message at the ROOT
   // @ts-expect-error — `_msgid` rides the message at runtime but is deliberately
-  // NOT typed (framework-internal lineage/lane key, hidden from authors)
+  // NOT typed (framework-internal lineage/channel key, hidden from authors)
   m._msgid;
   // @ts-expect-error — source is NOT nested inside the `error` block
   m.error.source;

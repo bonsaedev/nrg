@@ -1,15 +1,15 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
 import { ensurePortTopology } from "../port-topology";
-import { initValidator, initLaneStore } from "@/sdk/lib/server/init";
-import { laneProxy, packageLane } from "@/sdk/lib/server/lane-store";
+import { initValidator, initChannelStore } from "@/sdk/lib/server/init";
+import { channelProxy, packageChannel } from "@/sdk/lib/server/channels-store";
 import type { NodeRedNode } from "@/sdk/lib/server/red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
 import {
   NRG_SETUP_CLOSE_HANDLER,
   NRG_SETUP_INPUT_HANDLER,
-  NRG_PROTECTED_LANE,
+  NRG_PROTECTED_CHANNEL,
 } from "@/sdk/lib/server/symbols";
 import type { NodeContextStore } from "@/sdk/lib/server/nodes/types/node";
 import type {
@@ -20,7 +20,7 @@ import type {
   Port,
   IsPortRecord,
   IsAny,
-  MessageLanes,
+  MessageChannels,
   MessageMeta,
 } from "@/sdk/lib/server/nodes/types/ports";
 
@@ -32,8 +32,8 @@ interface CreateNodeOptions {
 }
 
 // The node's WIRE input type — read from the node's OWN `receive(msg)` parameter,
-// which the base IONode types as `OmitMessageLanes<TInput>` straight from the CLASS
-// generic (already lanes-/`_msgid`-free). Reading `input()`'s parameter instead
+// which the base IONode types as `OmitMessageChannels<TInput>` straight from the CLASS
+// generic (already channels-/`_msgid`-free). Reading `input()`'s parameter instead
 // collapses to `unknown` for the idiomatic no-argument `input()` style (a zero-arg
 // method still satisfies `{ input(msg: infer I) }` with `I = unknown`), which would
 // make `receive()` silently accept any value — the same lossiness that keeps
@@ -67,16 +67,16 @@ type PortMessage<T, P extends string> =
  * collapses to just `{ output: V }` — without this guard `Partial<never>` would
  * poison the intersection to `never`, making `sent()[i][0].output` unreadable.
  *
- * `& MessageLanes`: the harness exposes the off-the-wire lanes on each emitted
+ * `& MessageChannels`: the harness exposes the off-the-wire channels on each emitted
  * frame — `private` in the PRODUCER's own package partition, so it reads back what
  * a SAME-package downstream node would see (a different package reads its own,
  * empty partition). A producer test asserts `sent(0)[0].protected.x` /
  * `sent(0)[0].private.x` (the data the node emitted via
- * `send(msg, protected, private)`). The lanes are non-enumerable, so
+ * `send(msg, protected, private)`). The channels are non-enumerable, so
  * `toEqual({ output })` still matches. They ride data-port frames only, never the
  * built-in error/complete/status frames.
  */
-type WrappedPort<V, TInput> = { output: V } & MessageLanes &
+type WrappedPort<V, TInput> = { output: V } & MessageChannels &
   ([TInput] extends [never]
     ? unknown
     : unknown extends TInput
@@ -151,7 +151,7 @@ interface TestNodeHelpers<TInput = any> {
    * non-object input type passes through unchanged. */
   receive(
     msg: TInput extends object ? TInput & Record<string, unknown> : TInput,
-    lanes?: LaneInput,
+    channels?: ChannelInput,
   ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
@@ -173,31 +173,31 @@ interface TestNodeContext {
 }
 
 /**
- * The off-the-wire lanes an UPSTREAM node would have attached to the incoming
+ * The off-the-wire channels an UPSTREAM node would have attached to the incoming
  * message, passed as the second `receive()` argument so the node under test reads
  * them via `msg.protected.*` / `msg.private.*`. `private` is placed in the node's
  * OWN package partition (what the node sees). Mirrors the producer side: what one
  * node passes to `send(msg, protected, private)` is what the next receives here.
  *
  * @example
- * // consumer: given a live `res` on the private lane, it should reply
+ * // consumer: given a live `res` on the private channel, it should reply
  * await node.receive({ _msgid: "r1", payload: { ok: true } }, { private: { res } });
  * expect(res.end).toHaveBeenCalled();
  */
-interface LaneInput {
+interface ChannelInput {
   protected?: Record<string, unknown>;
   private?: Record<string, unknown>;
 }
 
 /**
- * Bridges a node's off-the-wire lanes to the test, scoped like the node itself:
+ * Bridges a node's off-the-wire channels to the test, scoped like the node itself:
  * shared `protected`, and `private` in the node's own package partition. `seed`
- * writes incoming lanes (for `receive`'s second arg); `expose` installs the
+ * writes incoming channels (for `receive`'s second arg); `expose` installs the
  * non-enumerable `protected` / `private` accessors on an emitted frame so a test
  * can read what the node sent. Both key off the message's `_msgid`.
  */
-interface LaneBridge {
-  seed(msg: { _msgid?: string }, lanes: LaneInput): void;
+interface ChannelBridge {
+  seed(msg: { _msgid?: string }, channels: ChannelInput): void;
   expose(frame: unknown): void;
 }
 
@@ -235,17 +235,17 @@ function attachHelpers<T>(
   node: T,
   nodeRedNode: any,
   NodeClass: NodeClass,
-  laneBridge: LaneBridge,
+  channelBridge: ChannelBridge,
 ): T & TestNodeHelpers<ExtractInput<T>> {
   const sentMessages: any[] = [];
   const statusCalls: any[] = [];
 
   nodeRedNode.send.mockImplementation((msg: any) => {
-    // Expose the off-the-wire lanes on each emitted frame — as a SAME-package
+    // Expose the off-the-wire channels on each emitted frame — as a SAME-package
     // downstream node would read them (`private` uses the producer's own package
     // partition) — so a producer test asserts what it sent via
     // `sent(0)[0].protected.x` / `sent(0)[0].private.x`.
-    (Array.isArray(msg) ? msg : [msg]).forEach(laneBridge.expose);
+    (Array.isArray(msg) ? msg : [msg]).forEach(channelBridge.expose);
     sentMessages.push(msg);
   });
 
@@ -261,10 +261,10 @@ function attachHelpers<T>(
   const helpers: Omit<TestNodeHelpers, "context"> & {
     sent(port?: number | string): any[];
   } = {
-    async receive(msg: any, lanes?: LaneInput): Promise<void> {
-      // Seed the incoming message's off-the-wire lanes (as an upstream node would
+    async receive(msg: any, channels?: ChannelInput): Promise<void> {
+      // Seed the incoming message's off-the-wire channels (as an upstream node would
       // have) so the node reads them via `msg.protected` / `msg.private`.
-      if (lanes) laneBridge.seed(msg, lanes);
+      if (channels) channelBridge.seed(msg, channels);
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
       });
@@ -395,42 +395,43 @@ async function createNode<T extends NodeClass>(
   // Just the globals — a unit test serves no HTTP, and the route/asset code uses
   // `__dirname`, invalid in the harness's ESM bundle.
   initValidator(RED);
-  initLaneStore(RED);
+  initChannelStore(RED);
 
-  // Bridge the node's off-the-wire lanes to the test, scoped to the node's own
+  // Bridge the node's off-the-wire channels to the test, scoped to the node's own
   // package for `private` (what the node reads/writes) and the shared partition
   // for `protected`.
-  const laneStore = RED.laneStore;
-  const lanePartition = packageLane(NodeClass);
-  const laneBridge: LaneBridge = {
-    seed(msg, lanes) {
+  const channelStore = RED.channelStore;
+  const channelPartition = packageChannel(NodeClass);
+  const channelBridge: ChannelBridge = {
+    seed(msg, channels) {
       const msgid = msg._msgid;
       if (msgid == null) {
-        // Lanes key off `_msgid`; seeding without one would silently go nowhere.
+        // Channels key off `_msgid`; seeding without one would silently go nowhere.
         throw new Error(
-          "receive(): lanes were provided but the message has no `_msgid` — " +
-            "lanes are keyed by `_msgid`, so nothing would be seeded. Give the " +
-            "message an `_msgid` (e.g. receive({ _msgid: 'sig-1', ... }, lanes)).",
+          "receive(): channels were provided but the message has no `_msgid` — " +
+            "channels are keyed by `_msgid`, so nothing would be seeded. Give the " +
+            "message an `_msgid` (e.g. receive({ _msgid: 'sig-1', ... }, channels)).",
         );
       }
-      if (lanes.protected)
-        laneStore.merge(msgid, NRG_PROTECTED_LANE, lanes.protected);
-      if (lanes.private) laneStore.merge(msgid, lanePartition, lanes.private);
+      if (channels.protected)
+        channelStore.merge(msgid, NRG_PROTECTED_CHANNEL, channels.protected);
+      if (channels.private)
+        channelStore.merge(msgid, channelPartition, channels.private);
     },
     expose(frame) {
       if (frame == null || typeof frame !== "object") return;
-      // A frame with no `_msgid` gets an inert lane view (laneProxy handles the
+      // A frame with no `_msgid` gets an inert channel view (channelProxy handles the
       // missing id) rather than keying the store by `undefined`.
       const msgid = (frame as { _msgid?: string })._msgid;
       Object.defineProperty(frame, "protected", {
         configurable: true,
         enumerable: false,
-        get: () => laneProxy(laneStore, msgid, NRG_PROTECTED_LANE),
+        get: () => channelProxy(channelStore, msgid, NRG_PROTECTED_CHANNEL),
       });
       Object.defineProperty(frame, "private", {
         configurable: true,
         enumerable: false,
-        get: () => laneProxy(laneStore, msgid, lanePartition),
+        get: () => channelProxy(channelStore, msgid, channelPartition),
       });
     },
   };
@@ -473,7 +474,7 @@ async function createNode<T extends NodeClass>(
     node,
     nodeRedNode,
     NodeClass,
-    laneBridge,
+    channelBridge,
   );
 
   // Wire up event handlers (same path as production). `created()` is awaited so

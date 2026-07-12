@@ -14,16 +14,16 @@ import { setupContext } from "./context";
 import {
   NRG_SETUP_INPUT_HANDLER,
   NRG_PORTS,
-  NRG_PROTECTED_LANE,
+  NRG_PROTECTED_CHANNEL,
 } from "../symbols";
-import { laneProxy, packageLane } from "../lane-store";
+import { channelProxy, packageChannel } from "../channels-store";
 import type {
   OutputPortNames,
   PortValue,
   Port,
   OutputSpec,
   InputSpec,
-  OmitMessageLanes,
+  OmitMessageChannels,
   NodeSource,
   MessageSource,
   ErrorInfo,
@@ -117,10 +117,10 @@ export type ContextMode = "carry" | "trace" | "reset";
  * "x is the result", never "x is the whole message".
  *
  * The `input()` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`: the
- * wire type plus the off-the-wire lanes (`msg.protected` / `msg.private`). OMIT the
+ * wire type plus the off-the-wire channels (`msg.protected` / `msg.private`). OMIT the
  * annotation and TypeScript infers all of it from the generic. Re-annotating the
- * parameter with the bare wire type discards the lanes. `_msgid` is deliberately not
- * on the parameter — it's the framework's internal lane key, not an author-facing
+ * parameter with the bare wire type discards the channels. `_msgid` is deliberately not
+ * on the parameter — it's the framework's internal channel key, not an author-facing
  * field.
  *
  * @example
@@ -132,16 +132,16 @@ export type ContextMode = "carry" | "trace" | "reset";
  *   static readonly category = "function";
  *   static readonly color = "#ffffff" as const;
  *
- *   async input(msg) {               // no annotation — msg is the wire + lanes
+ *   async input(msg) {               // no annotation — msg is the wire + channels
  *     const conn = msg.private.conn; // off-wire, package-scoped
  *     // sends { output: <result>, input: msg } (carry default: last msg kept),
- *     // and stashes trace/res on the protected/private lanes off the wire:
+ *     // and stashes trace/res on the protected/private channels off the wire:
  *     this.send("out", { result: msg.payload.toUpperCase() }, { traceId }, { res });
  *   }
  * }
  * ```
  *
- * @see {@link Input} — the wire port plus the off-the-wire lanes.
+ * @see {@link Input} — the wire port plus the off-the-wire channels.
  *
  * @typeParam TConfig - config shape (position 1)
  * @typeParam TCredentials - credentials shape (position 2)
@@ -406,11 +406,11 @@ abstract class IONode<
         this.node.log("Input is valid");
       }
     }
-    // Expose the off-the-wire lanes on THIS node's incoming message, scoped to
+    // Expose the off-the-wire channels on THIS node's incoming message, scoped to
     // its package for `private`. Set up per node (re-applied at each hop), so a
     // downstream node from another package reads its own `private` partition —
-    // `msg` (already `TInput`) is mutated in place to carry the lane accessors.
-    this.#setupLanes(msg);
+    // `msg` (already `TInput`) is mutated in place to carry the channel accessors.
+    this.#setupChannels(msg);
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
     // lives in the store — there is no shared instance field to race on.
@@ -422,26 +422,26 @@ abstract class IONode<
   /**
    * Add non-enumerable `protected`/`private` accessors to the incoming message.
    * Non-enumerable so they never serialize, clone, or show in the debug panel;
-   * each reads the lane store by the message's `_msgid`, `private` partitioned by
+   * each reads the channel store by the message's `_msgid`, `private` partitioned by
    * this node's package. A core function node gets the bare message and has no
-   * accessor — the lanes are structurally invisible to the flow author.
+   * accessor — the channels are structurally invisible to the flow author.
    *
    * Mutates `msg` in place (the caller already holds it as `TInput`). A non-object
    * message (never produced by real Node-RED, which always delivers an object) is
    * left untouched.
    */
-  #setupLanes(msg: unknown): void {
+  #setupChannels(msg: unknown): void {
     if (msg == null || typeof msg !== "object") return;
-    const store = this.RED.laneStore;
-    const pkg = packageLane(this.constructor);
+    const store = this.RED.channelStore;
+    const pkg = packageChannel(this.constructor);
     Object.defineProperty(msg, "protected", {
       configurable: true,
       enumerable: false,
       get() {
-        return laneProxy(
+        return channelProxy(
           store,
           (this as { _msgid: string })._msgid,
-          NRG_PROTECTED_LANE,
+          NRG_PROTECTED_CHANNEL,
         );
       },
     });
@@ -449,19 +449,19 @@ abstract class IONode<
       configurable: true,
       enumerable: false,
       get() {
-        return laneProxy(store, (this as { _msgid: string })._msgid, pkg);
+        return channelProxy(store, (this as { _msgid: string })._msgid, pkg);
       },
     });
   }
 
   /**
-   * Merge the `protected`/`private` args into this message's lanes. Keyed by the
+   * Merge the `protected`/`private` args into this message's channels. Keyed by the
    * outgoing `_msgid`: an input-triggered send inherits it; a source send (no
    * invocation) mints one and stamps it on the outgoing frames so a downstream
-   * node reads the same lane. Contributions are STICKY — they persist for the
+   * node reads the same channel. Contributions are STICKY — they persist for the
    * message's journey, so a middle node's plain `send()` keeps them alive.
    */
-  #writeLanes(
+  #writeChannels(
     protectedData: object | undefined,
     privateData: object | undefined,
     out: unknown[],
@@ -485,10 +485,10 @@ abstract class IONode<
         }
       }
     }
-    const store = this.RED.laneStore;
-    if (protectedData) store.merge(msgid, NRG_PROTECTED_LANE, protectedData);
+    const store = this.RED.channelStore;
+    if (protectedData) store.merge(msgid, NRG_PROTECTED_CHANNEL, protectedData);
     if (privateData) {
-      store.merge(msgid, packageLane(this.constructor), privateData);
+      store.merge(msgid, packageChannel(this.constructor), privateData);
     }
   }
 
@@ -633,10 +633,10 @@ abstract class IONode<
       return this.#withMsgid({ [key]: value, [SOURCE_KEY]: source });
     // trace keeps the full lineage, but forwards a SHALLOW COPY of the incoming
     // message — `{ ...input }` drops the non-enumerable `protected`/`private`
-    // accessors this node's `#setupLanes` stamped (they're scoped to THIS node's
+    // accessors this node's `#setupChannels` stamped (they're scoped to THIS node's
     // package), so a different-package downstream node reading `msg.input.private`
     // can't reach into this package's private partition. Each hop copies before
-    // forwarding, so the whole `input.input…` chain stays lane-free. `carry` is
+    // forwarding, so the whole `input.input…` chain stays channel-free. `carry` is
     // already safe for the same reason (it spreads `input` below).
     if (mode === "trace") return frame({ ...input });
     // carry (depth 1): keep the previous message but strip ITS own `input` frame,
@@ -826,11 +826,11 @@ abstract class IONode<
       msg !== null && typeof msg === "object"
         ? this.#withMsgid(msg as Record<string, unknown>)
         : msg;
-    // Off-the-wire lane contributions (send's protected/private args), keyed by
+    // Off-the-wire channel contributions (send's protected/private args), keyed by
     // this message's _msgid. Internal built-in port emissions (status/error/
     // complete) pass none, so this is a no-op there.
     if (protectedData || privateData) {
-      this.#writeLanes(protectedData, privateData, out);
+      this.#writeChannels(protectedData, privateData, out);
     }
     // Deliver through the invocation-scoped path (concurrency-safe); falls back to
     // node.send outside an input() call (e.g. the built-in port auto-emits).
@@ -917,7 +917,7 @@ abstract class IONode<
     this.node.updateWires(wires);
   }
 
-  public receive(msg: OmitMessageLanes<TInput>) {
+  public receive(msg: OmitMessageChannels<TInput>) {
     this.node.receive(msg);
   }
 

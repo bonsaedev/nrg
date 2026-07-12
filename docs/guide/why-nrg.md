@@ -26,7 +26,7 @@ In classic Node-RED every node has to remember to pass the message on; miss it o
 
 Two kinds of data can't safely ride the wire: **live objects** that break when Node-RED clones the message (a DB connection, an open HTTP `res`, a streaming handle, an OpenTelemetry span, an `AbortController`), and **secrets** that could be serialized but must never be seen — a decrypted access token, a signed correlation id. Node-RED gives a message two places to put data (`msg` and context) and neither is safe for either kind.
 
-**"Why would a secret be on a message at all — isn't that what a config node's credentials are for?"** Static credentials are perfect when the secret is *per-deployment*: a fixed API key, shared by every message. But some secrets are *per-message*. An auth node verifies *this* request and mints a token for *this* caller (multi-tenant, per-user); a node exchanges or refreshes a short-lived token at runtime; a node decrypts a field that a later node needs. That data is derived from one in-flight message and consumed by a *different* node downstream — so it has to travel *with* the message. The wire is the only channel bound to a single message, which is exactly why per-message data wants to live there. It just isn't safe to carry a secret — and that's the gap lanes fill: the wire's per-message binding, without the exposure.
+**"Why would a secret be on a message at all — isn't that what a config node's credentials are for?"** Static credentials are perfect when the secret is *per-deployment*: a fixed API key, shared by every message. But some secrets are *per-message*. An auth node verifies *this* request and mints a token for *this* caller (multi-tenant, per-user); a node exchanges or refreshes a short-lived token at runtime; a node decrypts a field that a later node needs. That data is derived from one in-flight message and consumed by a *different* node downstream — so it has to travel *with* the message. The wire is the only channel bound to a single message, which is exactly why per-message data wants to live there. It just isn't safe to carry a secret — and that's the gap channels fill: the wire's per-message binding, without the exposure.
 
 ### Traditional
 
@@ -40,10 +40,10 @@ Two kinds of data can't safely ride the wire: **live objects** that break when N
 
 ### NRG
 
-**Message lanes.** NRG gives every message two off-the-wire lanes that ride *alongside* it without being *on* it — one **`private`** (scoped to your package), one **`protected`** (shared across packages). The flagship: an auth node stamps a *live* principal on the **protected** lane, and a Salesforce node in a *different* package authorizes with it — the raw token never rides the wire, never hits the debug panel, and can't be forged by a function node:
+**Message channels.** NRG gives every message two off-the-wire channels that ride *alongside* it without being *on* it — one **`private`** (scoped to your package), one **`protected`** (shared across packages). The flagship: an auth node stamps a *live* principal on the **protected** channel, and a Salesforce node in a *different* package authorizes with it — the raw token never rides the wire, never hits the debug panel, and can't be forged by a function node:
 
 ```typescript
-// @acme/auth — mints a live principal, stamps it on the shared protected lane
+// @acme/auth — mints a live principal, stamps it on the shared protected channel
 // send(port, value, protectedData?, privateData?)
 this.send("out", { userId }, { "auth.principal": principal });
 
@@ -51,7 +51,7 @@ this.send("out", { userId }, { "auth.principal": principal });
 const token = await (msg.protected["auth.principal"] as Principal).getAccessToken();
 ```
 
-Lane data lives in a per-runtime store keyed by the message's `_msgid`; NRG installs hidden `msg.protected` / `msg.private` accessors on each node's incoming message. It is **never serialized, never cloned, never shown in the debug panel, and invisible to a flow author's function node** — yet any node that needs it reads it back by the same message, and it survives every `carry`/`trace`/`reset` wire choice because it rides the `_msgid`, not the payload. It's the general, safe form of the `req`/`res` escape hatch Node-RED had to special-case for one pair of built-in nodes. Pick `private` vs `protected` by reach — see [Message Lanes](./message-lanes) for the full decision guide.
+Channel data lives in a per-runtime store keyed by the message's `_msgid`; NRG installs hidden `msg.protected` / `msg.private` accessors on each node's incoming message. It is **never serialized, never cloned, never shown in the debug panel, and invisible to a flow author's function node** — yet any node that needs it reads it back by the same message, and it survives every `carry`/`trace`/`reset` wire choice because it rides the `_msgid`, not the payload. It's the general, safe form of the `req`/`res` escape hatch Node-RED had to special-case for one pair of built-in nodes. Pick `private` vs `protected` by reach — see [Message Channels](./message-channels) for the full decision guide.
 
 ## Node Registration
 

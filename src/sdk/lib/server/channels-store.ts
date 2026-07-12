@@ -1,17 +1,17 @@
-import { NRG_MODULE_PRIVATE_LANE, NRG_PRIVATE_LANE } from "./symbols";
+import { NRG_MODULE_PRIVATE_CHANNEL, NRG_PRIVATE_CHANNEL } from "./symbols";
 
 /**
- * The off-the-wire message lanes: `protected` and `private`.
+ * The off-the-wire message channels: `protected` and `private`.
  *
  * Neither ever rides the wire message — both live here, in a per-runtime store
  * keyed by the message's `_msgid` (the id every clone of a message shares),
  * reachable only through the `msg.protected` / `msg.private` accessors nrg
  * installs on a node's incoming message. A flow author's function node gets the
- * bare wire message and can't reach either lane.
+ * bare wire message and can't reach either channel.
  *
  * Each message id holds one partition per partition-key symbol: a single shared
- * {@link NRG_PROTECTED_LANE} partition (any node, any package) and one partition per
- * package (identified by {@link NRG_MODULE_PRIVATE_LANE}) for `private` — so a package's
+ * {@link NRG_PROTECTED_CHANNEL} partition (any node, any package) and one partition per
+ * package (identified by {@link NRG_MODULE_PRIVATE_CHANNEL}) for `private` — so a package's
  * private data is invisible even to another package's nodes. The partition-key
  * symbols live in `./symbols` (their cross-bundle home).
  *
@@ -20,16 +20,16 @@ import { NRG_MODULE_PRIVATE_LANE, NRG_PRIVATE_LANE } from "./symbols";
  * backstop for messages that are dropped/abandoned before anyone deletes them.
  */
 
-interface LaneEntry {
-  /** Last time this message's lanes were written OR read — the idle TTL is
+interface ChannelEntry {
+  /** Last time this message's channels were written OR read — the idle TTL is
    * measured from here, so a long-lived-but-active message is never swept while
    * in use (only genuinely abandoned ones age out). */
   lastTouched: number;
   partitions: Map<symbol, Map<string, unknown>>;
 }
 
-class LaneStore {
-  readonly #byMsgid = new Map<string, LaneEntry>();
+class ChannelStore {
+  readonly #byMsgid = new Map<string, ChannelEntry>();
   readonly #ttlMs: number;
   readonly #sweepMs: number;
   #sweeper?: NodeJS.Timeout;
@@ -39,7 +39,7 @@ class LaneStore {
     this.#sweepMs = options.sweepMs ?? 60_000;
   }
 
-  #lane(
+  #channel(
     msgid: string,
     partition: symbol,
     create: boolean,
@@ -51,43 +51,43 @@ class LaneStore {
       this.#byMsgid.set(msgid, entry);
       this.#ensureSweeper();
     } else {
-      // Any access (read or write) keeps the message's lanes alive — the idle
+      // Any access (read or write) keeps the message's channels alive — the idle
       // TTL sweeps only messages nobody has touched, never one mid-flight.
       entry.lastTouched = Date.now();
     }
-    let lane = entry.partitions.get(partition);
-    if (!lane && create) {
-      lane = new Map();
-      entry.partitions.set(partition, lane);
+    let channel = entry.partitions.get(partition);
+    if (!channel && create) {
+      channel = new Map();
+      entry.partitions.set(partition, channel);
     }
-    return lane;
+    return channel;
   }
 
-  /** Merge a producer's `{ … }` bag into a lane (send's protected/private args). */
+  /** Merge a producer's `{ … }` bag into a channel (send's protected/private args). */
   merge(msgid: string, partition: symbol, data: object): void {
-    const lane = this.#lane(msgid, partition, true)!;
-    for (const [key, value] of Object.entries(data)) lane.set(key, value);
+    const channel = this.#channel(msgid, partition, true)!;
+    for (const [key, value] of Object.entries(data)) channel.set(key, value);
   }
 
   get(msgid: string, partition: symbol, key: string): unknown {
-    return this.#lane(msgid, partition, false)?.get(key);
+    return this.#channel(msgid, partition, false)?.get(key);
   }
 
   set(msgid: string, partition: symbol, key: string, value: unknown): void {
-    this.#lane(msgid, partition, true)!.set(key, value);
+    this.#channel(msgid, partition, true)!.set(key, value);
   }
 
   has(msgid: string, partition: symbol, key: string): boolean {
-    return this.#lane(msgid, partition, false)?.has(key) ?? false;
+    return this.#channel(msgid, partition, false)?.has(key) ?? false;
   }
 
   /** Remove one entry — framework bookkeeping only; the resource owns release. */
   delete(msgid: string, partition: symbol, key: string): void {
-    this.#lane(msgid, partition, false)?.delete(key);
+    this.#channel(msgid, partition, false)?.delete(key);
   }
 
   keys(msgid: string, partition: symbol): string[] {
-    return [...(this.#lane(msgid, partition, false)?.keys() ?? [])];
+    return [...(this.#channel(msgid, partition, false)?.keys() ?? [])];
   }
 
   #ensureSweeper(): void {
@@ -113,8 +113,8 @@ class LaneStore {
  * no-op) rather than keying the store by `undefined` — which would let any two
  * id-less messages share one partition. Real Node-RED always delivers a `_msgid`,
  * so this only guards a malformed test message. */
-function laneProxy(
-  store: LaneStore,
+function channelProxy(
+  store: ChannelStore,
   msgid: string | undefined,
   partition: symbol,
 ): Record<string, unknown> {
@@ -154,15 +154,15 @@ function laneProxy(
   });
 }
 
-/** The store partition for a node's `private` lane: the package partition
- * `defineModule` stamped under `NRG_MODULE_PRIVATE_LANE`, or the default partition
+/** The store partition for a node's `private` channel: the package partition
+ * `defineModule` stamped under `NRG_MODULE_PRIVATE_CHANNEL`, or the default partition
  * for a node that was never moduled. */
-function packageLane(nodeClass: unknown): symbol {
+function packageChannel(nodeClass: unknown): symbol {
   return (
     (nodeClass as Record<symbol, symbol | undefined>)[
-      NRG_MODULE_PRIVATE_LANE
-    ] ?? NRG_PRIVATE_LANE
+      NRG_MODULE_PRIVATE_CHANNEL
+    ] ?? NRG_PRIVATE_CHANNEL
   );
 }
 
-export { LaneStore, laneProxy, packageLane };
+export { ChannelStore, channelProxy, packageChannel };

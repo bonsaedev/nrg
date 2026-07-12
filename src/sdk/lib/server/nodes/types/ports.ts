@@ -91,42 +91,42 @@ type OutputSpec = Record<string, Port<any>> | readonly Port<any>[];
 type Outputs<TPorts extends OutputSpec> = TPorts;
 
 /**
- * The two off-the-wire lanes present on every message a node's `input()`
+ * The two off-the-wire channels present on every message a node's `input()`
  * receives, added by the runtime — NEVER part of the serialized message, so a
- * flow author's function node and the debug panel can't see them. Each lane lives
+ * flow author's function node and the debug panel can't see them. Each channel lives
  * in nrg's per-runtime store keyed by `_msgid`, reached through these accessors.
  *  - `protected`: readable/writable by a node from ANY package.
  *  - `private`: scoped to the receiving node's OWN package; invisible to others.
  *
  * The base `input(msg)` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`
- * that already intersects these lanes — so the simplest way to read them is to OMIT
+ * that already intersects these channels — so the simplest way to read them is to OMIT
  * the parameter annotation: TypeScript infers `msg` from the base:
  *
  * @example
  * class N extends IONode<Config, never, Input<Port<{ payload: string }>>, Out> {
  *   async input(msg) {                     // no annotation
  *     const conn = msg.private.conn;       // package-scoped; `unknown` until narrowed
- *     this.send("out", { trace }, { conn }); // write the lanes
+ *     this.send("out", { trace }, { conn }); // write the channels
  *     delete msg.private.conn;             // release (bookkeeping only)
  *   }
  * }
  *
- * Re-annotating the parameter with the bare wire type discards the lanes (a
+ * Re-annotating the parameter with the bare wire type discards the channels (a
  * TypeScript override rule). To annotate explicitly, reuse the node's own
  * `Input<Port<…>>` alias.
  */
-interface MessageLanes {
+interface MessageChannels {
   protected: Record<string, unknown>;
   private: Record<string, unknown>;
 }
 
 /**
  * Framework-internal message metadata. `_msgid` is Node-RED's message-lineage id
- * and nrg's off-the-wire lane key. It is DELIBERATELY NOT part of
+ * and nrg's off-the-wire channel key. It is DELIBERATELY NOT part of
  * {@link Input} — a node author never sees `msg._msgid` in autocomplete and
  * can't read or overwrite it through the typed parameter, because doing so would
- * fork the message from its lanes and break correlation. The framework reads it
- * internally (via a cast) to key the lane store, and the test harness's
+ * fork the message from its channels and break correlation. The framework reads it
+ * internally (via a cast) to key the channel store, and the test harness's
  * `ExtractInput` strips it so `receive()` takes the bare wire message.
  * (It still exists at runtime — Node-RED always delivers it — so a determined
  * author can reach it with an explicit `(msg as { _msgid: string })`, an opt-in
@@ -139,25 +139,25 @@ interface MessageMeta {
 /**
  * `Input<Port<TWire>>` — the input gate. A node's single input is a PORT carrying
  * the on-the-wire type `TWire`; `Input<>` unwraps that {@link Port} and adds the
- * off-the-wire lanes ({@link MessageLanes}). Authors declare it as
+ * off-the-wire channels ({@link MessageChannels}). Authors declare it as
  * `type SoqlInput = Input<Port<{ … }>>` and pass it as the node's `TInput` generic;
  * the base `IONode.input(msg: SoqlInput)` parameter is then exactly `TWire` plus
- * the lanes, so a node reads `msg.<wireField>` and `msg.private` / `msg.protected` —
+ * the channels, so a node reads `msg.<wireField>` and `msg.private` / `msg.protected` —
  * all typed. Wrapping the wire in `Port<>` mirrors the output side
  * (`Outputs<{ p: Port<T> }>`), so `Port<T>` reads as "a port carrying T" in BOTH
  * directions. The `TInput` generic is constrained `TInput extends Input<Port<unknown>>`,
  * so a bare (unwrapped) wire is rejected — the `Port<>` wrap is enforced; `never`
  * (a source node with no input) still satisfies it. `_msgid` ({@link MessageMeta})
- * stays excluded — it's the framework's internal lane key, not an author-facing
+ * stays excluded — it's the framework's internal channel key, not an author-facing
  * field. To annotate `input()` explicitly, reuse the same `Input<Port<…>>` alias.
  */
 type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
-  MessageLanes;
+  MessageChannels;
 
 /**
  * The constraint on a node's `TInput` generic — the set of valid input shapes:
- * an {@link Input} of any {@link Port} (the wire plus the off-the-wire lanes),
- * which reduces to "carries the {@link MessageLanes}". Symmetric to
+ * an {@link Input} of any {@link Port} (the wire plus the off-the-wire channels),
+ * which reduces to "carries the {@link MessageChannels}". Symmetric to
  * {@link OutputSpec} on the output side, so the node generics read
  * `TInput extends InputSpec` / `TOutput extends OutputSpec`. `never` (a source
  * node with no input) satisfies it.
@@ -165,14 +165,14 @@ type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
 type InputSpec = Input<Port<unknown>>;
 
 /**
- * Recover the pure WIRE type from a wrapped {@link Input} by stripping the lanes —
+ * Recover the pure WIRE type from a wrapped {@link Input} by stripping the channels —
  * used wherever the framework needs the on-the-wire shape (the `receive` message,
  * the `msg.input` provenance frame, port topology). `never` (a source) stays
  * `never` so its `receive` is uncallable.
  */
-type OmitMessageLanes<TInput> = [TInput] extends [never]
+type OmitMessageChannels<TInput> = [TInput] extends [never]
   ? never
-  : Omit<TInput, keyof MessageLanes>;
+  : Omit<TInput, keyof MessageChannels>;
 
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
@@ -224,7 +224,7 @@ interface ErrorInfo {
  * failing message) ride the ROOT beside it — the same shape as every other port.
  * A downstream node reads `msg.error`. `name`/`message`/`stack` stay authoritative
  * over `TError`. Node-RED's `_msgid` rides the root at runtime but is deliberately
- * NOT typed here — the framework's lineage/lane key stays hidden from authors,
+ * NOT typed here — the framework's lineage/channel key stays hidden from authors,
  * exactly as it is on the input side (see {@link MessageMeta}).
  */
 type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
@@ -268,11 +268,11 @@ export type {
   OutputPortNames,
   Outputs,
   OutputSpec,
-  MessageLanes,
+  MessageChannels,
   MessageMeta,
   Input,
   InputSpec,
-  OmitMessageLanes,
+  OmitMessageChannels,
   NodeSource,
   MessageSource,
   ErrorInfo,

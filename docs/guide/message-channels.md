@@ -1,4 +1,4 @@
-# Message Lanes
+# Message Channels
 
 Two kinds of data can't safely ride the wire:
 
@@ -9,7 +9,7 @@ Two kinds of data can't safely ride the wire:
   serialize, but must stay **hidden from the flow author**: left on `msg` they show
   up in the debug panel and any function node can read or forge them.
 
-Message lanes give every message two channels that ride *alongside* it without being
+Message channels give every message two channels that ride *alongside* it without being
 *on* it:
 
 ```typescript
@@ -21,17 +21,17 @@ msg.private.conn;            // visible to nodes in YOUR package only
 delete msg.private.conn;     // release it when you're done
 ```
 
-Lane data never rides the wire message. It lives in a per-runtime store keyed by the
+Channel data never rides the wire message. It lives in a per-runtime store keyed by the
 message's `_msgid` (the id every clone of a message shares, which nrg carries across
 every node); nrg installs hidden `msg.protected` / `msg.private` accessors on each
-node's incoming message. Lane data is **never serialized, never cloned, never shown
+node's incoming message. Channel data is **never serialized, never cloned, never shown
 in the debug panel, and invisible to a flow author's function node** — yet any node
 that needs it reads it back by the same message.
 
-Lanes are the general, safe, hidden form of the `req`/`res` escape hatch Node-RED had
+Channels are the general, safe, hidden form of the `req`/`res` escape hatch Node-RED had
 to special-case for one pair of built-in nodes (more on that [below](#why-not-the-wire-or-context)).
 
-## Choosing a channel: wire, lane, or context?
+## Choosing a channel: wire, channel, or context?
 
 You have four places to put data. **Start on the wire and only leave it for a specific
 reason.** Walk this top to bottom:
@@ -41,7 +41,7 @@ reason.** Walk this top to bottom:
    `msg`. **Stop here.**
 2. **Is it standing state keyed by a name, not tied to one message?** A counter, a
    cache, a loaded config → use a [context store](./creating-a-node#context-storage),
-   not a lane. **Stop here.**
+   not a channel. **Stop here.**
 3. **You leave the wire only if one of these is true:**
    - **Live object** — it breaks when Node-RED deep-clones the message: a DB
      connection, an open `res`, a streaming handle, an OTel span, an `AbortController`,
@@ -51,7 +51,7 @@ reason.** Walk this top to bottom:
      panel and any function node can read or overwrite it.
 
    If neither is true, go back to step 1.
-4. **Now pick the lane by REACH:**
+4. **Now pick the channel by REACH:**
    - Only your **own package's** nodes read it back → **`private`** (a package symbol
      stamped by `defineModule`; another vendor's nodes can't see it).
    - Nodes from **other packages** must read it → **`protected`** (a shared, namespaced
@@ -61,14 +61,14 @@ reason.** Walk this top to bottom:
 | --- | --- | --- | --- | --- | --- |
 | **wire `msg`** | must be | yes (that's the point) | yes | yes | no (cloned → broken) |
 | **context store** | must be | yes (context sidebar) | yes | no (keyed by name) | no |
-| **`private` lane** | either | no | no | yes (by `_msgid`) | yes |
-| **`protected` lane** | either | no | yes | yes (by `_msgid`) | yes |
+| **`private` channel** | either | no | no | yes (by `_msgid`) | yes |
+| **`protected` channel** | either | no | yes | yes (by `_msgid`) | yes |
 
 ::: warning What `protected` hides — and what it doesn't
 `protected` hides data from the **flow author**: the debug panel, function nodes, and
 exported flow JSON. It does **not** hide it from other **installed packages** — any
 package can read or overwrite a `protected` key. Use `private` when the data must be
-invisible to other vendors' nodes too. Neither lane defends against malicious code you
+invisible to other vendors' nodes too. Neither channel defends against malicious code you
 chose to install; both defend against the flow author and the wire.
 :::
 
@@ -81,15 +81,15 @@ authorize with the caller's credentials.
   (step 3) it's a **secret**: on `msg` it appears verbatim in the debug panel
   (`msg.access_token: "eyJhbGci…"`), copy-pasteable, and any function node can read or
   forge it. → leave the wire.
-- **Which lane (step 4)?** The consumer is `@bonsae/salesforce`, a **different** package
+- **Which channel (step 4)?** The consumer is `@bonsae/salesforce`, a **different** package
   from the `@acme/auth` node that minted it → **`protected`**, not `private`.
 - **Bonus:** model it as a **live principal** (`getAccessToken()` that transparently
-  refreshes) rather than a raw string. Now it's *also* a live object — a lane on two
+  refreshes) rather than a raw string. Now it's *also* a live object — a channel on two
   independent grounds — and consumers always get a fresh token instead of a stale
   snapshot.
 
 ```typescript
-// @acme/auth — mints a live principal, stamps it on the shared PROTECTED lane.
+// @acme/auth — mints a live principal, stamps it on the shared PROTECTED channel.
 override async input(msg) {                              // no annotation
   const principal = await this.verify(msg);              // { getAccessToken(): Promise<string> }
   this.send("out", msg, { "auth.principal": principal }); // raw token never touches the wire
@@ -97,9 +97,9 @@ override async input(msg) {                              // no annotation
 ```
 
 ```typescript
-// @bonsae/salesforce — a DIFFERENT package. Reads the principal off the shared lane.
+// @bonsae/salesforce — a DIFFERENT package. Reads the principal off the shared channel.
 override async input(msg) {
-  const principal = msg.protected["auth.principal"] as Principal; // lane values are `unknown`
+  const principal = msg.protected["auth.principal"] as Principal; // channel values are `unknown`
   const token = await principal.getAccessToken();
   // ...call Salesforce with `token`
 }
@@ -156,9 +156,9 @@ follow:
 
 To make context work you'd key everything by `msg._msgid` and clean it up by hand —
 **reinventing a per-message registry on a substrate designed for the opposite.** That
-reinvention *is* message lanes; nrg just builds it in, off the wire, and hidden.
+reinvention *is* message channels; nrg just builds it in, off the wire, and hidden.
 
-| | `msg` (wire) | flow/global context | **Message lanes** |
+| | `msg` (wire) | flow/global context | **Message channels** |
 | --- | --- | --- | --- |
 | Survives cloning between wires | No (except `req`/`res`) | N/A | **Yes** |
 | Bound to one message | Yes | No (keyed by name) | **Yes (by `_msgid`)** |
@@ -167,17 +167,17 @@ reinvention *is* message lanes; nrg just builds it in, off the wire, and hidden.
 | Hidden from the flow author | No | No | **Yes** |
 | Concurrency-safe across in-flight messages | Yes | No | **Yes** |
 
-::: info Why a function node can't reach a lane
-The lane store is **server-plane** (one per runtime, with a per-package partition for
+::: info Why a function node can't reach a channel
+The channel store is **server-plane** (one per runtime, with a per-package partition for
 `private`), and nrg only installs the `msg.protected` / `msg.private` accessors on *its
 own* nodes' incoming messages. A core function node just receives a plain `msg` — same
-`_msgid`, but no accessor and no way to reach the store. The lanes are structurally invisible to the flow author, not merely
+`_msgid`, but no accessor and no way to reach the store. The channels are structurally invisible to the flow author, not merely
 undocumented.
 :::
 
-## The two lanes
+## The two channels
 
-| Lane | Visible to | Use it for |
+| Channel | Visible to | Use it for |
 | --- | --- | --- |
 | **`protected`** | a node from **any** package | cross-cutting concerns shared across vendors — a tracing span, an auth principal, an `AbortSignal` |
 | **`private`** | nodes in **your own** package only | a package's internal live resources — the `res` your HTTP In node stashed for your HTTP Response node |
@@ -192,20 +192,20 @@ and write.
 `msg.protected["otel.span"]`, not `msg.protected.span`.
 :::
 
-## Writing and reading lanes
+## Writing and reading channels
 
-You **write** lanes through `send`'s 3rd and 4th arguments — the port and value come first,
+You **write** channels through `send`'s 3rd and 4th arguments — the port and value come first,
 then optional `protected` and `private` bags:
 
 ```typescript
 // send(portNameOrIndex, value, protectedData?, privateData?)
 this.send("out", { payload }, { "otel.span": span }, { conn });
 
-// same lanes, a named port
+// same channels, a named port
 this.send("rows", rows, { "otel.span": span }, { conn });
 ```
 
-A node **reads** the lanes back off its incoming message. The lanes are already on the
+A node **reads** the channels back off its incoming message. The channels are already on the
 `input()` parameter type, so the simplest way to get them typed is to **omit the parameter
 annotation** — TypeScript infers `msg` from the base method, where your `TInput` generic
 declares the node's input port:
@@ -213,7 +213,7 @@ declares the node's input port:
 ```typescript
 import { IONode, type Input, type Port } from "@bonsae/nrg/server";
 
-// The input GENERIC is the wire shape (it drives the node's ports — lanes are not
+// The input GENERIC is the wire shape (it drives the node's ports — channels are not
 // ports). Leave the input() PARAMETER un-annotated and `msg.private` / `msg.protected`
 // are typed for you.
 type MyNodeInput = Input<Port<{ payload: unknown }>>;
@@ -233,28 +233,28 @@ export default class MyNode extends IONode<Config, never, MyNodeInput, MyNodeOut
 Omitting the annotation relies on `noImplicitAny` being **off** — nrg's shipped
 `tsconfig` sets this, so it works out of the box. Under a stricter `tsconfig` that turns
 `noImplicitAny` on, an un-annotated `input(msg)` is an error; annotate it with your node's
-own `Input<Port<…>>` alias (`MyNodeInput` above), which carries the lanes with it.
+own `Input<Port<…>>` alias (`MyNodeInput` above), which carries the channels with it.
 :::
 
 ::: warning Don't re-annotate with the bare wire type
-Leaving the parameter un-annotated infers the wire shape **plus** the lanes. Re-annotating
+Leaving the parameter un-annotated infers the wire shape **plus** the channels. Re-annotating
 it with the plain wire type — `input(msg: { payload: unknown })` — is accepted by TypeScript
-but **discards the lanes** from the parameter's static type. If you want an explicit
+but **discards the channels** from the parameter's static type. If you want an explicit
 annotation, use the same `Input<Port<…>>` type you passed as the generic (`MyNodeInput`
-above), which carries the lanes with it.
+above), which carries the channels with it.
 :::
 
 ::: info `_msgid` is not an author field
-nrg keys the lanes by the message's `_msgid` internally, but `_msgid` is **not** on the
+nrg keys the channels by the message's `_msgid` internally, but `_msgid` is **not** on the
 `input()` parameter type — it won't appear in autocomplete, and reading it through the
 typed `msg` is a compile error. It's framework plumbing: overwriting it would fork the
-message from its lanes. You never need it — read and write lanes through
+message from its channels. You never need it — read and write channels through
 `msg.protected` / `msg.private`, and let nrg do the correlation.
 :::
 
 ## Lifecycle: you release, the framework forgets
 
-A lane entry is removed with `delete`:
+A channel entry is removed with `delete`:
 
 ```typescript
 override async input(msg) {
@@ -269,8 +269,8 @@ resource. **The resource owns its own release.** You call `res.end()`, `conn.rel
 `span.end()`; `delete` just tells the framework to forget the reference.
 
 For the happy path, an explicit `delete` when you're finished is all you need. As a
-backstop, nrg sweeps abandoned messages on an idle TTL (default 5 min, reset by any lane
-read or write), so a flow that drops a message before anyone deletes its lanes won't leak
+backstop, nrg sweeps abandoned messages on an idle TTL (default 5 min, reset by any channel
+read or write), so a flow that drops a message before anyone deletes its channels won't leak
 the store entry forever — but an actively-used message is never swept mid-flight. There is
 deliberately **no GC hook, no `WeakMap`, no finalizer, and no dispose callback** — those
 are non-deterministic or don't survive the message being cloned, and they'd give a false
@@ -295,8 +295,8 @@ export default class HttpIn extends IONode<Config, never, never, HttpInOutputs> 
   override async created() {
     this.RED.httpNode.get(this.config.url, (req, res) => {
       // Emit the clone-safe snapshot on the wire; stash the LIVE `res` on the
-      // private lane (4th arg). nrg mints an `_msgid` for this source send, keys
-      // the lane by it, and carries that id across every downstream node.
+      // private channel (4th arg). nrg mints an `_msgid` for this source send, keys
+      // the channel by it, and carries that id across every downstream node.
       this.send("out", { payload: req.query }, undefined, { res });
     });
   }
@@ -356,10 +356,10 @@ override async input(msg) {
 ```
 
 `private` couldn't do this: the HTTP node is a different vendor's package, so it can't see
-`@acme/otel`'s private lane. `protected` is the shared channel that lets the whole ecosystem
+`@acme/otel`'s private channel. `protected` is the shared channel that lets the whole ecosystem
 cooperate.
 
-**Cooperative cancellation.** A source stamps an `AbortSignal` on the shared lane; a
+**Cooperative cancellation.** A source stamps an `AbortSignal` on the shared channel; a
 long-running node from any package honors it:
 
 ```typescript
@@ -374,10 +374,10 @@ const res = await fetch(url, { signal });
 
 ## Testing
 
-Lanes are I/O of a node, so you test them the same way you test the wire — through the
+Channels are I/O of a node, so you test them the same way you test the wire — through the
 node's observable behavior, never by reaching into the store.
 
-**A producer asserts what it emitted** on each lane, read off the emitted message:
+**A producer asserts what it emitted** on each channel, read off the emitted message:
 
 ```typescript
 const { node } = await createNode(Producer, {});
@@ -387,7 +387,7 @@ expect(node.sent(0)[0].private.res).toBe(fakeRes);  // stashed off-wire
 expect(node.sent(0)[0]).not.toHaveProperty("res");  // wire stays clean
 ```
 
-**A consumer receives the lanes an upstream node would have attached** via `receive`'s
+**A consumer receives the channels an upstream node would have attached** via `receive`'s
 second argument, then asserts the observable side effect:
 
 ```typescript
@@ -396,23 +396,23 @@ const res = { statusCode: 0, end: vi.fn() };
 
 await node.receive(
   { _msgid: "r1", output: { ok: true } },
-  { private: { res } }, // the incoming lanes
+  { private: { res } }, // the incoming channels
 );
 
 expect(res.end).toHaveBeenCalledWith('{"ok":true}');
 ```
 
 `private` is placed in the node's own package partition automatically, matching what the
-node sees. (`receive`'s message needs an `_msgid` whenever you seed lanes — that's the key
-they hang off; the harness throws if you seed lanes without one.) The end-to-end A→B
+node sees. (`receive`'s message needs an `_msgid` whenever you seed channels — that's the key
+they hang off; the harness throws if you seed channels without one.) The end-to-end A→B
 recovery — one node stashes, another in the same package reads it back — is best covered by
 an [integration test](./testing#server-integration-testing), where both nodes run in one
 runtime and share the store.
 
-## When *not* to use a lane
+## When *not* to use a channel
 
 - **Serializable data the flow author should see or route on** belongs on the wire (`msg`).
-  Lanes are for live objects and hidden metadata, not ordinary payload.
+  Channels are for live objects and hidden metadata, not ordinary payload.
 - **Standing state keyed by a name** (a counter, a cache, a config) is what
   [context stores](./creating-a-node#context-storage) are for — use them.
-- **Lanes are server-plane only.** They never exist in the browser/editor.
+- **Channels are server-plane only.** They never exist in the browser/editor.

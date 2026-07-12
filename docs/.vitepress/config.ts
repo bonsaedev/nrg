@@ -34,7 +34,7 @@ export default defineConfig({
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Project Structure", link: "/guide/project-structure" },
           { text: "Creating a Node", link: "/guide/creating-a-node" },
-          { text: "Message Lanes", link: "/guide/message-lanes" },
+          { text: "Message Channels", link: "/guide/message-channels" },
           { text: "Schema Validation", link: "/guide/schemas" },
           {
             text: "Building & Running",
