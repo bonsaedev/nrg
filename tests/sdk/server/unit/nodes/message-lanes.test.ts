@@ -142,6 +142,24 @@ class Source extends IONode<
   }
 }
 
+/** A pass-through MIDDLE node: a PLAIN `send()` with NO lane args that never
+ * reads the lanes either. The upstream's contributions must persist on the
+ * emitted frame — they live in the store keyed by `_msgid`, which the plain send
+ * inherits — proving the STICKY-lane guarantee (see #writeLanes). */
+class Passthrough extends IONode<
+  Record<string, never>,
+  unknown,
+  Input<Port<RawIn>>,
+  Outputs<{ out: Port<{ ok: boolean }> }>
+> {
+  static override readonly type = "lane-passthrough";
+  static override readonly category = "test";
+  static override readonly color = "#ffffff";
+  override async input() {
+    this.send(0, { ok: true }); // plain send — no lane args, no lane reads
+  }
+}
+
 describe("message lanes (protected / private)", () => {
   it("laneProxy reads / writes / deletes through the store", () => {
     const store = new LaneStore();
@@ -284,6 +302,23 @@ describe("message lanes (protected / private)", () => {
     // ...and both lanes resolve through it:
     expect(frame.protected.trace).toBe("src");
     expect(frame.private.secret).toBe(7);
+  });
+
+  it("STICKY lanes persist across a plain middle send (same _msgid)", async () => {
+    const { node } = await createNode(Passthrough, {});
+    await node.receive(
+      { _msgid: "sig-sticky", payload: {} },
+      { protected: { trace: "up" }, private: { secret: 5 } },
+    );
+
+    const frame = node.sent(0)[0];
+    // The plain send neither wrote nor read lanes, yet the upstream contributions
+    // still resolve on the emitted frame: they live in the store keyed by _msgid,
+    // which the emitted frame inherits.
+    expect(frame.protected.trace).toBe("up");
+    expect(frame.private.secret).toBe(5);
+    // …carried by the same _msgid that keeps them alive (never re-keyed).
+    expect((frame as Record<string, unknown>)._msgid).toBe("sig-sticky");
   });
 
   it("delete msg.protected.x removes the entry (the node no longer sees it)", async () => {
