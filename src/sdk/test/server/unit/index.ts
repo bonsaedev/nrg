@@ -520,4 +520,6 @@ export type {
   OutputPortNames,
   InputSpec,
   OutputSpec,
+  PortValue,
+  Port,
 } from "@/sdk/lib/server/nodes/types/ports";

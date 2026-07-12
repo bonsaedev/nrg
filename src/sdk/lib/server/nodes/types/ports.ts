@@ -63,7 +63,10 @@ type BuiltinPortName = "error" | "complete" | "status";
  * (minus the reserved {@link BuiltinPortName}s) when its values are {@link Port}s
  * (or it carries the legacy {@link NamedPortsBrand}); `string` when it's `any`;
  * else `never` (a single object output, a single `Port`, a tuple, or no outputs
- * has no named ports).
+ * has no named ports). An index-signature record (`Record<string, Port<T>>`, whose
+ * `keyof` is `string`) has NO statically-enumerable names and the build injects no
+ * ports for it, so it too resolves to `never` — otherwise `send()` would accept any
+ * name the runtime rejects.
  */
 type OutputPortNames<TOutput> =
   IsAny<TOutput> extends true
@@ -71,7 +74,9 @@ type OutputPortNames<TOutput> =
     : TOutput extends NamedPortsBrand
       ? Exclude<keyof TOutput & string, keyof NamedPortsBrand | BuiltinPortName>
       : IsPortRecord<TOutput> extends true
-        ? Exclude<keyof TOutput & string, BuiltinPortName>
+        ? string extends keyof TOutput
+          ? never
+          : Exclude<keyof TOutput & string, BuiltinPortName>
         : never;
 
 /**

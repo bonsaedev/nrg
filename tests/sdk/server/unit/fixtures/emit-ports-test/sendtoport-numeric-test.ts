@@ -19,7 +19,7 @@ const ConfigSchema = defineSchema(
 
 type Config = Infer<typeof ConfigSchema>;
 type SendToPortNumericInput = Input<Port<{ payload?: unknown }>>;
-type SendToPortNumericOutputs = Outputs<{ out: Port<{ output?: unknown }> }>;
+type SendToPortNumericOutputs = Outputs<{ out: Port<unknown> }>;
 
 class SendToPortNumeric extends IONode<
   Config,

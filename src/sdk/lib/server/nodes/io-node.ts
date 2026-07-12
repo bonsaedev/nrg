@@ -712,7 +712,13 @@ abstract class IONode<
    */
   public send<P extends OutputPortNames<TOutput> | number>(
     port: P,
-    msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
+    msg: P extends keyof TOutput
+      ? PortValue<TOutput[P]>
+      : P extends number
+        ? // a numeric index into a NAMED record isn't a `keyof`, so type it as the
+          // sound union of every port's value (record key order isn't recoverable)
+          PortValue<TOutput[keyof TOutput]>
+        : unknown,
     protectedData?: object,
     privateData?: object,
   ) {

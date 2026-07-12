@@ -103,7 +103,11 @@ interface IIONode<
   // msg. Built-in error/complete/status ports are framework-managed — not `send`-able.
   send<P extends OutputPortNames<TOutput> | number>(
     port: P,
-    msg: P extends keyof TOutput ? PortValue<TOutput[P]> : unknown,
+    msg: P extends keyof TOutput
+      ? PortValue<TOutput[P]>
+      : P extends number
+        ? PortValue<TOutput[keyof TOutput]>
+        : unknown,
     protectedData?: object,
     privateData?: object,
   ): void;

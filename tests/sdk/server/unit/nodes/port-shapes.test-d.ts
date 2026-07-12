@@ -7,6 +7,7 @@ import type {
   OutputPortNames,
   Port,
 } from "@/sdk/lib/server/nodes/types/ports";
+import type { IONode, Input, Outputs } from "@/sdk/lib/server";
 
 // Type-level proof that the built-in port message shapes match the runtime
 // (`#wrapOutgoing` / the input-handler emit sites in io-node.ts). Compiled by
@@ -30,6 +31,41 @@ void addressableOk;
 // throws at runtime, so it is excluded from the addressable output names.
 const notAddressableError: ReservedPortNames = "error";
 void notAddressableError;
+
+// --- An index-signature output record (`Record<string, Port<T>>`, keyof `string`)
+//     has NO statically-addressable names (the build injects no ports for it), so
+//     OutputPortNames resolves to `never` — `send()` can't target an arbitrary name.
+type IndexSigNames = OutputPortNames<Record<string, Port<{ v: number }>>>;
+type IndexSigIsNever = [IndexSigNames] extends [never] ? true : false;
+const indexSigNever: IndexSigIsNever = true;
+void indexSigNever;
+
+// --- A numeric index into a NAMED record types the message as the SOUND union of
+//     every port's value (record key order isn't recoverable), not `unknown`.
+declare const named: IONode<
+  unknown,
+  unknown,
+  Input<Port<{ p: string }>>,
+  Outputs<{ ok: Port<{ a: number }>; err: Port<{ b: string }> }>
+>;
+named.send(0, { a: 1 }); // a port's value — in the union
+named.send(0, { b: "x" }); // the other port's value
+// @ts-expect-error — a numeric send must carry a value in the port union, not garbage
+named.send(0, { garbage: true });
+
+// --- sent(index) on a DYNAMIC-ARRAY output recovers the element value precisely
+//     (was `unknown` before), so the by-index accessor matches sent()'s precision.
+declare const dyn: IONode<
+  unknown,
+  unknown,
+  Input<Port<{ p: string }>>,
+  Outputs<Port<{ v: number }>[]>
+>;
+const dynV: number = dyn.sent(0)[0].output.v;
+void dynV;
+// @ts-expect-error — output.v is a number, not a string (precise, not `unknown`/`any`)
+const dynBad: string = dyn.sent(0)[0].output.v;
+void dynBad;
 
 // --- ERROR port: `error` block at root, `source` + `input` beside it ----------
 function errorProof(m: ErrorPortOutput<In, { code: string }>) {

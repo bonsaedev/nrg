@@ -24,6 +24,8 @@ import type {
   OutputPortNames,
   InputSpec,
   OutputSpec,
+  PortValue,
+  Port,
 } from "@bonsae/nrg/test/server/unit";
 
 declare module "@bonsae/nrg/server" {
@@ -45,6 +47,12 @@ declare module "@bonsae/nrg/server" {
     sent<P extends OutputPortNames<TOutput>>(
       port: P,
     ): WrappedPort<PortMessage<TOutput, P>, ExtractInput<this>>[];
-    sent(port: number): WrappedPort<unknown, ExtractInput<this>>[];
+    // A numeric index into a dynamic-array / tuple output recovers the element
+    // value; a named record (key order not recoverable) stays `unknown`.
+    sent(
+      port: number,
+    ): TOutput extends readonly Port<any>[]
+      ? WrappedPort<PortValue<TOutput[number]>, ExtractInput<this>>[]
+      : WrappedPort<unknown, ExtractInput<this>>[];
   }
 }
