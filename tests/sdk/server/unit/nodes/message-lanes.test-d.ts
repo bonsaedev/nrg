@@ -58,6 +58,13 @@ declare const result: Awaited<
 >;
 // no lanes required on the wire message:
 void result.node.receive({ payload: "x", _msgid: "1" });
+// the emitted frame exposes the lanes, typed `unknown` (never `any`): the
+// concrete assignment errors, mirroring (b) — an `any` regression would silently
+// satisfy it and fail this proof (unused @ts-expect-error).
+// @ts-expect-error - the emitted frame's protected.trace is `unknown`
+const emittedConcrete: { end(): void } =
+  result.node.sent(0)[0].protected.trace;
+void emittedConcrete;
 const emittedTrace: unknown = result.node.sent(0)[0].protected.trace;
 void emittedTrace;
 
