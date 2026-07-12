@@ -506,4 +506,36 @@ describe("emit ports", () => {
       expect(completeMsg.source).toBeDefined(); // still identified by source at the root
     });
   });
+
+  describe("built-in port _msgid lineage", () => {
+    // The complete/error auto-emits run AFTER input() resolves — OUTSIDE the
+    // invocation ALS scope — so #withMsgid (which reads that scope) can't recover
+    // the id. They must inherit the incoming `_msgid` explicitly; otherwise the
+    // lifecycle frame forks onto a fresh id (Node-RED assigns one when absent),
+    // breaking Catch/Complete grouping and any `_msgid` correlation.
+    it("the auto-emitted complete frame inherits the incoming _msgid", async () => {
+      const { node } = await createNode(EmitTest, {
+        config: { errorPort: false, completePort: true, statusPort: false },
+      });
+
+      await node.receive({ _msgid: "lineage-complete", payload: "go" });
+
+      const complete = node.sent("complete")[0];
+      expect((complete as Record<string, unknown>)._msgid).toBe(
+        "lineage-complete",
+      );
+    });
+
+    it("the auto-emitted error frame inherits the incoming _msgid", async () => {
+      const { node } = await createNode(EmitTest, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      // A throw with the error port on routes there and receive() resolves.
+      await node.receive({ _msgid: "lineage-error", payload: "throw-primitive" });
+
+      const err = node.sent("error")[0];
+      expect((err as Record<string, unknown>)._msgid).toBe("lineage-error");
+    });
+  });
 });

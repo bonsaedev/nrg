@@ -307,6 +307,9 @@ abstract class IONode<
               ...(result !== undefined ? { complete: result } : {}),
               [SOURCE_KEY]: this.#nodeSource(),
               [INPUT_KEY]: msg,
+              // Runs after input() resolved (outside the ALS scope), so inherit
+              // the incoming `_msgid` explicitly to keep the lineage id intact.
+              ...this.#sourceMsgid(msg),
             });
           }
 
@@ -362,6 +365,9 @@ abstract class IONode<
                 },
                 [SOURCE_KEY]: this.#nodeSource(),
                 [INPUT_KEY]: msg,
+                // Runs in the catch (outside the ALS scope), so inherit the
+                // incoming `_msgid` explicitly to keep the lineage id intact.
+                ...this.#sourceMsgid(msg),
               });
               this.node.error(errorMsg); // log only — no msg, so no Catch routing
             }
@@ -661,6 +667,20 @@ abstract class IONode<
   }
 
   /**
+   * The source message's `_msgid` as a spreadable frame fragment — for the
+   * built-in complete/error auto-emits, which run AFTER `input()` has resolved,
+   * i.e. OUTSIDE the invocation ALS scope, so {@link #withMsgid} (which reads the
+   * scope) can't recover it. Stamping it here keeps the lifecycle frame on the
+   * SAME lineage id as the data-port emits, so Catch/Complete grouping and any
+   * `_msgid` correlation still work. `{}` when the source carries none (a source
+   * node) — Node-RED then assigns one, exactly as {@link #withMsgid} documents.
+   */
+  #sourceMsgid(src: unknown): Record<string, string> {
+    const id = (src as Record<string, unknown> | null | undefined)?.[MSGID_KEY];
+    return typeof id === "string" ? { [MSGID_KEY]: id } : {};
+  }
+
+  /**
    * Provenance stamped on every data-port output under `msg.source`: the
    * producing node plus the port the message was sent on (with the named-port
    * name when the node declares a `Port<T>` record). Message metadata, like
@@ -838,7 +858,7 @@ abstract class IONode<
     this.#sendToPort("status", {
       status,
       source: this.#nodeSource(),
-    } satisfies Omit<StatusPortOutput, "_msgid">);
+    } satisfies StatusPortOutput);
   }
 
   public override error(message: string, msg?: any) {
