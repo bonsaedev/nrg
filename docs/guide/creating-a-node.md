@@ -1056,14 +1056,14 @@ the value. Requires `completePort` enabled.
 
 #### Throwing a custom error {#throwing-a-custom-error}
 
-The error port normally carries just `error.message`. If you **throw a custom
-`Error` subclass**, its own enumerable properties are merged into `msg.error`, so
-a downstream flow can route and react on structured detail instead of parsing a
-string. The canonical `name`, `message`, and `source` are layered last, so they
-stay authoritative. `msg.error` sits at the root — the same place a Node-RED
-**Catch** node puts it — so a node reading it feels familiar; but the error
-travels the port's wire, it does **not** trigger Catch nodes (the port is the
-sole handler).
+The `error` block always carries the error's `name` and `message` (plus `stack`
+when you `throw` an `Error`). If you **throw a custom `Error` subclass**, its own
+enumerable properties are merged in too, so a downstream flow can route and react
+on structured detail instead of parsing a string — `name`, `message`, and `stack`
+are layered last, so they stay authoritative over anything you add. `msg.error`
+sits at the root (with `source` and `input` beside it) — the same place a Node-RED
+**Catch** node puts it — so a node reading it feels familiar; but the error travels
+the port's wire, it does **not** trigger Catch nodes (the port is the sole handler).
 
 ```typescript
 class RateLimitError extends Error {
@@ -1076,15 +1076,17 @@ class RateLimitError extends Error {
 override async input(msg: Input<Port<{ payload: unknown }>>) {
   throw new RateLimitError(2000);
   // error port: { error: { name: "RateLimitError", message: "rate limited",
-  //                        retryAfterMs: 2000 }, source, input: msg }
+  //                        stack: "…", retryAfterMs: 2000 }, source, input: msg }
 }
 ```
 
-Notes: only **enumerable own** properties ride along — `message`/`stack` are
-non-enumerable, so set extra data as instance properties and keep it serializable
-(it is flattened to plain data so it survives `cloneMessage` and `JSON`).
-Discriminate on `error.name` (realm-safe) rather than `instanceof`. Requires
-`errorPort` enabled.
+Notes: `name` and `message` are always included (plus `stack` when you `throw` an
+`Error`) — nrg adds them explicitly, because they're non-enumerable on an `Error`
+and a plain spread would miss them. Only the **enumerable own** properties of your
+thrown error are merged in on top, so set any *extra* data as enumerable instance
+properties and keep it serializable (the block is flattened to plain data, so it
+survives `cloneMessage` and `JSON`). Discriminate on `error.name` (realm-safe)
+rather than `instanceof`. Requires `errorPort` enabled.
 
 #### Example: node with error and status ports
 
