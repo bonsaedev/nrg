@@ -102,13 +102,16 @@ describe("extractNodeTypes — output shapes (deep)", () => {
   it("named-port record → one named port per key, each with its fields", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
-      import type { Infer } from "@bonsae/nrg/server";
+      import type { Infer, Port } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       const Outputs = {
         success: defineSchema({ payload: SchemaType.String() }, { $id: "n:s" }),
         failure: defineSchema({ error: SchemaType.String(), code: SchemaType.Number() }, { $id: "n:f" }),
       };
-      type Output = Infer<typeof Outputs>;
+      type Output = {
+        success: Port<Infer<typeof Outputs.success>>;
+        failure: Port<Infer<typeof Outputs.failure>>;
+      };
       export default class N extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
         static readonly type = "named-multi";
       }
@@ -125,19 +128,17 @@ describe("extractNodeTypes — output shapes (deep)", () => {
     expect(failure?.role.fields.find((f) => f.name === "code")?.type).toBe(
       "number",
     );
-    // the brand property is never surfaced as a port
-    expect(names).not.toContain("__nrg_named_ports");
   });
 
-  it("a single named port → one named port (the brand still discriminates it)", () => {
+  it("a single named Port<> record → one named port", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
-      import type { Infer } from "@bonsae/nrg/server";
+      import type { Infer, Port } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       const Outputs = {
         only: defineSchema({ value: SchemaType.String() }, { $id: "n:only" }),
       };
-      type Output = Infer<typeof Outputs>;
+      type Output = { only: Port<Infer<typeof Outputs.only>> };
       export default class N extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
         static readonly type = "named-one";
       }

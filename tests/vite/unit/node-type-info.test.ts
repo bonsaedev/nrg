@@ -155,16 +155,19 @@ describe("extractNodeTypes — class API", () => {
     expect(portField(node, 1, "b")?.type).toBe("number");
   });
 
-  it("splits a named-port record output into one port per name", () => {
+  it("splits a schema-typed Port<> record output into one port per name", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
-      import type { Infer } from "@bonsae/nrg/server";
+      import type { Infer, Port } from "@bonsae/nrg/server";
       import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
       const Outputs = {
         success: defineSchema({ payload: SchemaType.String() }, { $id: "n:success" }),
         failure: defineSchema({ error: SchemaType.String() }, { $id: "n:failure" }),
       };
-      type Output = Infer<typeof Outputs>;
+      type Output = {
+        success: Port<Infer<typeof Outputs.success>>;
+        failure: Port<Infer<typeof Outputs.failure>>;
+      };
       export default class MyNode extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
         static readonly type = "my-node";
       }
@@ -176,8 +179,6 @@ describe("extractNodeTypes — class API", () => {
     expect(success?.role.fields.find((f) => f.name === "payload")?.type).toBe(
       "string",
     );
-    // the __nrg_named_ports brand is never surfaced as a port
-    expect(names).not.toContain("__nrg_named_ports");
   });
 
   it("reads a record of Port<T> in the Output generic as named ports", () => {

@@ -6,10 +6,6 @@ import type {
   UnsafeBrand,
 } from "../../shared/schemas";
 import type TypedInput from "../typed-input";
-// The named-port brand is node port vocabulary, not schema vocabulary; it lives
-// with the other port types. `Infer`'s record branch tags with it (a schema can
-// *drive* a named-port output map), so it's imported back here.
-import type { NamedPortsBrand } from "../nodes/types/ports";
 
 /**
  * Maps a schema's static type to the values server node code sees at
@@ -43,21 +39,13 @@ type ResolvedStatic<T> =
                 : T;
 
 /**
- * Infers the TypeScript type from a schema or a record of schemas.
- *
- * - Single schema: `Infer<typeof MySchema>` → the inferred message type
- * - Record of schemas: `Infer<typeof PortsSchema>` → `{ portName: InferredType }`
- *   port map, tagged with {@link NamedPortsBrand} so named-port routing is sound.
- *
- * The record form produces a simple mapped type that resolves eagerly,
- * giving `send()` proper autocomplete in class-based nodes.
+ * Infers the TypeScript type of a single schema: `Infer<typeof MySchema>` → the
+ * inferred message type (with NodeRef/TypedInput brands resolved to their runtime
+ * values). Compose it with the port gates to type a node's I/O from a schema, e.g.
+ * `Input<Port<Infer<typeof InputSchema>>>` or
+ * `Outputs<{ out: Port<Infer<typeof OutputSchema>> }>` — the port topology comes
+ * from the `Input`/`Outputs` generics, never from the schema.
  */
-type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
-  ? ResolvedStatic<Static<T>>
-  : {
-      [K in keyof T & string]: T[K] extends TSchema
-        ? ResolvedStatic<Static<T[K]>>
-        : never;
-    } & NamedPortsBrand;
+type Infer<T extends TSchema> = ResolvedStatic<Static<T>>;
 
 export type { Infer, ResolvedStatic };

@@ -201,34 +201,11 @@ describe("adversarial — Output shape variants", () => {
     expect(help(node)).not.toContain("charAt");
   });
 
-  it("detects a HAND-WRITTEN & NamedPortsBrand record the same as Infer<>", () => {
+  it("keeps a named Port<> port whose value is a PRIMITIVE (no prototype leak)", () => {
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
-      type Output = { success: { payload: string }; failure: { error: string } } & {
-        readonly __nrg_named_ports: true;
-      };
-      export default class N extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
-        static readonly type = "n";
-      }
-    `);
-    const names = node.outputs?.map((o) => o.name);
-    expect(names).toContain("success");
-    expect(names).toContain("failure");
-    // The brand itself is never surfaced as a port.
-    expect(names).not.toContain("__nrg_named_ports");
-    expect(
-      node.outputs
-        ?.find((o) => o.name === "success")
-        ?.role.fields.find((f) => f.name === "payload")?.type,
-    ).toBe("string");
-  });
-
-  it("keeps a named port whose value is a PRIMITIVE (no prototype leak)", () => {
-    const [node] = extract(`
-      import { IONode } from "@bonsae/nrg/server";
-      type Output = { count: number; ok: { flag: boolean } } & {
-        readonly __nrg_named_ports: true;
-      };
+      import type { Port } from "@bonsae/nrg/server";
+      type Output = { count: Port<number>; ok: Port<{ flag: boolean }> };
       export default class N extends IONode<{ x: 1 }, never, { p: 1 }, Output> {
         static readonly type = "n";
       }

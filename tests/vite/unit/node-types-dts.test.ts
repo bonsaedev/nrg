@@ -100,14 +100,18 @@ function compilePackage(
 const PKG = {
   "csv-parser": `
     import { IONode } from "@bonsae/nrg/server";
-    import type { Infer } from "@bonsae/nrg/server";
+    import type { Infer, Port } from "@bonsae/nrg/server";
     import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
     type Config = { delimiter: "COMMA" | "TAB"; skipHeader: boolean };
     const Outputs = {
       success: defineSchema({ payload: SchemaType.String() }, { $id: "c:s" }),
       failure: defineSchema({ error: SchemaType.String() }, { $id: "c:f" }),
     };
-    export default class CsvParser extends IONode<Config, never, { text: string }, Infer<typeof Outputs>> {
+    type Output = {
+      success: Port<Infer<typeof Outputs.success>>;
+      failure: Port<Infer<typeof Outputs.failure>>;
+    };
+    export default class CsvParser extends IONode<Config, never, { text: string }, Output> {
       static readonly type = "csv-parser";
       async input(msg: { text: string }) { return { parsed: 42 }; }
     }

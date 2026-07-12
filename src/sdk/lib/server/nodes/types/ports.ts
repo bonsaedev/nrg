@@ -3,22 +3,7 @@
 // port names — plus the plain message types the IONode base class emits on the
 // built-in error/complete/status ports. None of this is schema-related: schemas
 // only *drive* these (via `Infer`) when an author opts in. Kept as a leaf module
-// (imports nothing) so `schemas/types` can reference `NamedPortsBrand` from here
-// for `Infer` without a cycle.
-
-/**
- * String-key phantom brand stamped on the record form of {@link Infer} — a
- * named-port output map. It lets `send` and the test toolkit tell
- * a named-port record apart from a single object output WITHOUT a fragile
- * structural `Record<string, Record<string, any>>` guess (which a primitive-valued
- * port, or an object-of-objects single output, both defeat). STRING key, never a
- * `unique symbol`: unique-symbol identity is per-`.d.ts`-declaration and fragments
- * across nrg's separately bundled types (same rule as `NodeRefBrand`). Type-level
- * only — never present at runtime, and never on the per-port message types.
- */
-interface NamedPortsBrand {
-  readonly __nrg_named_ports: true;
-}
+// (imports nothing).
 
 /** True only for `any` (distributes via the `1 & T` trick). */
 type IsAny<T> = 0 extends 1 & T ? true : false;
@@ -60,24 +45,21 @@ type BuiltinPortName = "error" | "complete" | "status";
 
 /**
  * The addressable named-port keys of an output type: the record's port names
- * (minus the reserved {@link BuiltinPortName}s) when its values are {@link Port}s
- * (or it carries the legacy {@link NamedPortsBrand}); `string` when it's `any`;
- * else `never` (a single object output, a single `Port`, a tuple, or no outputs
- * has no named ports). An index-signature record (`Record<string, Port<T>>`, whose
- * `keyof` is `string`) has NO statically-enumerable names and the build injects no
- * ports for it, so it too resolves to `never` — otherwise `send()` would accept any
- * name the runtime rejects.
+ * (minus the reserved {@link BuiltinPortName}s) when its values are {@link Port}s;
+ * `string` when it's `any`; else `never` (a single object output, a single `Port`,
+ * a tuple, or no outputs has no named ports). An index-signature record
+ * (`Record<string, Port<T>>`, whose `keyof` is `string`) has NO statically-enumerable
+ * names and the build injects no ports for it, so it too resolves to `never` —
+ * otherwise `send()` would accept any name the runtime rejects.
  */
 type OutputPortNames<TOutput> =
   IsAny<TOutput> extends true
     ? string
-    : TOutput extends NamedPortsBrand
-      ? Exclude<keyof TOutput & string, keyof NamedPortsBrand | BuiltinPortName>
-      : IsPortRecord<TOutput> extends true
-        ? string extends keyof TOutput
-          ? never
-          : Exclude<keyof TOutput & string, BuiltinPortName>
-        : never;
+    : IsPortRecord<TOutput> extends true
+      ? string extends keyof TOutput
+        ? never
+        : Exclude<keyof TOutput & string, BuiltinPortName>
+      : never;
 
 /**
  * The constraint on a node's `TOutput` generic — the set of valid output shapes:
@@ -274,7 +256,6 @@ interface StatusPortOutput {
 }
 
 export type {
-  NamedPortsBrand,
   Port,
   PortValue,
   IsAny,

@@ -55,7 +55,7 @@ function buildProgram(source: string): { program: ts.Program; dir: string } {
 //  - a Settings generic (5th slot)
 const NODE_SOURCE = `
   import { IONode } from "@bonsae/nrg/server";
-  import type { Infer } from "@bonsae/nrg/server";
+  import type { Infer, Port } from "@bonsae/nrg/server";
   import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 
   // Purely-typed config — there is NO schema for these fields anywhere.
@@ -68,13 +68,16 @@ const NODE_SOURCE = `
 
   type Input = { payload: string };
 
-  // Named-port output map. Infer<> stamps the named-ports brand so the extractor
-  // splits it into one titled port per key.
+  // Named-port output map: each port's message is typed from a schema via
+  // Port<Infer<…>>, so the extractor splits it into one titled port per key.
   const Outputs = {
     success: defineSchema({ data: SchemaType.String() }, { $id: "pipe:success" }),
     failure: defineSchema({ reason: SchemaType.String() }, { $id: "pipe:failure" }),
   };
-  type Output = Infer<typeof Outputs>;
+  type Output = {
+    success: Port<Infer<typeof Outputs.success>>;
+    failure: Port<Infer<typeof Outputs.failure>>;
+  };
 
   type Settings = { apiKey: string; region: string };
 
@@ -158,9 +161,8 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
     expect(doc).toContain("<td>failure</td>");
     expect(doc).toContain("data: string");
     expect(doc).toContain("reason: string");
-    // no per-port sub-headings, and the named-ports brand never leaks
+    // no per-port sub-headings
     expect(doc).not.toContain("<h4>");
-    expect(doc).not.toContain("__nrg_named_ports");
   });
 
   it("renders the Complete port from input()'s return type", () => {

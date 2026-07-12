@@ -1,7 +1,11 @@
 import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
 import type { Infer } from "@/sdk/lib/server/schemas/types";
-import type { NamedPortsBrand } from "@/sdk/lib/server/nodes/types/ports";
+import type {
+  Outputs,
+  Port,
+  PortValue,
+} from "@/sdk/lib/server/nodes/types/ports";
 import type TypedInput from "@/sdk/lib/server/typed-input";
 import type {
   TypedInputBrand,
@@ -113,35 +117,21 @@ describe("Server Infer", () => {
     expectTypeOf<Infer<typeof s>>().toEqualTypeOf<{ nodes: Node[] }>();
   });
 
-  it("infers record of schemas as a NamedPortsBrand-tagged port map", () => {
+  it("composes a single schema's Infer inside the Port<> / Outputs<> gates", () => {
+    // The record form of Infer was removed: port topology comes from the
+    // `Outputs<>` generic, and a schema types ONE port's message via `Infer`
+    // wrapped in `Port<>` (with NodeRef/TypedInput brands still resolved).
     const success = schema({ payload: Type.String() });
-    const failure = schema({ error: Type.String() });
-    const outputs = { success, failure } as const;
-
-    // The record form of Infer carries NamedPortsBrand so named-port routing is
-    // sound; the per-port message types are unbranded.
-    type Ports = Infer<typeof outputs>;
-    expectTypeOf<Ports>().toEqualTypeOf<
-      {
-        success: { payload: string };
-        failure: { error: string };
-      } & NamedPortsBrand
-    >();
-  });
-
-  it("resolves NodeRef inside record of schemas", () => {
-    interface Conn {
-      url: string;
-    }
-    const portSchema = schema({ conn: nodeRef<Conn>() });
-    const outputs = { data: portSchema } as const;
-
-    type Ports = Infer<typeof outputs>;
-    expectTypeOf<Ports>().toEqualTypeOf<
-      {
-        data: { conn: Conn };
-      } & NamedPortsBrand
-    >();
+    const failure = schema({ conn: nodeRef<{ url: string }>() });
+    type Ports = Outputs<{
+      ok: Port<Infer<typeof success>>;
+      err: Port<Infer<typeof failure>>;
+    }>;
+    expectTypeOf<PortValue<Ports["ok"]>>().toEqualTypeOf<{ payload: string }>();
+    // NodeRef inside the schema still resolves to the referenced instance type
+    expectTypeOf<PortValue<Ports["err"]>>().toEqualTypeOf<{
+      conn: { url: string };
+    }>();
   });
 
   it("does not collapse to any", () => {

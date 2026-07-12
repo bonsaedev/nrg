@@ -795,8 +795,6 @@ function renderRole(
   return role;
 }
 
-/** The brand property on a legacy named-port output type (`Infer<record>`). */
-const NAMED_PORTS_BRAND = "__nrg_named_ports";
 /** The brand property on a `Port<T>` value (see schemas/types). */
 const PORT_BRAND = "__nrg_port";
 
@@ -839,19 +837,14 @@ function outputPortKind(
   outputType: ts.Type,
 ): "single" | "tuple" | "named" {
   if (isTupleType(checker, outputType)) return "tuple";
-  if (
-    checker.getPropertyOfType(outputType, NAMED_PORTS_BRAND) ||
-    isPortRecord(checker, outputType)
-  )
-    return "named";
+  if (isPortRecord(checker, outputType)) return "named";
   return "single";
 }
 
 /**
  * Resolve an `Output` type to its ports, shape-aware:
  * - positional tuple `[A, B]` → one port per element;
- * - named-port record `{ ok: Port<A>; err: Port<B> }` (or legacy
- *   `{ … } & NamedPortsBrand`) → one port per name;
+ * - named-port record `{ ok: Port<A>; err: Port<B> }` → one port per name;
  * - a single object / bare `Port<A>` → one port.
  * `Port<T>` values are unwrapped to their inner `T` wherever they appear.
  * Returns `undefined` when the output carries nothing to document (any/void).
@@ -880,17 +873,6 @@ function extractOutputs(
   if (isTupleType(checker, outputType)) {
     const elems = (outputType as ts.TypeReference).typeArguments ?? [];
     return elems.map((el, index) => ({ index, role: portRole(el) }));
-  }
-
-  if (checker.getPropertyOfType(outputType, NAMED_PORTS_BRAND)) {
-    return checker
-      .getPropertiesOfType(outputType)
-      .filter((p) => p.getName() !== NAMED_PORTS_BRAND)
-      .map((p, index) => ({
-        name: p.getName(),
-        index,
-        role: portRole(checker.getTypeOfSymbolAtLocation(p, at)),
-      }));
   }
 
   if (isPortRecord(checker, outputType)) {
