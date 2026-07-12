@@ -747,6 +747,28 @@ abstract class IONode<
         `send("${port}") is not allowed. Built-in ports are managed by the framework.`,
       );
     }
+    // A numeric port addresses a base output port. Reject a negative/non-integer
+    // index, and one that would land in a framework-managed built-in port slot
+    // (`[baseOutputs, totalOutputs)`) — otherwise author data silently overwrites
+    // an error/complete/status frame. A node whose topology wasn't extracted has
+    // `baseOutputs === 0` and no built-in slots, so `send(0)` — the documented
+    // escape hatch — stays valid (the built-in range is empty).
+    if (typeof port === "number") {
+      if (!Number.isInteger(port) || port < 0) {
+        throw new NrgError(
+          `send(${port}) — a numeric output port must be a non-negative integer index.`,
+        );
+      }
+      if (port >= this.#baseOutputs && port < this.#totalOutputs) {
+        throw new NrgError(
+          `send(${port}) targets a framework-managed built-in port slot (error/complete/status).` +
+            (this.#baseOutputs > 0
+              ? ` Send to a base output port (0..${this.#baseOutputs - 1}),`
+              : ` Send to a base output port,`) +
+            ` or use this.status() / this.error().`,
+        );
+      }
+    }
     const portIndex =
       typeof port === "number" ? port : this.#getNamedPortIndex(port);
     // Loud failure for an unknown named port: an unresolved name would otherwise

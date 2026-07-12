@@ -8,6 +8,7 @@ import SendToPortGuardError from "../fixtures/emit-ports-test/sendtoport-guard-e
 import SendToPortGuardComplete from "../fixtures/emit-ports-test/sendtoport-guard-complete-test";
 import SendToPortGuardStatus from "../fixtures/emit-ports-test/sendtoport-guard-status-test";
 import SendToPortNumeric from "../fixtures/emit-ports-test/sendtoport-numeric-test";
+import NumericOob from "../fixtures/emit-ports-test/numeric-oob-test";
 import SendToPortStatus from "../fixtures/emit-ports-test/sendtoport-status-test";
 import TruncateTest from "../fixtures/emit-ports-test/truncate-test";
 import SimpleTest from "../fixtures/emit-ports-test/simple-test";
@@ -465,6 +466,20 @@ describe("emit ports", () => {
       // The built-in slots are never touched by an author send.
       expect(node.sent("error")).toHaveLength(0);
       expect(node.sent("status")).toHaveLength(0);
+    });
+
+    it("rejects an out-of-range numeric send that would land in a built-in slot", async () => {
+      // One base output (index 0) + the error port enabled → the error slot is
+      // index 1. A numeric send(1) must be rejected, not silently overwrite it.
+      const { node } = await createNode(NumericOob, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      await expect(node.receive({ payload: "go" })).rejects.toThrow(
+        "built-in port slot",
+      );
+      // Nothing was misdelivered onto the error port.
+      expect(node.sent("error")).toHaveLength(0);
     });
   });
 
