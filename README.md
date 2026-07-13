@@ -24,7 +24,37 @@ Scaffold a new project with everything wired up:
 pnpm create @bonsae/nrg
 ```
 
-Then define a node by extending `IONode`. Port topology comes from the `Input`/`Outputs` type generics; the config schema drives the editor form and validation:
+A node is a **config schema** (drives the editor form + validation) and a **class** (the logic). Here's a full `http-request` node — every method, custom headers, a timeout, and a chosen response type:
+
+**src/shared/schemas/http-request.ts**
+
+```typescript
+import { SchemaType, defineSchema } from "@bonsae/nrg/schema";
+
+export const ConfigsSchema = defineSchema(
+  {
+    method: SchemaType.Union(
+      [
+        SchemaType.Literal("GET"),
+        SchemaType.Literal("POST"),
+        SchemaType.Literal("PUT"),
+        SchemaType.Literal("PATCH"),
+        SchemaType.Literal("DELETE"),
+        SchemaType.Literal("HEAD"),
+      ],
+      { default: "GET", description: "HTTP method.", "x-nrg-form": { icon: "exchange" } },
+    ),
+    baseUrl: SchemaType.String({ default: "", description: "Prepended to the message's path.", "x-nrg-form": { icon: "globe" } }),
+    headers: SchemaType.String({ default: "", description: "One per line, as `Name: value`.", "x-nrg-form": { icon: "list-alt" } }),
+    timeout: SchemaType.Number({ default: 30000, description: "Abort after N milliseconds.", "x-nrg-form": { icon: "clock-o" } }),
+    returnType: SchemaType.Union(
+      [SchemaType.Literal("stream"), SchemaType.Literal("text"), SchemaType.Literal("json")],
+      { default: "stream", description: "How to read the response body.", "x-nrg-form": { icon: "sign-out" } },
+    ),
+  },
+  { $id: "HttpRequestConfigsSchema" },
+);
+```
 
 **src/server/nodes/http-request.ts**
 
@@ -34,26 +64,46 @@ import { Readable } from "node:stream";
 import { ConfigsSchema } from "@/schemas/http-request";
 
 type Config = Infer<typeof ConfigsSchema>;
-type HttpRequestInput = Input<Port<{ path: string }>>;
+type HttpRequestInput = Input<Port<{ path: string; body?: unknown }>>;
 type HttpRequestOutputs = Outputs<{
-  body: Port<Readable>;
+  response: Port<unknown>;
   failed: Port<{ status: number; message: string }>;
 }>;
 
-export default class HttpRequest extends IONode<Config, never, HttpRequestInput, HttpRequestOutputs> {
+export default class HttpRequest extends IONode<Config, any, HttpRequestInput, HttpRequestOutputs> {
   static override readonly type = "http-request";
   static override readonly configSchema = ConfigsSchema;
 
   override async input(msg: HttpRequestInput) {
-    const res = await fetch(`${this.config.baseUrl}${msg.path}`);
+    const { method, baseUrl, headers, timeout, returnType } = this.config;
+
+    const res = await fetch(`${baseUrl}${msg.path}`, {
+      method,
+      headers: Object.fromEntries(headers.split("\n").filter(Boolean).map((h) => h.split(": "))),
+      body: method === "GET" || method === "HEAD" ? undefined : JSON.stringify(msg.body),
+      signal: AbortSignal.timeout(timeout),
+    });
+
     if (!res.ok) {
       this.send("failed", { status: res.status, message: res.statusText });
       return;
     }
-    this.send("body", Readable.fromWeb(res.body!));
+
+    this.send(
+      "response",
+      returnType === "json" ? await res.json() : returnType === "text" ? await res.text() : Readable.fromWeb(res.body!),
+    );
   }
 }
 ```
+
+You wrote **no editor HTML, no jQuery, no `oneditprepare`** — nrg generates the entire edit dialog from the schema and types above: the `method` and `returnType` unions become dropdowns, strings and numbers become validated inputs, and the input/output ports and lifecycle wiring come for free.
+
+<p align="center">
+  <img alt="The http-request editor form nrg generates from the schema" src="https://raw.githubusercontent.com/bonsaedev/nrg/main/assets/http-request-form.png" width="560"/>
+</p>
+
+A classic Node-RED node hand-writes hundreds of lines of HTML for a form like this and keeps it in sync with the runtime by hand. Here it's derived from your schema and types — so it can't drift, and every field is validated for free.
 
 See the [documentation](https://bonsaedev.github.io/nrg) for the full walkthrough — schemas, the generated editor form, testing, and building — or the [node-red-salesforce](https://github.com/bonsaedev/node-red-salesforce) repo for a real-world reference.
 
