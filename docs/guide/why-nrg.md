@@ -28,7 +28,7 @@ Some data can't safely ride the wire: **live objects** that break when Node-RED 
 
 ### Traditional
 
-Node-RED deep-clones `msg` between wires, so a live socket is corrupted or throws — which is exactly why Node-RED had to hard-code `msg.req` / `msg.res` as the **only** reference-preserved exceptions, just so its own HTTP In / HTTP Response pair could work. A secret is no safer: put a token on `msg` and it shows up verbatim in the debug panel, copy-pasteable, readable or forgeable by any function node. Context is no help either — it's keyed by a **name**, not a message, so two in-flight messages clobber the same `flow.get("conn")`.
+Node-RED deep-clones `msg` between wires, so a live socket is corrupted or throws — which is exactly why Node-RED had to [hard-code `msg.req` / `msg.res`](https://github.com/node-red/node-red/blob/5.0.0/packages/node_modules/@node-red/util/lib/util.js#L98-L118) as the **only** reference-preserved exceptions (its own source calls it a *"Temporary fix"*), just so its own HTTP In / HTTP Response pair could work. A secret is no safer: put a token on `msg` and it shows up verbatim in the debug panel, copy-pasteable, readable or forgeable by any function node. Context is no help either — it's keyed by a **name**, not a message, so two in-flight messages clobber the same `flow.get("conn")`.
 
 ### NRG
 

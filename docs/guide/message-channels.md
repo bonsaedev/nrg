@@ -137,10 +137,12 @@ put data — put it on `msg`, or stash it in `flow`/`global` context — and **n
 ### Not on `msg`
 
 Node-RED clones the message between wires (`RED.util.cloneMessage`). A live object gets
-deep-cloned — broken, or an outright throw. Node-RED itself hit this wall and hard-coded
-an exception: **`msg.req` and `msg.res` are the only two properties it preserves by
-reference across a clone**, precisely so the built-in HTTP In / HTTP Response pair can
-recover the live response object downstream. Everything else is on its own.
+deep-cloned — broken, or an outright throw. Node-RED itself hit this wall and
+[hard-coded an exception](https://github.com/node-red/node-red/blob/5.0.0/packages/node_modules/@node-red/util/lib/util.js#L98-L118):
+**`msg.req` and `msg.res` are the only two properties it preserves by reference across a
+clone**, precisely so the built-in HTTP In / HTTP Response pair can recover the live
+response object downstream — its own source even flags it as a *"Temporary fix … TODO:
+remove this http-node-specific fix somehow."* Everything else is on its own.
 
 And anything on `msg` is **visible in the debug panel and editable by any function node** —
 so a secret leaks and a live handle can be tampered with. What actually continues
