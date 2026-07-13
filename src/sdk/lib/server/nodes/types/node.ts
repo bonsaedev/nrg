@@ -53,9 +53,20 @@ interface NodeConfigBase {
   z?: string;
 }
 
-type NodeConfig<TConfig = any> = TConfig & NodeConfigBase;
+// `never` in a node's public generic means "this node has none of X". Collapse
+// it here so it never propagates as the bottom type, which would otherwise
+// (a) erase the built-in fields from `this.config` (`never & X` is `never`), and
+// (b) poison the contravariant constructor params — a `never` config/credentials
+// param makes the class unassignable to `NodeConstructor<any, any, any>`, so
+// `defineModule` would reject it. The `[T] extends [never]` tuple form is the
+// precise never-test (a bare `T extends never` would distribute).
+type NodeConfig<TConfig = any> = [TConfig] extends [never]
+  ? NodeConfigBase
+  : TConfig & NodeConfigBase;
 
-type NodeCredentials<TCredentials = any> = TCredentials;
+type NodeCredentials<TCredentials = any> = [TCredentials] extends [never]
+  ? undefined
+  : TCredentials;
 
 interface NodeSetting<T = any> {
   value: T;
