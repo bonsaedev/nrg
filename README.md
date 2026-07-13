@@ -66,8 +66,7 @@ import { ConfigsSchema } from "@/schemas/http-request";
 type Config = Infer<typeof ConfigsSchema>;
 type HttpRequestInput = Input<Port<{ path: string; body?: unknown }>>;
 type HttpRequestOutputs = Outputs<{
-  response: Port<unknown>;
-  failed: Port<{ status: number; message: string }>;
+  response: Port<{ status: number; body: unknown }>;
 }>;
 
 export default class HttpRequest extends IONode<Config, any, HttpRequestInput, HttpRequestOutputs> {
@@ -84,26 +83,19 @@ export default class HttpRequest extends IONode<Config, any, HttpRequestInput, H
       signal: AbortSignal.timeout(timeout),
     });
 
-    if (!res.ok) {
-      this.send("failed", { status: res.status, message: res.statusText });
-      return;
-    }
+    // A network error or timeout throws — nrg routes it to the built-in Error
+    // port. Any HTTP response (2xx–5xx) is a normal result; its status rides along.
+    const body =
+      returnType === "json" ? await res.json() : returnType === "text" ? await res.text() : Readable.fromWeb(res.body!);
 
-    this.send(
-      "response",
-      returnType === "json" ? await res.json() : returnType === "text" ? await res.text() : Readable.fromWeb(res.body!),
-    );
+    this.send("response", { status: res.status, body });
   }
 }
 ```
 
 You wrote **no editor HTML, no jQuery, no `oneditprepare`** — nrg generates the entire edit dialog from the schema and types above: the `method` and `returnType` unions become dropdowns, strings and numbers become validated inputs, and the input/output ports and lifecycle wiring come for free.
 
-<p align="center">
-  <img alt="The http-request editor form nrg generates from the schema" src="https://raw.githubusercontent.com/bonsaedev/nrg/main/assets/http-request-form.png" width="560"/>
-</p>
-
-A classic Node-RED node hand-writes hundreds of lines of HTML for a form like this and keeps it in sync with the runtime by hand. Here it's derived from your schema and types — so it can't drift, and every field is validated for free.
+A classic Node-RED node hand-writes hundreds of lines of HTML for its edit form and keeps it in sync with the runtime by hand. Here it's derived from your schema and types — so it can't drift, and every field is validated for free.
 
 See the [documentation](https://bonsaedev.github.io/nrg) for the full walkthrough — schemas, the generated editor form, testing, and building — or the [node-red-salesforce](https://github.com/bonsaedev/node-red-salesforce) repo for a real-world reference.
 
