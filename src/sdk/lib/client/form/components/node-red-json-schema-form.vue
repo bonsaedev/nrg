@@ -246,19 +246,16 @@ function isTypedInput(schema: FieldSchema): boolean {
 }
 
 /**
- * A field is required when it declares a genuine non-empty constraint —
- * `x-nrg-form.required` (expanded to `minLength`/`minItems` for validation) or
- * an explicit `minLength`/`minItems` of 1. The JSON-schema `required` array is
- * NOT used: TypeBox lists every non-`Optional` property there, so it would flag
- * essentially every field. This keeps the `*` meaningful and aligned with what
- * actually errors.
+ * A field renders the `*` when it is non-`Optional` — i.e. present in the
+ * schema's `required[]`. One rule for every type, shared with the runtime
+ * validator (AJV enforces `required[]`) and the generated help docs, so the
+ * `*`, the deploy-time error, and the help "Required" column can't drift apart.
+ * The validator additionally adds a non-empty constraint (`minLength`/`minItems`
+ * of 1) to required strings/arrays; enums, numbers, and booleans are satisfied
+ * by their value. Mark a field `SchemaType.Optional(...)` to drop the `*`.
  */
-function isFieldRequired(schema: FieldSchema): boolean {
-  if (schema["x-nrg-form"]?.required) return true;
-  if (typeof schema.minLength === "number" && schema.minLength >= 1)
-    return true;
-  if (typeof schema.minItems === "number" && schema.minItems >= 1) return true;
-  return false;
+function isFieldRequired(isNonOptional: boolean): boolean {
+  return isNonOptional;
 }
 
 function buildField(
@@ -461,13 +458,14 @@ export default defineComponent({
   computed: {
     configFields(): FormField[] {
       if (!this.schema?.properties) return [];
+      const required = new Set(this.schema.required ?? []);
       return Object.entries(this.schema.properties)
         .filter(([key]) => !SKIP_FIELDS.has(key))
         .map(([key, propSchema]) =>
           buildField(
             key,
             propSchema as FieldSchema,
-            isFieldRequired(propSchema as FieldSchema),
+            isFieldRequired(required.has(key)),
             this.resolveI18n("configs", key),
             (value) => this.resolveOptionLabel(key, value),
           ),
@@ -478,11 +476,12 @@ export default defineComponent({
         | FieldSchema
         | undefined;
       if (!credSchema?.properties) return [];
+      const required = new Set(credSchema.required ?? []);
       return Object.entries(credSchema.properties).map(([key, propSchema]) => {
         const f = buildField(
           key,
           propSchema as FieldSchema,
-          isFieldRequired(propSchema as FieldSchema),
+          isFieldRequired(required.has(key)),
           this.resolveI18n("credentials", key),
         );
         // Force credential fields to be text/password inputs

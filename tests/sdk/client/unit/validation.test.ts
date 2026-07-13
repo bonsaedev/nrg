@@ -401,14 +401,15 @@ describe("composeValidationSchema", () => {
     expect(errors["node.credentials.token"]).toBeDefined();
   });
 
-  describe("x-nrg-form.required expansion", () => {
+  describe("required[] (non-Optional) expansion", () => {
     it("makes an empty required string field fail (config)", () => {
       const schema = composeValidationSchema(
         {
           type: "object",
           properties: {
-            apiKey: { type: "string", "x-nrg-form": { required: true } },
+            apiKey: { type: "string" },
           },
+          required: ["apiKey"],
         } as any,
         undefined,
       )!;
@@ -431,9 +432,9 @@ describe("composeValidationSchema", () => {
               type: "string",
               format: "node-id",
               "x-nrg-node-type": "some-config",
-              "x-nrg-form": { required: true },
             },
           },
+          required: ["config"],
         } as any,
         undefined,
       )!;
@@ -452,9 +453,9 @@ describe("composeValidationSchema", () => {
             tags: {
               type: "array",
               items: { type: "string" },
-              "x-nrg-form": { required: true },
             },
           },
+          required: ["tags"],
         } as any,
         undefined,
       )!;
@@ -473,9 +474,9 @@ describe("composeValidationSchema", () => {
           apiKey: {
             type: "string",
             format: "password",
-            "x-nrg-form": { required: true },
           },
         },
+        required: ["apiKey"],
       } as any)!;
       // A genuinely-empty password (no server value) errors.
       expect(
@@ -485,7 +486,7 @@ describe("composeValidationSchema", () => {
       ).toBeDefined();
     });
 
-    it("leaves non-required fields untouched (empty is valid)", () => {
+    it("leaves Optional fields untouched (empty is valid)", () => {
       const schema = composeValidationSchema(
         {
           type: "object",
@@ -506,9 +507,9 @@ describe("composeValidationSchema", () => {
             code: {
               type: "string",
               minLength: 3,
-              "x-nrg-form": { required: true },
             },
           },
+          required: ["code"],
         } as any,
         undefined,
       )!;

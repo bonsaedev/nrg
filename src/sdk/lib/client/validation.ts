@@ -27,27 +27,32 @@ const validator = new Validator({
 });
 
 /**
- * Expands `x-nrg-form.required` into a real non-empty constraint. Every nrg
- * field carries a default, so a required value is never structurally "missing"
- * — a JSON-schema `required` array is satisfied by the empty string AJV sees.
- * A non-empty constraint (`minLength`/`minItems` of 1) is what actually makes
- * an empty required field fail validation, so the inline error and the
- * workspace error triangle fire. Strings cover text, passwords, and NodeRefs
- * (node-id strings); arrays cover multi-selects and list fields.
+ * Expands each non-`Optional` field (those in the schema's `required[]` array)
+ * into a real non-empty constraint. Every nrg field carries a default, so the
+ * `required` array is satisfied by the empty string AJV sees — a non-empty
+ * constraint (`minLength`/`minItems` of 1) is what actually makes an empty
+ * required field fail validation, so the inline error and the workspace error
+ * triangle fire. Strings cover text, passwords, and NodeRefs (node-id strings);
+ * arrays cover multi-selects and list fields. Enums serialize as `anyOf` (no
+ * `type`), numbers and booleans always carry a value — none can be "empty", so a
+ * non-`Optional` one of those gets no constraint. Mark a field `Optional` to let
+ * it be left empty.
  *
  * Returns a new property object only for the fields it touches (the source
  * schema is a shared, embedded artifact and must not be mutated).
  */
 function withRequiredConstraints(
   props?: Record<string, any>,
+  required?: string[],
 ): Record<string, any> | undefined {
   if (!props) return props;
+  const requiredKeys = new Set(required ?? []);
   let changed = false;
   const out: Record<string, any> = {};
   for (const [key, schema] of Object.entries(props)) {
-    const required = schema?.["x-nrg-form"]?.required;
-    // Skip when not required, or non-validatable (functions carry no constraint).
-    if (!required || schema?.["x-nrg-skip-validation"]) {
+    // Skip Optional fields (absent from `required[]`) and non-validatable ones
+    // (functions carry no constraint).
+    if (!requiredKeys.has(key) || schema?.["x-nrg-skip-validation"]) {
       out[key] = schema;
       continue;
     }
@@ -76,8 +81,14 @@ function composeValidationSchema(
   configSchema?: JsonSchemaObject,
   credentialsSchema?: JsonSchemaObject,
 ): JsonSchemaObject | undefined {
-  const configProps = withRequiredConstraints(configSchema?.properties);
-  const credsProps = withRequiredConstraints(credentialsSchema?.properties);
+  const configProps = withRequiredConstraints(
+    configSchema?.properties,
+    configSchema?.required,
+  );
+  const credsProps = withRequiredConstraints(
+    credentialsSchema?.properties,
+    credentialsSchema?.required,
+  );
 
   const normalizedConfig =
     configSchema && configProps !== configSchema.properties

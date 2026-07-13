@@ -81,6 +81,40 @@ describe("mergeConfigDefaults", () => {
     expect(defaultOf(merged, "completePort")).toBe(false);
   });
 
+  it("keeps redeclared built-in fields out of required[] (declaring only changes the default)", () => {
+    const author = defineSchema(
+      {
+        // Redeclaring `name` (a built-in) — TypeBox lists it in required[], but a
+        // blank name is normal in Node-RED, so the merge must strip it back out.
+        name: SchemaType.String({ default: "", description: "Node label" }),
+        query: SchemaType.String({ default: "" }),
+      },
+      { $id: "soql:config" },
+    );
+
+    const merged = mergeConfigDefaults(author, "nrg:soql:config");
+
+    // The author's own non-Optional field stays required; the redeclared
+    // built-in does not, and no built-in leaks into required[].
+    expect(merged.required).toEqual(["query"]);
+    for (const key of IO_NODE_KEYS) {
+      expect(merged.required ?? []).not.toContain(key);
+    }
+  });
+
+  it("drops required[] entirely when the author declares only built-in fields", () => {
+    const author = defineSchema(
+      { errorPort: SchemaType.Boolean({ default: true }) },
+      { $id: "loud:config" },
+    );
+
+    const merged = mergeConfigDefaults(author, "nrg:loud:config");
+
+    // errorPort is a built-in → stripped from required[]; nothing else is
+    // required, so the array is dropped rather than left empty.
+    expect(merged.required).toBeUndefined();
+  });
+
   it("keeps the author's $id (the merged schema is the only one compiled for that type)", () => {
     const author = defineSchema(
       { query: SchemaType.String({ default: "" }) },

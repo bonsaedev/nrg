@@ -79,10 +79,24 @@ function mergeConfigDefaults(
     } as unknown as TObject;
   }
 
-  return {
-    ...authorSchema,
-    properties,
-  } as TObject;
+  // A built-in field keeps its built-in (optional) contract even when an author
+  // redeclares one: redeclaring only overrides its default — it never makes the
+  // field required. TypeBox lists every non-`Optional` author property in
+  // `required[]`, so a redeclared built-in (e.g. `name`) would otherwise gain a
+  // `*` and a non-empty constraint that rejects an empty value — normal for
+  // `name` in Node-RED. Strip the built-in keys back out of `required[]`.
+  const builtinKeys = new Set(Object.keys(CONFIG_DEFAULTS));
+  const required = (authorSchema.required ?? []).filter(
+    (key) => !builtinKeys.has(key),
+  );
+
+  const merged = { ...authorSchema, properties } as TObject;
+  if (required.length > 0) {
+    (merged as { required?: string[] }).required = required;
+  } else {
+    delete (merged as { required?: string[] }).required;
+  }
+  return merged;
 }
 
 export { CONFIG_DEFAULTS, mergeConfigDefaults };

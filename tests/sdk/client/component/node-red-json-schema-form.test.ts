@@ -403,41 +403,47 @@ describe("NodeRedJsonSchemaForm", () => {
     expect(formRows.length).toBe(0);
   });
 
-  test("marks x-nrg-form.required fields with an asterisk", async () => {
-    const { node } = createNode({ apiKey: "", note: "" });
+  test("marks every non-Optional field with an asterisk, whatever its type", async () => {
+    const { node } = createNode({ apiKey: "", note: "", count: 0 });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
         schema: {
           type: "object",
-          // TypeBox lists every non-Optional prop here — the form must NOT use
-          // it for the asterisk, only genuine constraints.
-          required: ["apiKey", "note"],
+          // apiKey (string) and count (number) are non-Optional; note is
+          // Optional (absent from required[]).
+          required: ["apiKey", "count"],
           properties: {
-            apiKey: {
-              type: "string",
-              title: "API Key",
-              "x-nrg-form": { required: true },
-            },
+            apiKey: { type: "string", title: "API Key" },
             note: { type: "string", title: "Note" },
+            count: { type: "number", title: "Count" },
           },
         },
       },
     });
-    // Exactly one asterisk — the required field, not the plain one.
+    // Both non-Optional fields get the `*` — the string AND the number — while
+    // the Optional string does not. `*` means non-Optional, matching what AJV
+    // enforces via `required[]` and what the help "Required" column shows.
     const asterisks = screen.container.querySelectorAll(".nrg-required");
-    expect(asterisks.length).toBe(1);
+    expect(asterisks.length).toBe(2);
   });
 
-  test("marks minLength>=1 string fields as required", async () => {
-    const { node } = createNode({ code: "" });
+  test("marks a non-Optional enum (anyOf) field with an asterisk", async () => {
+    const { node } = createNode({ mode: "default" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
         schema: {
           type: "object",
+          // Enums serialize as `anyOf` with no `type`; the old string/array-only
+          // rule skipped them, desyncing the `*` from the help/validation
+          // `required[]`. Under the unified rule a non-Optional enum gets the `*`.
+          required: ["mode"],
           properties: {
-            code: { type: "string", title: "Code", minLength: 1 },
+            mode: {
+              title: "Mode",
+              anyOf: [{ const: "default" }, { const: "bypassPermissions" }],
+            },
           },
         },
       },
