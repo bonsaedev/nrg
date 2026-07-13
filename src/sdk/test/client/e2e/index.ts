@@ -13,6 +13,16 @@ export interface SetupOptions {
   flow?: Record<string, unknown>[];
 }
 
+/** One edit form to capture with {@link NodeRedEditor.captureForms}. Name either
+ *  a `node` (a normal node on the canvas, opened via editNode) or a `config`
+ *  node (`{ type, id }`, opened via editConfig — config nodes have no canvas
+ *  presence). `name` is the screenshot file name (without extension). */
+export interface FormShot {
+  name: string;
+  node?: string;
+  config?: { type: string; id: string };
+}
+
 let _env: NodeRedTestEnvironment | null = null;
 
 export async function setup(options?: SetupOptions): Promise<void> {
@@ -113,6 +123,126 @@ export class NodeRedEditor {
     }, nodeId);
     await this.page.waitForSelector(".red-ui-tray", { timeout: 10_000 });
     await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * Opens a config node's edit form. Config nodes have no canvas presence, so
+   * editNode() can't reach them — this drives `RED.editor.editConfig` directly
+   * (the config-field pencil in a using node's form is blocked by the tray
+   * shade in automation).
+   */
+  async openConfigForm(type: string, id: string): Promise<void> {
+    await this.page.waitForFunction(
+      (cfgId) =>
+        !!((globalThis as Record<string, unknown>).RED as any)?.nodes?.node(
+          cfgId,
+        ),
+      id,
+      { timeout: 15_000 },
+    );
+    await this.page.evaluate(
+      ({ t, i }) => {
+        const r = (globalThis as Record<string, unknown>).RED as any;
+        r.editor.editConfig("", t, i);
+      },
+      { t: type, i: id },
+    );
+    await this.page.waitForSelector(".red-ui-tray", { timeout: 10_000 });
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * Removes Node-RED notification overlays (e.g. the one-time "enable update
+   * notifications" prompt) so they don't sit on top of a form screenshot.
+   * A no-op when none are present. The e2e environment already disables
+   * telemetry, so this is mostly defensive for other boot paths.
+   */
+  async dismissNotifications(): Promise<void> {
+    await this.page
+      .getByText("No, do not enable notifications")
+      .first()
+      .click({ timeout: 1_000 })
+      .catch(() => {});
+    await this.page.evaluate(() => {
+      const c = document.querySelector("#red-ui-notifications");
+      if (c) c.innerHTML = "";
+    });
+  }
+
+  /**
+   * Screenshots the currently-open edit form (the topmost tray) and returns the
+   * file path. Grows the viewport so a form taller than the window paints fully
+   * (the tray body scrolls internally, which would otherwise clip the shot),
+   * crops to the form's content, then restores the viewport.
+   */
+  async captureForm(name: string): Promise<string> {
+    await this.dismissNotifications();
+    const tray = this.page.locator(".red-ui-tray").last();
+    await tray.waitFor({ state: "visible", timeout: 10_000 });
+    await this.page.waitForTimeout(250);
+
+    const measure = (): Promise<number> =>
+      tray.evaluate((el) => {
+        const top = el.getBoundingClientRect().top;
+        let bottom = 0;
+        el.querySelectorAll(".red-ui-tray-body *").forEach((node) => {
+          const b = node.getBoundingClientRect().bottom - top;
+          if (b > bottom && b < 20_000) bottom = b;
+        });
+        return Math.ceil(bottom);
+      });
+
+    const original = this.page.viewportSize();
+    let bottom = await measure();
+    if (original && bottom + 200 > original.height) {
+      await this.page.setViewportSize({
+        width: original.width,
+        height: Math.min(bottom + 200, 8_000),
+      });
+      await this.page.waitForTimeout(350);
+      bottom = await measure();
+    }
+
+    fs.mkdirSync(this.screenshotDir, { recursive: true });
+    const filePath = path.join(this.screenshotDir, `${name}.png`);
+    const box = await tray.boundingBox();
+    if (box && bottom > 0) {
+      const viewportH = this.page.viewportSize()?.height ?? box.height;
+      await this.page.screenshot({
+        path: filePath,
+        clip: {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: Math.min(bottom + 28, viewportH - box.y),
+        },
+      });
+    } else {
+      await tray.screenshot({ path: filePath });
+    }
+    if (original) await this.page.setViewportSize(original);
+    return filePath;
+  }
+
+  /**
+   * Opens and screenshots each form in turn, closing the tray between them.
+   * Returns the saved file paths. Pair with the e2e `setup({ flow })` helper,
+   * which builds + boots Node-RED with the package's nodes (telemetry off).
+   */
+  async captureForms(shots: FormShot[]): Promise<string[]> {
+    const paths: string[] = [];
+    for (const shot of shots) {
+      if (shot.config) {
+        await this.openConfigForm(shot.config.type, shot.config.id);
+      } else if (shot.node) {
+        await this.editNode(shot.node);
+      } else {
+        continue;
+      }
+      paths.push(await this.captureForm(shot.name));
+      await this.closeAllTrays();
+    }
+    return paths;
   }
 
   async clickDone(): Promise<void> {
