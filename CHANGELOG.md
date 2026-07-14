@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.40.0](https://github.com/bonsaedev/nrg/compare/v0.39.0...v0.40.0) (2026-07-14)
+
+### Features
+
+* **client:** derive form-field requiredness from SchemaType.Optional ([802d889](https://github.com/bonsaedev/nrg/commit/802d8899484b68a24607aaeb9ff85afe8756c8ba))
+* **server:** accept `never` for the config and credentials generics ([544e80d](https://github.com/bonsaedev/nrg/commit/544e80dbe9629334071a597d0911ef4896cef888))
+* **test:** add form-capture helpers to the e2e NodeRedEditor ([724d120](https://github.com/bonsaedev/nrg/commit/724d120d2f353ad302a335fccf947599553abf74))
+
+### Documentation
+
+* add the http claim-check diagram to the message channels guide ([f09920d](https://github.com/bonsaedev/nrg/commit/f09920dbb227117d213e0d1ab02ef15f7cef5227))
+* drop the failed port and form image from the README example ([2c5b003](https://github.com/bonsaedev/nrg/commit/2c5b0033bbe06534f3c37d94eebe24cbbd7b41bd))
+* expand the README http-request example + show its generated form [skip ci] ([dcf64f1](https://github.com/bonsaedev/nrg/commit/dcf64f1c02e644d6c71eda628180518409e4eae8))
+* fix message-channels diagram alignment ([a52a960](https://github.com/bonsaedev/nrg/commit/a52a960270d0be47bd9beab86bc0b1b97d8f6b01))
+* link Node-RED's msg.req/msg.res clone exception to its source [skip ci] ([5c775ff](https://github.com/bonsaedev/nrg/commit/5c775ff046f750c86f644a2274e008af4306e113))
+* refine the message-channels guides ([df25ec4](https://github.com/bonsaedev/nrg/commit/df25ec4e010e7d7809eab4d44347c09b85e48d3c))
+* restore the Message Flow diagram ([e6f9db0](https://github.com/bonsaedev/nrg/commit/e6f9db070251173b394c0eba29075780391b97a7))
+* the error port always carries name/message/stack ([cf10581](https://github.com/bonsaedev/nrg/commit/cf1058144a371f97b1d084cd6ba6456f19fac25e))
+* use a greeting node for the Quick Start example + its auto-form ([dc39e23](https://github.com/bonsaedev/nrg/commit/dc39e23edb2cd93b6a5d1f8f8f4d7c65c97b1fdb))
+
 ## [0.39.0](https://github.com/bonsaedev/nrg/compare/v0.38.1...v0.39.0) (2026-07-12)
 
 ### Features
