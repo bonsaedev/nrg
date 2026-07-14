@@ -115,6 +115,20 @@ describe("mergeConfigDefaults", () => {
     expect(merged.required).toBeUndefined();
   });
 
+  it("handles an all-Optional author schema that carries no required[] at all", () => {
+    const author = defineSchema(
+      { note: SchemaType.Optional(SchemaType.String({ default: "" })) },
+      { $id: "opt:config" },
+    );
+
+    const merged = mergeConfigDefaults(author, "nrg:opt:config");
+
+    // TypeBox emits no `required` when every field is Optional; the merge must
+    // tolerate that (no array to filter) and still produce no required[].
+    expect(merged.required).toBeUndefined();
+    expect(Object.keys(merged.properties)).toContain("note");
+  });
+
   it("keeps the author's $id (the merged schema is the only one compiled for that type)", () => {
     const author = defineSchema(
       { query: SchemaType.String({ default: "" }) },
