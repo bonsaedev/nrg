@@ -8,10 +8,12 @@ import PortsSource from "./nodes/ports-source";
 import PortsTrigger from "./nodes/ports-trigger";
 import PortsRoute from "./nodes/ports-route";
 import PortsSink from "./nodes/ports-sink";
+import Greeting from "./nodes/greeting";
 
 export default {
   nodes: [
     AllFieldsNode,
+    Greeting,
     TestConfig,
     CustomFormNode,
     BasicNode,

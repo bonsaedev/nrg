@@ -7,6 +7,7 @@ import customFormNode from "./nodes/custom-form-node";
 // arrive at registerTypes already complete.
 registerTypes([
   customFormNode,
+  defineNode({ type: "greeting" }),
   defineNode({ type: "all-fields-node" }),
   defineNode({ type: "test-config" }),
   defineNode({ type: "basic-node" }),
