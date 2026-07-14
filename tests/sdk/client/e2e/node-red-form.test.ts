@@ -191,11 +191,14 @@ describe.each(BROWSERS)(
 
     test("required fields show asterisk indicator", async () => {
       await editor.editNode("n1");
-      const nameField = editor.field("Name");
-      await nameField.expectVisible();
-      await nameField.scrollIntoView();
-      expect(await nameField.requiredIndicator.isVisible()).toBe(true);
-      expect(await nameField.requiredIndicator.textContent()).toBe("*");
+      // Every non-`Optional` field is marked with a `*`, whatever its type — so a
+      // non-Optional number (Count) gets one. The built-in Name, by contrast, is
+      // optional and shows none.
+      const countField = editor.field("Count");
+      await countField.expectVisible();
+      await countField.scrollIntoView();
+      expect(await countField.requiredIndicator.isVisible()).toBe(true);
+      expect(await countField.requiredIndicator.textContent()).toBe("*");
       await editor.screenshot(`${name}-required-indicator`);
       await editor.clickCancel();
     });
