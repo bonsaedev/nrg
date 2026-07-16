@@ -29,6 +29,10 @@ const CONFIG_DEFAULTS: Record<string, TSchema> = {
   }),
   outputReturnProperties: SchemaType.OutputReturnProperties(),
   outputContextModes: SchemaType.OutputContextModes(),
+  // Which message property input() reads from. "" (default) = the whole message
+  // (default Node-RED behavior); a property name (e.g. "output") rebuilds the
+  // message rooted there before input() runs. See SchemaType.InputRoot.
+  inputRoot: SchemaType.InputRoot(),
   // Data validation is a built-in control on every IONode: the Validate Data
   // toggles and the schema editors always render. A node author declaring these
   // only seeds a default schema / default on-state; it is not what surfaces the

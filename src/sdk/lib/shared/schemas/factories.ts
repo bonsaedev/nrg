@@ -201,38 +201,60 @@ function OutputReturnProperties(
 
 /**
  * Declares the `outputContextModes` config map: how each output port carries the
- * incoming message's context, keyed by port index. Declaring it exposes an
- * editable Context Mode column in the editor — but only for ports the author
- * gives a default; a port without a default stays locked to `carry`. Without
- * this declaration every port resolves to `carry` and the column is hidden.
+ * incoming message forward, keyed by port index.
+ * - `passthrough` (default): attach the incoming message under `input` (one hop
+ *   deep — its own `input` is stripped, so the chain never grows), alongside the
+ *   port's value under its return key.
+ * - `reset`: emit only the port's value — no `input` frame (a fresh message).
+ * Declaring this exposes an editable Mode column in the editor for ports that get
+ * a default; otherwise every port resolves to `passthrough` and the column is hidden.
  *
  * @example
  * ```ts
- * // port 0 is configurable (seeded to `trace`); every other port is `carry`
+ * // port 0 is configurable (seeded to `reset`); every other port is `passthrough`
  * outputContextModes: SchemaType.OutputContextModes({
- *   default: { 0: "trace" },
+ *   default: { 0: "reset" },
  * }),
  * ```
  */
 function OutputContextModes(
   options?: NrgSchemaOptions & {
-    default?: Record<number, "carry" | "trace" | "reset">;
+    default?: Record<number, "passthrough" | "reset">;
   },
 ) {
   return BaseType.Record(
     BaseType.Number(),
     BaseType.Union([
-      BaseType.Literal("carry"),
-      BaseType.Literal("trace"),
+      BaseType.Literal("passthrough"),
       BaseType.Literal("reset"),
     ]),
     {
       description:
-        "Per-port context mode, keyed by output port index. A missing entry falls back to `carry`.",
+        "Per-port output mode, keyed by output port index. A missing entry falls back to `passthrough`.",
       default: {},
       ...options,
     },
   );
+}
+
+/**
+ * Declares the `inputRoot` config field: which property of the incoming message
+ * the node's `input()` reads its fields from. Empty (the default), `"."`, or
+ * `"msg"` mean the whole message (default Node-RED behavior). Any other value
+ * (e.g. `"output"`) REBUILDS the message rooted at that property before
+ * `input()` runs — `msg = { ...msg[inputRoot], _msgid }` — so the node reads
+ * `msg.<field>` at the root and TypedInput `msg.` expressions resolve there too.
+ * This is lossy by design: everything outside the chosen property is dropped, so
+ * a flow author uses it deliberately (e.g. to read an upstream nrg node's
+ * `output` directly, no Set node needed).
+ */
+function InputRoot(options?: NrgSchemaOptions & { default?: string }) {
+  return BaseType.String({
+    description:
+      "The message property to read input fields from. Empty / '.' / 'msg' = the whole message; any other value rebuilds the message rooted at that property before input() runs.",
+    default: "",
+    ...options,
+  });
 }
 
 /**
@@ -353,6 +375,7 @@ const NRG_SCHEMA_TYPES_FACTORIES = {
   OutputContextModes,
   OutputSchemas,
   InputSchema,
+  InputRoot,
 };
 
 const SchemaType: Omit<

@@ -83,39 +83,38 @@ interface NodePortsDescriptor {
 }
 
 /**
- * How much of the incoming message's history an outgoing message keeps under
- * `input`. Every mode places the result at the return key (`output` by default)
- * and the previous message under `input`; they differ ONLY in the DEPTH of that
- * `input` chain — a single dial. The outgoing root is always just the result at
- * its return key: incoming keys are never flattened forward, they stay reachable
- * under `input`.
- * - `"reset"` (depth 0): only the result — no `input` frame. Use for source
- *   nodes that intentionally start a fresh message.
- * - `"carry"` (default, depth 1): the previous message under `input`, but with
- *   ITS own `input` stripped, so the provenance chain never grows past one level.
- *   `msg.input.<returnKey>` is the immediately-previous result; nothing older is
- *   kept, and a source's own fields survive exactly one hop, then drop. Loop-safe.
- * - `"trace"` (depth ∞): the previous message under `input`, untouched, so the
- *   chain accumulates one frame per node (`msg.input.input…`) — full lineage back
- *   to the source, a provenance trail visible in the debug panel.
+ * Whether an outgoing message keeps the incoming message under `input`. Both
+ * modes place the result at the return key (`output` by default); they differ
+ * only in whether the previous message is attached. The outgoing root is always
+ * just the result at its return key — incoming keys are never flattened forward.
+ * - `"passthrough"` (default): the previous message under `input`, but with ITS
+ *   own `input` stripped, so the chain is always exactly one hop deep and never
+ *   grows (loop-safe). `msg.input.<returnKey>` is the immediately-previous result.
+ * - `"reset"`: only the result — no `input` frame. Use for source nodes that
+ *   intentionally start a fresh message.
  */
-export type ContextMode = "carry" | "trace" | "reset";
+export type ContextMode = "passthrough" | "reset";
 
 /**
  * Base class for nodes that process messages. Provides input/output handling,
  * schema validation, status updates, and emit port management.
  *
  * Every node has a return key (`"output"` by default): the value passed to
- * `send()` is placed at that key and the incoming message is kept under `input`
- * (`{ [returnKey]: result, input: msg }`), so the prior message stays
- * recoverable. How deep that `input` history goes is the per-port context mode —
- * `carry` (default, last message only), `trace` (the full `input.input…` chain),
- * or `reset` (no history). The return key, output validation, and context mode
- * all resolve per output port; the framework exposes an editable return-property
- * and context-mode control on every node, and declaring `outputReturnProperties`
- * / `outputContextModes` in the `configSchema` only changes each port's default —
- * it does not change that a return key always exists. `this.send(x)` always means
- * "x is the result", never "x is the whole message".
+ * `send()` is placed at that key and, in the default `passthrough` mode, the
+ * incoming message is kept under `input` (`{ [returnKey]: result, input: msg }`),
+ * so the prior message stays recoverable. The per-port context mode chooses
+ * between `passthrough` (default — the previous message under `input`, exactly one
+ * hop deep) and `reset` (no `input` frame; a fresh message). The return key,
+ * output validation, and context mode all resolve per output port; the framework
+ * exposes an editable return-property and context-mode control on every node, and
+ * declaring `outputReturnProperties` / `outputContextModes` in the `configSchema`
+ * only changes each port's default — it does not change that a return key always
+ * exists. `this.send(x)` always means "x is the result", never "x is the whole
+ * message".
+ *
+ * A node may also rebase what `input()` reads via the `inputRoot` config field:
+ * the default (`""`) reads the whole message, and a property name (e.g. `"output"`)
+ * rebuilds the message rooted there before `input()` runs — see {@link #applyInputRoot}.
  *
  * The `input()` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`: the
  * wire type plus the off-the-wire channels (`msg[Channels]`). ALWAYS annotate the
@@ -136,9 +135,10 @@ export type ContextMode = "carry" | "trace" | "reset";
  *
  *   async input(msg: MyNodeInput) {          // always annotate with your Input alias
  *     const conn = msg[Channels].private.conn; // off-wire, package-scoped
- *     // sends { output: <result>, input: msg } (carry default: last msg kept),
- *     // and stashes trace/res on the protected/private channels off the wire:
- *     this.send("out", { result: msg.payload.toUpperCase() }, { traceId }, { res });
+ *     // sends { output: <result>, source, input: msg } (passthrough default:
+ *     // previous message kept one hop deep), and stashes data on the
+ *     // protected/private channels off the wire:
+ *     this.send("out", { result: msg.payload.toUpperCase() }, { protected: { traceId }, private: { res } });
  *   }
  * }
  * ```
@@ -305,13 +305,18 @@ abstract class IONode<
           // every successful input even though the complete port is disabled by
           // default, then discarded inside #sendToPort.
           if (this.config.completePort) {
+            // `store.inputMsg` is the REBASED message the node actually processed
+            // (see #applyInputRoot) — so the complete port's `input` frame and its
+            // `_msgid` match what the data ports emitted, not the raw pre-rebase
+            // message.
+            const processed = store.inputMsg;
             this.#sendToPort("complete", {
               ...(result !== undefined ? { complete: result } : {}),
               [SOURCE_KEY]: this.#nodeSource(),
-              [INPUT_KEY]: msg,
+              [INPUT_KEY]: processed,
               // Runs after input() resolved (outside the ALS scope), so inherit
               // the incoming `_msgid` explicitly to keep the lineage id intact.
-              ...this.#sourceMsgid(msg),
+              ...this.#sourceMsgid(processed),
             });
           }
 
@@ -358,6 +363,10 @@ abstract class IONode<
               // message (`input`) ride the ROOT, side by side with `error` — the
               // same shape as every other port.
               const stack = error instanceof Error ? error.stack : undefined;
+              // `store.inputMsg` is the REBASED message the node processed (see
+              // #applyInputRoot), so the error port's `input` frame and `_msgid`
+              // match the data ports' — not the raw pre-rebase message.
+              const processed = store.inputMsg;
               this.#sendToPort("error", {
                 error: {
                   ...errorData,
@@ -366,10 +375,10 @@ abstract class IONode<
                   ...(stack ? { stack } : {}),
                 },
                 [SOURCE_KEY]: this.#nodeSource(),
-                [INPUT_KEY]: msg,
+                [INPUT_KEY]: processed,
                 // Runs in the catch (outside the ALS scope), so inherit the
                 // incoming `_msgid` explicitly to keep the lineage id intact.
-                ...this.#sourceMsgid(msg),
+                ...this.#sourceMsgid(processed),
               });
               this.node.error(errorMsg); // log only — no msg, so no Catch routing
             }
@@ -391,7 +400,18 @@ abstract class IONode<
     return undefined;
   }
 
-  async #input(msg: TInput, store: InputInvocation) {
+  async #input(rawMsg: TInput, store: InputInvocation) {
+    // Rebase the incoming message onto the configured input root BEFORE anything
+    // reads it — validation, channels, TypedInput resolution, input(), and the
+    // outgoing `input` frame all see the rebased message. The default
+    // ("" / "." / "msg") is a no-op, so a node that doesn't opt in behaves exactly
+    // as Node-RED does. The store must carry the rebased message: #wrapOutgoing
+    // reads it as the `input` frame and the built-in complete/error auto-emits
+    // read it as the processed message, so a downstream node sees what this node
+    // actually saw.
+    const msg = this.#applyInputRoot(rawMsg);
+    store.inputMsg = msg;
+
     const shouldValidateInput = this.config.validateInput ?? false;
     // Resolve the effective schema only when validation is on, so an override is
     // never parsed/compiled (nor warned about) for a node that isn't validating.
@@ -412,6 +432,8 @@ abstract class IONode<
     // its package for `private`. Set up per node (re-applied at each hop), so a
     // downstream node from another package reads its own `private` partition —
     // `msg` (already `TInput`) is mutated in place to carry the channel accessors.
+    // The channels key off `_msgid`, which the rebase preserves, so a rebased
+    // message still resolves the same partitions.
     this.#setupChannels(msg);
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
@@ -419,6 +441,37 @@ abstract class IONode<
     return await IONode.#invocation.run(store, () =>
       Promise.resolve(this.input(msg)),
     );
+  }
+
+  /**
+   * Rebuild the incoming message rooted at the configured `inputRoot` property.
+   * The default (`""` / `"."` / `"msg"`) means "the whole message" — a no-op, the
+   * standard Node-RED behavior. A property name (e.g. `"output"`) rebases the
+   * message to `{ ...msg[inputRoot], _msgid }` so `input()` and TypedInput config
+   * fields resolve against that sub-object's fields at the root — no `msg.output.`
+   * prefix, and no `set` node needed upstream to lift them.
+   *
+   * This is DELIBERATELY LOSSY and never auto-unwraps: everything outside the
+   * chosen root (including `source` and the prior `input` frame) is dropped. Only
+   * `_msgid` is carried across so the lineage id and channel partitions survive.
+   * A missing / non-object root yields an empty message (just `_msgid`); input
+   * validation then decides whether that shape is acceptable.
+   */
+  #applyInputRoot(msg: TInput): TInput {
+    const root = this.config.inputRoot;
+    if (typeof root !== "string") return msg;
+    const trimmed = root.trim();
+    if (!trimmed || trimmed === "." || trimmed === "msg") return msg;
+    if (msg == null || typeof msg !== "object") return msg;
+    const rec = msg as Record<string, unknown>;
+    const rooted = rec[trimmed];
+    const base: Record<string, unknown> =
+      rooted != null && typeof rooted === "object"
+        ? { ...(rooted as Record<string, unknown>) }
+        : {};
+    const msgid = rec[MSGID_KEY];
+    if (msgid !== undefined) base[MSGID_KEY] = msgid;
+    return base as TInput;
   }
 
   /**
@@ -586,16 +639,17 @@ abstract class IONode<
   /**
    * Resolves the context mode for a base-output port from the flow author's
    * per-port config (`config.outputContextModes[port]`, which the editor lets the
-   * flow author set on any port), falling back to `"carry"`.
+   * flow author set on any port), falling back to `"passthrough"`.
    */
   #resolveContextMode(port: number): ContextMode {
-    return this.config.outputContextModes?.[port] ?? "carry";
+    return this.config.outputContextModes?.[port] ?? "passthrough";
   }
 
   /**
-   * Merges a sent value into the incoming message at the returnProperty key so
-   * upstream message properties propagate. A fresh base is built per call so
-   * multi-port sends never share an object.
+   * Builds the outgoing message: the sent value at the port's return key, the
+   * producing `source` at the root, and — in `passthrough` — the incoming message
+   * under `input`. A fresh object is built per call so multi-port sends never
+   * share a reference.
    */
   #wrapOutgoing(value: unknown, mode: ContextMode, port: number): unknown {
     const key = this.#returnPropertyKey(port);
@@ -605,43 +659,33 @@ abstract class IONode<
     const input =
       (IONode.#invocation.getStore()?.inputMsg as Record<string, unknown>) ??
       {};
-    // `source` (producing node + port) rides every output as message metadata,
-    // so walking the `input` chain shows which node and port produced each frame.
+    // `source` (producing node + port) rides every output as message metadata at
+    // the ROOT (never off-wire): a root key survives Node-RED's fan-out clone,
+    // whereas an `_msgid`-keyed channel would collide across the shared clones.
     const source = this.#outputSource(port);
-    // Every mode puts the result at the return key and the incoming message under
-    // `input`; they differ ONLY in the DEPTH of that `input` chain (see
-    // ContextMode). A send with no incoming message (a source node, or a send
-    // made outside any input() call) records no `input` frame — there is no prior
-    // message. Node-RED clones messages 2..N on fan-out, so the shared `input`
-    // reference is isolated per branch at delivery.
-    //   reset (depth 0): no `input` frame.
-    //   trace (depth ∞): the incoming message untouched, so the chain grows one
-    //     frame per node (`input.input…`) — full lineage.
-    // Every returned frame is stamped with the incoming `_msgid` (see #withMsgid)
-    // so the message-lineage id is preserved in ALL context modes — including
-    // `reset`, which keeps no `input` frame but must still not fork the id.
-    const frame = (msg: Record<string, unknown>): unknown =>
-      this.#withMsgid(
-        Object.keys(msg).length
-          ? { [key]: value, [SOURCE_KEY]: source, [INPUT_KEY]: msg }
-          : { [key]: value, [SOURCE_KEY]: source },
-      );
+    // Every frame stamps the incoming `_msgid` (see #withMsgid) so the message-
+    // lineage id is preserved in BOTH modes — including `reset`, which keeps no
+    // `input` frame but must still not fork the id.
     if (mode === "reset")
       return this.#withMsgid({ [key]: value, [SOURCE_KEY]: source });
-    // trace keeps the full lineage, but forwards a SHALLOW COPY of the incoming
-    // message — `{ ...input }` drops the non-enumerable `protected`/`private`
-    // accessors this node's `#setupChannels` stamped (they're scoped to THIS node's
+    // passthrough (depth 1): keep the previous message under `input` but strip ITS
+    // own `input` frame, so the chain is always exactly one hop deep and never
+    // grows (loop-safe). `msg.input.<returnKey>` is the immediately-previous
+    // result. A send with no incoming message (a source node, or a send outside
+    // any input() call) records no `input` frame — there is no prior message.
+    // `{ ...input }` also drops the non-enumerable `protected`/`private` channel
+    // accessors this node's `#setupChannels` stamped (scoped to THIS node's
     // package), so a different-package downstream node reading `msg.input.private`
-    // can't reach into this package's private partition. Each hop copies before
-    // forwarding, so the whole `input.input…` chain stays channel-free. `carry` is
-    // already safe for the same reason (it spreads `input` below).
-    if (mode === "trace") return frame({ ...input });
-    // carry (depth 1): keep the previous message but strip ITS own `input` frame,
-    // so the chain never grows past one level (loop-safe). A source's own fields
-    // survive exactly one hop, then drop.
+    // can't reach into this package's private partition. Node-RED clones messages
+    // 2..N on fan-out, so the shared `input` reference is isolated per branch at
+    // delivery.
     const lastOnly = { ...input };
     delete lastOnly[INPUT_KEY];
-    return frame(lastOnly);
+    return this.#withMsgid(
+      Object.keys(lastOnly).length
+        ? { [key]: value, [SOURCE_KEY]: source, [INPUT_KEY]: lastOnly }
+        : { [key]: value, [SOURCE_KEY]: source },
+    );
   }
 
   /**

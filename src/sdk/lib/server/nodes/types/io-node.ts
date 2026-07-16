@@ -42,7 +42,11 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> & {
     /** Per-port return properties, keyed by base-output port index. */
     outputReturnProperties?: Record<number, string>;
     /** Per-port context modes, keyed by base-output port index. */
-    outputContextModes?: Record<number, "carry" | "trace" | "reset">;
+    outputContextModes?: Record<number, "passthrough" | "reset">;
+    /** Which message property `input()` reads its fields from. "" / "." / "msg"
+     * (the default) = the whole message; any other value rebuilds the message
+     * rooted at that property before `input()` runs. */
+    inputRoot?: string;
     /** Flow-author input data-validation schema (JSON Schema string), applied
      * when `validateInput` is on. */
     inputSchema?: string;

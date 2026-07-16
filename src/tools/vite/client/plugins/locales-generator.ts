@@ -52,8 +52,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -67,9 +66,11 @@ function localesGenerator(options: {
         returnProperty:
           "The message property the sent value is placed on (default: output).",
         contextMode:
-          "How the incoming message is carried to this port: carry, trace, or reset.",
+          "How the incoming message is carried to this port: passthrough or reset.",
         validateInput:
           "Validate incoming messages against the input schema before input() runs.",
+        inputRoot:
+          "The message property input() reads its fields from. Empty (or 'msg') = the whole message; any other value (e.g. 'output') rebuilds the message rooted there before input() runs.",
         outputs:
           "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
         lifecyclePorts:
@@ -123,8 +124,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -138,9 +138,11 @@ function localesGenerator(options: {
         returnProperty:
           "Die Nachrichteneigenschaft, unter der der gesendete Wert abgelegt wird (Standard: output).",
         contextMode:
-          "Wie die eingehende Nachricht zu diesem Port getragen wird: carry, trace oder reset.",
+          "Wie die eingehende Nachricht zu diesem Port getragen wird: passthrough oder reset.",
         validateInput:
           "Eingehende Nachrichten vor dem Ausführen von input() gegen das Eingabe-Schema validieren.",
+        inputRoot:
+          "Die Nachrichteneigenschaft, aus der input() seine Felder liest. Leer (oder 'msg') = die ganze Nachricht; jeder andere Wert (z. B. 'output') baut die Nachricht mit dieser Eigenschaft als Wurzel neu auf, bevor input() läuft.",
         outputs:
           "Ausgabe-Einstellungen pro Port. Daten validieren prüft den gesendeten Wert gegen das Schema des Ports; Kontextmodus steuert, wie die eingehende Nachricht übertragen wird.",
         lifecyclePorts:
@@ -194,8 +196,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -209,9 +210,11 @@ function localesGenerator(options: {
         returnProperty:
           "La propiedad del mensaje donde se coloca el valor enviado (predeterminado: output).",
         contextMode:
-          "Cómo se transporta el mensaje entrante a este puerto: carry, trace o reset.",
+          "Cómo se transporta el mensaje entrante a este puerto: passthrough o reset.",
         validateInput:
           "Valida los mensajes entrantes con el esquema de entrada antes de ejecutar input().",
+        inputRoot:
+          "La propiedad del mensaje de la que input() lee sus campos. Vacío (o 'msg') = el mensaje completo; cualquier otro valor (p. ej. 'output') reconstruye el mensaje con esa propiedad como raíz antes de ejecutar input().",
         outputs:
           "Ajustes de salida por puerto. Validar datos comprueba el valor enviado con el esquema del puerto; Modo de contexto controla cómo se transporta el mensaje entrante.",
         lifecyclePorts:
@@ -265,8 +268,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -280,9 +282,11 @@ function localesGenerator(options: {
         returnProperty:
           "La propriété du message où la valeur envoyée est placée (par défaut : output).",
         contextMode:
-          "Comment le message entrant est transporté vers ce port : carry, trace ou reset.",
+          "Comment le message entrant est transporté vers ce port : passthrough ou reset.",
         validateInput:
           "Valide les messages entrants avec le schéma d'entrée avant l'exécution de input().",
+        inputRoot:
+          "La propriété du message à partir de laquelle input() lit ses champs. Vide (ou 'msg') = le message entier ; toute autre valeur (par ex. 'output') reconstruit le message enraciné à cette propriété avant l'exécution de input().",
         outputs:
           "Réglages de sortie par port. Valider les données vérifie la valeur envoyée avec le schéma du port ; Mode de contexte contrôle la façon dont le message entrant est transmis.",
         lifecyclePorts:
@@ -336,8 +340,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -349,9 +352,11 @@ function localesGenerator(options: {
         validateData: "값을 내보내기 전에 이 포트의 스키마에 대해 검사합니다.",
         returnProperty: "전송된 값이 배치되는 메시지 속성 (기본값: output).",
         contextMode:
-          "들어오는 메시지를 이 포트로 전달하는 방식: carry, trace 또는 reset.",
+          "들어오는 메시지를 이 포트로 전달하는 방식: passthrough 또는 reset.",
         validateInput:
           "input() 실행 전에 들어오는 메시지를 입력 스키마로 검증합니다.",
+        inputRoot:
+          "input()이 필드를 읽어오는 메시지 속성. 비어 있음(또는 'msg') = 전체 메시지; 다른 값(예: 'output')은 input() 실행 전에 해당 속성을 루트로 메시지를 재구성합니다.",
         outputs:
           "포트별 출력 설정. 데이터 검증은 전송 값을 포트 스키마로 확인하고, 컨텍스트 모드는 들어온 메시지를 전달하는 방식을 제어합니다.",
         lifecyclePorts:
@@ -405,8 +410,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -420,9 +424,11 @@ function localesGenerator(options: {
         returnProperty:
           "A propriedade da mensagem onde o valor enviado é colocado (padrão: output).",
         contextMode:
-          "Como a mensagem recebida é transportada para esta porta: carry, trace ou reset.",
+          "Como a mensagem recebida é transportada para esta porta: passthrough ou reset.",
         validateInput:
           "Valida as mensagens recebidas com o esquema de entrada antes de input() executar.",
+        inputRoot:
+          "A propriedade da mensagem de onde input() lê seus campos. Vazio (ou 'msg') = a mensagem inteira; qualquer outro valor (ex.: 'output') reconstrói a mensagem com essa propriedade como raiz antes de input() executar.",
         outputs:
           "Configurações de saída por porta. Validar dados verifica o valor enviado com o esquema da porta; Modo de contexto controla como a mensagem recebida é transportada.",
         lifecyclePorts:
@@ -476,8 +482,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -491,9 +496,11 @@ function localesGenerator(options: {
         returnProperty:
           "Свойство сообщения, в которое помещается отправляемое значение (по умолчанию: output).",
         contextMode:
-          "Как входящее сообщение переносится в этот порт: carry, trace или reset.",
+          "Как входящее сообщение переносится в этот порт: passthrough или reset.",
         validateInput:
           "Проверять входящие сообщения по схеме ввода перед вызовом input().",
+        inputRoot:
+          "Свойство сообщения, из которого input() читает свои поля. Пусто (или 'msg') = всё сообщение; любое другое значение (например, 'output') перестраивает сообщение с этим свойством в корне перед запуском input().",
         outputs:
           "Настройки вывода для каждого порта. «Проверять данные» сверяет отправленное значение со схемой порта; «Режим контекста» управляет тем, как переносится входящее сообщение.",
         lifecyclePorts:
@@ -547,8 +554,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -562,9 +568,11 @@ function localesGenerator(options: {
         returnProperty:
           "送信値が設定されるメッセージプロパティ（既定: output）。",
         contextMode:
-          "受信メッセージをこのポートへ運ぶ方法: carry、trace、reset。",
+          "受信メッセージをこのポートへ運ぶ方法: passthrough、reset。",
         validateInput:
           "input() の実行前に、受信メッセージを入力スキーマで検証します。",
+        inputRoot:
+          "input() がフィールドを読み取るメッセージプロパティ。空（または 'msg'）= メッセージ全体。それ以外の値（例: 'output'）は、input() の実行前にそのプロパティをルートとしてメッセージを再構築します。",
         outputs:
           "ポートごとの出力設定。データの検証は送信値をポートのスキーマで確認し、コンテキストモードは受信メッセージの引き継ぎ方を制御します。",
         lifecyclePorts:
@@ -618,8 +626,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -629,8 +636,10 @@ function localesGenerator(options: {
         validateTypes: "部署时对从此端口发出的连线进行类型检查（TypeScript）。",
         validateData: "在发送前根据此端口的模式检查发送的值。",
         returnProperty: "放置发送值的消息属性（默认：output）。",
-        contextMode: "传入消息如何传递到此端口：carry、trace 或 reset。",
+        contextMode: "传入消息如何传递到此端口：passthrough 或 reset。",
         validateInput: "在 input() 运行前，根据输入结构描述校验传入消息。",
+        inputRoot:
+          "input() 从中读取字段的消息属性。为空（或 'msg'）= 整个消息；其他任何值（例如 'output'）会在 input() 运行前以该属性为根重建消息。",
         outputs:
           "按端口的输出设置。验证数据根据端口结构描述校验发送的值；上下文模式控制如何携带传入消息。",
         lifecyclePorts:
@@ -684,8 +693,7 @@ function localesGenerator(options: {
       },
       contextModes: {
         modes: {
-          carry: "carry",
-          trace: "trace",
+          passthrough: "passthrough",
           reset: "reset",
         },
       },
@@ -695,8 +703,10 @@ function localesGenerator(options: {
         validateTypes: "部署時對從此埠發出的連線進行型別檢查（TypeScript）。",
         validateData: "在發送前根據此埠的結構描述檢查發送的值。",
         returnProperty: "放置發送值的訊息屬性（預設：output）。",
-        contextMode: "傳入訊息如何傳遞到此埠：carry、trace 或 reset。",
+        contextMode: "傳入訊息如何傳遞到此埠：passthrough 或 reset。",
         validateInput: "在 input() 執行前，依輸入結構描述驗證傳入訊息。",
+        inputRoot:
+          "input() 從中讀取欄位的訊息屬性。留空（或 'msg'）= 整個訊息；其他任何值（例如 'output'）會在 input() 執行前以該屬性為根重建訊息。",
         outputs:
           "依連接埠的輸出設定。驗證資料依連接埠結構描述檢查送出的值；內容模式控制如何攜帶傳入訊息。",
         lifecyclePorts:

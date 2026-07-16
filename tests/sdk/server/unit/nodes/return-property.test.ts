@@ -53,7 +53,7 @@ describe("returnProperty / output convention", () => {
     const { node } = await createNode(PlainNode);
     await node.receive({ topic: "orders", correlationId: "c1", value: 21 });
 
-    // Default carry: result at `output`, the incoming message under `input`.
+    // Default passthrough: result at `output`, the incoming message under `input`.
     expect(node.sent(0)[0]).toEqual({
       output: { doubled: 42 },
       source: src(0, "out"),
@@ -78,39 +78,14 @@ describe("returnProperty / output convention", () => {
     expect((node.sent(0)[0] as Record<string, any>)._msgid).toBeUndefined();
   });
 
-  it("trace keeps the overwritten output recoverable under input", async () => {
-    const { node } = await createNode(ModeNode, {
-      config: { outputContextModes: { 0: "trace" } },
-    });
+  it("passthrough keeps the overwritten output recoverable under input", async () => {
+    const { node } = await createNode(ModeNode);
     // the incoming message already has an output the result will overwrite
     await node.receive({ output: "previous", value: 5 });
 
     const out = node.sent(0)[0] as Record<string, any>;
     expect(out.output).toBe("R");
-    expect(out.input.output).toBe("previous"); // not lost
-  });
-
-  it("trace accumulates input across hops (provenance chain)", async () => {
-    const { node } = await createNode(ModeNode, {
-      config: { outputContextModes: { 0: "trace" } },
-    });
-    // simulate an upstream node that already nested its own input
-    await node.receive({
-      value: 5,
-      input: { value: 3, output: "oldest" },
-    });
-
-    // The root carries only the result; the whole incoming message (its own
-    // `input` frame included) is recorded under `input`, so the chain is
-    // `msg.input.input.output === "oldest"`.
-    expect(node.sent(0)[0]).toEqual({
-      output: "R",
-      source: src(0, "out"),
-      input: {
-        value: 5,
-        input: { value: 3, output: "oldest" },
-      },
-    });
+    expect(out.input.output).toBe("previous"); // not lost — kept under input
   });
 
   it("treats arrays as the value on single-output nodes (no port fanout)", async () => {
@@ -241,8 +216,8 @@ describe("returnProperty / output convention", () => {
     });
   });
 
-  it("carry keeps only the last message under input", async () => {
-    // carry is the fallback when no per-port mode is configured (depth 1).
+  it("passthrough keeps only the last message under input", async () => {
+    // passthrough is the fallback when no per-port mode is configured (depth 1).
     const { node } = await createNode(ModeNode);
     await node.receive({ topic: "t" });
 
@@ -253,9 +228,10 @@ describe("returnProperty / output convention", () => {
     });
   });
 
-  it("carry strips the incoming message's own history frame", async () => {
-    // The incoming already carries an `input` frame from upstream; carry keeps
-    // the message's other fields but drops that frame, so the chain stays depth 1.
+  it("passthrough strips the incoming message's own history frame", async () => {
+    // The incoming already carries an `input` frame from upstream; passthrough
+    // keeps the message's other fields but drops that frame, so the chain stays
+    // depth 1.
     const { node } = await createNode(ModeNode);
     await node.receive({ topic: "z", input: { output: "upstream" } });
 
@@ -266,10 +242,10 @@ describe("returnProperty / output convention", () => {
     });
   });
 
-  it("carry bounds the input chain to one level across many hops", async () => {
+  it("passthrough bounds the input chain to one level across many hops", async () => {
     // The motivating case: a delay-loop feeds each send back in as the next
-    // input. Under carry the `input` chain must not grow hop to hop (trace would
-    // nest one frame per tick and bloat unboundedly).
+    // input. Under passthrough the `input` chain must not grow hop to hop (an
+    // accumulating chain would bloat unboundedly).
     const { node } = await createNode(ModeNode);
     let msg: Record<string, unknown> = { topic: "tick" };
     for (let i = 0; i < 5; i++) {
@@ -284,21 +260,6 @@ describe("returnProperty / output convention", () => {
     });
     // never grows past depth 1 — the nested frame has no `input` of its own
     expect("input" in (msg.input as object)).toBe(false);
-  });
-
-  it("trace mode records the input under input, result-only at the root", async () => {
-    const { node } = await createNode(ModeNode, {
-      config: { outputContextModes: { 0: "trace" } },
-    });
-    await node.receive({ topic: "t" });
-
-    // Root has only the result; the incoming `topic` is not re-spread — it stays
-    // reachable under `input`.
-    expect(node.sent(0)[0]).toEqual({
-      output: "R",
-      source: src(0, "out"),
-      input: { topic: "t" },
-    });
   });
 
   it("reset mode drops all inherited context", async () => {
@@ -419,30 +380,30 @@ describe("returnProperty / output convention", () => {
 });
 
 // The flow author's per-port `outputContextModes` config (a framework control on
-// every IONode) selects each port's mode. Resolution falls back to "carry" for
-// any port the config does not set.
+// every IONode) selects each port's mode. Resolution falls back to "passthrough"
+// for any port the config does not set. `reset` is the distinguishable non-default
+// mode used to prove per-port resolution (it drops the `input` frame).
 describe("context-mode per-port resolution", () => {
   it("uses the configured mode for a port", async () => {
     const { node } = await createNode(ModeNode, {
-      config: { outputContextModes: { 0: "trace" } },
+      config: { outputContextModes: { 0: "reset" } },
     });
     await node.receive({ topic: "t" });
 
     expect(node.sent(0)[0]).toEqual({
       output: "R",
       source: src(0, "out"),
-      input: { topic: "t" }, // trace: result-only root + input frame
-    });
+    }); // reset: no input frame
   });
 
-  it("falls back to carry on a port the config does not set", async () => {
+  it("falls back to passthrough on a port the config does not set", async () => {
     // config sets port 1, but ModeNode sends to port 0
     const { node } = await createNode(ModeNode, {
-      config: { outputContextModes: { 1: "trace" } },
+      config: { outputContextModes: { 1: "reset" } },
     });
     await node.receive({ topic: "t" });
 
-    // carry: result at output, incoming under input
+    // passthrough: result at output, incoming under input
     expect(node.sent(0)[0]).toEqual({
       output: "R",
       source: src(0, "out"),
@@ -452,7 +413,7 @@ describe("context-mode per-port resolution", () => {
 
   it("resolves each port independently on a multi-output node", async () => {
     const { node } = await createNode(MultiModeNode, {
-      config: { outputContextModes: { 0: "trace", 1: "reset" } },
+      config: { outputContextModes: { 0: "passthrough", 1: "reset" } },
     });
     await node.receive({ k: 1 });
 
@@ -460,46 +421,44 @@ describe("context-mode per-port resolution", () => {
       output: "A",
       source: src(0, "out0"),
       input: { k: 1 },
-    }); // trace
+    }); // passthrough
     expect(node.sent(1)[0]).toEqual({ output: "B", source: src(1, "out1") }); // reset
   });
 
-  it("falls back to carry on ports the config does not set (multi-output)", async () => {
+  it("falls back to passthrough on ports the config does not set (multi-output)", async () => {
     const { node } = await createNode(MultiModeNode, {
-      config: { outputContextModes: { 0: "trace" } },
+      config: { outputContextModes: { 0: "reset" } },
     });
     await node.receive({ k: 1 });
 
     expect(node.sent(0)[0]).toEqual({
       output: "A",
       source: src(0, "out0"),
-      input: { k: 1 },
-    }); // trace
+    }); // reset
     expect(node.sent(1)[0]).toEqual({
       output: "B",
       source: src(1, "out1"),
       input: { k: 1 },
-    }); // carry
+    }); // passthrough
   });
 
   it("sendToPort resolves the named port's index for the mode", async () => {
-    // "failure" is index 1; config sets port 1 to trace
+    // "failure" is index 1; config sets port 1 to reset
     const { node } = await createNode(NamedModeNode, {
-      config: { outputContextModes: { 1: "trace" } },
+      config: { outputContextModes: { 1: "reset" } },
     });
     await node.receive({ traceId: "x" });
 
     expect(node.sent("failure")[0]).toEqual({
       output: { ok: false },
       source: src(1, "failure"),
-      input: { traceId: "x" },
-    });
+    }); // reset: no input frame
   });
 
-  it("sendToPort falls back to carry when the named port is unconfigured", async () => {
+  it("sendToPort falls back to passthrough when the named port is unconfigured", async () => {
     // config sets port 0 (success); the send goes to port 1 (failure)
     const { node } = await createNode(NamedModeNode, {
-      config: { outputContextModes: { 0: "trace" } },
+      config: { outputContextModes: { 0: "reset" } },
     });
     await node.receive({ traceId: "x" });
 
@@ -507,6 +466,6 @@ describe("context-mode per-port resolution", () => {
       output: { ok: false },
       source: src(1, "failure"),
       input: { traceId: "x" },
-    }); // carry
+    }); // passthrough
   });
 });

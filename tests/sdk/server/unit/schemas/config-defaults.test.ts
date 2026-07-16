@@ -21,6 +21,7 @@ describe("mergeConfigDefaults", () => {
     "statusPort",
     "outputReturnProperties",
     "outputContextModes",
+    "inputRoot",
     "inputSchema",
     "outputSchemas",
     "validateInput",
@@ -57,6 +58,7 @@ describe("mergeConfigDefaults", () => {
     expect(defaultOf(merged, "statusPort")).toBe(false);
     expect(defaultOf(merged, "outputReturnProperties")).toEqual({});
     expect(defaultOf(merged, "outputContextModes")).toEqual({});
+    expect(defaultOf(merged, "inputRoot")).toBe("");
     expect(defaultOf(merged, "validateInput")).toBe(false);
     expect(defaultOf(merged, "validateOutputs")).toEqual({});
   });
@@ -64,10 +66,10 @@ describe("mergeConfigDefaults", () => {
   it("lets an author declaration override the built-in default (declaring only changes the default)", () => {
     const author = defineSchema(
       {
-        // Author wants the error port ON by default and a non-carry context mode.
+        // Author wants the error port ON by default and a non-passthrough context mode.
         errorPort: SchemaType.Boolean({ default: true }),
         outputContextModes: SchemaType.OutputContextModes({
-          default: { 0: "trace" },
+          default: { 0: "reset" },
         }),
       },
       { $id: "loud-node:config" },
@@ -76,7 +78,7 @@ describe("mergeConfigDefaults", () => {
     const merged = mergeConfigDefaults(author, "nrg:loud-node:config");
 
     expect(defaultOf(merged, "errorPort")).toBe(true);
-    expect(defaultOf(merged, "outputContextModes")).toEqual({ 0: "trace" });
+    expect(defaultOf(merged, "outputContextModes")).toEqual({ 0: "reset" });
     // The ones it didn't touch keep the built-in default.
     expect(defaultOf(merged, "completePort")).toBe(false);
   });

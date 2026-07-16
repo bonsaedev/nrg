@@ -6,7 +6,7 @@ const ConfigsSchema = defineSchema(
     name: SchemaType.String({ default: "", minLength: 1 }),
     outputReturnProperties: SchemaType.OutputReturnProperties(),
     outputContextModes: SchemaType.OutputContextModes({
-      default: { 0: "trace" },
+      default: { 0: "reset" },
     }),
     count: SchemaType.Integer({ default: 0, minimum: 1, maximum: 100 }),
     rate: SchemaType.Number({ default: 1.5, minimum: 0.1, maximum: 10 }),

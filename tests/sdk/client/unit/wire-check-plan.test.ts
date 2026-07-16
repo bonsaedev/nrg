@@ -115,7 +115,7 @@ describe("wire-check plan — request building", () => {
           type: "src",
           validateOutputTypes: { 0: true },
           outputReturnProperties: { 0: "result" },
-          outputContextModes: { 0: "trace" },
+          outputContextModes: { 0: "reset" },
           _def: { set: { module: "pkg-a" } },
         }),
       }),
@@ -126,7 +126,7 @@ describe("wire-check plan — request building", () => {
       source: {
         type: "src",
         module: "pkg-a",
-        port: { kind: "base", index: 0, returnKey: "result", mode: "trace" },
+        port: { kind: "base", index: 0, returnKey: "result", mode: "reset" },
       },
       target: { type: "tgt", module: undefined },
     });

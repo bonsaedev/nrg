@@ -18,7 +18,7 @@ interface NodeLike {
   validateInputTypes?: boolean;
   validateOutputTypes?: Record<number, boolean>;
   outputReturnProperties?: Record<number, string>;
-  outputContextModes?: Record<number, "carry" | "trace" | "reset">;
+  outputContextModes?: Record<number, "passthrough" | "reset">;
   _def?: { set?: { module?: string } };
 }
 
@@ -44,7 +44,7 @@ type SourcePortInput =
       kind: "base";
       index: number;
       returnKey?: string;
-      mode?: "carry" | "trace" | "reset";
+      mode?: "passthrough" | "reset";
     }
   | { kind: "complete" }
   | { kind: "error" }

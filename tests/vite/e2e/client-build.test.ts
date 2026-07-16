@@ -279,7 +279,9 @@ describe("client build", () => {
     expect(labels["config-server"].sections.lifecyclePorts).toBe(
       "Lifecycle Output Ports",
     );
-    expect(labels["config-server"].contextModes.modes.carry).toBe("carry");
+    expect(labels["config-server"].contextModes.modes.passthrough).toBe(
+      "passthrough",
+    );
     expect(labels["config-server"].help.learnMore).toBe("Learn more");
   });
 
