@@ -99,6 +99,15 @@ abstract class Node<
   }
 
   protected readonly RED!: RED;
+  /**
+   * The underlying Node-RED node. Framework-internal: `@internal` strips it from
+   * the published `.d.ts` (`stripInternal`), so a consumer subclass gets no
+   * `this.node` in autocomplete and a stray `this.node.send(...)` — which would
+   * bypass the message model — won't type-check against the shipped types. Not a
+   * hard boundary: the raw node is still reachable at runtime via
+   * `RED.nodes.getNode(this.id)`; this only removes the accidental footgun.
+   * @internal
+   */
   protected readonly node!: NodeRedNode;
   protected context!: ConfigNodeContext | IONodeContext;
   public readonly config!: NodeConfig<TConfig>;
