@@ -20,7 +20,7 @@ describe("help-i18n", () => {
       const t = getHelpTranslations(lang);
 
       expect(t.sections).toBeDefined();
-      expect(t.sections.properties).toBeTruthy();
+      expect(t.sections.configuration).toBeTruthy();
       expect(t.sections.credentials).toBeTruthy();
       expect(t.sections.input).toBeTruthy();
       expect(t.sections.output).toBeTruthy();
@@ -51,9 +51,9 @@ describe("help-i18n", () => {
       const ptBR = getHelpTranslations("pt-BR");
       const de = getHelpTranslations("de");
 
-      expect(en.sections.properties).toBe("Properties");
-      expect(ptBR.sections.properties).toBe("Propriedades");
-      expect(de.sections.properties).toBe("Eigenschaften");
+      expect(en.sections.configuration).toBe("Configuration");
+      expect(ptBR.sections.configuration).toBe("Configuração");
+      expect(de.sections.configuration).toBe("Konfiguration");
 
       expect(en.values.yes).toBe("Yes");
       expect(ptBR.values.yes).toBe("Sim");

@@ -231,7 +231,7 @@ describe("registerType", () => {
     expect(registered.outputLabels).toBe(outputLabelsFn);
   });
 
-  it("labels output ports from server-resolved outputPortNames", async () => {
+  it("labels output ports from the outputs.<name>.label catalog", async () => {
     await register({
       type: "record-output-node",
       category: "function",
@@ -239,9 +239,29 @@ describe("registerType", () => {
     });
 
     const registered = spy.mock.calls[0][1];
+    // The port name is only the lookup key: it resolves outputs.<name>.label.
+    const node = {
+      _: (k: string) =>
+        ({
+          "record-output-node.outputs.success.label": "Succeeded",
+          "record-output-node.outputs.failure.label": "Failed",
+        })[k] ?? k,
+    };
+    expect(registered.outputLabels.call(node, 0)).toBe("Succeeded");
+    expect(registered.outputLabels.call(node, 1)).toBe("Failed");
+  });
+
+  it("does not leak the raw port name when there is no translation", async () => {
+    await register({
+      type: "record-output-node-untranslated",
+      category: "function",
+      outputPortNames: ["out"],
+    });
+
+    const registered = spy.mock.calls[0][1];
     const node = { _: (k: string) => k };
-    expect(registered.outputLabels.call(node, 0)).toBe("success");
-    expect(registered.outputLabels.call(node, 1)).toBe("failure");
+    // No catalog entry → no canvas label (never the bare name "out").
+    expect(registered.outputLabels.call(node, 0)).toBeUndefined();
   });
 
   it("throws and logs on error", async () => {
@@ -344,7 +364,7 @@ describe("registerType — output ports (context modes)", () => {
     };
   }
 
-  it("labels base output ports from server-resolved outputPortNames", async () => {
+  it("labels base output ports from the outputs.<name>.label catalog", async () => {
     await register({
       type: "ctx-named-node",
       category: "function",
@@ -352,9 +372,16 @@ describe("registerType — output ports (context modes)", () => {
       outputs: 2,
     });
 
-    expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
-      { index: 0, label: "success" },
-      { index: 1, label: "failure" },
+    const node = {
+      _: (k: string) =>
+        ({
+          "ctx-named-node.outputs.success.label": "Succeeded",
+          "ctx-named-node.outputs.failure.label": "Failed",
+        })[k] ?? k,
+    };
+    expect(featuresFor(spy.mock.calls[0][1], node).outputPorts).toEqual([
+      { index: 0, label: "Succeeded" },
+      { index: 1, label: "Failed" },
     ]);
   });
 
@@ -371,11 +398,11 @@ describe("registerType — output ports (context modes)", () => {
     ]);
   });
 
-  it("labels an unnamed port from the node's i18n outputLabels catalog", async () => {
-    // A single/positional output schema yields no `outputPortNames`, but the
-    // node may still define `<type>.outputLabels` in its locale (as the canvas
-    // hover label already honors). The form table must resolve the same entry
-    // instead of falling back to `Output {index}`.
+  it("labels an unnamed port from the node's outputs.<index>.label catalog", async () => {
+    // A single/positional output yields no `outputPortNames`, but the node may
+    // still define `<type>.outputs.<index>.label` in its locale (the same entry
+    // the canvas hover label honors). The form table must resolve it instead of
+    // falling back to `Output {index}`.
     await register({
       type: "ctx-i18n-node",
       category: "function",
@@ -383,7 +410,7 @@ describe("registerType — output ports (context modes)", () => {
     });
 
     const node = {
-      _: (k: string) => (k === "ctx-i18n-node.outputLabels.0" ? "Result" : k),
+      _: (k: string) => (k === "ctx-i18n-node.outputs.0.label" ? "Result" : k),
     };
     expect(featuresFor(spy.mock.calls[0][1], node).outputPorts).toEqual([
       { index: 0, label: "Result" },

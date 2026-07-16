@@ -98,7 +98,7 @@ describe("help-generator — type-driven rendering", () => {
       );
 
       // config comes from TS, settings from the schema
-      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain("<h3>Configuration</h3>");
       expect(doc).toContain("<td>host</td><td>string</td>");
       expect(doc).toContain("<h3>Settings</h3>");
       expect(doc).toContain("<td>region</td><td>string</td>");
@@ -251,12 +251,12 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).not.toContain("<h4>");
     });
 
-    // The port's domain label (outputLabels[i]) is surfaced, and an object
-    // value is captioned so it reads as ONE output, not many.
-    it("shows the outputLabels label in the Port cell with the object shape inline", () => {
+    // The port's label (outputs[i].label) is surfaced in the Port cell, and the
+    // object value is shown inline so it reads as ONE output, not many.
+    it("shows the outputs label in the Port cell with the object shape inline", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        { outputLabels: ["Query results"] },
+        { outputs: [{ label: "Query results" }] },
         enUS,
         undefined,
         ioTypes({
@@ -287,7 +287,7 @@ describe("help-generator — type-driven rendering", () => {
     it("shows the port label for a union output with the union inline", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        { outputLabels: ["Operation result"] },
+        { outputs: [{ label: "Operation result" }] },
         enUS,
         undefined,
         ioTypes({
@@ -303,10 +303,10 @@ describe("help-generator — type-driven rendering", () => {
       );
     });
 
-    it("a nameless tuple port uses its outputLabels entry as the Port cell", () => {
+    it("a nameless tuple port uses its outputs entry as the Port cell", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        { outputLabels: ["Success", "Failure"] },
+        { outputs: [{ label: "Success" }, { label: "Failure" }] },
         enUS,
         undefined,
         ioTypes({
@@ -329,10 +329,15 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).not.toContain("Port 1");
     });
 
-    it("a named port prefers its outputLabels label over the raw name in the Port cell", () => {
+    it("a named port prefers its outputs label over the raw name in the Port cell", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        { outputLabels: ["On success", "On failure"] },
+        {
+          outputs: {
+            success: { label: "On success" },
+            failure: { label: "On failure" },
+          },
+        },
         enUS,
         undefined,
         ioTypes({
@@ -356,60 +361,77 @@ describe("help-generator — type-driven rendering", () => {
     });
   });
 
-  // (c) Complete section: a one-row Type table with the full built-in-port
-  // message shape inline (like Error/Status), absent when complete is undefined.
-  describe("(c) Complete section", () => {
-    it("object complete → the full port shape inline (not a field table)", () => {
+  // (c) Input port, the Description column, vacuous ports, and the ABSENCE of any
+  // lifecycle (Complete/Error/Status) section — that documentation was removed and
+  // is being redesigned separately.
+  describe("(c) Input, descriptions, and vacuous ports", () => {
+    it("renders the input as ONE row (Port | Type), never per-property", () => {
+      const doc = generateHelpDoc(
+        { type: "n" },
+        { input: { label: "Request" } },
+        enUS,
+        undefined,
+        ioTypes({
+          input: role("{ payload: string; url: string }", [
+            { name: "payload", type: "string" },
+            { name: "url", type: "string" },
+          ]),
+        }),
+      );
+      expect(doc).toContain("<h3>Input</h3>");
+      expect(doc).toContain(
+        "<tr><td>Request</td><td>{ payload: string; url: string }</td></tr>",
+      );
+      // NOT exploded into per-field rows.
+      expect(doc).not.toContain("<td>payload</td>");
+      expect(doc).not.toContain("<td>url</td>");
+    });
+
+    it("uses the section name as the input Port cell when no label is given", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
         enUS,
         undefined,
         ioTypes({
-          complete: role("{ done: boolean; count: number }", [
-            { name: "done", type: "boolean" },
-            { name: "count", type: "number" },
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
           ]),
         }),
       );
-
-      expect(doc).toContain("<h3>Lifecycle outputs</h3>");
-      // The return value is inlined under `complete`, alongside source/input —
-      // not exploded into per-field rows.
       expect(doc).toContain(
-        "<tr><td>Complete</td><td>{ complete: { done: boolean; count: number }; source; input }</td></tr>",
+        "<tr><td>Input</td><td>{ payload: string }</td></tr>",
       );
-      expect(doc).not.toContain("<td>done</td>");
     });
 
-    it("primitive/union complete → the union inlined under `complete`", () => {
+    it("adds a Description column with the port descriptions from the label file", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        {},
+        {
+          input: { label: "Request", description: "What comes in" },
+          outputs: { out: { label: "Result", description: "What goes out" } },
+        },
         enUS,
         undefined,
-        ioTypes({ complete: role('"ok" | "fail"', []) }),
+        ioTypes({
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
+          ]),
+          outputs: [
+            {
+              name: "out",
+              index: 0,
+              role: role("{ ok: boolean }", [{ name: "ok", type: "boolean" }]),
+            },
+          ],
+        }),
       );
-
-      expect(doc).toContain("<h3>Lifecycle outputs</h3>");
-      expect(doc).toContain(
-        '<tr><td>Complete</td><td>{ complete: "ok" | "fail"; source; input }</td></tr>',
-      );
-      expect(doc).toContain("<th>Type</th>");
+      expect(doc).toContain("<th>Description</th>");
+      expect(doc).toContain("What comes in");
+      expect(doc).toContain("What goes out");
     });
 
-    it("a vacuous (`unknown`) output renders no section", () => {
-      const doc = generateHelpDoc(
-        { type: "n" },
-        {},
-        enUS,
-        undefined,
-        ioTypes({ outputs: [{ index: 0, role: role("unknown", []) }] }),
-      );
-      expect(doc).not.toContain("<h3>Output</h3>");
-    });
-
-    it("input/output tables have no Description column", () => {
+    it("omits the Description column when no port has a description", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -432,7 +454,18 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).not.toContain(">Description</th>");
     });
 
-    it("is absent when nodeTypes.complete is undefined", () => {
+    it("a vacuous (`unknown`) output renders no section", () => {
+      const doc = generateHelpDoc(
+        { type: "n" },
+        {},
+        enUS,
+        undefined,
+        ioTypes({ outputs: [{ index: 0, role: role("unknown", []) }] }),
+      );
+      expect(doc).not.toContain("<h3>Outputs</h3>");
+    });
+
+    it("renders no lifecycle (Complete/Error/Status) section", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -440,11 +473,17 @@ describe("help-generator — type-driven rendering", () => {
         undefined,
         ioTypes({
           config: role("{ host: string }", [{ name: "host", type: "string" }]),
+          outputs: [
+            {
+              index: 0,
+              role: role("{ ok: boolean }", [{ name: "ok", type: "boolean" }]),
+            },
+          ],
         }),
       );
-
-      expect(doc).toContain("<h3>Properties</h3>");
-      expect(doc).not.toContain("Complete");
+      expect(doc).toContain("<h3>Configuration</h3>");
+      expect(doc).not.toContain("Lifecycle");
+      expect(doc).not.toContain("<td>Complete</td>");
     });
   });
 
@@ -535,7 +574,7 @@ describe("help-generator — type-driven rendering", () => {
         }),
       );
 
-      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain("<h3>Configuration</h3>");
       expect(doc).toContain("<td>Retries</td>");
       expect(doc).toContain("<td>number [min: 1]</td>");
       expect(doc).toContain("<code>3</code>");
@@ -543,9 +582,9 @@ describe("help-generator — type-driven rendering", () => {
     });
   });
 
-  // (e) i18n: the Settings / Lifecycle / Complete section TITLES resolve for
-  // every locale.
-  describe("(e) i18n — Settings & Lifecycle titles resolve for every locale", () => {
+  // (e) i18n: the Settings / Input / Outputs section TITLES resolve for every
+  // locale.
+  describe("(e) i18n — section titles resolve for every locale", () => {
     const LOCALES = [
       "en-US",
       "de",
@@ -559,13 +598,13 @@ describe("help-generator — type-driven rendering", () => {
       "zh-TW",
     ] as const;
 
-    it.each(LOCALES)("resolves both section titles for %s", (locale) => {
+    it.each(LOCALES)("resolves the port/section titles for %s", (locale) => {
       const t = getHelpTranslations(locale);
 
       // No translation key is missing (which would stringify to "undefined").
       expect(String(t.sections.settings)).not.toBe("undefined");
-      expect(String(t.sections.complete)).not.toBe("undefined");
-      expect(String(t.sections.lifecycle)).not.toBe("undefined");
+      expect(String(t.sections.input)).not.toBe("undefined");
+      expect(String(t.sections.outputs)).not.toBe("undefined");
 
       const doc = generateHelpDoc(
         { type: "n" },
@@ -576,19 +615,23 @@ describe("help-generator — type-driven rendering", () => {
           settings: role("{ apiKey: string }", [
             { name: "apiKey", type: "string" },
           ]),
-          complete: role("{ done: boolean }", [
-            { name: "done", type: "boolean" },
+          input: role("{ payload: string }", [
+            { name: "payload", type: "string" },
           ]),
+          outputs: [
+            {
+              index: 0,
+              role: role("{ ok: boolean }", [{ name: "ok", type: "boolean" }]),
+            },
+          ],
         }),
       );
 
       expect(doc).toContain(`<h3>${t.sections.settings}</h3>`);
-      // Complete is a row in the Lifecycle table now, not its own heading.
-      expect(doc).toContain(`<h3>${t.sections.lifecycle}</h3>`);
-      expect(doc).toContain(`<td>${t.sections.complete}</td>`);
-      // Guard against a missing key ever rendering literally as a heading/cell.
+      expect(doc).toContain(`<h3>${t.sections.input}</h3>`);
+      expect(doc).toContain(`<h3>${t.sections.outputs}</h3>`);
+      // Guard against a missing key ever rendering literally as a heading.
       expect(doc).not.toContain("<h3>undefined</h3>");
-      expect(doc).not.toContain("<td>undefined</td>");
     });
   });
 
@@ -635,78 +678,19 @@ describe("help-generator — type-driven rendering", () => {
         undefined,
       );
 
-      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain("<h3>Configuration</h3>");
       expect(doc).toContain("<h3>Credentials</h3>");
       // Type column comes from the schema (no TS types provided)
       expect(doc).toContain("<td>host</td>");
       expect(doc).toContain("<td>string</td>");
       // Input/Output are type-driven only — without nodeTypes, no such sections.
       expect(doc).not.toContain("<h3>Input</h3>");
-      expect(doc).not.toContain("<h3>Output</h3>");
-      // No Complete without nodeTypes.complete
-      expect(doc).not.toContain("Complete");
-      // The Lifecycle table is gated on nodeTypes.kind === "io".
-      expect(doc).not.toContain("<h3>Lifecycle outputs</h3>");
+      expect(doc).not.toContain("<h3>Outputs</h3>");
     });
   });
 
-  // (g) Input port label, the output envelope note, built-in error/status port
-  // sections, and heading/description escaping.
-  describe("(g) input label, envelope note, built-in ports, escaping", () => {
-    it("surfaces the inputLabels label and renders a primitive input as a Type table", () => {
-      const doc = generateHelpDoc(
-        { type: "n" },
-        { inputLabels: ["Query input"] },
-        enUS,
-        undefined,
-        ioTypes({ input: role("string", []) }),
-      );
-
-      expect(doc).toContain("<h3>Input</h3>");
-      expect(doc).toContain("<p><strong>Query input</strong></p>");
-      // A non-object input used to render nothing (schema-only path) — now a
-      // one-row Type table.
-      expect(doc).toContain("<th>Type</th>");
-      expect(doc).toContain("<tr><td>string</td></tr>");
-    });
-
-    it("an object input renders a field table with its per-field labels", () => {
-      const doc = generateHelpDoc(
-        { type: "n" },
-        { inputLabels: ["Records"], input: { payload: "Record data" } },
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ payload: string }", [
-            { name: "payload", type: "string" },
-          ]),
-        }),
-      );
-
-      expect(doc).toContain("<h3>Input</h3>");
-      expect(doc).toContain("<p><strong>Records</strong></p>");
-      expect(doc).toContain("<td>Record data</td>"); // per-field label
-      // Input keeps the field table (unlike outputs, which render inline).
-      expect(doc).toContain("<td>payload</td>");
-    });
-
-    it("renders no Input section when every input field is a hidden/system field", () => {
-      const doc = generateHelpDoc(
-        { type: "n" },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ id: string; type: string }", [
-            { name: "id", type: "string" },
-            { name: "type", type: "string" },
-          ]),
-        }),
-      );
-      // `id` and `type` are hidden system fields → no rows → no Input section.
-      expect(doc).not.toContain("<h3>Input</h3>");
-    });
-
+  // (g) The output envelope note and heading/label escaping.
+  describe("(g) envelope note and escaping", () => {
     it("appends the output envelope note when outputs render", () => {
       const doc = generateHelpDoc(
         { type: "n" },
@@ -738,45 +722,10 @@ describe("help-generator — type-driven rendering", () => {
       expect(doc).not.toContain(enUS.notes.outputEnvelope);
     });
 
-    it("renders built-in Error and Status ports as Lifecycle rows for io nodes", () => {
+    it("escapes a port label carrying HTML-special characters", () => {
       const doc = generateHelpDoc(
         { type: "n" },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          config: role("{ host: string }", [{ name: "host", type: "string" }]),
-        }),
-      );
-
-      expect(doc).toContain("<h3>Lifecycle outputs</h3>");
-      expect(doc).toContain("<td>Error</td>");
-      expect(doc).toContain("<td>Status</td>");
-      // The fixed shapes name the error block + provenance keys.
-      expect(doc).toContain("error:");
-      expect(doc).toContain("status:");
-      expect(doc).toContain("source");
-      // A node with no input() return has no Complete row.
-      expect(doc).not.toContain("<td>Complete</td>");
-    });
-
-    it("does NOT render the Lifecycle table for config nodes (no ports)", () => {
-      const doc = generateHelpDoc({ type: "n" }, {}, enUS, undefined, {
-        type: "n",
-        kind: "config",
-        config: role("{ host: string }", [{ name: "host", type: "string" }]),
-      });
-
-      expect(doc).toContain("<h3>Properties</h3>");
-      expect(doc).not.toContain("<h3>Lifecycle outputs</h3>");
-      expect(doc).not.toContain("<td>Error</td>");
-      expect(doc).not.toContain("<td>Status</td>");
-    });
-
-    it("escapes a port heading carrying HTML-special characters", () => {
-      const doc = generateHelpDoc(
-        { type: "n" },
-        { outputLabels: ["A<B>", "Ok"] },
+        { outputs: [{ label: "A<B>" }, { label: "Ok" }] },
         enUS,
         undefined,
         ioTypes({
@@ -808,174 +757,6 @@ describe("help-generator — type-driven rendering", () => {
       );
       expect(doc).toContain("<p>records &lt; 200 &amp; counting</p>");
       expect(doc).not.toContain("records < 200 & counting");
-    });
-  });
-
-  // (h) The node author's default input/output data-validation schemas
-  // (inputSchema/outputSchemas config defaults) enrich the type-driven tables.
-  describe("(h) input/output validation-schema enrichment", () => {
-    it("enriches the Input table from the default inputSchema (constraints, description, note)", () => {
-      const doc = generateHelpDoc(
-        {
-          type: "n",
-          configSchema: {
-            properties: {
-              inputSchema: {
-                default: JSON.stringify({
-                  type: "object",
-                  properties: {
-                    payload: {
-                      type: "string",
-                      minLength: 3,
-                      description: "The record id",
-                    },
-                  },
-                  required: ["payload"],
-                }),
-              },
-            },
-          },
-        },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ payload: string }", [
-            { name: "payload", type: "string" },
-          ]),
-        }),
-      );
-
-      expect(doc).toContain("<h3>Input</h3>");
-      // TS type kept, enriched with the schema constraint
-      expect(doc).toContain("<td>string [min: 3]</td>");
-      // the schema supplied a description → Description column appears
-      expect(doc).toContain(">Description</th>");
-      expect(doc).toContain("<td>The record id</td>");
-      // the opt-in / overridable note
-      expect(doc).toContain(enUS.notes.dataValidation);
-    });
-
-    it("does NOT enrich Outputs from an outputSchemas default (outputs render inline)", () => {
-      const doc = generateHelpDoc(
-        {
-          type: "n",
-          configSchema: {
-            properties: {
-              outputSchemas: {
-                default: {
-                  0: JSON.stringify({
-                    type: "object",
-                    properties: {
-                      total: {
-                        type: "number",
-                        minimum: 0,
-                        description: "row count",
-                      },
-                    },
-                  }),
-                },
-              },
-            },
-          },
-        },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          outputs: [
-            {
-              index: 0,
-              role: role("{ total: number }", [
-                { name: "total", type: "number" },
-              ]),
-            },
-          ],
-        }),
-      );
-
-      // The port renders as one inline-type row; the output schema's constraints,
-      // description, and the data-validation note are NOT surfaced (output-side
-      // enrichment was dropped — only Input enriches).
-      expect(doc).toContain(
-        "<tr><td>Port 1</td><td>{ total: number }</td></tr>",
-      );
-      expect(doc).not.toContain("[min: 0]");
-      expect(doc).not.toContain("row count");
-      expect(doc).not.toContain(enUS.notes.dataValidation);
-    });
-
-    it("adds no data-validation note (or Description column) without a default schema", () => {
-      const doc = generateHelpDoc(
-        { type: "n" },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ payload: string }", [
-            { name: "payload", type: "string" },
-          ]),
-        }),
-      );
-
-      expect(doc).toContain("<h3>Input</h3>");
-      expect(doc).not.toContain(enUS.notes.dataValidation);
-      expect(doc).not.toContain(">Description</th>");
-    });
-
-    it("ignores an empty or invalid inputSchema default", () => {
-      const empty = generateHelpDoc(
-        {
-          type: "n",
-          configSchema: { properties: { inputSchema: { default: "" } } },
-        },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ payload: string }", [
-            { name: "payload", type: "string" },
-          ]),
-        }),
-      );
-      expect(empty).not.toContain(enUS.notes.dataValidation);
-
-      const bad = generateHelpDoc(
-        {
-          type: "n",
-          configSchema: {
-            properties: { inputSchema: { default: "not json{" } },
-          },
-        },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ payload: string }", [
-            { name: "payload", type: "string" },
-          ]),
-        }),
-      );
-      expect(bad).not.toContain(enUS.notes.dataValidation);
-
-      // Valid JSON but not an object (e.g. a bare number) → not a usable schema.
-      const nonObject = generateHelpDoc(
-        {
-          type: "n",
-          configSchema: {
-            properties: { inputSchema: { default: "42" } },
-          },
-        },
-        {},
-        enUS,
-        undefined,
-        ioTypes({
-          input: role("{ payload: string }", [
-            { name: "payload", type: "string" },
-          ]),
-        }),
-      );
-      expect(nonObject).not.toContain(enUS.notes.dataValidation);
     });
   });
 });

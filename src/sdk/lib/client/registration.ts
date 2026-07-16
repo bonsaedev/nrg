@@ -96,11 +96,10 @@ function computeBuiltinPortOutputs(
 /**
  * Resolves the base output ports (excluding built-in error/complete/status) the
  * context-mode rows configure. Labels follow the same precedence as the canvas
- * port labels (`createDefaultOutputLabels`): named-port schemas label each port
- * by its name (resolved server-side in `outputPortNames`); otherwise the node's
- * `<type>.outputLabels.<index>` i18n catalog entry is used (so a single/positional
- * schema with locale labels matches the canvas hover label); failing both, fall
- * back to `Output {index}`.
+ * port labels (`createDefaultOutputLabels`): the port's `<type>.outputs.<name>.label`
+ * catalog entry (named ports — the port name from the Output type is the lookup
+ * KEY only, resolved server-side into `outputPortNames`), then the positional
+ * `<type>.outputs.<index>.label`; failing both, fall back to `Output {index}`.
  */
 function computeOutputPorts(
   node: NodeRedNode,
@@ -111,10 +110,13 @@ function computeOutputPorts(
   const names = outputPortNames ?? [];
   const ports: { index: number; label: string }[] = [];
   for (let i = 0; i < baseOutputs; i++) {
+    const name = names[i];
     const label =
-      names[i] ??
-      resolveI18n(node, `${type}.outputLabels.${i}`, `${type}.outputLabels`) ??
-      `Output ${i}`;
+      resolveI18n(
+        node,
+        ...(name ? [`${type}.outputs.${name}.label`] : []),
+        `${type}.outputs.${i}.label`,
+      ) ?? `Output ${i}`;
     ports.push({ index: i, label });
   }
   return ports;
@@ -180,7 +182,7 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       // else the build folded in the convention `{componentsDir}/{type}.vue`).
       const form: NodeFormDefinition | undefined = nodeDefinition.form;
       // Resolve output-port labels here (not at registration) so the node's i18n
-      // catalog is available via `this._` for the `<type>.outputLabels.<index>`
+      // catalog is available via `this._` for the `<type>.outputs.<name>.label`
       // fallback, matching the canvas port labels.
       const outputPorts = computeOutputPorts(
         this,

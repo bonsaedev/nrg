@@ -170,7 +170,7 @@ describe("adversarial — extractor never throws on pathological shapes", () => 
     expect(node.config?.fields).toHaveLength(0);
     // ...and the generator, which keys rows off fields, emits NO Properties
     // section at all — the config is invisible in the help doc.
-    expect(help(node)).not.toContain("Properties");
+    expect(help(node)).not.toContain("Configuration");
   });
 });
 
@@ -237,7 +237,10 @@ describe("adversarial — Output shape variants", () => {
 });
 
 describe("adversarial — complete port from input() return type", () => {
-  it("renders a primitive complete-port type as a clean one-row Type table (no leak)", () => {
+  it("extracts a primitive complete-port type with no prototype-method leak", () => {
+    // The extractor still recovers input()'s return type as `complete` (it feeds
+    // the generated NodeTypes registry). A scalar value must carry no fields —
+    // no Number.prototype leak. (Complete is no longer rendered in help docs.)
     const [node] = extract(`
       import { IONode } from "@bonsae/nrg/server";
       export default class N extends IONode<{ x: 1 }> {
@@ -246,17 +249,7 @@ describe("adversarial — complete port from input() return type", () => {
       }
     `);
     expect(node.complete?.text).toBe("number");
-    // A scalar complete value has no fields — no Number.prototype leak.
     expect(node.complete?.fields).toHaveLength(0);
-
-    const html = help(node);
-    expect(html).toContain("Complete");
-    // A Lifecycle-table row with the value inlined under `complete`, never a
-    // method table (no prototype leak).
-    expect(html).toContain(
-      "<tr><td>Complete</td><td>{ complete: number; source; input }</td></tr>",
-    );
-    expect(html).not.toContain("toFixed");
   });
 });
 

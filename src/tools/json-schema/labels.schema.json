@@ -22,15 +22,6 @@
       "type": "string",
       "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
     },
-    "inputLabels": {
-      "type": "string",
-      "description": "Label for the input port."
-    },
-    "outputLabels": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Labels for output ports, one per port."
-    },
     "configs": {
       "$ref": "#/$defs/labelMap",
       "description": "Labels for config properties"
@@ -44,18 +35,21 @@
       "description": "Labels for credential properties"
     },
     "input": {
-      "$ref": "#/$defs/labelMap",
-      "description": "Labels for input schema properties"
+      "$ref": "#/$defs/port",
+      "description": "The single input port: its display label (shown on the canvas + as the help-doc heading) and per-property labels for its payload fields."
     },
     "outputs": {
       "oneOf": [
         {
-          "type": "array",
-          "items": { "$ref": "#/$defs/labelMap" }
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/port" }
         },
-        { "$ref": "#/$defs/portLabelMap" }
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/port" }
+        }
       ],
-      "description": "Per-port output labels. Use an array (matching the Output tuple order; a single output uses a one-element array) for positional outputs, or an object keyed by port name for named outputs."
+      "description": "Output ports. Use an object keyed by port name for named outputs (the common case: the key is the port name from the node's Output type), or an array in tuple order for positional/dynamic outputs. Each entry gives the port's display label and per-property labels for its payload fields."
     },
     "errors": {
       "$ref": "#/$defs/labelMap",
@@ -76,7 +70,22 @@
       "additionalProperties": {
         "$ref": "#/$defs/labelMap"
       },
-      "description": "Maps output port names to their per-property labels (named output ports)"
+      "description": "Maps a config field to its per-option-value labels"
+    },
+    "port": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The port's display label — shown on the editor canvas and in the Port column of the auto-generated help docs. Falls back to the port name when unset."
+        },
+        "description": {
+          "type": "string",
+          "description": "Free-text description of what this port carries, shown in the Description column of the auto-generated help docs (one row per port)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A single port: its display label and a human-readable description of what it carries."
     }
   }
 }

@@ -141,7 +141,7 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
   });
 
   it("renders the config field names AND their TS types in the Type column", () => {
-    expect(doc).toContain("<h3>Properties</h3>");
+    expect(doc).toContain("<h3>Configuration</h3>");
     // name + TS type adjacency pins the Type column, not just a stray substring
     expect(doc).toContain("<td>endpoint</td><td>string</td>");
     expect(doc).toContain("<td>retries</td><td>number</td>");
@@ -165,32 +165,18 @@ describe("type-docs pipeline — extractor → help generator, no schema", () =>
     expect(doc).not.toContain("<h4>");
   });
 
-  it("renders the Complete port from input()'s return type", () => {
-    // Complete is a row in the Lifecycle table, its return value inlined.
-    expect(doc).toContain("<h3>Lifecycle outputs</h3>");
-    expect(doc).toContain("<td>Complete</td>");
-    expect(doc).toContain("complete: {");
-    expect(doc).toContain("ok: boolean");
-    expect(doc).toContain("processed: number");
-    expect(doc).toContain("source; input }");
-    // not exploded into per-field rows
-    expect(doc).not.toContain("<td>ok</td>");
-  });
-
   it("renders the Settings fields from the 5th generic", () => {
     expect(doc).toContain("<h3>Settings</h3>");
     expect(doc).toContain("<td>apiKey</td><td>string</td>");
     expect(doc).toContain("<td>region</td><td>string</td>");
   });
 
-  it("orders the type-driven sections: Properties → Settings → Outputs → Lifecycle", () => {
-    const p = doc.indexOf("<h3>Properties</h3>");
+  it("orders the type-driven sections: Configuration → Settings → Outputs", () => {
+    const p = doc.indexOf("<h3>Configuration</h3>");
     const s = doc.indexOf("<h3>Settings</h3>");
     const o = doc.indexOf("<h3>Outputs</h3>");
-    const l = doc.indexOf("<h3>Lifecycle outputs</h3>");
     expect(p).toBeGreaterThanOrEqual(0);
     expect(p).toBeLessThan(s);
     expect(s).toBeLessThan(o);
-    expect(o).toBeLessThan(l);
   });
 });

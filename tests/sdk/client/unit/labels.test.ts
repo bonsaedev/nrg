@@ -81,16 +81,10 @@ describe("createDefaultPaletteLabel", () => {
 });
 
 describe("createDefaultInputLabels", () => {
-  it("tries indexed key first", () => {
+  it("resolves the input port label from input.label", () => {
     const fn = createDefaultInputLabels("my-node");
-    const node = mockNode({ "my-node.inputLabels.0": "Input 0" });
-    expect(fn.call(node, 0)).toBe("Input 0");
-  });
-
-  it("falls back to singular key", () => {
-    const fn = createDefaultInputLabels("my-node");
-    const node = mockNode({ "my-node.inputLabels": "Input" });
-    expect(fn.call(node, 0)).toBe("Input");
+    const node = mockNode({ "my-node.input.label": "Record data" });
+    expect(fn.call(node, 0)).toBe("Record data");
   });
 
   it("returns undefined when no match", () => {
@@ -101,40 +95,51 @@ describe("createDefaultInputLabels", () => {
 });
 
 describe("createDefaultOutputLabels", () => {
-  it("returns named port labels from outputPortNames", () => {
+  it("resolves a named port label from outputs.<name>.label", () => {
     const fn = createDefaultOutputLabels(
       "my-node",
       ["success", "failure"],
       false,
       0,
     );
-    const node = mockNode();
-    expect(fn.call(node, 0)).toBe("success");
-    expect(fn.call(node, 1)).toBe("failure");
+    const node = mockNode({
+      "my-node.outputs.success.label": "Succeeded",
+      "my-node.outputs.failure.label": "Failed",
+    });
+    expect(fn.call(node, 0)).toBe("Succeeded");
+    expect(fn.call(node, 1)).toBe("Failed");
   });
 
-  it("falls through for index beyond the named ports", () => {
-    const fn = createDefaultOutputLabels("my-node", ["success"], false, 0);
-    const node = mockNode();
-    expect(fn.call(node, 1)).toBeUndefined();
-  });
-
-  it("has no names for single/positional outputs (undefined)", () => {
-    // single schemas (Object/Any/Union) and positional arrays resolve to
-    // undefined outputPortNames server-side, so ports stay unnamed here
-    const fn = createDefaultOutputLabels("my-node", undefined, false, 0);
+  it("never leaks the raw port name as the label (regression: 'out')", () => {
+    // The port NAME is only the lookup key — never the visible label. An
+    // un-localized named port resolves to undefined (no canvas label), so a
+    // bare type name like "out" is never shown.
+    const fn = createDefaultOutputLabels("my-node", ["out"], false, 0);
     const node = mockNode();
     expect(fn.call(node, 0)).toBeUndefined();
   });
 
+  it("falls back to the positional key for an index past the named ports", () => {
+    const fn = createDefaultOutputLabels("my-node", ["success"], false, 0);
+    const node = mockNode({ "my-node.outputs.1.label": "Second" });
+    expect(fn.call(node, 1)).toBe("Second");
+  });
+
+  it("resolves a positional output from outputs.<index>.label", () => {
+    // Positional/dynamic outputs have no names — resolved by index.
+    const fn = createDefaultOutputLabels("my-node", undefined, false, 0);
+    const node = mockNode({ "my-node.outputs.0.label": "Main" });
+    expect(fn.call(node, 0)).toBe("Main");
+  });
+
   it("does not leak onto built-in ports for an unnamed output (regression)", () => {
-    // The Any-schema bug: a single output schema must not name the base port
-    // or push the built-in error port off by one. With undefined names the
-    // base port is unnamed and the error port stays "Error".
+    // A single unnamed output must not name the base port or push the built-in
+    // error port off by one. With no names the base port is unlabeled and the
+    // error port stays "Error".
     const fn = createDefaultOutputLabels("my-node", undefined, true, 1);
     const node = mockNode({}, { errorPort: true });
-    expect(fn.call(node, 0)).toBeUndefined(); // was "description"
-    expect(fn.call(node, 1)).toBe("Error"); // was "$id"
+    expect(fn.call(node, 0)).toBeUndefined();
+    expect(fn.call(node, 1)).toBe("Error");
   });
 
   it("labels builtin ports by name", () => {
@@ -158,22 +163,14 @@ describe("createDefaultOutputLabels", () => {
     expect(fn.call(node, 2)).toBeUndefined();
   });
 
-  it("falls through to i18n after builtin ports", () => {
-    const fn = createDefaultOutputLabels("my-node", undefined, true, 1);
+  it("falls through to the port label after builtin ports", () => {
+    const fn = createDefaultOutputLabels("my-node", ["main"], true, 1);
     const node = mockNode(
-      { "my-node.outputLabels.0": "Main" },
-      {
-        errorPort: true,
-      },
+      { "my-node.outputs.main.label": "Main" },
+      { errorPort: true },
     );
     expect(fn.call(node, 0)).toBe("Main");
     expect(fn.call(node, 1)).toBe("Error");
-  });
-
-  it("tries indexed then singular i18n keys", () => {
-    const fn = createDefaultOutputLabels("my-node", undefined, false, 0);
-    const node = mockNode({ "my-node.outputLabels": "Output" });
-    expect(fn.call(node, 0)).toBe("Output");
   });
 
   it("returns undefined when no match", () => {
@@ -190,12 +187,15 @@ describe("createDefaultOutputLabels", () => {
       2,
     );
     const node = mockNode(
-      {},
+      {
+        "my-node.outputs.success.label": "Succeeded",
+        "my-node.outputs.failure.label": "Failed",
+      },
       { errorPort: true, completePort: true, statusPort: false },
     );
     // First two indices are named ports
-    expect(fn.call(node, 0)).toBe("success");
-    expect(fn.call(node, 1)).toBe("failure");
+    expect(fn.call(node, 0)).toBe("Succeeded");
+    expect(fn.call(node, 1)).toBe("Failed");
     // Then builtin ports start at baseOutputs (2)
     expect(fn.call(node, 2)).toBe("Error");
     expect(fn.call(node, 3)).toBe("Complete");

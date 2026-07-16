@@ -300,24 +300,22 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
   return `<${tag}>${title}</${tag}>\n${table}\n`;
 }
 
+/** One port's label file entry: its display label + a human description of what
+ * it carries (mirrors the `port` $def in labels.schema.json). */
+interface PortLabels {
+  label?: string;
+  description?: string;
+}
+
 interface NodeLabels {
   description?: string;
   configs?: Record<string, string>;
   credentials?: Record<string, string>;
-  input?: Record<string, string>;
-  outputs?: Record<string, string>[];
-  /** Per-port domain label (Node-RED `inputLabels`) — the single input port. */
-  inputLabels?: string[];
-  /** Per-port domain labels (Node-RED `outputLabels`) — one per output port. */
-  outputLabels?: string[];
-}
-
-/** Node-RED `inputLabels`/`outputLabels` may be a bare string (one port) or an
- * array (many) — normalize to an array so ports index into it uniformly. */
-function normalizePortLabels(value: unknown): string[] | undefined {
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value;
-  return undefined;
+  /** The single input port: its label + payload-property labels. */
+  input?: PortLabels;
+  /** Output ports: an object keyed by port name (named) or an array in tuple
+   * order (positional). Each entry gives the port's label + property labels. */
+  outputs?: PortLabels[] | Record<string, PortLabels>;
 }
 
 function loadNodeLabels(labelPath: string): NodeLabels {
@@ -330,12 +328,22 @@ function loadNodeLabels(labelPath: string): NodeLabels {
       credentials: raw.credentials,
       input: raw.input,
       outputs: raw.outputs,
-      inputLabels: normalizePortLabels(raw.inputLabels),
-      outputLabels: normalizePortLabels(raw.outputLabels),
     };
   } catch {
     return {};
   }
+}
+
+/** Resolve an output port's label-file entry — by name for a named-port object,
+ * by index for a positional array. */
+function outputPortLabels(
+  outputs: PortLabels[] | Record<string, PortLabels> | undefined,
+  port: NodeOutputPort,
+  index: number,
+): PortLabels | undefined {
+  if (!outputs) return undefined;
+  if (Array.isArray(outputs)) return outputs[index];
+  return port.name ? outputs[port.name] : undefined;
 }
 
 /** Role type texts that carry no useful documentation — a section is skipped. */
@@ -371,132 +379,50 @@ function settingsRoleSection(
   return `<h3>${escapeHtml(t.sections.settings)}</h3>\n${buildTypeTable(role.text.trim(), t)}\n`;
 }
 
-/**
- * Render the INPUT port (a single message). Distinct from {@link roleSection}
- * because it must read as ONE message:
- *
- * - the port's domain label (`inputLabels`, e.g. "Record data") is surfaced;
- * - an object value is a field table, enriched by the default input validation
- *   schema (constraints, required, descriptions) when the author ships one;
- * - a primitive/union value renders a one-row Type table (so a non-object input,
- *   which the old schema-only path dropped, is documented too).
- *
- * The heading text is HTML-escaped (a label-file string may carry `<`). Returns
- * "" when the port carries nothing to document (any/unknown/void).
- */
-function messagePortSection(
-  title: string,
-  role: NodeRoleType,
-  t: HelpTranslations,
-  opts: {
-    /** Domain label for the whole port (from `inputLabels`). */
-    portLabel?: string;
-    /** Per-property labels for an object value (from the `input` map). */
-    fieldLabels?: Record<string, string>;
-    heading?: string;
-    /**
-     * The author's default data-validation schema for this port (parsed from the
-     * `inputSchema` config default). When present, each field's matching
-     * `properties[name]` enriches the type with runtime constraints
-     * (min/max/pattern/format/required) and a description — the contract the TS
-     * generics don't carry. Defaults are NOT shown: data-plane validation is a
-     * pure predicate, so they're never injected into a message.
-     */
-    schema?: any;
-  } = {},
-): string {
-  const level = (opts.heading ?? "###").length;
-  const head = `<h${level}>${escapeHtml(title)}</h${level}>\n`;
-  const labelLine = opts.portLabel
-    ? `<p><strong>${escapeHtml(opts.portLabel)}</strong></p>\n`
-    : "";
-
-  if (role.fields.length) {
-    const rows = role.fields
-      .filter((f) => !isHiddenField(f.name))
-      .map((f) =>
-        buildPropertyRow(
-          f.name,
-          opts.schema?.properties?.[f.name],
-          !f.optional,
-          opts.fieldLabels?.[f.name],
-          undefined,
-          f.type,
-        ),
-      );
-    if (rows.length === 0) return "";
-    // A Description column only when the validation schema supplied one — a pure
-    // type has no descriptions (the reason the column was dropped originally).
-    const includeDescription = rows.some((r) => r.description);
-    return (
-      head +
-      labelLine +
-      buildPropertyTable(rows, t, false, includeDescription) +
-      "\n"
-    );
-  }
-
-  const text = role.text.trim();
-  if (VACUOUS_ROLE_TYPES.has(text)) return "";
-  return head + labelLine + buildTypeTable(text, t) + "\n";
+/** One row in a ports table: the port's display name, its message type rendered
+ * inline, and an optional human description (from the label file). */
+interface PortRow {
+  name: string;
+  type: string;
+  description?: string;
 }
 
 /**
- * Parse a serialized JSON-Schema string (an `inputSchema`/`outputSchemas` config
- * default) into an object, or `undefined` for an empty/absent/invalid value.
+ * Render a ports table — ONE row per port, never a row per payload property. Each
+ * row is `Port | Type`, with the message type shown inline (an object as its
+ * `{ … }` shape); a Description column is added only when at least one port
+ * carries a `description` from the label file. Used for both the single Input
+ * port and the Outputs, so they read the same way. Returns "" when there are no
+ * rows (every port vacuous). The heading is HTML-escaped (a label string may
+ * carry `<`).
  */
-function parseValidationSchema(value: unknown): any | undefined {
-  if (typeof value !== "string" || !value.trim()) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" ? parsed : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * The unified OUTPUTS table: one row per output port — `Port | Type` — with the
- * value shown inline (an object as its `{ … }` shape, not exploded into a field
- * table), so a single object output, a union, and a multi-port node all read the
- * same way under one plural "Outputs" heading. A port whose value is vacuous
- * (any/unknown/void) carries nothing to document and is skipped; when none
- * remain, returns "" (no section).
- */
-function buildOutputsTable(
-  ports: NodeOutputPort[],
-  outputLabels: string[] | undefined,
+function buildPortsTable(
+  heading: string,
+  rows: PortRow[],
   t: HelpTranslations,
 ): string {
-  const rows = ports
-    .map((port, i) => {
-      const type = port.role.text.trim();
-      if (VACUOUS_ROLE_TYPES.has(type)) return undefined;
-      // The port's identifier: its friendly label, else the named-port name,
-      // else the positional "Port N".
-      const name =
-        outputLabels?.[i] ?? port.name ?? `${t.sections.port} ${i + 1}`;
-      return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(type)}</td></tr>`;
-    })
-    .filter((r): r is string => r !== undefined);
   if (rows.length === 0) return "";
-
+  const hasDescription = rows.some((r) => r.description);
+  const descHead = hasDescription
+    ? `<th>${escapeHtml(t.columns.description)}</th>`
+    : "";
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td>` +
+        (hasDescription ? `<td>${escapeHtml(r.description ?? "")}</td>` : "") +
+        `</tr>`,
+    )
+    .join("\n");
   return (
-    `<h3>${t.sections.outputs}</h3>\n` +
+    `<h3>${escapeHtml(heading)}</h3>\n` +
     `<div style="overflow-x:auto">\n` +
     `<table width="100%" style="min-width:500px">\n` +
-    `<thead><tr><th>${t.sections.port}</th><th>${t.columns.type}</th></tr></thead>\n` +
-    `<tbody>\n${rows.join("\n")}\n</tbody>\n` +
+    `<thead><tr><th>${escapeHtml(t.sections.port)}</th><th>${escapeHtml(t.columns.type)}</th>${descHead}</tr></thead>\n` +
+    `<tbody>\n${body}\n</tbody>\n` +
     `</table>\n</div>`
   );
 }
-
-/** The built-in ERROR port's fixed shape (see server ports.ts ErrorPortOutput). */
-const ERROR_PORT_SHAPE =
-  "{ error: { name: string; message: string; stack?: string }; source; input }";
-/** The built-in STATUS port's fixed shape (see server ports.ts StatusPortOutput). */
-const STATUS_PORT_SHAPE =
-  '{ status: { fill?: string; shape?: "ring" | "dot"; text?: string } | string; source }';
 
 function generateHelpDoc(
   nodeClass: any,
@@ -514,7 +440,7 @@ function generateHelpDoc(
   }
 
   const configSection = generateSchemaSection({
-    title: t.sections.properties,
+    title: t.sections.configuration,
     schema: nodeClass.configSchema,
     typeFields: nodeTypes?.config?.fields,
     t,
@@ -544,91 +470,52 @@ function generateHelpDoc(
       });
   if (settingsSection) lines.push(settingsSection);
 
-  // The node author's default INPUT data-validation schema (a serialized
-  // JSON-Schema string on the inputSchema config default). It carries the
-  // runtime contract — constraints, required, per-field descriptions — the TS
-  // generics don't, so it enriches the type-driven Input table. (Outputs render
-  // as inline types, so their per-field schema doesn't apply there.)
-  const inputValidationSchema = parseValidationSchema(
-    nodeClass.configSchema?.properties?.inputSchema?.default,
-  );
-
-  // Input — type-driven, single port. Surface its domain label (`inputLabels`)
-  // and render an object as a field table or a primitive/union as a Type table
-  // (the old schema-only path dropped a non-object input entirely). Enriched by
-  // the default input validation schema when the author ships one.
-  let hasValidationSchema = false;
+  // Input — type-driven, single port → ONE row (Port | Type | Description). The
+  // type renders inline; the label + description come from the label file's
+  // `input` entry. Skipped when the input carries nothing to document
+  // (any/unknown/void).
   if (nodeTypes?.input) {
-    const inputSection = messagePortSection(
-      t.sections.input,
-      nodeTypes.input,
-      t,
-      {
-        portLabel: labels.inputLabels?.[0],
-        fieldLabels: labels.input,
-        schema: inputValidationSchema,
-      },
-    );
-    if (inputSection) {
-      lines.push(inputSection);
-      if (inputValidationSchema) hasValidationSchema = true;
+    const type = nodeTypes.input.text.trim();
+    if (!VACUOUS_ROLE_TYPES.has(type)) {
+      const inputSection = buildPortsTable(
+        t.sections.input,
+        [
+          {
+            name: labels.input?.label ?? t.sections.input,
+            type,
+            description: labels.input?.description,
+          },
+        ],
+        t,
+      );
+      if (inputSection) lines.push(inputSection);
     }
   }
 
-  // Outputs — every port renders uniformly as one row (Port | Type) under a
-  // single "Outputs" heading, with an object value shown inline as its shape
-  // rather than exploded into a field table. A single object output, a union,
-  // and a multi-port node all read the same way.
+  // Outputs — ONE row per port (Port | Type | Description). The type renders
+  // inline (an object as its `{ … }` shape, never exploded into per-property
+  // rows), so a single object output, a union, and a multi-port node all read
+  // the same way. Label + description come from the label file's `outputs` entry.
   if (nodeTypes?.outputs?.length) {
-    const outputsTable = buildOutputsTable(
-      nodeTypes.outputs,
-      labels.outputLabels,
-      t,
-    );
+    const rows = nodeTypes.outputs
+      .map((port, i): PortRow | undefined => {
+        const type = port.role.text.trim();
+        if (VACUOUS_ROLE_TYPES.has(type)) return undefined;
+        const entry = outputPortLabels(labels.outputs, port, i);
+        return {
+          name: entry?.label ?? port.name ?? `${t.sections.port} ${i + 1}`,
+          type,
+          description: entry?.description,
+        };
+      })
+      .filter((r): r is PortRow => r !== undefined);
+    const outputsTable = buildPortsTable(t.sections.outputs, rows, t);
     if (outputsTable) {
       lines.push(outputsTable);
       // Explain the wire shape the inline types don't reveal: value under the
       // return property, plus the source/input provenance keys.
       lines.push(`<p><small>${t.notes.outputEnvelope}</small></p>`);
     }
-  }
-
-  // When the Input constraints came from a default validation schema, note that
-  // they are opt-in (Validate Data) and flow-author-overridable, so they don't
-  // read as hard guarantees.
-  if (hasValidationSchema) {
-    lines.push(`<p><small>${t.notes.dataValidation}</small></p>`);
-  }
-
-  // Built-in LIFECYCLE ports — Complete / Error / Status — in one table
-  // (Port | Type), mirroring the data Outputs table. Error and Status have
-  // framework-fixed shapes and are always present on an IONode; Complete appears
-  // only when input() returns a non-void value, with that inferred return type
-  // inlined under `complete`. Config nodes have no ports, so skip them.
-  if (nodeTypes?.kind === "io") {
-    const lifecycle: Array<[string, string]> = [];
-    if (nodeTypes.complete) {
-      lifecycle.push([
-        t.sections.complete,
-        `{ complete: ${nodeTypes.complete.text.trim()}; source; input }`,
-      ]);
-    }
-    lifecycle.push([t.sections.error, ERROR_PORT_SHAPE]);
-    lifecycle.push([t.sections.status, STATUS_PORT_SHAPE]);
-    const body = lifecycle
-      .map(
-        ([port, type]) =>
-          `<tr><td>${escapeHtml(port)}</td><td>${escapeHtml(type)}</td></tr>`,
-      )
-      .join("\n");
-    lines.push(
-      `<h3>${escapeHtml(t.sections.lifecycle)}</h3>\n` +
-        `<div style="overflow-x:auto">\n` +
-        `<table width="100%" style="min-width:500px">\n` +
-        `<thead><tr><th>${t.sections.port}</th><th>${t.columns.type}</th></tr></thead>\n` +
-        `<tbody>\n${body}\n</tbody>\n` +
-        `</table>\n</div>`,
-    );
   }
 
   return lines.join("\n").trim();

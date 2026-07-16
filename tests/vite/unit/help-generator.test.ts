@@ -241,13 +241,13 @@ describe("help-generator", () => {
 
     it("generates a table with translated headers", () => {
       const section = generateSchemaSection({
-        title: ptBR.sections.properties,
+        title: ptBR.sections.configuration,
         schema,
         t: ptBR,
         labels: { host: "Servidor", url: "URL" },
       });
 
-      expect(section).toContain("Propriedades");
+      expect(section).toContain("Configuração");
       expect(section).toContain("Rótulo");
       expect(section).toContain("Propriedade");
       expect(section).toContain("Tipo");
@@ -527,7 +527,7 @@ describe("help-generator", () => {
         enUS,
       );
 
-      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain("<h3>Configuration</h3>");
       expect(doc).toContain("<th>Default</th>");
     });
 
@@ -542,7 +542,7 @@ describe("help-generator", () => {
         ptBR,
       );
 
-      expect(doc).toContain("<h3>Propriedades</h3>");
+      expect(doc).toContain("<h3>Configuração</h3>");
       expect(doc).toContain("<h3>Credenciais</h3>");
     });
 
@@ -560,7 +560,7 @@ describe("help-generator", () => {
 
       const doc = generateHelpDoc(nodeWithConfigOnly, {}, enUS);
 
-      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain("<h3>Configuration</h3>");
       expect(doc).not.toContain("<h3>Credentials</h3>");
       expect(doc).not.toContain("<h3>Input</h3>");
       expect(doc).not.toContain("<h3>Output</h3>");
@@ -591,8 +591,10 @@ describe("help-generator", () => {
           description: "A test node",
           configs: { host: "Host" },
           credentials: { apiKey: "API Key" },
-          input: { payload: "Payload" },
-          outputs: [{ result: "Result" }],
+          input: { label: "Request", description: "The incoming request" },
+          outputs: {
+            result: { label: "Result", description: "The parsed result" },
+          },
         }),
       );
 
@@ -600,36 +602,13 @@ describe("help-generator", () => {
       expect(result.description).toBe("A test node");
       expect(result.configs).toEqual({ host: "Host" });
       expect(result.credentials).toEqual({ apiKey: "API Key" });
-      expect(result.input).toEqual({ payload: "Payload" });
-      expect(result.outputs).toEqual([{ result: "Result" }]);
-    });
-
-    it("normalizes array and bare-string input/output labels to arrays", () => {
-      const arrPath = path.join(tmpDir, "arr.json");
-      fs.writeFileSync(
-        arrPath,
-        JSON.stringify({
-          inputLabels: ["Records"],
-          outputLabels: ["Success", "Failure"],
-        }),
-      );
-      const arr = loadNodeLabels(arrPath);
-      expect(arr.inputLabels).toEqual(["Records"]);
-      expect(arr.outputLabels).toEqual(["Success", "Failure"]);
-
-      // Node-RED allows inputLabels/outputLabels to be a bare string (one port)
-      // — normalize so ports can index into them uniformly.
-      const strPath = path.join(tmpDir, "str.json");
-      fs.writeFileSync(
-        strPath,
-        JSON.stringify({
-          inputLabels: "Query input",
-          outputLabels: "Operation result",
-        }),
-      );
-      const str = loadNodeLabels(strPath);
-      expect(str.inputLabels).toEqual(["Query input"]);
-      expect(str.outputLabels).toEqual(["Operation result"]);
+      expect(result.input).toEqual({
+        label: "Request",
+        description: "The incoming request",
+      });
+      expect(result.outputs).toEqual({
+        result: { label: "Result", description: "The parsed result" },
+      });
     });
 
     it("returns empty object on invalid JSON", () => {
@@ -798,7 +777,7 @@ describe("help-generator", () => {
       expect(fs.existsSync(htmlPath)).toBe(true);
       const content = fs.readFileSync(htmlPath, "utf-8");
       expect(content).toContain('data-help-name="test-node"');
-      expect(content).toContain("Properties");
+      expect(content).toContain("Configuration");
     });
 
     it("skips node when manual .md docs exist", async () => {
@@ -1097,7 +1076,7 @@ describe("help-generator", () => {
           fields: [{ name: "mode", type: '"a" | "b"', optional: false }],
         },
       });
-      expect(doc).toContain("<h3>Properties</h3>");
+      expect(doc).toContain("<h3>Configuration</h3>");
       expect(doc).toContain('<td>mode</td><td>"a" | "b"</td>');
     });
   });
