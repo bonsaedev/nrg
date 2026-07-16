@@ -1,5 +1,7 @@
 # Message Channels
 
+> Most nodes only put plain data on the wire (`msg`). Channels are an **advanced escape hatch** for the two cases below — carrying a live object or a secret *alongside* a message without it riding the wire. Skip this on a first read; come back when you build a node that actually needs it.
+
 Two kinds of data can't safely ride the wire:
 
 - **Live objects** — a database connection, an open HTTP `res`, a streaming handle,

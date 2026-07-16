@@ -5,6 +5,8 @@
 - [Node.js](https://nodejs.org/) **>= 20.19**
 - [pnpm](https://pnpm.io/) **>= 10.11.0**
 
+You do **not** need a separate Node-RED install — `pnpm dev` downloads and runs a local Node-RED for you (the version is configurable via the Vite plugin).
+
 ## Scaffold from Template
 
 The fastest way to start is with the official scaffolding command:
@@ -111,7 +113,7 @@ Create `tsconfig.json` files that extend the shared configs:
 Put your node schemas in `src/shared/schemas/` and import them with the `@/schemas` alias (already set up in NRG's tsconfig, build, and test configs). Server code imports the actual schema values; editor (client) code imports only their TypeScript types. Each `src/*/tsconfig.json` uses `rootDir: ".."` to point at `src/`, so the client can still see the shared `src/shared` schema types its forms reference.
 
 ::: tip
-The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [Creating a Node](./creating-a-node#client-side-files) for details.
+The `src/client/` directory and its `tsconfig.json` are optional. NRG auto-generates the client-side code from your schemas. You only need these if you want to customize the editor behavior or provide custom Vue form components. See [The Editor Form](./editor-form#client-side-files) for details.
 :::
 
 ### 4. Create the entry file
@@ -130,6 +132,8 @@ export default defineModule({
 ```
 
 `defineModule` bundles your node classes into a single typed object that NRG reads to register each node with Node-RED.
+
+This entry imports `./nodes/my-node`, which imports its schema from `src/shared/schemas/` — so create at least one schema + node before you build, or the unresolved import fails. Follow [Creating a Node](./creating-a-node) for that minimal schema + class, then continue below.
 
 ### 5. Configure ESLint
 

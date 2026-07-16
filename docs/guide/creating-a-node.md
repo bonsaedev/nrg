@@ -14,7 +14,7 @@ See also:
 
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
-> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup.
+> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup. The `ConfigsSchema` / `SettingsSchema` imported below are what declare the fields this class reads (`config.prefix`, `settings.apiEndpoint`); see [Config Schemas](./schemas) for how to write them.
 
 ```typescript
 import {
@@ -206,7 +206,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 | Property | Required | Description |
 | --- | --- | --- |
 | `type` | Yes | Unique node type identifier |
-| `category` | Yes | Palette category (e.g., `"function"`, `"network"`, `"config"`) |
+| `category` | Yes | Palette category (e.g., `"function"`, `"network"`, `"parser"`). `ConfigNode` sets this to `"config"` for you. |
 | `color` | Yes | Node color in hex format (e.g., `"#a6bbcf"`) |
 | `configSchema` | No | TypeBox schema for config validation |
 | `credentialsSchema` | No | TypeBox schema for credential fields |
@@ -331,7 +331,7 @@ These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorP
 
 #### Framework config fields {#framework-config-fields}
 
-The framework knows a set of config fields by name and **injects them into every IONode's config schema by the build**: `name`, the three lifecycle-port toggles, `outputReturnProperties`, `outputContextModes`, and the data-validation fields (`inputSchema`, `outputSchemas`, and their `validate` toggles). Their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, context mode `passthrough`, return key `output`, no validation schema), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
+The framework knows a set of config fields by name and **injects them into every IONode's config schema by the build**: `name`, the three lifecycle-port toggles, `outputReturnProperties`, `outputContextModes`, `inputRoot`, and the data-validation fields (`inputSchema`, `outputSchemas`, and their `validate` toggles). Their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, context mode `passthrough`, return key `output`, input root = the whole message, no validation schema), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
 
 As a node **author you declare one of these only to change its default** — add the property to your config schema and set your value on the builder's `default`. That value becomes the seeded default in the editor (which the flow author can still change); declaring does **not** change whether the control appears — it always does.
 
@@ -345,6 +345,7 @@ That includes the two data-validation rows below. `inputSchema` and `outputSchem
 | `statusPort` | `SchemaType.Boolean` | The built-in [status port](#lifecycle-output-ports) (default: off) |
 | `outputReturnProperties` | `SchemaType.OutputReturnProperties` | Per-port key each emitted value is wrapped under (default: `output`) |
 | `outputContextModes` | `SchemaType.OutputContextModes` | Per-port `passthrough` / `reset` of the incoming message (default: `passthrough`) |
+| `inputRoot` | `SchemaType.InputRoot` | Which message property `input()` reads its fields from (default: the whole message) |
 | `inputSchema` | `SchemaType.InputSchema` | A flow-author-editable input data-validation schema (default: none) |
 | `outputSchemas` | `SchemaType.OutputSchemas` | Flow-author-editable per-port output data-validation schemas (default: none) |
 

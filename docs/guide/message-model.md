@@ -151,6 +151,14 @@ property (including `source` and the prior `input` frame) is dropped — only
 expressions in the node's config resolve against the rebased message too, so
 there's one coordinate system.
 
+As the **node author** you can seed the default (which the flow author can still
+change) with `SchemaType.InputRoot()` in your config schema — e.g. a node that
+always consumes an upstream nrg node's result:
+
+```typescript
+inputRoot: SchemaType.InputRoot({ default: "output" }),
+```
+
 ## Lineage: `_msgid`
 
 Every message carries Node-RED's `_msgid` lineage id. nrg **preserves it across

@@ -46,6 +46,8 @@ NRG  --  decided by the flow author, on the wire
 
 In classic Node-RED every node must actively call `send(msg)` to pass the message on; if the node's code forgets that call (or takes a path that skips it), the flow stops silently with no error — and whoever built the flow can't fix it from the outside. NRG flips this: the node just returns its result, the framework carries the incoming message for you, and the **flow author** decides per output how much of it continues — the last message (`passthrough`) or a clean slate (`reset`). See [context modes](./message-model#context-modes).
 
+> Throughout these docs, the **flow author** is whoever wires nodes together on the Node-RED canvas — as opposed to you, the **node author**, who writes the node package. Many of NRG's controls exist so the node author sets a sensible default while the flow author keeps the final say per node instance.
+
 ## Live Objects & Hidden Data
 
 Some data can't safely ride the wire: **live objects** that break when Node-RED clones the message (a DB connection, an open HTTP `res`, a streaming handle), and **secrets** that must never be seen (a decrypted token, a signed id). Yet this data is often *per-message* — derived from one request and needed by a *different* node downstream — so it still has to travel *with* the message.
@@ -552,7 +554,7 @@ override async input(msg: Input<Port<{ items: string[] }>>) {
 Now the loop, its success, and its failure all read top-to-bottom in one method, and on the canvas they are three real wires you can follow — not a self-loop plus two nodes linked by hidden scope. What each port carries:
 
 - **`complete`** — `input()`'s returned value, under a `complete` key.
-- **`error`** — `{ error: { name, message, stack }, source, input: msg }`, the same shape a Catch node reads, but it travels this wire instead of firing a Catch node.
+- **`error`** — `{ error: { name, message, stack? }, source, input: msg }`, the same shape a Catch node reads, but it travels this wire instead of firing a Catch node. (`stack` is present only when an `Error` was thrown.)
 - **`status`** — whatever you pass to `this.status(...)`.
 
 ## TypedInput Resolution
