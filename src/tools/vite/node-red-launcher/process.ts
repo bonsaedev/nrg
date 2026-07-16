@@ -193,7 +193,11 @@ async function listListeners(port: number): Promise<number[]> {
 /** Whether `pid`'s command line is an nrg-launched Node-RED. */
 async function isNrgNodeRed(pid: number): Promise<boolean> {
   if (isWindows) return false;
-  const stdout = await run("ps", ["-o", "command=", "-p", String(pid)]);
+  // `-ww` disables ps's column-width truncation: the settings marker sits LATE
+  // in a long `node <red.js> -s <…/node-red-settings-final-*.js>` command, and
+  // without `-ww` BSD/macOS ps clips it to the terminal width, dropping the
+  // marker so a genuine orphan reads as foreign and is never reaped.
+  const stdout = await run("ps", ["-ww", "-o", "command=", "-p", String(pid)]);
   return stdout.includes(NRG_SETTINGS_MARKER);
 }
 
@@ -227,7 +231,10 @@ async function resolvePort(options: ResolvePortOptions): Promise<number> {
     let reaped = false;
     for (const pid of holders) {
       if ((await isNrgNodeRed(pid)) && (await isOrphaned(pid))) {
-        logger.warn(`Reaping abandoned Node-RED (pid ${pid}) on port ${port}`);
+        // Fold into the active "Starting Node-RED" spinner rather than printing a
+        // standalone line per reaped pid — the search is startup noise, and the
+        // final chosen port is reported once by the server URLs.
+        logger.updateSpinner(`Starting Node-RED · reclaiming port ${port}…`);
         signalTree(pid, "SIGKILL");
         reaped = true;
       }
@@ -240,7 +247,11 @@ async function resolvePort(options: ResolvePortOptions): Promise<number> {
     }
 
     // Held by something live/foreign — advance rather than fight or kill it.
-    logger.info(`Port ${port} in use, trying ${port + 1}`);
+    // Update the spinner in place instead of emitting one line per busy port
+    // (which clobbered the spinner and flooded the terminal).
+    logger.updateSpinner(
+      `Starting Node-RED · port ${port} in use, trying ${port + 1}…`,
+    );
   }
 
   throw new NodeRedStartError(

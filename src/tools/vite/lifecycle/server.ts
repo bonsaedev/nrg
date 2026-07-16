@@ -344,6 +344,36 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
             process.exit(1);
           });
       });
+
+      // A non-interactive stop (SIGTERM from `kill`, an IDE/supervisor) must also
+      // reap Node-RED. Without a listener the default action terminates the vite
+      // process WITHOUT running our `exit` net, orphaning the detached child so it
+      // camps its port. Mirror the graceful path once.
+      process.on("SIGTERM", () => {
+        if (isShuttingDown) return;
+        isShuttingDown = true;
+        nodeRedLauncher
+          .stop(true)
+          .then(() => nodeRedLauncher.cleanup())
+          .catch(() => {})
+          .finally(() => process.exit(0));
+      });
+
+      // Last-resort SYNCHRONOUS net: on any process exit (a handler above calling
+      // process.exit, an uncaught fatal, or a normal exit), SIGKILL the detached
+      // Node-RED process group so it can never be left orphaned camping a port.
+      // `pid` is null once a graceful stop has already reaped it, so this only
+      // fires on an abrupt exit. Only sync work is allowed in an `exit` handler.
+      process.on("exit", () => {
+        const pid = nodeRedLauncher.pid;
+        if (pid && process.platform !== "win32") {
+          try {
+            process.kill(-pid, "SIGKILL"); // negative pid → the child's group
+          } catch {
+            /* already gone */
+          }
+        }
+      });
     },
   };
 }
