@@ -464,11 +464,14 @@ describe("transactionId (trigger correlation, read-only)", () => {
 
   it("a source/trigger node freezes its msgid as a read-only transactionId", async () => {
     const { node } = await createNode(Source, {});
-    const frame = node.sent(0)[0] as Record<string, any>;
+    // Keep the emitted-frame type (it carries the `[Channels]` symbol accessor via
+    // the harness shim); read the framework-owned `_msgid` through a plain cast.
+    const frame = node.sent(0)[0];
+    const msgid = (frame as Record<string, any>)._msgid;
 
     // transactionId equals the emitted message's own _msgid...
-    expect(frame[Channels].protected.transactionId).toBe(frame._msgid);
-    expect(typeof frame._msgid).toBe("string");
+    expect(frame[Channels].protected.transactionId).toBe(msgid);
+    expect(typeof msgid).toBe("string");
     // ...alongside the source's own protected contribution, off the wire:
     expect(frame[Channels].protected.trace).toBe("src");
     expect(Object.keys(frame)).not.toContain("transactionId");
