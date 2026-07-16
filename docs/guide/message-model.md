@@ -91,6 +91,8 @@ output ports, and every port's dropdown is editable. A port with a declared
 default is seeded to that value; the rest seed to `passthrough`. Named-port sends
 (`this.send("name", value)`) resolve the same per-port mode by index.
 
+![The Outputs table's per-port Context Mode column, one dropdown set to passthrough and one to reset](/context-modes.png)
+
 ## Custom return keys {#overriding-the-return-key}
 
 Every output port's return key is `"output"`. The editor's Outputs table always
