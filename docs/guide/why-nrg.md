@@ -2,6 +2,30 @@
 
 Building Node-RED nodes the traditional way involves writing raw HTML templates, jQuery bindings, callback-based APIs, and manual validation — with no type safety. NRG replaces all of that with TypeScript, JSON Schemas, Vue 3, and Vite.
 
+## Runs on standard Node-RED
+
+First, the thing people most often get wrong: NRG is **not** a fork of Node-RED, and it is **not** a proprietary or custom runtime. The nodes you build are ordinary Node-RED nodes. They install into a **stock, unmodified Node-RED** — `npm install` into `~/.node-red`, or **Manage Palette → Install** — and run on the same runtime everyone else uses. No patched core, no special server, no lock-in. Uninstall your node and Node-RED is byte-for-byte what it was.
+
+NRG is an **adapter layer**. It runs at author-time (the build) and then *inside your own node's module* at run-time, registering through the exact same public `RED.nodes.registerType` API a hand-written node uses. To Node-RED, an NRG node is indistinguishable from any other — it shares the canvas and wires straight to core `inject` / `debug` / `function` nodes.
+
+```text
+   AUTHOR TIME
+   your node:  TypeScript, Vue 3, JSON Schema, your classes
+        |
+        |  build (@bonsae/nrg)
+        v
+   plain .js + .html   (exactly what a hand-written node would ship)
+        |
+        |  loaded by a stock, unmodified Node-RED
+        v
+   RUN TIME
+   registered via the public RED.nodes.registerType(...) -- the same call
+   any node uses. The nrg "adapter" is just code inside your own module;
+   nothing is added to, or changed in, the Node-RED runtime.
+```
+
+Everything below — the typed message model, schema-driven forms, off-the-wire channels — is the adapter *improving the APIs you write against*, never a change to the runtime your nodes run on.
+
 ## Message Flow
 
 A flow is a message hopping from node to node. The difference is **who decides whether it keeps going — and how much of it travels along.**
@@ -433,6 +457,50 @@ override async input(msg: Input<Port<{ payload: string }>>) {
   this.send("out", { result });
 }
 ```
+
+Because each `input()` runs in its own context, **one node handles many messages at once — safely.** This matters most for a node in the *middle* of a flow doing async work. Stock Node-RED already runs it concurrently: it hands the handler the next message without waiting for the previous one to finish — Node-RED's own dispatch calls the input callback and never awaits it, and `done()` only marks completion, it doesn't gate delivery. So the concurrency is already there; the hard part is being *correct* under it.
+
+Picture an **enrich** node between `http-in` and `http-out` that does one async DB lookup per request:
+
+```javascript
+// CLASSIC — stash the in-flight request on `this`, and overlap corrupts it
+this.on("input", function (msg, send, done) {
+  this.current = msg;                    // shared across every message
+  lookup(msg.payload).then((extra) => {
+    // a second request can arrive during the await and overwrite
+    // `this.current` — so this may reply to the WRONG caller
+    send({ payload: { ...this.current.payload, extra } });
+    done();
+  });
+});
+```
+
+```typescript
+// NRG — each message keeps its own context; nothing lives on `this`
+override async input(msg: EnrichInput) {
+  const extra = await lookup(msg.output.payload);
+  // still resolves THIS message after the await — no `this`, no correlation
+  // ids, no races
+  this.send("out", { payload: { ...msg.output.payload, extra } });
+}
+```
+
+```text
+CLASSIC  --  middle node keeps the in-flight request on `this`
+
+   A -->|                this.current = A
+   B -->|  [ enrich ]    this.current = B    (B overwrites A mid-await)
+   C -->|                A resumes --> replies on B's socket    [X]
+
+
+NRG  --  each message runs in its own context; nothing kept on `this`
+
+   A -->|                ctx A: its own msg + res
+   B -->|  [ enrich ]    ctx B: its own msg + res    each reply lands on
+   C -->|                ctx C: its own msg + res    its own socket  [OK]
+```
+
+The payoff: fire many requests at that `http-in → enrich → http-out` chain at once and each caller still gets exactly its own response back — no crossed wires, even when a request that arrived first finishes last.
 
 ## Lifecycle Ports
 
