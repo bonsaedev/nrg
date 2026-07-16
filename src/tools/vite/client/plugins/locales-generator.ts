@@ -27,6 +27,7 @@ function localesGenerator(options: {
   // Users can override any key in their own label files.
   const frameworkLabels: Record<string, Record<string, unknown>> = {
     "en-US": {
+      input: { inputRoot: "Input Root" },
       configs: { name: "Name" },
       toggles: {
         validateInputTypes: "Validate Types",
@@ -99,6 +100,7 @@ function localesGenerator(options: {
       },
     },
     de: {
+      input: { inputRoot: "Eingabewurzel" },
       configs: { name: "Name" },
       toggles: {
         validateInputTypes: "Typen prüfen",
@@ -171,6 +173,7 @@ function localesGenerator(options: {
       },
     },
     "es-ES": {
+      input: { inputRoot: "Raíz de entrada" },
       configs: { name: "Nombre" },
       toggles: {
         validateInputTypes: "Validar tipos",
@@ -243,6 +246,7 @@ function localesGenerator(options: {
       },
     },
     fr: {
+      input: { inputRoot: "Racine d'entrée" },
       configs: { name: "Nom" },
       toggles: {
         validateInputTypes: "Valider les types",
@@ -315,6 +319,7 @@ function localesGenerator(options: {
       },
     },
     ko: {
+      input: { inputRoot: "입력 루트" },
       configs: { name: "이름" },
       toggles: {
         validateInputTypes: "타입 검증",
@@ -385,6 +390,7 @@ function localesGenerator(options: {
       },
     },
     "pt-BR": {
+      input: { inputRoot: "Raiz de entrada" },
       configs: { name: "Nome" },
       toggles: {
         validateInputTypes: "Validar tipos",
@@ -457,6 +463,7 @@ function localesGenerator(options: {
       },
     },
     ru: {
+      input: { inputRoot: "Корень ввода" },
       configs: { name: "Имя" },
       toggles: {
         validateInputTypes: "Проверять типы",
@@ -529,6 +536,7 @@ function localesGenerator(options: {
       },
     },
     ja: {
+      input: { inputRoot: "入力ルート" },
       configs: { name: "名前" },
       toggles: {
         validateInputTypes: "型を検証",
@@ -601,6 +609,7 @@ function localesGenerator(options: {
       },
     },
     "zh-CN": {
+      input: { inputRoot: "输入根" },
       configs: { name: "名称" },
       toggles: {
         validateInputTypes: "验证类型",
@@ -668,6 +677,7 @@ function localesGenerator(options: {
       },
     },
     "zh-TW": {
+      input: { inputRoot: "輸入根" },
       configs: { name: "名稱" },
       toggles: {
         validateInputTypes: "驗證類型",
