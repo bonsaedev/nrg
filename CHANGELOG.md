@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.41.1](https://github.com/bonsaedev/nrg/compare/v0.41.0...v0.41.1) (2026-07-16)
+
+### Refactors
+
+* strip the raw Node-RED node from the published types ([@internal](https://github.com/internal)) ([16d8d1e](https://github.com/bonsaedev/nrg/commit/16d8d1e0c02ba1eed1a612266da084ca9c7263ab))
+
+### Documentation
+
+* correct inaccurate claims found in a full-doc audit ([01186e9](https://github.com/bonsaedev/nrg/commit/01186e985b228a7ead7db27ab3c94cd4eebca667))
+* fixes from a multi-lens review (accuracy, links, pedagogy, coverage) ([862718e](https://github.com/bonsaedev/nrg/commit/862718e288a3477fc34b376f0530bea3b8c49ef1))
+* **why-nrg:** clarify nrg runs on stock Node-RED + show the concurrency win ([c173850](https://github.com/bonsaedev/nrg/commit/c17385086162ffd0e2e3cd035af5935cba49eb43))
+
 ## [0.41.0](https://github.com/bonsaedev/nrg/compare/v0.40.0...v0.41.0) (2026-07-16)
 
 ### Features
