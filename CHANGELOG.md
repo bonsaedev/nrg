@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.41.0](https://github.com/bonsaedev/nrg/compare/v0.40.0...v0.41.0) (2026-07-16)
+
+### Features
+
+* **labels:** fold inputLabels/outputLabels into per-port input/outputs ([c15b3dd](https://github.com/bonsaedev/nrg/commit/c15b3dd119ac07499925f956fe89f34f12f94269))
+* message model — passthrough/reset context modes + configurable input root ([dd3cd8b](https://github.com/bonsaedev/nrg/commit/dd3cd8b5c67ce7da623a43db3cf3ebb73a30db5d))
+* trigger nodes stamp a read-only transactionId on the protected channel ([a123587](https://github.com/bonsaedev/nrg/commit/a1235876307f5ec28e14c53117f37392e0c311e1))
+* **vite:** translate the Input Root column header across locales ([eadbb19](https://github.com/bonsaedev/nrg/commit/eadbb1916601060ca0383bc637b1dfaa4274221f))
+
+### Bug Fixes
+
+* **client:** hide structural if/then errors in editor validation ([23cc2a3](https://github.com/bonsaedev/nrg/commit/23cc2a3307cfdd0e965993960865daa959db6035))
+* **vite:** quiet port-search spam + reap orphaned Node-RED reliably ([08ac988](https://github.com/bonsaedev/nrg/commit/08ac9886e03b145799235af49170bd56b7ea38cf))
+
+### Refactors
+
+* **client:** split the editor form into components ([8048e49](https://github.com/bonsaedev/nrg/commit/8048e49aa605b0e083dcf0d1c013169a969309ef))
+
+### Documentation
+
+* regenerate the editor form screenshots for the message model ([820df41](https://github.com/bonsaedev/nrg/commit/820df418658212ca49b38da764a45ab4cf358d0d))
+* reorganize the guide into focused pages + fix drift ([ff7da98](https://github.com/bonsaedev/nrg/commit/ff7da980384b68bc1dc8f3192c81b3a0b699b002))
+
 ## [0.40.0](https://github.com/bonsaedev/nrg/compare/v0.39.0...v0.40.0) (2026-07-14)
 
 ### Features
