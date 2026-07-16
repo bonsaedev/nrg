@@ -76,3 +76,40 @@ void emittedTrace;
 // @ts-expect-error - _msgid is intentionally absent from the input message
 const noMsgid: unknown = msg._msgid;
 void noMsgid;
+
+// ── typed channels: a shape declared on the PORT (`Port<Wire, ChannelShape>`) ──────
+// (g) READ: a declared partition key is PRECISE (not `unknown`), while undeclared keys
+//     on the same partition stay `unknown` — the open bag is preserved.
+type Conn = { end(): void };
+type TypedMsg = Input<Port<Wire, { private: { conn?: Conn } }>>;
+declare const tmsg: TypedMsg;
+const typedConn: Conn | undefined = tmsg[Channels].private.conn; // precise, no cast
+void typedConn;
+// @ts-expect-error - conn is `Conn | undefined`, NOT a string (proves it isn't `any`)
+const connMistyped: string = tmsg[Channels].private.conn;
+void connMistyped;
+const stillUnknown: unknown = tmsg[Channels].private.other; // undeclared key → unknown
+void stillUnknown;
+
+// (h) SEND: an OUTPUT port that declares a shape TYPES the `send()` channel argument,
+//     so the write contract is enforced (and autocompleted). Symmetric with the read.
+declare const conn: Conn;
+class TypedSendNode extends IONode<
+  Record<string, never>,
+  unknown,
+  Input<Port<Wire>>,
+  Outputs<{ out: Port<{ x: number }, { private: { conn: Conn } }> }>
+> {
+  static override readonly type = "ml-typed-send-proof";
+  static override readonly category = "test";
+  static override readonly color = "#ffffff";
+  override async input(_m: Msg) {
+    this.send("out", { x: 1 }, { private: { conn } }); // the declared channel is accepted
+    this.send("out", { x: 1 }); // channels stay OPTIONAL
+    // @ts-expect-error - the channel value must be a Conn, not a number
+    this.send("out", { x: 1 }, { private: { conn: 123 } });
+    // @ts-expect-error - the required `conn` channel is missing from the private partition
+    this.send("out", { x: 1 }, { private: {} });
+  }
+}
+void TypedSendNode;

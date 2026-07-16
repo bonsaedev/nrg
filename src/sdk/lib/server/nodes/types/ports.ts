@@ -22,12 +22,28 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
  *   async input(msg: Input<Port<In>>) { this.send("rows", parse(msg.payload)); } // "rows" | "failed" checked
  * }
  */
-interface Port<T> {
+interface Port<T, TChannels extends ChannelShape = object> {
   readonly __nrg_port: T;
+  /**
+   * Phantom brand for the port's off-the-wire {@link ChannelShape} — what a node
+   * WRITES on `send` (output ports) and READS via `msg[Channels]` (input ports).
+   * Declared ONCE on the port and enforced on both ends. Optional and defaulting to
+   * `object` (untyped), so a plain `Port<T>` stays valid and behaves exactly as before.
+   */
+  readonly __nrg_channels?: TChannels;
 }
 
 /** Unwrap a {@link Port} to its message type; pass a non-Port through unchanged. */
-type PortValue<P> = P extends Port<infer U> ? U : P;
+type PortValue<P> = P extends Port<infer U, ChannelShape> ? U : P;
+
+/** Unwrap a {@link Port}'s off-the-wire {@link ChannelShape}; `object` (untyped) for a
+ *  `Port<T>` that declares none. */
+type PortChannels<P> = P extends Port<unknown, infer C> ? C : object;
+
+/** The `send(port, value, channels)` channel argument derived from a port: both
+ *  partitions optional, declared keys typed (so `send` gives intellisense and enforces
+ *  a required key), arbitrary keys still allowed via the open bag. */
+type WriteChannels<TPort> = Partial<MessageChannels<PortChannels<TPort>>>;
 
 /** True when every value of a record is a {@link Port} (→ named ports). */
 type IsPortRecord<TOutput> = [keyof TOutput] extends [never]
@@ -107,6 +123,19 @@ const Channels: unique symbol = Symbol.for("nrg.channels");
 type MessageChannel = Record<string, unknown>;
 
 /**
+ * An optional TYPED shape for a message's channel partitions, passed as the second
+ * argument to {@link Input} (e.g. `Input<Port<Wire>, { private: { conn?: Conn } }>`).
+ * A declared partition is intersected with the open {@link MessageChannel} bag, so
+ * the named keys are typed while arbitrary string keys stay reachable as `unknown`
+ * and existing untyped code is unaffected. The shape is a hand-shared contract
+ * between the node that WRITES it on `send` and the node that READS it: the channel
+ * is off-the-wire (keyed by `_msgid`, never on a connection), so the type cannot
+ * flow through a wire and must be declared on both ends. Omit it to keep the default
+ * fully-untyped `Record<string, unknown>` on both partitions.
+ */
+type ChannelShape = { protected?: object; private?: object };
+
+/**
  * What `msg[Channels]` returns — the off-the-wire channels present on every message
  * a node's `input()` receives, added by the runtime and NEVER part of the serialized
  * message, so a flow author's function node and the debug panel can't see them. Each
@@ -131,9 +160,11 @@ type MessageChannel = Record<string, unknown>;
  *   }
  * }
  */
-interface MessageChannels {
-  protected: MessageChannel;
-  private: MessageChannel;
+interface MessageChannels<TShape extends ChannelShape = object> {
+  protected: MessageChannel &
+    ("protected" extends keyof TShape ? TShape["protected"] : unknown);
+  private: MessageChannel &
+    ("private" extends keyof TShape ? TShape["private"] : unknown);
 }
 
 /**
@@ -143,8 +174,8 @@ interface MessageChannels {
  * wire type. Hand-annotate with `Wire & WithMessageChannels` only when you are not
  * using the `Input<Port<Wire>>` gate (which adds it for you).
  */
-interface WithMessageChannels {
-  readonly [Channels]: MessageChannels;
+interface WithMessageChannels<TShape extends ChannelShape = object> {
+  readonly [Channels]: MessageChannels<TShape>;
 }
 
 /**
@@ -164,34 +195,40 @@ interface MessageMeta {
 }
 
 /**
- * `Input<Port<TWire>>` — the input gate. A node's single input is a PORT carrying
- * the on-the-wire type `TWire`; `Input<>` unwraps that {@link Port} and adds the
- * off-the-wire channels ({@link MessageChannels}). Authors declare it as
- * `type SoqlInput = Input<Port<{ … }>>` and pass it as the node's `TInput` generic;
- * the annotated `input(msg: SoqlInput)` parameter is then exactly `TWire` plus the
- * channels, so a node reads `msg.<wireField>` and `msg[Channels].private` /
- * `msg[Channels].protected` — all typed. Wrapping the wire in `Port<>` mirrors the
- * output side (`Outputs<{ p: Port<T> }>`), so `Port<T>` reads as "a port carrying T"
- * in BOTH directions. The `TInput` generic is constrained
- * `TInput extends Input<Port<unknown>>`, so a bare (unwrapped) wire is rejected — the
- * `Port<>` wrap is enforced; `never` (a source node with no input) still satisfies
- * it. `_msgid` ({@link MessageMeta}) stays excluded — it's the framework's internal
- * channel key, not an author-facing field. ALWAYS annotate `input()` with this alias:
- * TypeScript does not infer an overridden method's parameter from the base, so an
- * un-annotated `input(msg)` is `any`.
+ * `Input<Port<TWire, TChannels>>` — the input gate. A node's single input is a PORT
+ * carrying the on-the-wire type `TWire` and (optionally) a typed off-the-wire
+ * {@link ChannelShape}; `Input<>` unwraps the {@link Port} into `TWire` plus the
+ * off-the-wire channels ({@link MessageChannels}) typed by the port's `TChannels`.
+ * Authors declare it as `type SoqlInput = Input<Port<{ … }>>` (or
+ * `Input<Port<{ … }, { private: { conn?: Conn } }>>` to type the channels) and pass it
+ * as the node's `TInput` generic; the annotated `input(msg: SoqlInput)` parameter is
+ * then exactly `TWire` plus the channels, so a node reads `msg.<wireField>` and
+ * `msg[Channels].private` / `msg[Channels].protected` — all typed. The channel shape
+ * lives on the {@link Port} (NOT on `Input`), so it is symmetric with the output side
+ * (`Outputs<{ p: Port<T, C> }>`), where the same `C` types what `send` may write. The
+ * `TInput` generic is constrained `TInput extends InputSpec` (carries the channels),
+ * so a bare (unwrapped) wire is rejected — the `Port<>` wrap is enforced; `never` (a
+ * source node with no input) still satisfies it. `_msgid` ({@link MessageMeta}) stays
+ * excluded. ALWAYS annotate `input()` with this alias: TypeScript does not infer an
+ * overridden method's parameter from the base, so an un-annotated `input(msg)` is `any`.
  */
 type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
-  WithMessageChannels;
+  WithMessageChannels<PortChannels<TPort>>;
 
 /**
- * The constraint on a node's `TInput` generic — the set of valid input shapes:
- * an {@link Input} of any {@link Port} (the wire plus the off-the-wire channels),
- * which reduces to "carries the {@link MessageChannels}". Symmetric to
- * {@link OutputSpec} on the output side, so the node generics read
- * `TInput extends InputSpec` / `TOutput extends OutputSpec`. `never` (a source
- * node with no input) satisfies it.
+ * The constraint on a node's `TInput` generic — "carries the {@link MessageChannels}
+ * accessor". Kept STRUCTURAL (an inline carrier, not `WithMessageChannels<…>`) so a
+ * node that declares a typed channel shape via {@link Input}'s second parameter still
+ * satisfies it: a declared shape only NARROWS a partition, and structural assignability
+ * accepts a narrower partition — whereas comparing the generic by type-argument is
+ * invariant and would reject it. The old `Input<Port<unknown>>` reduced to
+ * `WithMessageChannels<object>` (the wire is `unknown`), which is exactly this shape,
+ * so the bound is unchanged for untyped inputs. `never` (a source node with no input)
+ * satisfies it. Symmetric to {@link OutputSpec} on the output side.
  */
-type InputSpec = Input<Port<unknown>>;
+type InputSpec = {
+  readonly [Channels]: { protected: MessageChannel; private: MessageChannel };
+};
 
 /**
  * Recover the pure WIRE type from a wrapped {@link Input} by stripping the channels —
@@ -292,12 +329,15 @@ interface StatusPortOutput {
 export type {
   Port,
   PortValue,
+  PortChannels,
+  WriteChannels,
   IsAny,
   IsPortRecord,
   OutputPortNames,
   Outputs,
   OutputSpec,
   MessageChannel,
+  ChannelShape,
   MessageChannels,
   WithMessageChannels,
   MessageMeta,

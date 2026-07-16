@@ -21,6 +21,7 @@ import { Channels } from "./types/ports";
 import type {
   OutputPortNames,
   PortValue,
+  WriteChannels,
   Port,
   OutputSpec,
   InputSpec,
@@ -827,7 +828,14 @@ abstract class IONode<
           // sound union of every port's value (record key order isn't recoverable)
           PortValue<TOutput[keyof TOutput]>
         : unknown,
-    channels?: { protected?: object; private?: object },
+    // The channels arg is typed against the addressed port's declared ChannelShape
+    // (WriteChannels) — same lookup as `msg`, so `send` gives intellisense for the
+    // declared keys and enforces a required one, while arbitrary keys stay allowed.
+    channels?: P extends keyof TOutput
+      ? WriteChannels<TOutput[P]>
+      : P extends number
+        ? WriteChannels<TOutput[keyof TOutput]>
+        : { protected?: object; private?: object },
   ) {
     if (port === "error" || port === "complete" || port === "status") {
       throw new NrgError(

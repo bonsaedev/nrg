@@ -10,6 +10,7 @@ import type {
 import type {
   OutputPortNames,
   PortValue,
+  WriteChannels,
   Port,
   OutputSpec,
   InputSpec,
@@ -113,7 +114,11 @@ interface IIONode<
       : P extends number
         ? PortValue<TOutput[keyof TOutput]>
         : unknown,
-    channels?: { protected?: object; private?: object },
+    channels?: P extends keyof TOutput
+      ? WriteChannels<TOutput[P]>
+      : P extends number
+        ? WriteChannels<TOutput[keyof TOutput]>
+        : { protected?: object; private?: object },
   ): void;
 }
 
