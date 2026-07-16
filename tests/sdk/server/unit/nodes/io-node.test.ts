@@ -245,8 +245,11 @@ describe("IONode", () => {
       const instance = new TestIONode(RED, node, {}, {});
 
       instance.send(0, "test");
+      // A topology-less node reports `inputs === 0` (the framework's default), so
+      // it's treated as a source/trigger: the send mints a `_msgid` (to key the
+      // frozen `transactionId`) instead of leaving it for Node-RED to assign.
       expect(node.send).toHaveBeenCalledWith([
-        { output: "test", source: src(0) },
+        { output: "test", source: src(0), _msgid: expect.any(String) },
       ]);
     });
 

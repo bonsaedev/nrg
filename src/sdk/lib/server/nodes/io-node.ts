@@ -58,6 +58,13 @@ const SOURCE_KEY = "source";
  * forward on every outgoing message rather than let it be regenerated per hop. */
 const MSGID_KEY = "_msgid";
 
+/** Read-only correlation id a SOURCE/trigger node (no input port) stamps on the
+ * `protected` channel when it emits: the id of the message it originated. Every
+ * downstream node reads it via `msg[Channels].protected.transactionId` to correlate
+ * all work back to that trigger firing. Frozen in the channel store, so no node can
+ * overwrite or delete it. */
+const TRANSACTION_ID_KEY = "transactionId";
+
 /**
  * Message keys the framework owns on an outgoing message: the provenance
  * metadata (`source`/`input`), the built-in port markers, and Node-RED's own
@@ -515,19 +522,17 @@ abstract class IONode<
     protectedData: object | undefined,
     privateData: object | undefined,
     out: unknown[],
+    resolvedMsgid: string | undefined,
   ): void {
     if (!protectedData && !privateData) return;
-    const existing = (
-      IONode.#invocation.getStore()?.inputMsg as
-        | Record<string, unknown>
-        | undefined
-    )?.[MSGID_KEY] as string | undefined;
-    // A source send (no incoming message) mints an id in Node-RED's own
-    // lineage-id format via `generateId()`, so the value we stamp as `_msgid`
-    // reads the same as one Node-RED assigns (message-flow debugger, Catch/
-    // Complete grouping, and `_msgid` correlation all key off that format).
-    const msgid = existing ?? this.RED.util.generateId();
-    if (!existing) {
+    // Use the msgid already resolved for this emission (see #resolveOutgoingMsgid)
+    // so the channel key matches the outgoing frames' `_msgid`. It's `undefined`
+    // only for a send with no context on a non-source node (e.g. a timer in a
+    // middle node's created()) — mint one here and stamp the frames, exactly as
+    // before, in Node-RED's own lineage-id format.
+    let msgid = resolvedMsgid;
+    if (!msgid) {
+      msgid = this.RED.util.generateId();
       for (const m of out) {
         if (m && typeof m === "object") {
           const rec = m as Record<string, unknown>;
@@ -540,6 +545,42 @@ abstract class IONode<
     if (privateData) {
       store.merge(msgid, packageChannel(this.constructor), privateData);
     }
+  }
+
+  /**
+   * Resolve the `_msgid` for this emission and ensure it's stamped on every
+   * outgoing frame. Preference order: the id of the input being processed
+   * (a normal hop, already stamped by {@link #withMsgid}); an id already present on
+   * a frame; otherwise — for a SOURCE/trigger node only — a freshly minted id
+   * (in Node-RED's lineage-id format) stamped on the frames so we can key the
+   * channel and freeze the {@link TRANSACTION_ID_KEY}. Returns `undefined` for a
+   * contextless send on a non-source node, leaving Node-RED to mint one on
+   * delivery (unchanged behavior).
+   */
+  #resolveOutgoingMsgid(out: unknown[]): string | undefined {
+    const inherited = (
+      IONode.#invocation.getStore()?.inputMsg as
+        | Record<string, unknown>
+        | undefined
+    )?.[MSGID_KEY];
+    if (typeof inherited === "string") return inherited;
+    for (const m of out) {
+      if (m && typeof m === "object") {
+        const id = (m as Record<string, unknown>)[MSGID_KEY];
+        if (typeof id === "string") return id;
+      }
+    }
+    if ((this.constructor as typeof IONode).inputs === 0) {
+      const minted = this.RED.util.generateId();
+      for (const m of out) {
+        if (m && typeof m === "object") {
+          const rec = m as Record<string, unknown>;
+          if (rec[MSGID_KEY] === undefined) rec[MSGID_KEY] = minted;
+        }
+      }
+      return minted;
+    }
+    return undefined;
   }
 
   #deliver(out: unknown) {
@@ -870,11 +911,26 @@ abstract class IONode<
       msg !== null && typeof msg === "object"
         ? this.#withMsgid(msg as Record<string, unknown>)
         : msg;
+    // Resolve the outgoing `_msgid` once (stamping frames as needed) so the
+    // transaction freeze and any channel writes key off the same id.
+    const msgid = this.#resolveOutgoingMsgid(out);
+    // A SOURCE/trigger node (no input port) originates a transaction: freeze its
+    // msgid on the protected channel as a read-only `transactionId`, so every
+    // downstream node — which inherits this `_msgid` — can correlate back to this
+    // trigger firing and can neither overwrite nor delete it.
+    if (msgid && (this.constructor as typeof IONode).inputs === 0) {
+      this.RED.channelStore.freeze(
+        msgid,
+        NRG_PROTECTED_CHANNEL,
+        TRANSACTION_ID_KEY,
+        msgid,
+      );
+    }
     // Off-the-wire channel contributions (send's protected/private args), keyed by
     // this message's _msgid. Internal built-in port emissions (status/error/
     // complete) pass none, so this is a no-op there.
     if (channels?.protected || channels?.private) {
-      this.#writeChannels(channels.protected, channels.private, out);
+      this.#writeChannels(channels.protected, channels.private, out, msgid);
     }
     // Deliver through the invocation-scoped path (concurrency-safe); falls back to
     // node.send outside an input() call (e.g. the built-in port auto-emits).

@@ -412,3 +412,74 @@ describe("message channels (protected / private)", () => {
     expect(store.get("sig", NRG_PROTECTED_CHANNEL, "trace")).toBe("T");
   });
 });
+
+// A SOURCE/trigger node (no input port) stamps its own message id onto the
+// protected channel as a read-only `transactionId`, so every downstream node —
+// which inherits the same `_msgid` — can correlate back to that trigger firing.
+class HijackSource extends IONode<
+  Record<string, never>,
+  unknown,
+  never,
+  Outputs<{ out: Port<{ ok: number }> }>
+> {
+  static override readonly type = "channel-hijack-source";
+  static override readonly category = "test";
+  static override readonly color = "#ffffff";
+  override async created() {
+    // Attempting to write the framework-owned key via a channel arg must throw.
+    this.send(0, { ok: 1 }, { protected: { transactionId: "hacked" } });
+  }
+}
+
+describe("transactionId (trigger correlation, read-only)", () => {
+  it("freeze makes a key read-only: reads work, merge/set/delete throw", () => {
+    const store = new ChannelStore();
+    store.freeze("m", NRG_PROTECTED_CHANNEL, "transactionId", "m");
+
+    expect(store.get("m", NRG_PROTECTED_CHANNEL, "transactionId")).toBe("m");
+    expect(() =>
+      store.merge("m", NRG_PROTECTED_CHANNEL, { transactionId: "x" }),
+    ).toThrow(/read-only/);
+    expect(() =>
+      store.set("m", NRG_PROTECTED_CHANNEL, "transactionId", "x"),
+    ).toThrow(/read-only/);
+    expect(() =>
+      store.delete("m", NRG_PROTECTED_CHANNEL, "transactionId"),
+    ).toThrow(/read-only/);
+    // value untouched by the rejected writes
+    expect(store.get("m", NRG_PROTECTED_CHANNEL, "transactionId")).toBe("m");
+  });
+
+  it("a merge touching a frozen key is rejected whole (no partial write)", () => {
+    const store = new ChannelStore();
+    store.freeze("m", NRG_PROTECTED_CHANNEL, "transactionId", "m");
+    expect(() =>
+      store.merge("m", NRG_PROTECTED_CHANNEL, { other: 1, transactionId: "x" }),
+    ).toThrow(/read-only/);
+    expect(store.get("m", NRG_PROTECTED_CHANNEL, "other")).toBeUndefined();
+    // non-frozen keys still write fine
+    store.merge("m", NRG_PROTECTED_CHANNEL, { free: 2 });
+    expect(store.get("m", NRG_PROTECTED_CHANNEL, "free")).toBe(2);
+  });
+
+  it("a source/trigger node freezes its msgid as a read-only transactionId", async () => {
+    const { node } = await createNode(Source, {});
+    const frame = node.sent(0)[0] as Record<string, any>;
+
+    // transactionId equals the emitted message's own _msgid...
+    expect(frame[Channels].protected.transactionId).toBe(frame._msgid);
+    expect(typeof frame._msgid).toBe("string");
+    // ...alongside the source's own protected contribution, off the wire:
+    expect(frame[Channels].protected.trace).toBe("src");
+    expect(Object.keys(frame)).not.toContain("transactionId");
+  });
+
+  it("a node cannot overwrite the framework's frozen transactionId", async () => {
+    // The hijack send freezes transactionId, then its own `{ protected }` arg
+    // tries to overwrite it → the merge throws, surfaced as the created() error.
+    const { node, error } = await createNode(HijackSource, {});
+    expect((error as Error)?.message).toMatch(/read-only/);
+    // ...and the offending frame was never delivered.
+    expect(node.sent(0)).toHaveLength(0);
+  });
+});
