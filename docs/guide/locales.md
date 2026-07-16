@@ -57,7 +57,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 }
 ```
 
-Both `input` and each `outputs` entry are shaped `{ label, description }`: the **label** is the port's name on the canvas, and the **description** is the free-text shown in the port's row of the auto-generated help docs. Both keys are optional — an unset label falls back to the port's declared name.
+Both `input` and each `outputs` entry are shaped `{ label, description }`: the **label** is the port's name on the canvas, and the **description** is the free-text shown in the port's row of the auto-generated help docs. Both keys are optional — an unset label leaves the port unlabeled on the canvas; in the generated help docs the port's row falls back to its declared port name.
 
 ### Fields
 
@@ -84,7 +84,7 @@ When your node declares named output ports (say a `success` port and a `failure`
 }
 ```
 
-An unset `label` falls back to the declared port name, so you only need an entry for a port you want to rename or describe. The built-in error/complete/status ports are labeled automatically — leave them out.
+An unset `label` shows no text on the canvas (the declared port name is used only in the generated help docs' Port column), so add an entry for any port you want labeled on the canvas or described in the help docs. The built-in error/complete/status ports are labeled automatically — leave them out.
 
 ### Rules
 

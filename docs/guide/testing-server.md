@@ -308,24 +308,13 @@ describe("multi-output nodes", () => {
 
 describe("named output ports", () => {
   it("routes to ports by name", async () => {
-    // A node whose two named ports come from the `Outputs<{ … }>` generic — the
-    // types are the only source of topology. The harness stamps the same ports the
-    // build injects, so `sent(name)` resolves by name (like `send(name, …)` in the
-    // node).
-    //   import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
-    type RouterInput = Input<Port<{ payload: number }>>;
-    type RouterOutputs = Outputs<{
-      ok: Port<{ value: number }>;
-      err: Port<{ reason: string }>;
-    }>;
-    class Router extends IONode<any, never, RouterInput, RouterOutputs> {
-      static override readonly type = "router";
-      override async input(msg: RouterInput) {
-        if (msg.payload > 0) this.send("ok", { value: msg.payload });
-        else this.send("err", { reason: "non-positive" });
-      }
-    }
-
+    // `Router` has two named ports from its `Outputs<{ ok: Port<…>; err: Port<…> }>`
+    // generic. The harness reads that port topology from your `src/server` sources
+    // (keyed by the node's `type`, the same tree the build reads), so `sent(name)`
+    // resolves by name — as long as the node lives there. Import it; a class
+    // declared only inline in a test has no ports extracted, and `sent(name)`
+    // would come back empty.
+    //   import Router from "../../src/server/nodes/router";
     const { node } = await createNode(Router);
 
     await node.receive({ payload: 5 });
@@ -603,7 +592,7 @@ Unit and integration tests are separated by folder — `tests/server/unit` and `
 ```
 
 ::: warning Published vs. linked NRG
-The integration library ships with `@bonsae/nrg`. If your CI installs the published package, this works out of the box. The tests register your nodes against the **same** NRG copy your nodes import (`@bonsae/nrg/server`), so the runtime's `instanceof` checks pass — there is no second copy to clash with.
+The integration library ships with `@bonsae/nrg`. If your CI installs the published package, this works out of the box. NRG brands node classes with a global `Symbol.for("nrg.node")` rather than relying on `instanceof`, so registration recognizes your nodes even if more than one copy of NRG is present — but keeping a single copy (the tests and your nodes both resolving `@bonsae/nrg/server`) is still the clean setup.
 :::
 
 ### API

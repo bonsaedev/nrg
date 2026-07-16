@@ -458,7 +458,7 @@ expect(res.end).toHaveBeenCalledWith('{"ok":true}');
 node sees. (`receive`'s message needs an `_msgid` whenever you seed channels — that's the key
 they hang off; the harness throws if you seed channels without one.) The end-to-end A→B
 recovery — one node stashes, another in the same package reads it back — is best covered by
-an [integration test](./testing#server-integration-testing), where both nodes run in one
+an [integration test](./testing-server#server-integration-testing), where both nodes run in one
 runtime and share the store.
 
 ## When *not* to use a channel

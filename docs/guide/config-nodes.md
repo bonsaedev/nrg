@@ -57,4 +57,4 @@ export default class AuthedHttpClient extends HttpClient {
 }
 ```
 
-The build also augments `@bonsae/nrg/server`'s `NodeTypes` registry with every node's port types, keyed by node-type string. Because each installed package merges into the same registry, the editor can type-check a wire between nodes from _different_ packages. See [the generated `index.d.ts`](./project-structure#dist) for the full type surface.
+The build also augments `@bonsae/nrg/server`'s `NodeTypes` registry with every message-processing (IONode) node's port types, keyed by node-type string (config nodes have no ports, so they get an inheritable class declaration but no registry entry). Because each installed package merges into the same registry, the editor can type-check a wire between nodes from _different_ packages. See [the generated `index.d.ts`](./project-structure#dist) for the full type surface.

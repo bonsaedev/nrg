@@ -64,20 +64,22 @@ The `nrg` config provides:
 
 The default config deliberately does **not** prebundle `@bonsae/nrg/server`: schemas reach the browser as serialized data via the globalSetup above, never by value-importing a schema (or node) module. Don't add `@bonsae/nrg/server` to your own `optimizeDeps`.
 
-To test on a single browser only, override the `browser.instances` array:
+To test on a single browser only, replace the `browser.instances` array. Use a
+spread, not `mergeConfig` — `mergeConfig` **concatenates** arrays, so it would
+append `chromium` to nrg's defaults and still run every browser. Spreading
+`nrg.test` lets the keys below replace nrg's defaults cleanly:
 
 ```typescript
-export default mergeConfig(
-  nrg,
-  defineConfig({
-    test: {
-      include: ["tests/client/component/**/*.test.ts"],
-      browser: {
-        instances: [{ browser: "chromium" }],
-      },
+export default defineConfig({
+  test: {
+    ...nrg.test,
+    include: ["tests/client/component/**/*.test.ts"],
+    browser: {
+      ...nrg.test.browser,
+      instances: [{ browser: "chromium" }],
     },
-  }),
-);
+  },
+});
 ```
 
 #### 4. Add a test script

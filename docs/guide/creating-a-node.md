@@ -85,16 +85,16 @@ A node's port **topology and wiring come from its types** — the `IONode` gener
 class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {}
 ```
 
-- **`TInput`** is the message your `input(msg)` handler receives. A **present** type gives the node **one input port** — and that includes `any`/`unknown`, for a config-driven node that is merely triggered and never reads `msg` directly. **`never`** (or `void`/`undefined`) means **no input** (a source node).
-- **`TOutput`** is the node's output port(s), declared with [`Outputs<…>`](#declaring-output-ports-with-port). A single named port — `Outputs<{ out: Port<T> }>`, or `any`/`unknown` for a genuinely dynamic payload — is **one output port**; a record of several [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports**. Either way you emit by port name with `this.send(name, value)`. **`never`** means **no output** (a sink node).
+- **`TInput`** is the message your `input(msg)` handler receives. A **present** type gives the node **one input port** — and that includes `any`, for a config-driven node that is merely triggered and never reads `msg` directly. **`never`** means **no input** (a source node).
+- **`TOutput`** is the node's output port(s), declared with [`Outputs<…>`](#declaring-output-ports-with-port). A single named port — `Outputs<{ out: Port<T> }>`, or `any` for a genuinely dynamic payload — is **one output port**; a record of several [`Port<T>`](#declaring-output-ports-with-port) markers is **multiple named ports**. Either way you emit by port name with `this.send(name, value)`. **`never`** means **no output** (a sink node).
 
-**A port exists unless its generic is `never`** (or `void`/`undefined`). So `any` and `unknown` each make one untyped port; `never` is the single way to say "no port here".
+**A port exists unless its generic is `never`.** So `any` makes one untyped port; `never` is the single way to say "no port here". (`any` and `never` are the only bare keywords the generics accept — `unknown`, `void`, and `undefined` don't satisfy the constraint. Use `Port<unknown>` for an untyped-but-present payload.)
 
 | Generic | Ports |
 | --- | --- |
-| `TInput` is a real type, `any`, or `unknown` | 1 input port |
+| `TInput` is a real type or `any` | 1 input port |
 | `TInput` is `never` | 0 input ports (source node) |
-| `TOutput` is a single type, `any`, or `unknown` | 1 output port |
+| `TOutput` is a single type or `any` | 1 output port |
 | `TOutput` is `{ a: Port<A>; b: Port<B> }` | N named output ports |
 | `TOutput` is `never` | 0 output ports (sink node) |
 

@@ -21,7 +21,7 @@ Then start the dev server:
 pnpm dev
 ```
 
-Scaffolded projects expose `pnpm dev` and `pnpm build`, which run `vite dev` and `vite build`. Open the URL printed by Vite in the terminal and you'll see your custom node in the Node-RED palette.
+Scaffolded projects expose `pnpm dev` and `pnpm build`, which run Vite's dev server and a production build (`vite --mode development` and `vite build --mode production`). Open the URL printed by Vite in the terminal and you'll see your custom node in the Node-RED palette.
 
 ## Manual Setup
 
@@ -92,7 +92,7 @@ Create `tsconfig.json` files that extend the shared configs:
   "compilerOptions": {
     "rootDir": ".."
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts", "../shared/**/*.ts"]
 }
 ```
 
@@ -156,7 +156,7 @@ Then add a `lint` script (see [package.json scripts](#_6-add-package-json-script
 
 ### 6. Add package.json scripts
 
-Wire up the same scripts the scaffold provides so you can run the short commands:
+Wire up scripts like these (equivalent to what the scaffold provides) so you can run the short commands:
 
 ```json
 {

@@ -115,9 +115,10 @@ const ConfigsSchema = defineSchema(
 ```
 
 - Keyed by output port index; a missing/empty entry falls back to `"output"`.
-- Keys must be valid JavaScript identifiers (and can't be a framework key such as
-  `input`, `source`, or `_msgid`) — validated in the editor and again at node
-  construction.
+- Keys must be valid JavaScript identifiers — enforced in the editor and again at
+  node construction. They also can't be a framework key such as `input`, `source`,
+  `error`, `complete`, `status`, or `_msgid` — that reserved-key check runs at node
+  construction (it throws on deploy), not in the editor.
 - Named-port sends resolve the same per-port key by index.
 
 ## Input root {#input-root}

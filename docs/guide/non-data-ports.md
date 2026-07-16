@@ -80,7 +80,7 @@ calls that pass real objects around, not just JSON hand-offs.
 
 If you additionally want **runtime data validation** on the data fields (via the
 `SchemaType.OutputSchemas()` config control — see
-[Configuring validation in the editor](#editor-schema-overrides)), JSON Schema
+[Configuring validation in the editor](./schemas#editor-schema-overrides)), JSON Schema
 can't describe a non-data value, so a normal schema would reject it. Type such a
 field with **`SchemaType.Unsafe<T>()`**: it produces an empty schema (`{}`), so
 AJV passes any runtime value through while the data fields alongside it validate
@@ -136,5 +136,8 @@ for it rather than `SchemaType.Function`/`Constructor` too: those emit a non-JSO
 `defineSchema` (which strips it via `markNonValidatable`), whereas `Unsafe<T>()`
 is already an empty schema with nothing for AJV to choke on.
 
-Because the framework never deep-clones `output`, these non-data values reach the
-next node intact — see [The Message Model](./message-model#the-output-envelope).
+Node-RED passes `output` to a **single** downstream wire by reference, so these
+non-data values reach the next node intact on one connection. On a fan-out
+(multiple wires) Node-RED deep-clones the message — a value that can't survive a
+clone, like a live socket or stream, should ride the [private channel](./message-channels)
+instead. See [The Message Model](./message-model#the-output-envelope).
