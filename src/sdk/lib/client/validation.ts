@@ -142,7 +142,23 @@ function runValidation(subject: any, schema: any): ErrorObject[] {
   // password filtering. The compiled validator is still cached (by the schema's
   // $id), so only the small subject is cloned per keystroke, not recompiled.
   const result = validator.validate(cloneDeep(subject), schema);
-  return result.valid ? [] : (result.errors ?? []);
+  if (result.valid) return [];
+  const errors = result.errors ?? [];
+  // Hide STRUCTURAL combinator errors (`if`/`then`/`else`) — a failing conditional
+  // (`allOf: [{ if, then }]`, used for per-field conditional requiredness) makes AJV
+  // report a useless container error at the ROOT ("must match \"then\" schema")
+  // ALONGSIDE the real, field-level leaf errors it also emits with `allErrors` (e.g.
+  // `urlMapping` minLength). We drop the container so the editor shows "urlMapping: …",
+  // not "root: must match then schema".
+  //
+  // SAFETY: only drop them when at least one leaf error survives — validity here is
+  // derived from the returned list's length (see `validateNode`), so if a branch ever
+  // produced ONLY a combinator error, dropping it would make an invalid node read as
+  // valid. In that (unexpected) case we keep the combinator errors instead.
+  const isCombinator = (k: string) =>
+    k === "if" || k === "then" || k === "else";
+  const leaf = errors.filter((e) => !isCombinator(e.keyword));
+  return leaf.length > 0 ? leaf : errors;
 }
 
 /**

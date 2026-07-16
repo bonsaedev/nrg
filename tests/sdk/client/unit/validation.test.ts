@@ -553,3 +553,106 @@ describe("composeValidationSchema", () => {
     });
   });
 });
+
+// A conditional schema (`allOf: [{ if, then }]`) — the shape used for per-field
+// conditional requiredness (e.g. the Apex node requiring `urlMapping` only for a
+// REST resource). AJV reports the failing branch's leaf errors AND a structural
+// container error ("root: must match \"then\" schema"); the framework hides the
+// latter (see runValidation) so only the actionable field error is shown.
+const conditionalSchema = {
+  type: "object",
+  properties: {
+    apexType: { type: "string", enum: ["invocable", "rest"] },
+    urlMapping: { type: "string" },
+  },
+  additionalProperties: true,
+  allOf: [
+    {
+      if: {
+        properties: { apexType: { const: "rest" } },
+        required: ["apexType"],
+      },
+      then: {
+        properties: { urlMapping: { minLength: 1 } },
+        required: ["urlMapping"],
+      },
+    },
+  ],
+};
+
+describe("conditional (if/then) validation — combinator error filtering", () => {
+  it("does not fire when the condition is not met (no false positive)", () => {
+    // apexType is invocable, so urlMapping is irrelevant — must be valid even empty.
+    expect(
+      validateNode(
+        { type: "cnd", apexType: "invocable", urlMapping: "" },
+        conditionalSchema,
+      ),
+    ).toBe(true);
+  });
+
+  it("is valid when the condition is met and satisfied", () => {
+    expect(
+      validateNode(
+        { type: "cnd", apexType: "rest", urlMapping: "/orders/*" },
+        conditionalSchema,
+      ),
+    ).toBe(true);
+  });
+
+  it("fires at the FIELD level (no 'root: must match then schema' noise)", () => {
+    const result = validateNode(
+      { type: "cnd", apexType: "rest", urlMapping: "" },
+      conditionalSchema,
+    ) as string[];
+    expect(result).toBeInstanceOf(Array);
+    expect(result.length).toBeGreaterThan(0);
+    // every message is about a real field, never the structural container
+    for (const msg of result) {
+      expect(msg).not.toMatch(/^root:/);
+      expect(msg).not.toMatch(/must match "(then|else|if)" schema/);
+    }
+    expect(result.some((m) => m.includes("urlMapping"))).toBe(true);
+  });
+
+  it("inline errors are keyed to the field, not the root object", () => {
+    const errors = validateForm(
+      { type: "cnd", apexType: "rest", urlMapping: "" },
+      conditionalSchema,
+    );
+    expect(errors["node.urlMapping"]).toBeTruthy();
+    expect(errors["node"]).toBeUndefined();
+  });
+
+  it("SAFETY: a failure that yields only a combinator error still reads invalid", () => {
+    // `then: false` fails with no field-level leaf error to attach to; the filter
+    // must NOT drop it (that would make an invalid node read as valid).
+    const onlyCombinator = {
+      type: "object",
+      properties: { a: { type: "number" } },
+      additionalProperties: true,
+      allOf: [
+        {
+          if: { properties: { a: { const: 1 } }, required: ["a"] },
+          then: false,
+        },
+      ],
+    };
+    const result = validateNode({ type: "cnd2", a: 1 }, onlyCombinator);
+    expect(result).not.toBe(true);
+    expect(result).toBeInstanceOf(Array);
+    expect((result as string[]).length).toBeGreaterThan(0);
+  });
+
+  it("does not over-filter: oneOf/anyOf union errors are preserved", () => {
+    const unionSchema = {
+      type: "object",
+      additionalProperties: true,
+      oneOf: [{ required: ["a"] }, { required: ["b"] }],
+    };
+    // matches neither branch → oneOf fails; the error must survive the filter
+    const result = validateNode({ type: "cnd3" }, unionSchema);
+    expect(result).not.toBe(true);
+    expect((result as string[]).length).toBeGreaterThan(0);
+  });
+});
