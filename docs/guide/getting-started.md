@@ -50,7 +50,7 @@ yarn add -D @bonsae/nrg node-red@5 vue@^3.5 vite@^6 vitest@^4 typescript@^5.8 es
 
 1. **Editor autocompletion** — NRG ships `.d.ts` files describing its built-in form components (`NodeRedInput`, `NodeRedTypedInput`, etc.) so your editor can autocomplete and type-check their props inside `.vue` files. The Vue editor tooling (Volar) can only read those descriptions when `vue` is installed in your project; without it, the components fall back to `any` and you lose autocompletion.
 
-2. **How pnpm installs packages** — pnpm keeps each package's dependencies private, so NRG's copy of Vue isn't visible at your project's top level, which is where the editor's type tooling (Volar) looks. Listing `vue` in your own `devDependencies` puts a copy where the tooling can find it.
+2. **How pnpm installs packages** — pnpm keeps packages isolated, so NRG's copy of Vue isn't available at your project root, which is where Volar looks for Vue's type declarations while you edit. Listing `vue` in your own `devDependencies` puts those types where the editor can find them. (This is a dev-time type-visibility concern only — it doesn't change what ships at runtime.)
 
 This is only needed during development. The `vue` package is not included in your published Node-RED node package.
 :::

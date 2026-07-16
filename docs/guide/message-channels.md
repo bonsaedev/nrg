@@ -146,8 +146,8 @@ remove this http-node-specific fix somehow."* Everything else is on its own.
 
 And anything on `msg` is **visible in the debug panel and editable by any function node** —
 so a secret leaks and a live handle can be tampered with. What actually continues
-downstream isn't your call either: the **flow author** picks `carry`/`trace`/`reset`
-per wire (see [context modes](./schemas#context-modes)), so a `reset` drops the fields
+downstream isn't your call either: the **flow author** picks `passthrough`/`reset`
+per wire (see [context modes](./message-model#context-modes)), so a `reset` drops the fields
 you left for a later node.
 
 ### Not in flow/global context
@@ -173,7 +173,7 @@ reinvention *is* message channels; nrg just builds it in, off the wire, and hidd
 | --- | --- | --- | --- |
 | Survives cloning between wires | No (except `req`/`res`) | N/A | **Yes** |
 | Bound to one message | Yes | No (keyed by name) | **Yes (by `_msgid`)** |
-| Survives the flow author's `carry`/`trace`/`reset` wire choice | No (`reset` drops it) | N/A | **Yes (rides `_msgid`)** |
+| Survives the flow author's `passthrough`/`reset` wire choice | No (`reset` drops it) | N/A | **Yes (rides `_msgid`)** |
 | Holds live/non-serializable objects | No | No (serialization-oriented) | **Yes (in-process store)** |
 | Hidden from the flow author | No | No | **Yes** |
 | Concurrency-safe across in-flight messages | Yes | No | **Yes** |
@@ -203,6 +203,29 @@ and write.
 `protected` is a shared bus, so two packages can collide on a key. Use a namespaced key —
 `msg[Channels].protected["otel.span"]`, not `msg[Channels].protected.span`.
 :::
+
+## `transactionId` — the origin correlation id {#transactionid}
+
+The framework writes one key on the `protected` channel for you. When a
+**source/trigger node** (no input port — see
+[Source nodes](./message-model#source-nodes-and-transactionid)) emits, it stamps
+the message's `_msgid` onto `protected.transactionId`:
+
+```typescript
+async input(msg: MyInput) {
+  const txn = msg[Channels].protected.transactionId; // the origin trigger's id
+}
+```
+
+Every downstream node inherits the same `_msgid`, so `transactionId` reads the
+same across the entire chain — use it to correlate all the work a single trigger
+firing sets off (logging, metrics, joining fan-out results).
+
+It's **read-only**: the framework owns the key, so `send(..., { protected: {
+transactionId } })` or `delete msg[Channels].protected.transactionId` throws. Unlike
+the wire `_msgid` (which a flow author could overwrite or an
+[input root](./message-model#input-root) rebase could drop), `transactionId` stays
+put off the wire.
 
 ## Writing and reading channels
 

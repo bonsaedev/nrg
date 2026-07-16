@@ -109,7 +109,7 @@
         }}
         <a
           class="nrg-help-link"
-          :href="docsUrl('/guide/schemas#input-root')"
+          :href="docsUrl('/guide/message-model#input-root')"
           target="_blank"
           rel="noopener noreferrer"
           >{{ resolveLabel("help.learnMore", "Learn more") }}</a

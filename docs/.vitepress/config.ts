@@ -28,18 +28,31 @@ export default defineConfig({
     ],
     sidebar: [
       {
-        text: "Guide",
+        text: "Introduction",
         items: [
           { text: "Why NRG?", link: "/guide/why-nrg" },
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Project Structure", link: "/guide/project-structure" },
-          { text: "Creating a Node", link: "/guide/creating-a-node" },
+        ],
+      },
+      {
+        text: "Core Concepts",
+        items: [
+          { text: "The Message Model", link: "/guide/message-model" },
+          { text: "Message Channels", link: "/guide/message-channels" },
+        ],
+      },
+      {
+        text: "Authoring a Node",
+        items: [
+          { text: "The Node Class", link: "/guide/creating-a-node" },
+          { text: "Form Fields", link: "/guide/form-fields" },
           { text: "Schema Validation", link: "/guide/schemas" },
+          { text: "The Editor Form", link: "/guide/editor-form" },
           {
-            text: "Building & Running",
-            link: "/guide/building-and-running",
+            text: "Config Nodes & Extending",
+            link: "/guide/config-nodes",
           },
-          { text: "Testing a Node", link: "/guide/testing" },
           {
             text: "Locales & Help Docs",
             link: "/guide/locales",
@@ -47,9 +60,32 @@ export default defineConfig({
         ],
       },
       {
+        text: "Build & Test",
+        items: [
+          {
+            text: "Building & Running",
+            link: "/guide/building-and-running",
+          },
+          { text: "Testing Overview", link: "/guide/testing" },
+          { text: "Server Testing", link: "/guide/testing-server" },
+          {
+            text: "Client Unit Testing",
+            link: "/guide/testing-client-unit",
+          },
+          {
+            text: "Client Component & E2E",
+            link: "/guide/testing-client-e2e",
+          },
+        ],
+      },
+      {
         text: "Advanced",
         items: [
-          { text: "Message Channels", link: "/guide/message-channels" },
+          {
+            text: "Conditional Validation",
+            link: "/guide/conditional-validation",
+          },
+          { text: "Non-Data Ports", link: "/guide/non-data-ports" },
         ],
       },
     ],

@@ -167,7 +167,7 @@
         }}
         <a
           class="nrg-help-link"
-          :href="docsUrl('/guide/schemas#overriding-the-return-key')"
+          :href="docsUrl('/guide/message-model#overriding-the-return-key')"
           target="_blank"
           rel="noopener noreferrer"
           >{{ resolveLabel("help.learnMore", "Learn more") }}</a
@@ -186,7 +186,7 @@
         }}
         <a
           class="nrg-help-link"
-          :href="docsUrl('/guide/schemas#context-modes')"
+          :href="docsUrl('/guide/message-model#context-modes')"
           target="_blank"
           rel="noopener noreferrer"
           >{{ resolveLabel("help.learnMore", "Learn more") }}</a

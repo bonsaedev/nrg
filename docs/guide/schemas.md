@@ -127,130 +127,12 @@ export default class MyNode extends IONode<Config> {
 
 Default values from the schema are used by the editor to initialize new node instances.
 
-### Output and the message envelope
+The value you pass to `this.send()` is wrapped into a consistent envelope
+(`{ output, source, input }`), the return key is configurable per port, and the
+flow author chooses how much of the incoming message continues. All of that —
+the output envelope, custom return keys, and context modes — lives in
+[The Message Model](./message-model).
 
-The value you pass to `this.send("out", value)` is treated as the result — never as
-the whole outgoing message. The framework wraps it for you: it puts your value under
-**`output`** and keeps the message that came in under **`input`** (so you can
-still read `msg.input.output`). Example:
-
-```
-this.send("out", result)
-// outgoing: { output: result, source: { id, type, name, port }, input: msg }
-```
-
-So the prior message stays recoverable under `input` (`msg.input.output`…). How
-deep that history goes is the per-port **context mode** — `carry` (default, last
-message only), `trace` (the full `input.input…` chain), or `reset` (no history);
-see [Context modes](#context-modes). Output data validation, when enabled, runs
-on the result value before wrapping.
-
-This means a node sets only `output` — it does not set arbitrary top-level
-message properties. Multi-value results go under `output` as one object:
-
-```typescript
-this.send("out", { records, totalSize, done }); // msg.output = { records, totalSize, done }
-```
-
-To interoperate with Node-RED core nodes (which key on `msg.payload`,
-`msg.topic`, etc.), use a `change`/`set` node at the boundary to map `output`
-onto the property the core node expects.
-
-#### Custom return properties per port {#overriding-the-return-key}
-
-Every output port's return key is `"output"`. The editor's Outputs table always
-shows an editable **Return Property** column for every IONode — the framework
-injects `outputReturnProperties` into every node — so flow authors can override
-each port's key. Declaring `outputReturnProperties` in your own schema doesn't
-make the column appear; it lets the node **author** change the default **per
-port**:
-
-```typescript
-const ConfigsSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "" }),
-    // port 0 defaults to `result`; every other port falls back to `output`
-    outputReturnProperties: SchemaType.OutputReturnProperties({
-      default: { 0: "result" },
-    }),
-  },
-  { $id: "my-node:configs" },
-);
-```
-
-- Keyed by output port index; a missing or empty entry falls back to `"output"`.
-- Keys must be valid JavaScript identifiers — validated in the editor and again
-  at node construction.
-- Named-port sends (`this.send("name", value)`) resolve the same per-port key by index.
-- Built-in **complete** and **error** ports carry `source` (producing node) and
-  the failing/finishing message (`input`) at the **root**, side by side with the
-  port's payload block — the same shape as a data port. The **error** port's data
-  is in `error` (where a Catch node reads it); the **complete** port carries
-  `input()`'s return value under `complete` (a `void` return omits the key). The
-  **status** port is a notification and stays raw. Note: an enabled **error** port
-  is the _sole_ error handler — the error travels its wire and does not also fire
-  Node-RED `catch` nodes (those are the fallback only when
-  a node has no error port).
-
-These per-port settings — validation, return property, and context mode — are
-configured by the flow author in the editor's **Outputs** table:
-
-![The generated editor form, showing the per-port Outputs table](/editor-form.png)
-
-#### Context modes {#context-modes}
-
-`send()` takes no mode argument — how each output carries the
-incoming context is resolved **per port** from config, falling back to `carry`.
-The flow author can always pick a mode for **any** port in the editor. Declaring
-`outputContextModes` only lets the node **author** change a port's starting value
-(its seeded default):
-
-```typescript
-const ConfigsSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "" }),
-    // port 0's dropdown starts on `trace` instead of `carry`; every other port
-    // starts on `carry`. All ports remain editable by the flow author either way.
-    outputContextModes: SchemaType.OutputContextModes({
-      default: { 0: "trace" },
-    }),
-  },
-  { $id: "my-node:configs" },
-);
-```
-
-The **Context Mode** column is always present in the editor's Outputs table (for
-any node with output ports — the framework injects `outputContextModes`), and
-**every port's dropdown is editable**. A port with a declared default is simply
-seeded to that value; a port without one is seeded to `carry`. Declaring
-`outputContextModes` does not enable or lock any port — it only changes the seed:
-
-![The Outputs table's Context Mode column — every port has an editable dropdown; ports with a declared default are seeded to it, others to carry](/context-modes.png)
-
-The three modes are one dial — **how deep the `input` history goes**. Every mode
-puts the result at the return key and the incoming message under `input`; the
-outgoing root is always just the result (incoming keys are never re-flattened at
-the root):
-
-- **carry** (default) — keep only the immediately-previous message under `input`;
-  older history is dropped, so the chain never grows past one level
-  (`msg.input.output` is the previous result). Safe for loops and long chains.
-- **trace** — keep the full chain: each node adds a frame (`msg.input.input`…)
-  all the way back to the source. Use it when you want a provenance trail.
-- **reset** — keep no history: the outgoing message is just the result, with no
-  `input` frame. Use it for source nodes that intentionally start fresh.
-
-(A send with no incoming message — a source node, or a send outside any
-`input()` call — records no `input` frame.)
-
-Without a declared `outputContextModes`, every port is seeded to `carry` — but its
-dropdown is still editable and the column is still shown whenever the node has
-output ports. Named-port sends (`this.send("name", value)`) resolve the same per-port
-mode by index.
-
-The framework never deep-clones (so streams, Buffers, and class instances pass
-through intact); Node-RED's runtime clones messages 2..N on fan-out, so parallel
-output branches are already isolated from each other at delivery.
 
 ## Credentials Schema
 
@@ -345,7 +227,7 @@ Skip it when the wire type is enough and you're happy to handle whatever arrives
 Either way, remember: a port schema **validates**, it doesn't coerce or default the
 message.
 
-## Input Data Validation
+## Input Data Validation {#input-schema}
 
 Input validation **checks** incoming messages before they reach your `input()` handler. It does not create the input port (the `Input` generic does), and it is **not** a static on the class — it's a **config-schema framework control**. The input Schema editor and _Validate_ toggle render on every IONode already; adding a `SchemaType.InputSchema()` field to your config schema just seeds a default JSON Schema in that editor. The flow author can then override it and turn the per-instance _Validate_ toggle on.
 
@@ -370,7 +252,7 @@ export const ConfigsSchema = defineSchema(
 
 Validation runs when the flow author turns on the port's _Validate_ toggle (which sets `config.validateInput`). Invalid messages throw an error — routed to the error port when it's enabled. Validation is a **pure predicate**: it never coerces or defaults the message.
 
-## Output Data Validation
+## Output Data Validation {#output-schema}
 
 Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**, and the per-port Schema editor and _Validate_ toggle render on every IONode already. Seed per-port default output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):
 
@@ -430,139 +312,9 @@ The schema a flow author types is stored as a JSON-Schema **string** in `config.
 
 ![Editor: configuring input and output validation schemas](/editor-schemas.png)
 
-## Non-data inputs & outputs {#non-data-ports}
-
-Not every port carries plain data. A node might emit a function, a class
-instance, a `Buffer` or stream, or a database client — or accept a message with
-non-serializable parts. A port's **type** comes from the `Input`/`Output`
-generic, so a non-data value just needs a plain type — there is nothing to
-validate:
-
-```typescript
-import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
-
-type Connection = { query(sql: string): Promise<unknown[]> };
-type OpenConnectionInput = Input<Port<{ payload: unknown }>>;
-type OpenConnectionOutputs = Outputs<{
-  out: Port<{ connection: Connection; rowCount: number }>;
-}>;
-
-export default class OpenConnection extends IONode<
-  Config,
-  any,
-  OpenConnectionInput,
-  OpenConnectionOutputs
-> {
-  static override readonly type = "db-open";
-  static override readonly configSchema = ConfigsSchema;
-
-  override async input() {
-    this.send("out", { connection: pool, rowCount: 0 }); // pool passes through intact
-  }
-}
-```
-
-The build reads the `Output` generic, so the generated node help renders the
-**Output** table with `connection` typed as `Connection` and `rowCount` as
-`number` — recovered from the source at build time, with nothing to keep in sync
-by hand.
-
-The wire carries the **actual object**, not a copy — the framework never
-deep-clones `output`, so a live stream or an HTTP request/response travels the
-wire and works downstream unchanged. A node can emit a `Readable` on a typed
-port:
-
-```typescript
-import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
-import { Readable } from "node:stream";
-
-type FetchStreamInput = Input<Port<{ url: string }>>;
-type FetchStreamOutputs = Outputs<{ body: Port<Readable> }>;
-
-export default class FetchStream extends IONode<
-  Config,
-  any,
-  FetchStreamInput,
-  FetchStreamOutputs
-> {
-  static override readonly type = "fetch-stream";
-  static override readonly configSchema = ConfigsSchema;
-
-  override async input(msg: FetchStreamInput) {
-    const res = await fetch(msg.url);
-    // Send the Readable itself — the wire moves the STREAM object, not its
-    // bytes. A downstream node receives this exact instance and can `.pipe()` it.
-    this.send("body", Readable.fromWeb(res.body!));
-  }
-}
-```
-
-`Port<Readable>` type-checks the wire in the editor — it only connects to a node
-whose input accepts a `Readable`. The same pattern carries an HTTP request/
-response pair (`{ req: Port<IncomingMessage>; res: Port<ServerResponse> }`), a
-`Buffer`, a socket, or any class instance: nrg nodes compose like typed function
-calls that pass real objects around, not just JSON hand-offs.
-
-If you additionally want **runtime data validation** on the data fields (via the
-`SchemaType.OutputSchemas()` config control — see
-[Configuring validation in the editor](#editor-schema-overrides)), JSON Schema
-can't describe a non-data value, so a normal schema would reject it. Type such a
-field with **`SchemaType.Unsafe<T>()`**: it produces an empty schema (`{}`), so
-AJV passes any runtime value through while the data fields alongside it validate
-normally:
-
-```typescript
-import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
-
-const OutputSchema = defineSchema(
-  {
-    // non-data: never validated — AJV passes it through
-    connection: SchemaType.Unsafe<Connection>({
-      description: "Open pool connection, passed downstream",
-    }),
-    // data alongside it is still validated normally
-    rowCount: SchemaType.Number({ minimum: 0, description: "Rows affected" }),
-  },
-  { $id: "db-open:output" }
-);
-```
-
-Keep `Unsafe<T>()` as a **named property** of a schema built with `defineSchema`.
-The same applies to an input-validation schema for non-data inputs.
-
-::: warning Config-node references and typed inputs are NOT `Unsafe` cases
-Don't use `Unsafe` for these — they have proper builders the editor and the
-client type-resolver understand:
-
-- **Config-node reference** → `SchemaType.NodeRef<TheConfigClass>("the-config-type")`
-  — stored as the node id; resolves to `string` on the client. Import the config
-  class with `import type` (only its type is used; nothing is imported at
-  runtime). An eslint rule (`@bonsae/nrg/schema-server-imports-type-only`, in
-  `nrg`) enforces this type-only import.
-- **Typed input** → `SchemaType.TypedInput()` — resolves to `{ value, type }`.
-:::
-
-### Choosing the right builder
-
-| Builder | Validates | Static type | Use when |
-| --- | --- | --- | --- |
-| `SchemaType.Object({ … })` | yes | inferred | plain data |
-| `SchemaType.NodeRef<Cfg>("cfg-type")` | yes | `string` (node id) | a config-node reference |
-| `SchemaType.TypedInput()` | yes | `{ value, type }` | a Node-RED TypedInput |
-| `SchemaType.Unsafe<T>()` | no | **`T`** | a non-data value you want typed (function, instance, `Buffer`, stream, connection) |
-| `SchemaType.Any()` | no | `any` | a truly untyped passthrough |
-| `SchemaType.Unknown()` | no | `unknown` | force the consumer to narrow before use |
-| `SchemaType.Unsafe<T>({ …json… })` | yes | `T` | a custom/branded static type **with** real validation |
-
-Prefer `Unsafe<T>()` over `Any()` for non-data ports — both skip validation, but
-`Unsafe<T>()` keeps full type safety on `msg.output` and the input message. Reach
-for it rather than `SchemaType.Function`/`Constructor` too: those emit a non-JSON
-`type` keyword that only validates cleanly when the schema is built with
-`defineSchema` (which strips it via `markNonValidatable`), whereas `Unsafe<T>()`
-is already an empty schema with nothing for AJV to choke on.
-
-Because the framework never deep-clones `output`, these non-data values reach the
-next node intact — see [Output and the message envelope](#output-and-the-message-envelope).
+Ports can also carry **non-serializable** values (streams, class instances,
+connections). Typing those with `SchemaType.Unsafe<T>()` is covered in
+[Non-Data Ports](./non-data-ports).
 
 ## Settings Schema
 

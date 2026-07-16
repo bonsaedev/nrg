@@ -30,8 +30,6 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
   "label": "My Node",
   "paletteLabel": "Node",
   "description": "What this node does",
-  "inputLabels": "Input",
-  "outputLabels": ["Success", "Error"],
   "configs": {
     "url": "API URL",
     "timeout": "Timeout (ms)"
@@ -40,18 +38,26 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
     "apiKey": "API Key"
   },
   "input": {
-    "payload": "Message Payload"
+    "label": "Request",
+    "description": "The message to process."
   },
-  "outputs": [
-    {
-      "result": "Processed Result"
+  "outputs": {
+    "result": {
+      "label": "Result",
+      "description": "The processed result."
+    },
+    "error": {
+      "label": "Error",
+      "description": "Emitted when the request fails."
     }
-  ],
+  },
   "errors": {
     "timeout": "Request timed out after __timeout__ms"
   }
 }
 ```
+
+Both `input` and each `outputs` entry are shaped `{ label, description }`: the **label** is the port's name on the canvas, and the **description** is the free-text shown in the port's row of the auto-generated help docs. Both keys are optional — an unset label falls back to the port's declared name.
 
 ### Fields
 
@@ -60,23 +66,30 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 | `label` | Yes | Display name shown in the palette and workspace. Also used as the canvas label when no `name` is set. |
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
-| `inputLabels` | No | Label for the input port (string). |
-| `outputLabels` | No | A list of names for your output ports, in order (first entry = first port). You only need it for plain numbered outputs — ports that have names, and the built-in error/complete/status ports, are labeled automatically, so leave those out. |
 | `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
 | `options` | No | Friendly names for the choices in a dropdown field. Nest them by field name, then by the stored value — e.g. `{ "provider": { "anthropic": "Anthropic API" } }`. Any value you don't list keeps its raw name. |
 | `credentials` | No | Labels for credential properties |
-| `input` | No | Labels for input schema properties |
-| `outputs` | No | Currently has no effect. Output port names come from `outputLabels` (or the port's declared name), and each output's value type comes from the node's TypeScript output type. |
+| `input` | No | The single input port as `{ label, description }` — its canvas name and a help-doc description. |
+| `outputs` | No | The output ports. Use an **object keyed by port name** (named outputs — the common case) or an **array in tuple order** (positional/dynamic outputs); each entry is `{ label, description }`. |
 | `errors` | No | Custom error messages. Use `__field__` for placeholder substitution. |
 
 ### Named Output Ports
 
-If your node's outputs have names (say a `success` port and a `failure` port) instead of being plain numbered outputs, the editor labels each port with its name automatically — you don't set `outputLabels`. There's nothing to add to the label file for this: the `outputs` field has no effect on the editor or the generated help docs, and the help table already shows each named port's declared name.
+When your node declares named output ports (say a `success` port and a `failure` port), key the `outputs` object by those port names:
+
+```json
+"outputs": {
+  "success": { "label": "Success", "description": "Emitted when the call succeeds." },
+  "failure": { "label": "Failure", "description": "Emitted when the call fails." }
+}
+```
+
+An unset `label` falls back to the declared port name, so you only need an entry for a port you want to rename or describe. The built-in error/complete/status ports are labeled automatically — leave them out.
 
 ### Rules
 
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
-- **`outputLabels` is an array** — one entry per indexed output port. Named and built-in ports are labeled automatically (from their port names, and error/complete/status).
+- **`input` / `outputs` are per-port `{ label, description }`** — key `outputs` by port name (named ports) or by tuple index via an array (positional ports). Built-in error/complete/status ports are labeled automatically.
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label
 - **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to a spaced, Title-cased version of the field name (e.g. `apiUrl` → 'Api Url')
 
@@ -128,15 +141,6 @@ For local development or when using a linked package, use the local path instead
       "type": "string",
       "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
     },
-    "inputLabels": {
-      "type": "string",
-      "description": "Label for the input port."
-    },
-    "outputLabels": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Labels for output ports, one per port."
-    },
     "configs": {
       "$ref": "#/$defs/labelMap",
       "description": "Labels for config properties"
@@ -150,18 +154,21 @@ For local development or when using a linked package, use the local path instead
       "description": "Labels for credential properties"
     },
     "input": {
-      "$ref": "#/$defs/labelMap",
-      "description": "Labels for input schema properties"
+      "$ref": "#/$defs/port",
+      "description": "The single input port: its display label (shown on the canvas + as the help-doc heading) and description."
     },
     "outputs": {
       "oneOf": [
         {
-          "type": "array",
-          "items": { "$ref": "#/$defs/labelMap" }
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/port" }
         },
-        { "$ref": "#/$defs/portLabelMap" }
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/port" }
+        }
       ],
-      "description": "Per-port output labels. Use an array (matching the Output tuple order; a single output uses a one-element array) for positional outputs, or an object keyed by port name for named outputs."
+      "description": "Output ports. Use an object keyed by port name for named outputs (the common case), or an array in tuple order for positional/dynamic outputs. Each entry gives the port's display label and description."
     },
     "errors": {
       "$ref": "#/$defs/labelMap",
@@ -182,7 +189,22 @@ For local development or when using a linked package, use the local path instead
       "additionalProperties": {
         "$ref": "#/$defs/labelMap"
       },
-      "description": "Maps output port names to their per-property labels (named output ports)"
+      "description": "Maps a config field to its per-option-value labels"
+    },
+    "port": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The port's display label — shown on the editor canvas and in the Port column of the auto-generated help docs. Falls back to the port name when unset."
+        },
+        "description": {
+          "type": "string",
+          "description": "Free-text description of what this port carries, shown in the Description column of the auto-generated help docs (one row per port)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A single port: its display label and a human-readable description of what it carries."
     }
   }
 }
@@ -195,8 +217,8 @@ For local development or when using a linked package, use the local path instead
 When a node type has **no manual doc** in `src/resources/locales/docs/{type}/{lang}.md` or `.html`, the build system auto-generates help documentation from:
 
 1. **`description`** from the label file — shown at the top of the help panel
-2. **Schema properties** — rendered as an HTML table with Label, Property, Type, Required, Default, and Description columns
-3. **Port labels** — from the `input` and `outputLabels` fields in the label file
+2. **Configuration / Credentials / Settings** — schema properties rendered as HTML tables with Label, Property, Type, Required, Default, and Description columns
+3. **Input & Outputs** — one row per port (Port, Type, Description), with labels and descriptions from the `input` and `outputs` fields in the label file
 
 ### How it works
 
@@ -217,14 +239,17 @@ For a node with this label file:
   "label": "Splitter",
   "description": "Splits messages based on a threshold.",
   "configs": { "threshold": "Threshold" },
-  "input": { "payload": "Payload" },
-  "outputLabels": ["Low", "High"]
+  "input": { "label": "Value", "description": "The number to route." },
+  "outputs": {
+    "low": { "label": "Low", "description": "Below the threshold." },
+    "high": { "label": "High", "description": "At or above the threshold." }
+  }
 }
 ```
 
 The generated help panel shows:
 
-> **Properties**
+> **Configuration**
 >
 > | Label | Property | Type | Required | Default | Description |
 > | --- | --- | --- | --- | --- | --- |
@@ -232,16 +257,16 @@ The generated help panel shows:
 >
 > **Input**
 >
-> | Label | Property | Type | Required | Description |
-> | --- | --- | --- | --- | --- |
-> | Payload | payload | number | Yes | Numeric value |
+> | Port | Type | Description |
+> | --- | --- | --- |
+> | Value | number | The number to route. |
 >
 > **Outputs**
 >
-> | Port | Type |
-> | --- | --- |
-> | Low | number |
-> | High | number |
+> | Port | Type | Description |
+> | --- | --- | --- |
+> | Low | number | Below the threshold. |
+> | High | number | At or above the threshold. |
 
 ## Manual Help Docs
 

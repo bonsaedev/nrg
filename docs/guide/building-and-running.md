@@ -14,7 +14,7 @@ This will:
 2. Launch a local Node-RED instance (URL printed in the terminal)
 3. Watch for file changes and automatically rebuild + restart
 
-`.nrg/` is a gitignored dev folder — it is not `dist/`, which only `pnpm vite build` writes for publishing.
+`.nrg/` is a dev-only working folder — add it to your project's `.gitignore`. It is not `dist/`, which only `pnpm vite build` writes for publishing.
 
 In dev mode your code imports `@bonsae/nrg` directly, so everything runs locally with nothing extra to install. (The production build swaps this for a smaller runtime package — see "Why your built node depends on `@bonsae/nrg-runtime`" below.)
 
