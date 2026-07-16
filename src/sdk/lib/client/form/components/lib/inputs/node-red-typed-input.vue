@@ -25,7 +25,7 @@
 <script lang="ts">
 import { defineComponent, shallowRef, type PropType } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
-import { TYPED_INPUT_TYPES } from "../../../shared/constants";
+import { TYPED_INPUT_TYPES } from "../../../../../shared/constants";
 
 export default defineComponent({
   components: { NodeRedInputLabel },

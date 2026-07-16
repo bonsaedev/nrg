@@ -51,7 +51,7 @@ import type { PropType } from "vue";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { defineComponent, shallowRef } from "vue";
 import NodeRedInputLabel from "./node-red-input-label.vue";
-import NodeRedTray from "./node-red-tray.vue";
+import NodeRedTray from "../node-red-tray.vue";
 export default defineComponent({
   components: { NodeRedInputLabel, NodeRedTray },
   props: {

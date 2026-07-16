@@ -35,7 +35,7 @@ describe("output schema editor (chromium)", () => {
     const page = editor.page;
 
     // Opted in → the Data Schema column header renders in the Outputs table.
-    const th = page.locator("table.nrg-outputs th.nrg-outputs-flag", {
+    const th = page.locator("table.nrg-outputs th.nrg-cell-flag", {
       hasText: "Data Schema",
     });
     await th.waitFor({ state: "visible", timeout: 10_000 });

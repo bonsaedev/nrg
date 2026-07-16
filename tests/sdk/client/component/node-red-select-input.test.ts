@@ -1,6 +1,6 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedSelectInput from "@/sdk/lib/client/form/components/node-red-select-input.vue";
+import NodeRedSelectInput from "@/sdk/lib/client/form/components/lib/inputs/node-red-select-input.vue";
 import { getJQueryState } from "@/sdk/test/client/mocks";
 
 const OPTIONS = [

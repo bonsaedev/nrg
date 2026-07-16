@@ -2,7 +2,7 @@ import { describe, test, expect, vi, afterEach } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h } from "vue";
 import NodeRedVueApp from "@/sdk/lib/client/form/app.vue";
-import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/node-red-json-schema-form.vue";
+import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/lib/node-red-json-schema-form.vue";
 import { mountApp, unmountApp } from "@/sdk/lib/client/form";
 import { createNode } from "@/sdk/test/client/component";
 import type { NodeFeatures } from "@/sdk/lib/client/types";
@@ -224,8 +224,8 @@ describe("app shell — Outputs table", () => {
     nameSchema({ outputReturnProperties: { type: "object", default: {} } });
 
   // schema declaring `outputContextModes`; `def` is the author's per-port default
-  // map — a port present here seeds to its value, others seed to `carry`. Every
-  // port's dropdown is editable regardless.
+  // map — a port present here seeds to its value, others seed to `passthrough`.
+  // Every port's dropdown is editable regardless.
   const CONTEXT_SCHEMA = (def: Record<number, string> = {}) =>
     nameSchema({ outputContextModes: { type: "object", default: def } });
 
@@ -305,7 +305,7 @@ describe("app shell — Outputs table", () => {
       features: OUT_FEATURES([{ index: 0, label: "out" }]),
     });
     const checkbox = component.container.querySelector(
-      ".nrg-outputs-flag input[type='checkbox']",
+      ".nrg-cell-flag input[type='checkbox']",
     ) as HTMLInputElement;
     checkbox.click();
     await vi.waitFor(() => {
@@ -332,26 +332,26 @@ describe("app shell — Outputs table", () => {
   test("selecting a context mode writes outputContextModes[port]", async () => {
     // port 0 has a schema default, so its dropdown is editable
     const { node, component } = renderApp({
-      configs: { name: "x", outputContextModes: { 0: "carry" } },
-      schema: CONTEXT_SCHEMA({ 0: "carry" }),
+      configs: { name: "x", outputContextModes: { 0: "passthrough" } },
+      schema: CONTEXT_SCHEMA({ 0: "passthrough" }),
       features: OUT_FEATURES([{ index: 0, label: "out" }]),
     });
     const select = component.container.querySelector(
       "select.nrg-outputs-context",
     ) as HTMLSelectElement;
     expect(select.disabled).toBe(false);
-    select.value = "trace";
+    select.value = "reset";
     select.dispatchEvent(new Event("change", { bubbles: true }));
     await vi.waitFor(() => {
-      expect(node.outputContextModes).toEqual({ 0: "trace" });
+      expect(node.outputContextModes).toEqual({ 0: "reset" });
     });
   });
 
   test("every port's Context Mode dropdown is editable; the declared default only seeds the value", async () => {
     // only port 0 has a declared default — port 1 has none, but is still editable
     const { node, component } = renderApp({
-      configs: { name: "x", outputContextModes: { 0: "trace" } },
-      schema: CONTEXT_SCHEMA({ 0: "trace" }),
+      configs: { name: "x", outputContextModes: { 0: "reset" } },
+      schema: CONTEXT_SCHEMA({ 0: "reset" }),
       features: OUT_FEATURES([
         { index: 0, label: "p0" },
         { index: 1, label: "p1" },
@@ -364,15 +364,15 @@ describe("app shell — Outputs table", () => {
     // Neither port is locked — the flow author can pick any mode on any port.
     expect(selects[0].disabled).toBe(false);
     expect(selects[1].disabled).toBe(false);
-    // Seeds: port 0 from its declared default, port 1 falls back to `carry`.
-    expect(selects[0].value).toBe("trace");
-    expect(selects[1].value).toBe("carry");
+    // Seeds: port 0 from its declared default, port 1 falls back to `passthrough`.
+    expect(selects[0].value).toBe("reset");
+    expect(selects[1].value).toBe("passthrough");
 
     // A port with no declared default is still writable.
     selects[1].value = "reset";
     selects[1].dispatchEvent(new Event("change", { bubbles: true }));
     await vi.waitFor(() => {
-      expect(node.outputContextModes).toEqual({ 0: "trace", 1: "reset" });
+      expect(node.outputContextModes).toEqual({ 0: "reset", 1: "reset" });
     });
   });
 
@@ -469,7 +469,7 @@ describe("app shell — Outputs table (types-first, no output schema)", () => {
     const { component } = renderApp({
       configs: { name: "x" },
       schema: nameSchema({
-        outputContextModes: { type: "object", default: { 0: "carry" } },
+        outputContextModes: { type: "object", default: { 0: "passthrough" } },
       }),
       features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
     });
@@ -515,9 +515,9 @@ describe("app shell — Outputs table (types-first, no output schema)", () => {
 
   test("gives each node its own outputContextModes map (no cross-node leak)", async () => {
     const { node, component } = renderApp({
-      configs: { name: "x", outputContextModes: { 0: "trace" } },
+      configs: { name: "x", outputContextModes: { 0: "passthrough" } },
       schema: nameSchema({
-        outputContextModes: { type: "object", default: { 0: "trace" } },
+        outputContextModes: { type: "object", default: { 0: "passthrough" } },
       }),
       features: TYPES_FIRST_FEATURES([{ index: 0, label: "out" }]),
     });
@@ -640,7 +640,7 @@ describe("app shell — flow-author schema validation", () => {
     });
     // the Schema icon/button is flagged red...
     const btn = component.container.querySelector(
-      ".nrg-outputs-schema-btn.nrg-schema-btn-error",
+      ".nrg-schema-btn.nrg-schema-btn-error",
     );
     expect(btn).not.toBeNull();
     // ...and carries the message as a tooltip — no separate in-form error text
@@ -661,7 +661,7 @@ describe("app shell — flow-author schema validation", () => {
     expect(
       component.container.querySelector(".nrg-schema-btn-error"),
     ).toBeNull();
-    const btn = component.container.querySelector(".nrg-outputs-schema-btn");
+    const btn = component.container.querySelector(".nrg-schema-btn");
     expect(btn?.getAttribute("title")).toBeNull();
   });
 
@@ -682,7 +682,7 @@ describe("app shell — flow-author schema validation", () => {
     });
     // the output port's Schema icon is flagged red + tooltip carries the error
     const btn = component.container.querySelector(
-      ".nrg-outputs-schema-btn.nrg-schema-btn-error",
+      ".nrg-schema-btn.nrg-schema-btn-error",
     );
     expect(btn).not.toBeNull();
     expect(btn?.getAttribute("title")).toContain("Invalid JSON");
@@ -811,5 +811,36 @@ describe("mountApp / unmountApp", () => {
     expect(vi.mocked(node._).mock.calls.length).toBeGreaterThan(0);
     expect(vi.mocked(node._).mock.calls[0][0]).toContain(node._newState!.type);
     unmountApp(node as any);
+  });
+});
+
+describe("app shell — Input Root field", () => {
+  test("renders the Input Root field when the node has an input port", () => {
+    const { component } = renderApp({
+      configs: { name: "x" },
+      schema: nameSchema(),
+      features: { hasInput: true, outputPorts: [] },
+    });
+    expect(
+      component.container.querySelector("input.nrg-input-root"),
+    ).toBeTruthy();
+  });
+
+  test("editing the Input Root writes inputRoot on the node", async () => {
+    const { node, component } = renderApp({
+      configs: { name: "x", inputRoot: "" },
+      schema: nameSchema(),
+      features: { hasInput: true, outputPorts: [] },
+    });
+
+    const input = component.container.querySelector(
+      "input.nrg-input-root",
+    ) as HTMLInputElement;
+    input.value = "output";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(node.inputRoot).toBe("output");
+    });
   });
 });

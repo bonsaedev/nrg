@@ -3,15 +3,15 @@ import { createApp } from "vue";
 import { cloneDeep } from "es-toolkit";
 import type { JSONSchemaType } from "ajv";
 import NodeRedVueApp from "./app.vue";
-import NodeRedInput from "./components/node-red-input.vue";
-import NodeRedTypedInput from "./components/node-red-typed-input.vue";
-import NodeRedConfigInput from "./components/node-red-config-input.vue";
-import NodeRedSelectInput from "./components/node-red-select-input.vue";
-import NodeRedEditorInput from "./components/node-red-editor-input.vue";
-import NodeRedTray from "./components/node-red-tray.vue";
-import NodeRedInputLabel from "./components/node-red-input-label.vue";
-import NodeRedToggle from "./components/node-red-toggle.vue";
-import NodeRedJsonSchemaForm from "./components/node-red-json-schema-form.vue";
+import NodeRedInput from "./components/lib/inputs/node-red-input.vue";
+import NodeRedTypedInput from "./components/lib/inputs/node-red-typed-input.vue";
+import NodeRedConfigInput from "./components/lib/inputs/node-red-config-input.vue";
+import NodeRedSelectInput from "./components/lib/inputs/node-red-select-input.vue";
+import NodeRedEditorInput from "./components/lib/inputs/node-red-editor-input.vue";
+import NodeRedTray from "./components/lib/node-red-tray.vue";
+import NodeRedInputLabel from "./components/lib/inputs/node-red-input-label.vue";
+import NodeRedToggle from "./components/lib/inputs/node-red-toggle.vue";
+import NodeRedJsonSchemaForm from "./components/lib/node-red-json-schema-form.vue";
 import type { NodeFormDefinition, NodeFeatures, NodeRedNode } from "../types";
 
 function createNodeRedVueApp(

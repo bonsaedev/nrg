@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
 import { defineComponent, h, ref, nextTick } from "vue";
-import NodeRedTypedInput from "@/sdk/lib/client/form/components/node-red-typed-input.vue";
+import NodeRedTypedInput from "@/sdk/lib/client/form/components/lib/inputs/node-red-typed-input.vue";
 import { getJQueryState } from "@/sdk/test/client/mocks";
 
 describe("NodeRedTypedInput", () => {

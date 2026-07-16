@@ -23,15 +23,15 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import type { editor as MonacoEditor } from "monaco-editor";
-import NodeRedTray from "./node-red-tray.vue";
-import NodeRedEditorInput from "./node-red-editor-input.vue";
+import NodeRedTray from "../lib/node-red-tray.vue";
+import NodeRedEditorInput from "../lib/inputs/node-red-editor-input.vue";
 
 /**
  * A JSON-schema editor in a Node-RED tray. Open it via a ref:
  * `tray.open(title, value, onSave)` — `onSave` receives the edited value on Done.
  */
 export default defineComponent({
-  name: "NodeRedSchemaTray",
+  name: "JsonSchemaEditorInputTray",
   components: { NodeRedTray, NodeRedEditorInput },
   data() {
     return {

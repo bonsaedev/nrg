@@ -1,6 +1,6 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/node-red-json-schema-form.vue";
+import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/lib/node-red-json-schema-form.vue";
 import { createNode } from "@/sdk/test/client/component";
 import { getJQueryState } from "@/sdk/test/client/mocks/jquery";
 

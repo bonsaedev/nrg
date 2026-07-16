@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { render } from "vitest-browser-vue";
 import NodeRedVueApp from "@/sdk/lib/client/form/app.vue";
-import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/node-red-json-schema-form.vue";
+import NodeRedJsonSchemaForm from "@/sdk/lib/client/form/components/lib/node-red-json-schema-form.vue";
 import { createNode } from "@/sdk/test/client/component";
 import { typeCheckEnabled } from "@/sdk/lib/client/wire-check/availability";
 import type { NodeFeatures } from "@/sdk/lib/client/types";

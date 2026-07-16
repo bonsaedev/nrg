@@ -171,15 +171,15 @@
 <script lang="ts">
 import type { PropType } from "vue";
 import { defineComponent } from "vue";
-import NodeRedInputLabel from "./node-red-input-label.vue";
-import NodeRedToggle from "./node-red-toggle.vue";
-import NodeRedInput from "./node-red-input.vue";
-import NodeRedSelectInput from "./node-red-select-input.vue";
-import NodeRedTypedInput from "./node-red-typed-input.vue";
-import NodeRedConfigInput from "./node-red-config-input.vue";
-import NodeRedEditorInput from "./node-red-editor-input.vue";
-import { BUILTIN_PORT_KEYS } from "../../../shared/constants";
-import type { JsonPropertySchema } from "../../types";
+import NodeRedInputLabel from "./inputs/node-red-input-label.vue";
+import NodeRedToggle from "./inputs/node-red-toggle.vue";
+import NodeRedInput from "./inputs/node-red-input.vue";
+import NodeRedSelectInput from "./inputs/node-red-select-input.vue";
+import NodeRedTypedInput from "./inputs/node-red-typed-input.vue";
+import NodeRedConfigInput from "./inputs/node-red-config-input.vue";
+import NodeRedEditorInput from "./inputs/node-red-editor-input.vue";
+import { BUILTIN_PORT_KEYS } from "../../../../shared/constants";
+import type { JsonPropertySchema } from "../../../types";
 
 // System fields managed by Node-RED — not shown in the editor form.
 const SKIP_FIELDS = new Set([
@@ -199,6 +199,7 @@ const SKIP_FIELDS = new Set([
   "outputReturnProperties",
   "outputSchemas",
   "inputSchema",
+  "inputRoot",
   ...BUILTIN_PORT_KEYS,
 ]);
 

@@ -2,10 +2,10 @@ import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "vitest-browser-vue";
 import type { PropType } from "vue";
 import { defineComponent } from "vue";
-import NodeRedSchemaTray from "@/sdk/lib/client/form/components/node-red-schema-tray.vue";
+import JsonSchemaEditorInputTray from "@/sdk/lib/client/form/components/app/json-schema-editor-input-tray.vue";
 import { createNode } from "@/sdk/test/client/component";
 
-describe("NodeRedSchemaTray", () => {
+describe("JsonSchemaEditorInputTray", () => {
   const { RED } = createNode();
   let trayEl: HTMLElement | null = null;
 
@@ -18,7 +18,7 @@ describe("NodeRedSchemaTray", () => {
   });
 
   const Harness = defineComponent({
-    components: { NodeRedSchemaTray },
+    components: { JsonSchemaEditorInputTray },
     props: {
       title: { type: String, default: "" },
       value: { type: String, default: "" },
@@ -28,13 +28,13 @@ describe("NodeRedSchemaTray", () => {
       },
     },
     mounted() {
-      (this.$refs.tray as InstanceType<typeof NodeRedSchemaTray>).open(
+      (this.$refs.tray as InstanceType<typeof JsonSchemaEditorInputTray>).open(
         this.title,
         this.value,
         this.onSave,
       );
     },
-    template: `<NodeRedSchemaTray ref="tray" />`,
+    template: `<JsonSchemaEditorInputTray ref="tray" />`,
   });
 
   // Mount the tray and simulate Node-RED mounting its DOM + invoking open(),
@@ -65,7 +65,7 @@ describe("NodeRedSchemaTray", () => {
     });
     // The tray opens for invalid input and delegates error display to Monaco's
     // inline diagnostics — it renders no separate error banner of its own
-    // (see node-red-schema-tray.vue).
+    // (see json-schema-editor-input-tray.vue).
     expect(body.querySelector(".nrg-schema-tray-error")).toBeNull();
   });
 

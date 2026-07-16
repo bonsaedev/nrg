@@ -1,6 +1,6 @@
 import { describe, test, expect, vi } from "vitest";
 import { render } from "vitest-browser-vue";
-import NodeRedConfigInput from "@/sdk/lib/client/form/components/node-red-config-input.vue";
+import NodeRedConfigInput from "@/sdk/lib/client/form/components/lib/inputs/node-red-config-input.vue";
 import { createNode } from "@/sdk/test/client/component";
 import { getJQueryState } from "@/sdk/test/client/mocks";
 
