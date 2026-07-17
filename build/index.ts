@@ -635,6 +635,45 @@ function assertClientAssetWired(clientAsset: string): void {
 // Type declarations
 // ---------------------------------------------------------------------------
 
+/**
+ * `Channels` is a `unique symbol`, so its TYPE identity is its declaration site.
+ * dts-bundle-generator INLINES that declaration into every entry bundle it emits —
+ * so `server.d.ts` and `test-server-unit.d.ts` each get a SEPARATE `unique symbol`.
+ * In a consumer that installs both, `msg[Channels]` (server's symbol) then can't
+ * index the `[Channels]` key the harness bakes into `sent()` / `receive()` frames
+ * (test-unit's symbol) — the read only type-checks through a cast.
+ *
+ * Rewrite the inlined declaration in the test-unit bundle into an IMPORT from the
+ * sibling `@bonsae/nrg/server` bundle, so both surfaces share ONE symbol identity in
+ * a consumer and `sent(...)[i][Channels]` / `receive(msg, channels)` type cast-free.
+ * (nrg's OWN tests never see this bundle: they resolve the harness to source via a
+ * paths alias, where a single `Channels` declaration already serves both planes.)
+ *
+ * dts-bundle-generator's `--external-imports` only externalizes packages resolvable
+ * under node_modules, and nrg isn't in its own node_modules — hence this rewrite.
+ */
+function shareChannelsSymbol(dtsPath: string): void {
+  const DECL = "declare const Channels: unique symbol;\n";
+  const original = readFileSync(dtsPath, "utf-8");
+  if (!original.includes(DECL)) {
+    throw new Error(
+      `${dtsPath}: could not find the inlined \`${DECL.trim()}\` to rewrite ` +
+        `into a shared \`import { Channels } from "@bonsae/nrg/server"\`. The ` +
+        `dts-bundle-generator output shape changed — without this the Channels ` +
+        `unique symbol silently fragments across bundles and consumer tests need ` +
+        `a cast to read \`sent(...)[i][Channels]\`.`,
+    );
+  }
+  writeFileSync(
+    dtsPath,
+    `import { Channels } from "@bonsae/nrg/server";\n` +
+      original.replace(DECL, ""),
+  );
+  console.log(
+    "✓ Shared the Channels symbol from @bonsae/nrg/server → test-server-unit.d.ts",
+  );
+}
+
 function generateTypes() {
   // ----- toolkit-owned surface (vite, test-*) — no bare-root `.` types -----
   execSync(
@@ -659,6 +698,7 @@ export type { NodeRedSettings };
     `npx dts-bundle-generator -o dist/toolkit/types/test-server-unit.d.ts src/sdk/test/server/unit/index.ts ${DTS_FLAGS} --external-types vitest`,
     { stdio: "inherit" },
   );
+  shareChannelsSymbol("dist/toolkit/types/test-server-unit.d.ts");
   execSync(
     `npx dts-bundle-generator -o dist/toolkit/types/test-server-integration.d.ts src/sdk/test/server/integration/index.ts ${DTS_FLAGS}`,
     { stdio: "inherit" },

@@ -113,3 +113,36 @@ class TypedSendNode extends IONode<
   }
 }
 void TypedSendNode;
+
+// (i) HARNESS: the typed channels flow through the test harness too — `sent()[i][Channels]`
+//     is typed from the OUTPUT port's shape, and `receive()`'s channels arg from the INPUT
+//     port's shape. So a test reads/seeds channels with no cast.
+class TypedHarnessNode extends IONode<
+  Record<string, never>,
+  unknown,
+  Input<Port<Wire, { private: { token?: string } }>>,
+  Outputs<{ out: Port<{ out: number }, { private: { conn: Conn } }> }>
+> {
+  static override readonly type = "ml-typed-harness-proof";
+  static override readonly category = "test";
+  static override readonly color = "#ffffff";
+  override async input(
+    _m: Input<Port<Wire, { private: { token?: string } }>>,
+  ) {}
+}
+declare const th: Awaited<
+  ReturnType<typeof createNode<typeof TypedHarnessNode>>
+>;
+// `sent()[i][Channels]` typed from the output port's declared shape — no cast:
+const emittedConn: Conn = th.node.sent("out")[0][Channels].private.conn;
+void emittedConn;
+// @ts-expect-error - the emitted conn is a Conn, not a string (proves it isn't `any`)
+const emittedConnBad: string = th.node.sent("out")[0][Channels].private.conn;
+void emittedConnBad;
+// `receive()`'s channels arg typed from the input port's declared shape:
+void th.node.receive(
+  { payload: "x", _msgid: "1" },
+  { private: { token: "t" } },
+);
+// @ts-expect-error - the seeded `token` must be a string
+void th.node.receive({ payload: "x", _msgid: "1" }, { private: { token: 42 } });

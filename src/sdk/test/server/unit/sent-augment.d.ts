@@ -30,6 +30,7 @@ import type {
   InputSpec,
   OutputSpec,
   PortValue,
+  PortChannels,
   Port,
 } from "@bonsae/nrg/test/server/unit";
 
@@ -51,13 +52,21 @@ declare module "@/sdk/lib/server/nodes/io-node" {
     sent(port: "status"): StatusPortOutput[];
     sent<P extends OutputPortNames<TOutput>>(
       port: P,
-    ): WrappedPort<PortMessage<TOutput, P>, ExtractInput<this>>[];
+    ): WrappedPort<
+      PortMessage<TOutput, P>,
+      ExtractInput<this>,
+      PortChannels<TOutput[P]>
+    >[];
     // A numeric index into a dynamic-array / tuple output recovers the element
-    // value; a named record (key order not recoverable) stays `unknown`.
+    // value + channels; a named record (key order not recoverable) stays `unknown`.
     sent(
       port: number,
     ): TOutput extends readonly Port<any>[]
-      ? WrappedPort<PortValue<TOutput[number]>, ExtractInput<this>>[]
+      ? WrappedPort<
+          PortValue<TOutput[number]>,
+          ExtractInput<this>,
+          PortChannels<TOutput[number]>
+        >[]
       : WrappedPort<unknown, ExtractInput<this>>[];
   }
 }

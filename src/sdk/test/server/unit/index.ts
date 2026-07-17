@@ -18,10 +18,13 @@ import type {
   CompletePortOutput as CoreCompletePortOutput,
   StatusPortOutput as CoreStatusPortOutput,
   PortValue,
+  PortChannels,
+  ChannelShape,
   Port,
   IsPortRecord,
   IsAny,
   WithMessageChannels,
+  MessageChannels,
   MessageMeta,
 } from "@/sdk/lib/server/nodes/types/ports";
 
@@ -41,6 +44,15 @@ interface CreateNodeOptions {
 // `TOutput` off the node class, so we recover the wire from `receive` (typed from
 // the in-scope generic) exactly as `sent()` recovers `TOutput` from the shim.
 type ExtractInput<T> = T extends { receive(msg: infer M): any } ? M : any;
+// The node's INPUT channel shape — recovered from the FULL `input(msg)` parameter
+// (which carries the off-the-wire channels, unlike `receive`, whose param has them
+// stripped). Types `receive()`'s channel-seeding argument. Untyped for a source
+// (`never` input) — `receive` is uncallable there anyway.
+type ExtractInputChannels<T> = T extends { input(msg: infer M): any }
+  ? M extends { readonly [Channels]: infer C }
+    ? C
+    : MessageChannels
+  : MessageChannels;
 // `sent()` is typed from the node's declared `TOutput` — but `TOutput` can't be
 // recovered from a passed node class (the constrained `send(port, value)`
 // signature keeps it only inside conditional types like `OutputPortNames<TOutput>`,
@@ -77,7 +89,9 @@ type PortMessage<T, P extends string> =
  * `toEqual({ output })` still matches. They ride data-port frames only, never the
  * built-in error/complete/status frames.
  */
-type WrappedPort<V, TInput> = { output: V } & WithMessageChannels &
+type WrappedPort<V, TInput, TChan extends ChannelShape = object> = {
+  output: V;
+} & WithMessageChannels<TChan> &
   ([TInput] extends [never]
     ? unknown
     : unknown extends TInput
@@ -101,15 +115,23 @@ type PortTuple<TOutput, TInput> =
     : [TOutput] extends [never]
       ? never[]
       : TOutput extends readonly Port<any>[]
-        ? // dynamic ports: N slots, each carrying the element `Port`'s value
-          WrappedPort<PortValue<TOutput[number]>, TInput>[]
+        ? // dynamic ports: N slots, each carrying the element `Port`'s value + channels
+          WrappedPort<
+            PortValue<TOutput[number]>,
+            TInput,
+            PortChannels<TOutput[number]>
+          >[]
         : IsPortRecord<TOutput> extends true
-          ? // named ports: one slot per port; each carries that port's value.
-            // A single-key record collapses to a precise one-value union
+          ? // named ports: one slot per port; each carries that port's value +
+            // channels. A single-key record collapses to a precise one-value union
             // (`sent()[i][0].output`); a multi-key record is the sound union of
             // its ports' values — use `sent(name)` for a precise single port.
-            WrappedPort<PortValue<TOutput[keyof TOutput]>, TInput>[]
-          : [WrappedPort<TOutput, TInput>];
+            WrappedPort<
+              PortValue<TOutput[keyof TOutput]>,
+              TInput,
+              PortChannels<TOutput[keyof TOutput]>
+            >[]
+          : [WrappedPort<TOutput, TInput, PortChannels<TOutput>>];
 
 // Built-in port output shapes come from the runtime (single source of truth) — the
 // mock only layers on the test-delivery semantics: real emissions also spread
@@ -144,7 +166,7 @@ function builtinPortIndex(node: any, name: string): number | undefined {
   return config.statusPort ? index : -1;
 }
 
-interface TestNodeHelpers<TInput = any> {
+interface TestNodeHelpers<TInput = any, TChannels = MessageChannels> {
   /** Drive the node's input handler with a Node-RED message. For an object
    * input the declared shape is required while arbitrary extra message
    * properties (`topic`, `_msgid`, correlation ids, …) are allowed — a real
@@ -159,7 +181,7 @@ interface TestNodeHelpers<TInput = any> {
    * key off it). */
   receive(
     msg: TInput extends object ? TInput & Record<string, unknown> : TInput,
-    channels?: { protected?: object; private?: object },
+    channels?: Partial<TChannels>,
   ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
@@ -196,7 +218,7 @@ interface ChannelBridge {
 }
 
 interface CreateNodeResult<T> {
-  node: T & TestNodeHelpers<ExtractInput<T>>;
+  node: T & TestNodeHelpers<ExtractInput<T>, ExtractInputChannels<T>>;
   RED: MockRED;
   /** The error thrown by `created()`, if any — `undefined` when it succeeded.
    * `createNode` never rejects on a failing `created()` (production constructs
@@ -230,7 +252,7 @@ function attachHelpers<T>(
   nodeRedNode: any,
   NodeClass: NodeClass,
   channelBridge: ChannelBridge,
-): T & TestNodeHelpers<ExtractInput<T>> {
+): T & TestNodeHelpers<ExtractInput<T>, ExtractInputChannels<T>> {
   const sentMessages: any[] = [];
   const statusCalls: any[] = [];
 
@@ -519,5 +541,6 @@ export type {
   InputSpec,
   OutputSpec,
   PortValue,
+  PortChannels,
   Port,
 } from "@/sdk/lib/server/nodes/types/ports";
