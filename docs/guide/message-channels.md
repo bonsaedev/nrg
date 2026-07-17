@@ -109,8 +109,12 @@ override async input(msg: Input<Port<{ request: unknown }>>) {
 
 ```typescript
 // @bonsae/salesforce — a DIFFERENT package. Reads the principal off the shared channel.
-override async input(msg: Input<Port<{ payload: unknown }>>) {
-  const principal = msg[Channels].protected["auth.principal"] as Principal; // channel values are `unknown`
+// Both packages share the `Principal` type, so declaring it on the port types the read.
+override async input(
+  msg: Input<Port<{ payload: unknown }, { protected: { "auth.principal"?: Principal } }>>,
+) {
+  const principal = msg[Channels].protected["auth.principal"]; // typed `Principal | undefined`
+  if (!principal) return;
   const token = await principal.getAccessToken();
   // ...call Salesforce with `token`
 }
@@ -242,6 +246,21 @@ this.send("out", { payload }, { protected: { "otel.span": span }, private: { con
 this.send("rows", rows, { private: { conn } });
 ```
 
+When the OUTPUT port declares a channel shape (the same `Port<Wire, Shape>` you'd use on an
+input), `send`'s 3rd argument is **type-checked against it**, with autocomplete for the
+declared keys — a producer can't write the wrong type or omit a required channel:
+
+```typescript
+type MyOutputs = Outputs<{ out: Port<{ payload: unknown }, { private: { conn: Conn } }> }>;
+
+this.send("out", { payload }, { private: { conn } });     // ✅ typed + autocompleted
+this.send("out", { payload }, { private: { conn: 42 } }); // ✗ 42 is not a Conn
+this.send("out", { payload }, { private: {} });           // ✗ `conn` is required
+```
+
+An undeclared port (`Port<Wire>`) keeps the argument fully open (`Record<string, unknown>`),
+so existing code is unaffected.
+
 A node **reads** the channels back off its incoming message. **Always annotate the
 `input()` parameter** with your node's `Input<Port<…>>` alias — declare the wire type once
 and reuse it as both the generic and the parameter annotation:
@@ -251,19 +270,34 @@ import { IONode, Channels, type Input, type Port } from "@bonsae/nrg/server";
 
 // Declare the wire type ONCE and use it in both places: as the input generic (it drives
 // the node's ports) and as the input() parameter annotation (so `msg[Channels]` plus the
-// wire fields are typed).
-type MyNodeInput = Input<Port<{ payload: unknown }>>;
+// wire fields are typed). `Port`'s SECOND, optional type argument types the off-the-wire
+// channels: a declared key becomes precise, any other key stays `unknown`. Omit it and
+// both partitions default to fully untyped (`Record<string, unknown>`).
+type MyNodeInput = Input<
+  Port<
+    { payload: unknown },
+    { private: { conn?: Conn }; protected: { "otel.span"?: Span } }
+  >
+>;
 
 export default class MyNode extends IONode<Config, never, MyNodeInput, MyNodeOutputs> {
   static override readonly type = "my-node";
 
   override async input(msg: MyNodeInput) {
-    const conn = msg[Channels].private.conn;            // package-scoped; `unknown` until you narrow it
-    const span = msg[Channels].protected["otel.span"];  // shared; `unknown` until you narrow it
+    const conn = msg[Channels].private.conn;            // typed `Conn | undefined` — no cast
+    const span = msg[Channels].protected["otel.span"];  // typed `Span | undefined` — no cast
+    const other = msg[Channels].private.other;          // undeclared key → still `unknown`
     // ...
   }
 }
 ```
+
+::: tip Type the channels on the port
+Declaring the shape as `Port`'s second argument is optional — a bare `Port<Wire>` keeps
+both channels `unknown`, exactly as before, and you narrow at the read site. Declaring it
+types the reads (no cast) **and** the writes: because the shape lives on the *port*, the
+same `Port<Wire, Shape>` used on an OUTPUT port also types what `send` may write (below).
+:::
 
 ::: warning Always annotate `input()`
 TypeScript does **not** infer an overridden method's parameter type from the base class, so
@@ -286,8 +320,11 @@ message from its channels. You never need it — write channels on `send`, read 
 A channel entry is removed with `delete`:
 
 ```typescript
-override async input(msg: Input<Port<{ output: unknown }>>) {
-  const res = msg[Channels].private.res as ServerResponse;
+override async input(
+  msg: Input<Port<{ output: unknown }, { private: { res?: ServerResponse } }>>,
+) {
+  const res = msg[Channels].private.res; // typed `ServerResponse | undefined` — no cast
+  if (!res) return;
   res.end(JSON.stringify(msg.output));
   delete msg[Channels].private.res; // done with it
 }
@@ -340,8 +377,13 @@ flow author. Both nodes are in the same package, so `private` fits:
 ```typescript
 // @acme/http — http-in.ts  (a SOURCE node: TInput = never)
 import { IONode, type Outputs, type Port } from "@bonsae/nrg/server";
+import type { ServerResponse } from "node:http";
 
-type HttpInOutputs = Outputs<{ out: Port<{ payload: unknown }> }>;
+// The output port declares the live `res` on its private channel — so the `send` below
+// is type-checked (the source and sink share this `{ private: { res } }` contract).
+type HttpInOutputs = Outputs<{
+  out: Port<{ payload: unknown }, { private: { res: ServerResponse } }>;
+}>;
 
 export default class HttpIn extends IONode<Config, never, never, HttpInOutputs> {
   static override readonly type = "http-in";
@@ -349,8 +391,8 @@ export default class HttpIn extends IONode<Config, never, never, HttpInOutputs> 
   override async created() {
     this.RED.httpNode.get(this.config.url, (req, res) => {
       // Emit the clone-safe snapshot on the wire; stash the LIVE `res` on the private
-      // channel (the 3rd arg's `private` key). nrg mints an `_msgid` for this source
-      // send, keys the channel by it, and carries that id across every downstream node.
+      // channel (the 3rd arg's `private` key, typed by the port). nrg mints an `_msgid`
+      // for this source send, keys the channel by it, and carries it across every node.
       this.send("out", { payload: req.query }, { private: { res } });
     });
   }
@@ -359,17 +401,21 @@ export default class HttpIn extends IONode<Config, never, never, HttpInOutputs> 
 
 ```typescript
 // @acme/http — http-response.ts  (a SINK node: TOutput = never)
-import { IONode, type Input, type Port } from "@bonsae/nrg/server";
+import { IONode, Channels, type Input, type Port } from "@bonsae/nrg/server";
+import type { ServerResponse } from "node:http";
 
-type HttpResponseInput = Input<Port<{ payload: unknown }>>;
+// The input port declares the same channel — so `res` reads back typed, no cast.
+type HttpResponseInput = Input<
+  Port<{ payload: unknown }, { private: { res?: ServerResponse } }>
+>;
 
 export default class HttpResponse extends IONode<Config, never, HttpResponseInput, never> {
   static override readonly type = "http-response";
 
   override async input(msg: HttpResponseInput) {
-    const res = msg[Channels].private.res as ServerResponse | undefined; // same package → visible
-    if (!res) return;                               // already answered, or not ours
-    delete msg[Channels].private.res;                         // claim it — answered exactly once
+    const res = msg[Channels].private.res; // typed `ServerResponse | undefined` — no cast
+    if (!res) return;                      // already answered, or not ours
+    delete msg[Channels].private.res;      // claim it — answered exactly once
     res.statusCode = 200;
     res.end(JSON.stringify(msg.output));
   }
@@ -402,8 +448,10 @@ override async input(msg: Input<Port<{ payload: unknown }>>) {
 
 ```typescript
 // @bonsae/node-red-http — http-request.ts (a DIFFERENT package)
-override async input(msg: Input<Port<{ payload: unknown }>>) {
-  const parent = msg[Channels].protected["otel.span"] as Span | undefined;
+override async input(
+  msg: Input<Port<{ payload: unknown }, { protected: { "otel.span"?: Span } }>>,
+) {
+  const parent = msg[Channels].protected["otel.span"]; // typed `Span | undefined` — no cast
   const child = parent ? tracer.startSpan("http", { parent }) : undefined;
   // ...
 }
