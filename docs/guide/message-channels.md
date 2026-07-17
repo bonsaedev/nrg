@@ -152,7 +152,7 @@ remove this http-node-specific fix somehow."* Everything else is on its own.
 
 And anything on `msg` is **visible in the debug panel and editable by any function node** —
 so a secret leaks and a live handle can be tampered with. What actually continues
-downstream isn't your call either: the **flow author** picks `passthrough`/`reset`
+downstream isn't your call either: the **flow author** picks `merge`/`reset`
 per wire (see [context modes](./message-model#context-modes)), so a `reset` drops the fields
 you left for a later node.
 
@@ -179,7 +179,7 @@ reinvention *is* message channels; nrg just builds it in, off the wire, and hidd
 | --- | --- | --- | --- |
 | Survives cloning between wires | No (except `req`/`res`) | N/A | **Yes** |
 | Bound to one message | Yes | No (keyed by name) | **Yes (by `_msgid`)** |
-| Survives the flow author's `passthrough`/`reset` wire choice | No (`reset` drops it) | N/A | **Yes (rides `_msgid`)** |
+| Survives the flow author's `merge`/`reset` wire choice | No (`reset` drops it) | N/A | **Yes (rides `_msgid`)** |
 | Holds live/non-serializable objects | No | No (serialization-oriented) | **Yes (in-process store)** |
 | Hidden from the flow author | No | No | **Yes** |
 | Concurrency-safe across in-flight messages | Yes | No | **Yes** |
@@ -325,7 +325,7 @@ override async input(
 ) {
   const res = msg[Channels].private.res; // typed `ServerResponse | undefined` — no cast
   if (!res) return;
-  res.end(JSON.stringify(msg.output));
+  res.end(JSON.stringify(msg.payload));
   delete msg[Channels].private.res; // done with it
 }
 ```
@@ -417,7 +417,7 @@ export default class HttpResponse extends IONode<Config, never, HttpResponseInpu
     if (!res) return;                      // already answered, or not ours
     delete msg[Channels].private.res;      // claim it — answered exactly once
     res.statusCode = 200;
-    res.end(JSON.stringify(msg.output));
+    res.end(JSON.stringify(msg.payload));
   }
 }
 ```

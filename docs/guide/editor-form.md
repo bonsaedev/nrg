@@ -10,8 +10,7 @@ NRG generates the node's edit dialog from your schema — you don't write any HT
 
 - **Ports Settings** — rendered on **every** IONode (config nodes never get it). Its subsections:
   - **Outputs** — a per-port table, one row per base output port. The **rows** come from the node's **types** (its port topology); the columns are framework controls:
-    - **Return Property** — each port's return key (default `output`). Always available.
-    - **Context Mode** — how each port carries the incoming message. The column is always shown and **every port's dropdown is editable**; the node author's [`outputContextModes` default](./creating-a-node#framework-config-fields) only sets which value each port starts on (ports without one start on `passthrough`). See [Context modes](./message-model#context-modes).
+    - **Context Mode** — how each port builds its outgoing record (`merge` accumulates, `reset` starts fresh). The column is always shown and **every port's dropdown is editable**; the node author's [`outputContextModes` default](./creating-a-node#framework-config-fields) only sets which value each port starts on (ports without one start on `merge`). See [Context modes](./message-model#context-modes).
     - **Validate Data** (+ **Schema**) — renders on every node with output ports; the framework injects [`outputSchemas`](./schemas#editor-schema-overrides) into every IONode. Toggle it on for a port to check the sent value against that port's schema.
 
     The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
@@ -27,7 +26,7 @@ Two different mechanisms are at play:
   canvas and the rows in the Outputs table.
 - **The framework injects its config fields into every IONode.** The build
   spreads `name`, the three lifecycle-port toggles (`errorPort`, `completePort`,
-  `statusPort`), `outputReturnProperties`, `outputContextModes`, `inputRoot`, and
+  `statusPort`), `outputContextModes`, and
   the data-validation fields (`inputSchema`, `outputSchemas`, and their
   `validateInput` / `validateOutputs` toggles) into every node's config schema —
   so those controls render on **every** node whether or not you declared them.
@@ -35,7 +34,7 @@ Two different mechanisms are at play:
 
 So a **types-first node like a SOQL query** — one output port from its `Output`
 type, no runtime validation schemas, no declared port config — still shows the
-full Ports Settings section: the lifecycle toggles, a Return Property field, and
+full Ports Settings section: the lifecycle toggles, a Context Mode column, and
 a Context Mode dropdown. The data-validation controls are always there too: a
 **Validate Data** toggle (and schema editor) on every node with output ports —
 gated by the injected `validateOutputs` flag and populated from

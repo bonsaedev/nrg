@@ -41,10 +41,10 @@ NRG  --  decided by the flow author, on the wire
 
    msg --> [ node ] --> result --> next node
                             |
-                            +-- passthrough | reset   (chosen per wire)
+                            +-- merge | reset         (chosen per wire)
 ```
 
-In classic Node-RED every node must actively call `send(msg)` to pass the message on; if the node's code forgets that call (or takes a path that skips it), the flow stops silently with no error — and whoever built the flow can't fix it from the outside. NRG flips this: the node just returns its result, the framework carries the incoming message for you, and the **flow author** decides per output how much of it continues — the last message (`passthrough`) or a clean slate (`reset`). See [context modes](./message-model#context-modes).
+In classic Node-RED every node must actively call `send(msg)` to pass the message on; if the node's code forgets that call (or takes a path that skips it), the flow stops silently with no error — and whoever built the flow can't fix it from the outside. NRG flips this: the node contributes just its named fields, the framework carries the accumulated record for you, and the **flow author** decides per output whether it continues — accumulate (`merge`) or a clean slate (`reset`). See [context modes](./message-model#context-modes).
 
 > Throughout these docs, the **flow author** is whoever wires nodes together on the Node-RED canvas — as opposed to you, the **node author**, who writes the node package. Many of NRG's controls exist so the node author sets a sensible default while the flow author keeps the final say per node instance.
 
@@ -71,7 +71,7 @@ Every message gets two **off-the-wire channels** — **`private`** (only your pa
                 off the wire, never cloned, never logged
 ```
 
-`http-in` sends only a clone-safe request snapshot on the wire and parks the live `res` on its **private** channel; `http-response`, anywhere downstream, reads the socket back and replies. The channel rides the `_msgid`, so it survives every `passthrough`/`reset` and any nodes in between:
+`http-in` sends only a clone-safe request snapshot on the wire and parks the live `res` on its **private** channel; `http-response`, anywhere downstream, reads the socket back and replies. The channel rides the `_msgid`, so it survives every `merge`/`reset` and any nodes in between:
 
 ```typescript
 import { Channels } from "@bonsae/nrg/server";
@@ -480,10 +480,10 @@ this.on("input", function (msg, send, done) {
 ```typescript
 // NRG — each message keeps its own context; nothing lives on `this`
 override async input(msg: EnrichInput) {
-  const extra = await lookup(msg.output.payload);
+  const extra = await lookup(msg.payload);
   // still resolves THIS message after the await — no `this`, no correlation
   // ids, no races
-  this.send("out", { payload: { ...msg.output.payload, extra } });
+  this.send("out", { payload: { ...msg.payload, extra } });
 }
 ```
 

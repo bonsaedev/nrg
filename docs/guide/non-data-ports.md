@@ -130,7 +130,7 @@ client type-resolver understand:
 | `SchemaType.Unsafe<T>({ …json… })` | yes | `T` | a custom/branded static type **with** real validation |
 
 Prefer `Unsafe<T>()` over `Any()` for non-data ports — both skip validation, but
-`Unsafe<T>()` keeps full type safety on `msg.output` and the input message. Reach
+`Unsafe<T>()` keeps full type safety on the outgoing record and the input message. Reach
 for it rather than `SchemaType.Function`/`Constructor` too: those emit a non-JSON
 `type` keyword that only validates cleanly when the schema is built with
 `defineSchema` (which strips it via `markNonValidatable`), whereas `Unsafe<T>()`

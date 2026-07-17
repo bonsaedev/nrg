@@ -138,7 +138,7 @@ describe("my-node", () => {
     await node.receive({ payload: "hello" });
 
     // send() wraps the result under the return key (`output`) and stamps the
-    // producing node (id/type/name/port) under `source`; the default passthrough
+    // producing node (id/type/name/port) via `msg[Meta].source`; the default merge
     // context mode keeps the incoming msg under `input`, not at the root.
     expect(node.sent(0)).toEqual([
       {
@@ -318,7 +318,7 @@ describe("named output ports", () => {
     const { node } = await createNode(Router);
 
     await node.receive({ payload: 5 });
-    expect(node.sent("ok")[0].output).toEqual({ value: 5 });
+    expect(node.sent("ok")[0]).toMatchObject({ value: 5 });
     expect(node.sent("err")).toHaveLength(0);
   });
 });
@@ -642,9 +642,9 @@ A handle to one node in the flow. Harness methods never collide with your node's
 `read()` walks emissions one at a time and waits for the next one — ideal for asserting ordered output or a single async result. `sent()` is a synchronous snapshot of everything emitted so far — ideal for counting.
 
 ::: tip Reading output
-Each emission is `{ output: result, source: producingNode, input: incomingMsg }` — the node's result lives under `output`, the producing node (id/type/name/port) under `source`, and the incoming message under `input`, never spread at the top level. So assertions read `(await node.read()).output`.
+Each emission IS the record: the incoming fields carried forward plus the send's named additions at the top level, with provenance on the `msg[Meta]` accessor (the `_meta` carrier) — there is no `output` wrapper. So assertions read fields directly: `(await node.read()).doubled`.
 
-Whether the incoming message is attached under `input` depends on the [context mode](./message-model#context-modes): the default `passthrough` keeps the immediate previous message (flat and loop-safe), `reset` attaches nothing, and a send with no incoming message records no `input` frame regardless.
+Whether the incoming record's fields are carried forward depends on the [context mode](./message-model#context-modes): the default `merge` accumulates (`{ ...incoming, ...additions }`), `reset` starts a fresh record from the additions alone.
 :::
 
 ### Examples
@@ -692,8 +692,8 @@ describe("doubler (integration)", () => {
 
     await node.receive({ value: 21 });
 
-    const out = (await node.read()) as { output: { doubled: number } };
-    expect(out.output.doubled).toBe(42);
+    const out = (await node.read()) as { doubled: number };
+    expect(out.doubled).toBe(42);
     expect(node.sent()).toHaveLength(1);
   });
 });
@@ -736,8 +736,8 @@ it("resolves a config node", async () => {
 
   await greeter.receive({ who: "world" });
 
-  const out = (await greeter.read()) as { output: { text: string } };
-  expect(out.output.text).toBe("hello, world");
+  const out = (await greeter.read()) as { text: string };
+  expect(out.text).toBe("hello, world");
 });
 ```
 
@@ -753,8 +753,8 @@ it("delivers a message across a wire", async () => {
 
   await a.receive({ value: 5 });
 
-  const relayed = (await b.read()) as { output: { relayed: boolean } };
-  expect(relayed.output.relayed).toBe(true);
+  const relayed = (await b.read()) as { relayed: boolean };
+  expect(relayed.relayed).toBe(true);
   expect(b.received().length).toBeGreaterThanOrEqual(1);
 });
 ```
@@ -773,8 +773,8 @@ it("passes credentials to the deployed node", async () => {
 
   await node.receive({});
 
-  const out = (await node.read()) as { output: { token: string } };
-  expect(out.output.token).toBe("secret-123");
+  const out = (await node.read()) as { token: string };
+  expect(out.token).toBe("secret-123");
 });
 ```
 
@@ -791,8 +791,8 @@ it("reads and writes real flow context", async () => {
 
   await counter.receive({});
 
-  const out = (await counter.read()) as { output: { count: number } };
-  expect(out.output.count).toBe(11);
+  const out = (await counter.read()) as { count: number };
+  expect(out.count).toBe(11);
 
   // assert the stored value directly
   expect(await counter.context.flow.get("count")).toBe(11);
