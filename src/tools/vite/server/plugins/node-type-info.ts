@@ -28,6 +28,13 @@ const BASE_CLASS_SLOTS: Record<string, string[]> = {
 /** Roles that only exist on message-processing (IONode) nodes. */
 const IO_ONLY_ROLES = new Set(["input", "output"]);
 
+/** The non-port "documentation" roles — the {@link NodeTypeInfo} keys a rendered role
+ *  may be written to (input/output are handled separately). A guard so the write is
+ *  typed (no cast) and only ever lands on a known key. */
+const DOC_ROLES = ["config", "credentials", "settings"] as const;
+const isDocRole = (role: string): role is (typeof DOC_ROLES)[number] =>
+  (DOC_ROLES as readonly string[]).includes(role);
+
 // InTypeAlias expands a named type alias to its structure (e.g. `Config` →
 // `{ … }`, `"a" | "b"` instead of the alias name) so the rendered types are
 // self-contained — required for the generated .d.ts, and clearer in docs.
@@ -1127,8 +1134,8 @@ function assignRoleTypes(
     // config / credentials / settings — documentation roles (no port), so a
     // vacuous type (incl. any/unknown) legitimately renders nothing.
     const rendered = renderRole(checker, argType, at, imports, ctx);
-    if (rendered) {
-      (info as unknown as Record<string, NodeRoleType>)[role] = rendered;
+    if (rendered && isDocRole(role)) {
+      info[role] = rendered;
     }
   });
 }
