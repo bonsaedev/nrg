@@ -9,22 +9,36 @@ import type { Logger } from "../logger";
 import type { GenerateRuntimeSettingsOptions, RuntimeSettings } from "./types";
 
 /**
- * The optional wire type-check plugin (`@bonsae/node-red-type-check-plugin`), if
- * the consumer installed it. We resolve its package dir from the project's
- * `node_modules` and add it to Node-RED's `nodesDir` so `nrg dev` auto-loads it —
- * the author gets wire type-checking while developing with no manual settings.
- * Returns null when it isn't installed, so the feature simply stays off.
+ * The wire type-check plugin dir to auto-load into Node-RED's `nodesDir` so
+ * `nrg dev` gives the author flow type-checking with no manual settings.
+ * Preference order:
+ *  1. a separately-installed `@bonsae/node-red-type-check-plugin` (a consumer
+ *     that opted into a standalone/pinned plugin), else
+ *  2. the plugin nrg SHIPS in its own dist (`type-check-plugin/` beside the
+ *     package manifest) — present in every current nrg install, so the dev
+ *     wire check is on by default.
+ * Returns null only when neither resolves, and the feature simply stays off.
  */
 function resolveTypeCheckPluginDir(): string | null {
+  const req = createRequire(path.join(process.cwd(), "package.json"));
   try {
-    const req = createRequire(path.join(process.cwd(), "package.json"));
     const manifest = req.resolve(
       "@bonsae/node-red-type-check-plugin/package.json",
     );
     return path.dirname(manifest).split(path.sep).join("/");
   } catch {
-    return null;
+    // fall through to the nrg-shipped plugin
   }
+  try {
+    const nrgManifest = req.resolve("@bonsae/nrg/package.json");
+    const shipped = path.join(path.dirname(nrgManifest), "type-check-plugin");
+    if (fs.existsSync(path.join(shipped, "package.json"))) {
+      return shipped.split(path.sep).join("/");
+    }
+  } catch {
+    // nrg itself not resolvable (tests, exotic layouts) — feature off
+  }
+  return null;
 }
 
 function findUserRuntimeSettingsFilepath(

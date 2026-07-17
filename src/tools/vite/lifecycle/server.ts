@@ -99,6 +99,12 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       await nodeRedLauncher.stop();
       await build(clean);
       if (phase === "initial") logger.updateSpinner("Starting Node-RED");
+      // The wire-check plugin (auto-loaded into Node-RED via nodesDir) extracts
+      // this package's node types from the server source dir; the Node-RED
+      // child process inherits our env, so this is the srcDir handoff.
+      process.env.NRG_WIRE_CHECK_SRC = path.resolve(
+        serverBuildOptions.srcDir ?? "./server",
+      );
       nodeRedPort = await nodeRedLauncher.start();
 
       const proxyConfig = server.config.server.proxy;
