@@ -32,7 +32,7 @@ type TestIONodeOutputs = Outputs<{ out: Port<{ payload: string }> }>;
 
 class TestIONode extends IONode<
   TestIOConfig,
-  Record<string, never>,
+  never,
   TestIONodeInput,
   TestIONodeOutputs
 > {

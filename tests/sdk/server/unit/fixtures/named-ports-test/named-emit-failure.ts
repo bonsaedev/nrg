@@ -27,7 +27,7 @@ type NamedEmitFailureOutputs = Outputs<{
 
 class NamedEmitFailure extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedEmitFailureInput,
   NamedEmitFailureOutputs
 > {

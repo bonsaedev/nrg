@@ -10,8 +10,8 @@ type AssignNamedOutputs = Outputs<{
 }>;
 
 class AssignNamed extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignNamedInput,
   AssignNamedOutputs
 > {

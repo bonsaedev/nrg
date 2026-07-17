@@ -31,7 +31,7 @@ type NamedTwoPortsOutputs = Outputs<{
 
 class NamedTwoPorts extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedTwoPortsInput,
   NamedTwoPortsOutputs
 > {

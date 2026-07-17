@@ -27,7 +27,7 @@ type TestSettingsNodeOutputs = Outputs<{ out: Port<{ payload: number }> }>;
 
 class TestSettingsNode extends IONode<
   any,
-  Record<string, never>,
+  never,
   TestSettingsNodeInput,
   TestSettingsNodeOutputs,
   Settings

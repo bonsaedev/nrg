@@ -7,12 +7,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 type EchoInput = Input<Port<{ value?: unknown; foo?: unknown }>>;
 type EchoOutputs = Outputs<{ out: Port<{ seen: unknown; foo: unknown }> }>;
 
-class Echo extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  EchoInput,
-  EchoOutputs
-> {
+class Echo extends IONode<never, never, EchoInput, EchoOutputs> {
   static override readonly type = "message-model-echo";
 
   override async input(msg: EchoInput) {

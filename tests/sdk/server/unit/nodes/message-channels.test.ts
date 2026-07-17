@@ -30,7 +30,7 @@ type In = RawIn & WithMessageChannels;
 
 /** Emits values on all three channels. */
 class Producer extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ out: number }> }>
@@ -50,7 +50,7 @@ class Producer extends IONode<
 /** Emits channels via `send` to a numeric port — the channels ride the emitted frame
  * exactly as they do for a named port (same `#sendToPort` delivery path). */
 class PortProducer extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ out: number }> }>
@@ -72,7 +72,7 @@ class PortProducer extends IONode<
  * wire fields and `msg[Channels]` are typed. (`_msgid` stays off the parameter — a
  * compile-time proof lives in the .test-d.ts.) */
 class ChannelReader extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ payload: unknown; secret: unknown }> }>
@@ -92,7 +92,7 @@ class ChannelReader extends IONode<
  * output — so a test asserts what it RECEIVED via the observable `sent()`, not a
  * peek inside `input()`. `keys` proves the channels never appear in enumeration. */
 class Consumer extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ trace: unknown; secret: unknown; keys: string[] }> }>
@@ -112,7 +112,7 @@ class Consumer extends IONode<
 /** Reads a private resource, deletes it, and echoes the before/after so a test
  * can see the delete took effect — without reaching into the node. */
 class Deleter extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ before: unknown; after: unknown }> }>
@@ -129,7 +129,7 @@ class Deleter extends IONode<
 
 /** Same as Deleter, but for the shared `protected` channel. */
 class ProtectedDeleter extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ before: unknown; after: unknown }> }>
@@ -148,7 +148,7 @@ class ProtectedDeleter extends IONode<
  * message, so `send()` must mint a fresh `_msgid` and stamp it on the outgoing
  * frame for the channels to be recoverable downstream. */
 class Source extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   never,
   Outputs<{ out: Port<{ tick: number }> }>
@@ -170,7 +170,7 @@ class Source extends IONode<
  * emitted frame — they live in the store keyed by `_msgid`, which the plain send
  * inherits — proving the STICKY-channel guarantee (see #writeChannels). */
 class Passthrough extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<RawIn>>,
   Outputs<{ out: Port<{ ok: boolean }> }>
@@ -368,30 +368,15 @@ describe("message channels (protected / private)", () => {
   });
 
   it("defineModule scopes private per package; protected stays shared", () => {
-    class PkgA1 extends IONode<
-      Record<string, never>,
-      unknown,
-      Input<Port<RawIn>>,
-      never
-    > {
+    class PkgA1 extends IONode<never, unknown, Input<Port<RawIn>>, never> {
       static override readonly type = "pkg-a1";
       override async input() {}
     }
-    class PkgA2 extends IONode<
-      Record<string, never>,
-      unknown,
-      Input<Port<RawIn>>,
-      never
-    > {
+    class PkgA2 extends IONode<never, unknown, Input<Port<RawIn>>, never> {
       static override readonly type = "pkg-a2";
       override async input() {}
     }
-    class PkgB extends IONode<
-      Record<string, never>,
-      unknown,
-      Input<Port<RawIn>>,
-      never
-    > {
+    class PkgB extends IONode<never, unknown, Input<Port<RawIn>>, never> {
       static override readonly type = "pkg-b";
       override async input() {}
     }
@@ -417,7 +402,7 @@ describe("message channels (protected / private)", () => {
 // protected channel as a read-only `transactionId`, so every downstream node —
 // which inherits the same `_msgid` — can correlate back to that trigger firing.
 class HijackSource extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   never,
   Outputs<{ out: Port<{ ok: number }> }>

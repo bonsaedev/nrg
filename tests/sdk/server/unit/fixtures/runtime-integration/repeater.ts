@@ -18,12 +18,7 @@ type Config = Infer<typeof ConfigSchema>;
 type RepeaterInput = Input<Port<{ count: number }>>;
 type RepeaterOutputs = Outputs<{ out: Port<{ i: number }> }>;
 
-class Repeater extends IONode<
-  Config,
-  Record<string, never>,
-  RepeaterInput,
-  RepeaterOutputs
-> {
+class Repeater extends IONode<Config, never, RepeaterInput, RepeaterOutputs> {
   static override readonly type = "repeater";
   static override readonly configSchema = ConfigSchema;
 

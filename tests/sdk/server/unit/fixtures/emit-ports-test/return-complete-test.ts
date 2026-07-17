@@ -23,7 +23,7 @@ type ReturnCompleteOutputs = Outputs<{ out: Port<{ sum?: number }> }>;
 
 class ReturnComplete extends IONode<
   Config,
-  Record<string, never>,
+  never,
   ReturnCompleteInput,
   ReturnCompleteOutputs
 > {

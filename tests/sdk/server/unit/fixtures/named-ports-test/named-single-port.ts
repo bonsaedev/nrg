@@ -26,7 +26,7 @@ type NamedSinglePortOutputs = Outputs<{ out: Port<{ payload: string }> }>;
 
 class NamedSinglePort extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedSinglePortInput,
   NamedSinglePortOutputs
 > {

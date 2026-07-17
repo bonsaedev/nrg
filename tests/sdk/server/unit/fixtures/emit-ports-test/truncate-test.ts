@@ -29,7 +29,7 @@ type TruncateTestOutputs = Outputs<{
 
 class TruncateTest extends IONode<
   Config,
-  Record<string, never>,
+  never,
   TruncateTestInput,
   TruncateTestOutputs
 > {

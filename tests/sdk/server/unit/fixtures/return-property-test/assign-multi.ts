@@ -7,8 +7,8 @@ type AssignMultiInput = Input<Port<{ keep?: unknown }>>;
 type AssignMultiOutputs = Outputs<{ out0: Port<unknown>; out1: Port<unknown> }>;
 
 class AssignMulti extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignMultiInput,
   AssignMultiOutputs
 > {

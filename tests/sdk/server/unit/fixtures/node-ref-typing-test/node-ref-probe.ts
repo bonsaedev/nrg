@@ -45,7 +45,7 @@ type NodeRefProbeOutputs = Outputs<{ out: Port<unknown> }>;
 
 class NodeRefProbe extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NodeRefProbeInput,
   NodeRefProbeOutputs
 > {

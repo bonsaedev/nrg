@@ -20,7 +20,7 @@ type IntDoublerOutputs = Outputs<{ out: Port<{ doubled: number }> }>;
 
 class IntDoubler extends IONode<
   Config,
-  Record<string, never>,
+  never,
   IntDoublerInput,
   IntDoublerOutputs
 > {

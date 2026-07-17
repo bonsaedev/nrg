@@ -31,7 +31,7 @@ type NamedEmitArrayOutputs = Outputs<{
 
 class NamedEmitArray extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedEmitArrayInput,
   NamedEmitArrayOutputs
 > {

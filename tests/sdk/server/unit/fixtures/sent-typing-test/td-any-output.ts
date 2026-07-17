@@ -5,12 +5,7 @@ import { IONode, type Input, type Port } from "@/sdk/lib/server";
 // (`send`) and the read side (`sent`).
 type Output = any;
 
-class TdAnyOutput extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  Input<Port<unknown>>,
-  Output
-> {
+class TdAnyOutput extends IONode<never, never, Input<Port<unknown>>, Output> {
   static override readonly type = "td-any-output";
 
   override async input() {

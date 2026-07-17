@@ -5,12 +5,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 type CtxMultiInput = Input<Port<{ k?: unknown }>>;
 type CtxMultiOutputs = Outputs<{ out0: Port<unknown>; out1: Port<unknown> }>;
 
-class CtxMulti extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  CtxMultiInput,
-  CtxMultiOutputs
-> {
+class CtxMulti extends IONode<never, never, CtxMultiInput, CtxMultiOutputs> {
   static override readonly type = "ctx-multi";
 
   override async input() {

@@ -8,8 +8,8 @@ type AssignValidatedInput = Input<Port<{ value: number }>>;
 type AssignValidatedOutputs = Outputs<{ out: Port<{ doubled: number }> }>;
 
 class AssignValidated extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignValidatedInput,
   AssignValidatedOutputs
 > {

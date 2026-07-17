@@ -28,7 +28,7 @@ type NamedEmitIndexOutputs = Outputs<{
 
 class NamedEmitIndex extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedEmitIndexInput,
   NamedEmitIndexOutputs
 > {

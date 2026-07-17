@@ -10,8 +10,8 @@ type AssignMultiReturnOutputs = Outputs<{
 }>;
 
 class AssignMultiReturn extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignMultiReturnInput,
   AssignMultiReturnOutputs
 > {

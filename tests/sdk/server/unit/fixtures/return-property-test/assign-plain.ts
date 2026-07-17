@@ -7,8 +7,8 @@ type AssignPlainInput = Input<Port<{ value: number }>>;
 type AssignPlainOutputs = Outputs<{ out: Port<{ doubled: number }> }>;
 
 class AssignPlain extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignPlainInput,
   AssignPlainOutputs
 > {

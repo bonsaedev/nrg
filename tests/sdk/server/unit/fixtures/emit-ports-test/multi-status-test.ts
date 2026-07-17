@@ -23,7 +23,7 @@ type MultiStatusTestOutputs = Outputs<{ out: Port<{ payload?: unknown }> }>;
 
 class MultiStatusTest extends IONode<
   Config,
-  Record<string, never>,
+  never,
   MultiStatusTestInput,
   MultiStatusTestOutputs
 > {

@@ -7,12 +7,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 type ConstInput = Input<Port<{ payload?: unknown }>>;
 type ConstOutputs = Outputs<{ out: Port<unknown> }>;
 
-class Const extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  ConstInput,
-  ConstOutputs
-> {
+class Const extends IONode<never, never, ConstInput, ConstOutputs> {
   static override readonly type = "message-model-const";
 
   override async input() {

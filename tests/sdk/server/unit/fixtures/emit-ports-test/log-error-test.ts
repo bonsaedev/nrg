@@ -23,7 +23,7 @@ type LogErrorTestOutputs = Outputs<{ out: Port<{ payload?: unknown }> }>;
 
 class LogErrorTest extends IONode<
   Config,
-  Record<string, never>,
+  never,
   LogErrorTestInput,
   LogErrorTestOutputs
 > {

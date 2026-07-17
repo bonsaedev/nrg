@@ -3,7 +3,7 @@ import { IONode, type Port } from "@bonsae/nrg/server";
 // Input = any → one input port. Output = a named-Port record → one output port
 // PER name (here two: matched / rejected).
 export default class PortsRoute extends IONode<
-  Record<string, never>,
+  never,
   never,
   any,
   { matched: Port<{ id: string }>; rejected: Port<{ reason: string }> }

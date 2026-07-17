@@ -9,8 +9,8 @@ type TdRecordOutputs = Outputs<{
 }>;
 
 class TdRecord extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   Input<Port<unknown>>,
   TdRecordOutputs
 > {

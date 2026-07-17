@@ -23,7 +23,7 @@ type SendToPortGuardStatusOutputs = Outputs<{ out: Port<unknown> }>;
 
 class SendToPortGuardStatus extends IONode<
   Config,
-  Record<string, never>,
+  never,
   SendToPortGuardStatusInput,
   SendToPortGuardStatusOutputs
 > {

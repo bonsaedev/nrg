@@ -23,12 +23,7 @@ function configureRacyIo(next: {
   gate = next.gate;
 }
 
-class RacyIo extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  RacyIoInput,
-  RacyIoOutputs
-> {
+class RacyIo extends IONode<never, never, RacyIoInput, RacyIoOutputs> {
   static override readonly type = "racy-io";
 
   override async input(msg: RacyIoInput) {

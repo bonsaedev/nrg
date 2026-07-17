@@ -29,7 +29,7 @@ type NamedEmitArrayNullOutputs = Outputs<{
 
 class NamedEmitArrayNull extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedEmitArrayNullInput,
   NamedEmitArrayNullOutputs
 > {

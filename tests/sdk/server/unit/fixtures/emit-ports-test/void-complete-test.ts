@@ -23,7 +23,7 @@ type VoidCompleteOutputs = Outputs<{ out: Port<{ payload?: unknown }> }>;
 
 class VoidComplete extends IONode<
   Config,
-  Record<string, never>,
+  never,
   VoidCompleteInput,
   VoidCompleteOutputs
 > {

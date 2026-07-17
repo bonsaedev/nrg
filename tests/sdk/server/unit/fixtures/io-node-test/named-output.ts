@@ -12,8 +12,8 @@ type NamedOutputOutputs = Outputs<{
 }>;
 
 class NamedOutput extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   NamedOutputInput,
   NamedOutputOutputs
 > {

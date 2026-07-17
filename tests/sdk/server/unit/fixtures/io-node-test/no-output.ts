@@ -5,12 +5,7 @@ import { IONode, type Input, type Port } from "@/sdk/lib/server";
 type NoOutputInput = Input<Port<{ payload?: unknown }>>;
 type Output = never;
 
-class NoOutput extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  NoOutputInput,
-  Output
-> {
+class NoOutput extends IONode<never, never, NoOutputInput, Output> {
   static override readonly type = "no-output";
 
   override async input() {}

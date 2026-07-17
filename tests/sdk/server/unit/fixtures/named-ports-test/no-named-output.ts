@@ -1,9 +1,4 @@
-import {
-  IONode,
-  type Infer,
-  type Input,
-  type Port,
-} from "@/sdk/lib/server";
+import { IONode, type Infer, type Input, type Port } from "@/sdk/lib/server";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 
 // A types-only node with NO output ports (Output = never), so its topology
@@ -26,12 +21,7 @@ type Config = Infer<typeof ConfigSchema>;
 type NoNamedOutputInput = Input<Port<{ payload?: unknown }>>;
 type Output = never;
 
-class NoNamedOutput extends IONode<
-  Config,
-  Record<string, never>,
-  NoNamedOutputInput,
-  Output
-> {
+class NoNamedOutput extends IONode<Config, never, NoNamedOutputInput, Output> {
   static override readonly type = "no-named-output";
   static override readonly configSchema = ConfigSchema;
 

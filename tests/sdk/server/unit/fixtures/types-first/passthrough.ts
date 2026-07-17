@@ -24,7 +24,7 @@ type PassthroughOutputs = Outputs<{ out: Port<unknown> }>;
 
 class Passthrough extends IONode<
   Config,
-  Record<string, never>,
+  never,
   PassthroughInput,
   PassthroughOutputs
 > {

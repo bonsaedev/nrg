@@ -27,7 +27,7 @@ type ErrorRouterOutputs = Outputs<{ out: Port<{ value: number }> }>;
 
 class ErrorRouter extends IONode<
   Config,
-  Record<string, never>,
+  never,
   ErrorRouterInput,
   ErrorRouterOutputs
 > {

@@ -7,12 +7,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 type CompleterInput = Input<Port<{ value?: unknown }>>;
 type CompleterOutputs = Outputs<{ out: Port<unknown> }>;
 
-class Completer extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  CompleterInput,
-  CompleterOutputs
-> {
+class Completer extends IONode<never, never, CompleterInput, CompleterOutputs> {
   static override readonly type = "message-model-completer";
 
   override async input(msg: CompleterInput) {

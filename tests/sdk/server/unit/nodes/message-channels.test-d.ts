@@ -43,7 +43,7 @@ void noChannelsOnWire;
 //     channels, so a plain wire message compiles with no protected/private. And the
 //     emitted frame exposes the channels, typed `unknown`.
 class ChannelProofNode extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<Wire>>,
   Outputs<{ out: Port<{ out: number }> }>
@@ -95,7 +95,7 @@ void stillUnknown;
 //     so the write contract is enforced (and autocompleted). Symmetric with the read.
 declare const conn: Conn;
 class TypedSendNode extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<Wire>>,
   Outputs<{ out: Port<{ x: number }, { private: { conn: Conn } }> }>
@@ -118,7 +118,7 @@ void TypedSendNode;
 //     is typed from the OUTPUT port's shape, and `receive()`'s channels arg from the INPUT
 //     port's shape. So a test reads/seeds channels with no cast.
 class TypedHarnessNode extends IONode<
-  Record<string, never>,
+  never,
   unknown,
   Input<Port<Wire, { private: { token?: string } }>>,
   Outputs<{ out: Port<{ out: number }, { private: { conn: Conn } }> }>

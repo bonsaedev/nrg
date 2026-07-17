@@ -26,7 +26,7 @@ type NamedEmitOobOutputs = Outputs<{ success: Port<{ payload: string }> }>;
 
 class NamedEmitOob extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedEmitOobInput,
   NamedEmitOobOutputs
 > {

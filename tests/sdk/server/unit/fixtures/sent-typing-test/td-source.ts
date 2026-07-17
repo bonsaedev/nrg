@@ -6,12 +6,7 @@ import { IONode, type Outputs, type Port } from "@/sdk/lib/server";
 // NOT collapse to `never`. Proves WrappedPort<V, never> stays sound.
 type TdSourceOutputs = Outputs<{ out: Port<{ event: { id: string } }> }>;
 
-class TdSource extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  never,
-  TdSourceOutputs
-> {
+class TdSource extends IONode<never, never, never, TdSourceOutputs> {
   static override readonly type = "td-source";
 
   override created() {

@@ -8,15 +8,18 @@ type AssignValidatedArrayInput = Input<Port<{ size: number }>>;
 type AssignValidatedArrayOutputs = Outputs<{ out: Port<unknown> }>;
 
 class AssignValidatedArray extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignValidatedArrayInput,
   AssignValidatedArrayOutputs
 > {
   static override readonly type = "assign-validated-array";
 
   override async input(msg: AssignValidatedArrayInput) {
-    this.send("out", Array.from({ length: msg.size }, (_, i) => ({ id: i })));
+    this.send(
+      "out",
+      Array.from({ length: msg.size }, (_, i) => ({ id: i })),
+    );
   }
 }
 

@@ -23,12 +23,7 @@ type Config = Infer<typeof GreeterSchema>;
 type GreeterInput = Input<Port<{ who: string }>>;
 type GreeterOutputs = Outputs<{ out: Port<{ text: string }> }>;
 
-class Greeter extends IONode<
-  Config,
-  Record<string, never>,
-  GreeterInput,
-  GreeterOutputs
-> {
+class Greeter extends IONode<Config, never, GreeterInput, GreeterOutputs> {
   static override readonly type = "greeter";
   static override readonly configSchema = GreeterSchema;
 

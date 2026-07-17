@@ -9,12 +9,7 @@ type CtxNamedOutputs = Outputs<{
   failure: Port<{ ok: boolean }>;
 }>;
 
-class CtxNamed extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  CtxNamedInput,
-  CtxNamedOutputs
-> {
+class CtxNamed extends IONode<never, never, CtxNamedInput, CtxNamedOutputs> {
   static override readonly type = "ctx-named";
 
   override async input() {

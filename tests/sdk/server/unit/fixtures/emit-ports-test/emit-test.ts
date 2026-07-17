@@ -42,12 +42,7 @@ class CustomError extends Error {
   }
 }
 
-class EmitTest extends IONode<
-  Config,
-  Record<string, never>,
-  EmitTestInput,
-  EmitTestOutputs
-> {
+class EmitTest extends IONode<Config, never, EmitTestInput, EmitTestOutputs> {
   static override readonly type = "emit-test";
   static override readonly configSchema = ConfigSchema;
 

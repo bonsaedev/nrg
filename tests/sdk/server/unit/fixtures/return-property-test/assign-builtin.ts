@@ -8,8 +8,8 @@ type AssignBuiltinInput = Input<Port<{ boom?: boolean; id?: number }>>;
 type AssignBuiltinOutputs = Outputs<{ out: Port<unknown> }>;
 
 class AssignBuiltin extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignBuiltinInput,
   AssignBuiltinOutputs
 > {

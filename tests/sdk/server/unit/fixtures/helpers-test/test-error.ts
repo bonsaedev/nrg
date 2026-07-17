@@ -5,11 +5,7 @@ import { IONode, type Input, type Port } from "@/sdk/lib/server";
 // input port comes from the `Input` generic; it declares no output.
 type TestErrorNodeInput = Input<Port<{ payload?: unknown }>>;
 
-class TestErrorNode extends IONode<
-  any,
-  Record<string, never>,
-  TestErrorNodeInput
-> {
+class TestErrorNode extends IONode<any, never, TestErrorNodeInput> {
   static override readonly type = "test-error";
   static override readonly category = "function";
 

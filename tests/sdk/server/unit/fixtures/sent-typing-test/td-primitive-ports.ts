@@ -9,8 +9,8 @@ type TdPrimitivePortsOutputs = Outputs<{
 }>;
 
 class TdPrimitivePorts extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   Input<Port<unknown>>,
   TdPrimitivePortsOutputs
 > {

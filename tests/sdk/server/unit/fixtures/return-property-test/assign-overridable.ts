@@ -7,8 +7,8 @@ type AssignOverridableInput = Input<Port<{ value: number }>>;
 type AssignOverridableOutputs = Outputs<{ out: Port<{ doubled: number }> }>;
 
 class AssignOverridable extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignOverridableInput,
   AssignOverridableOutputs
 > {

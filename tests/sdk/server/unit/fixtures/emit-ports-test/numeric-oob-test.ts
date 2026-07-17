@@ -27,7 +27,7 @@ type NumericOobOutputs = Outputs<{ out: Port<{ x: number }> }>;
 
 class NumericOob extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NumericOobInput,
   NumericOobOutputs
 > {

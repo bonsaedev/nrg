@@ -12,8 +12,8 @@ type SingleOutputInput = Input<Port<{ payload?: unknown }>>;
 type SingleOutputOutputs = Outputs<{ out: Port<unknown> }>;
 
 class SingleOutput extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   SingleOutputInput,
   SingleOutputOutputs
 > {

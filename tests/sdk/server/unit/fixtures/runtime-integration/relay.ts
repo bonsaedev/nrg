@@ -18,12 +18,7 @@ type Config = Infer<typeof ConfigSchema>;
 type RelayInput = Input<Port<{ payload?: unknown }>>;
 type RelayOutputs = Outputs<{ out: Port<{ relayed: boolean }> }>;
 
-class Relay extends IONode<
-  Config,
-  Record<string, never>,
-  RelayInput,
-  RelayOutputs
-> {
+class Relay extends IONode<Config, never, RelayInput, RelayOutputs> {
   static override readonly type = "relay";
   static override readonly configSchema = ConfigSchema;
 

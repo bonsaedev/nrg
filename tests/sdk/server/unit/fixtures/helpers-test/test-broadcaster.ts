@@ -11,7 +11,7 @@ type TestBroadcasterOutputs = Outputs<{
 
 class TestBroadcaster extends IONode<
   any,
-  Record<string, never>,
+  never,
   TestBroadcasterInput,
   TestBroadcasterOutputs
 > {

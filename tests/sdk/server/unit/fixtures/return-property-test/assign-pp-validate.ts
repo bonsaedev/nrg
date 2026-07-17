@@ -8,8 +8,8 @@ type AssignPpValidateInput = Input<Port<{ n?: unknown }>>;
 type AssignPpValidateOutputs = Outputs<{ out: Port<{ n: unknown }> }>;
 
 class AssignPpValidate extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignPpValidateInput,
   AssignPpValidateOutputs
 > {

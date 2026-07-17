@@ -7,12 +7,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 type TdSingleInput = Input<Port<{ in: string }>>;
 type TdSingleOutputs = Outputs<{ out: Port<{ id: string }> }>;
 
-class TdSingle extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  TdSingleInput,
-  TdSingleOutputs
-> {
+class TdSingle extends IONode<never, never, TdSingleInput, TdSingleOutputs> {
   static override readonly type = "td-single";
 
   override async input() {

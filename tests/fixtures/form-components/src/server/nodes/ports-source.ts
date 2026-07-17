@@ -3,7 +3,7 @@ import { IONode } from "@bonsae/nrg/server";
 // Input = never  → NO input port (a source node, e.g. a subscription/stream).
 // Output = typed → one output port.
 export default class PortsSource extends IONode<
-  Record<string, never>,
+  never,
   never,
   never,
   { event: unknown }

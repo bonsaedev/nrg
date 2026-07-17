@@ -18,12 +18,7 @@ type Config = Infer<typeof ConfigSchema>;
 type CounterInput = Input<Port<{ payload?: unknown }>>;
 type CounterOutputs = Outputs<{ out: Port<{ count: number }> }>;
 
-class Counter extends IONode<
-  Config,
-  Record<string, never>,
-  CounterInput,
-  CounterOutputs
-> {
+class Counter extends IONode<Config, never, CounterInput, CounterOutputs> {
   static override readonly type = "counter";
   static override readonly configSchema = ConfigSchema;
 

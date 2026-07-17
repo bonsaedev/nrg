@@ -8,8 +8,8 @@ type MultiOutputInput = Input<Port<{ payload?: unknown }>>;
 type MultiOutputOutputs = Outputs<{ out0: Port<unknown>; out1: Port<unknown> }>;
 
 class MultiOutput extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   MultiOutputInput,
   MultiOutputOutputs
 > {

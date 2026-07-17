@@ -12,8 +12,8 @@ type TdSingleObjOfObjOutputs = Outputs<{
 }>;
 
 class TdSingleObjOfObj extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   Input<Port<unknown>>,
   TdSingleObjOfObjOutputs
 > {

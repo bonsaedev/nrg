@@ -23,7 +23,7 @@ type SendToPortNumericOutputs = Outputs<{ out: Port<unknown> }>;
 
 class SendToPortNumeric extends IONode<
   Config,
-  Record<string, never>,
+  never,
   SendToPortNumericInput,
   SendToPortNumericOutputs
 > {

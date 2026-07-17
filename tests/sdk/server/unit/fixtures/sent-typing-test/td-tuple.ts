@@ -5,11 +5,14 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 // positional `sent()[i][0]`/`[i][1]` collapses to the sound UNION of the ports'
 // values (record/tuple key order isn't type-recoverable). Named "td-tuple" for
 // its multi-ordered-port heritage — the fixture itself is a record.
-type TdTupleOutputs = Outputs<{ out0: Port<{ a: string }>; out1: Port<{ b: number }> }>;
+type TdTupleOutputs = Outputs<{
+  out0: Port<{ a: string }>;
+  out1: Port<{ b: number }>;
+}>;
 
 class TdTuple extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   Input<Port<unknown>>,
   TdTupleOutputs
 > {

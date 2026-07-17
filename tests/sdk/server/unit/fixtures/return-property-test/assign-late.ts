@@ -16,8 +16,8 @@ function releaseLateGate(): void {
 }
 
 class AssignLate extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignLateInput,
   AssignLateOutputs
 > {

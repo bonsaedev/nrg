@@ -27,7 +27,7 @@ type NamedRouterOutputs = Outputs<{
 
 class NamedRouter extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedRouterInput,
   NamedRouterOutputs
 > {

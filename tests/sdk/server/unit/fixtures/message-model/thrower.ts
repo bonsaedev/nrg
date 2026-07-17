@@ -7,12 +7,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 type ThrowerInput = Input<Port<{ value?: unknown }>>;
 type ThrowerOutputs = Outputs<{ out: Port<unknown> }>;
 
-class Thrower extends IONode<
-  Record<string, never>,
-  Record<string, never>,
-  ThrowerInput,
-  ThrowerOutputs
-> {
+class Thrower extends IONode<never, never, ThrowerInput, ThrowerOutputs> {
   static override readonly type = "message-model-thrower";
 
   override async input() {

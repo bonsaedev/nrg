@@ -18,8 +18,8 @@ type ChannelEchoOutputs = Outputs<{
 }>;
 
 class ChannelEcho extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   Input<Port<RawIn>>,
   ChannelEchoOutputs
 > {

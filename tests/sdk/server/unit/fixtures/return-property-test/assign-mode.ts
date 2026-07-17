@@ -7,8 +7,8 @@ type AssignModeInput = Input<Port<{ payload?: unknown }>>;
 type AssignModeOutputs = Outputs<{ out: Port<unknown> }>;
 
 class AssignMode extends IONode<
-  Record<string, never>,
-  Record<string, never>,
+  never,
+  never,
   AssignModeInput,
   AssignModeOutputs
 > {

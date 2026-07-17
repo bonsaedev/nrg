@@ -19,12 +19,7 @@ type Config = Infer<typeof ConfigSchema>;
 type DeferredInput = Input<Port<{ value?: unknown }>>;
 type DeferredOutputs = Outputs<{ out: Port<{ echoed: unknown }> }>;
 
-class Deferred extends IONode<
-  Config,
-  Record<string, never>,
-  DeferredInput,
-  DeferredOutputs
-> {
+class Deferred extends IONode<Config, never, DeferredInput, DeferredOutputs> {
   static override readonly type = "deferred-emit";
   static override readonly configSchema = ConfigSchema;
 

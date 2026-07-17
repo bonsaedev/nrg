@@ -26,7 +26,7 @@ type AssignCustomDefaultOutputs = Outputs<{ out: Port<unknown> }>;
 
 class AssignCustomDefault extends IONode<
   Config,
-  Record<string, never>,
+  never,
   AssignCustomDefaultInput,
   AssignCustomDefaultOutputs
 > {

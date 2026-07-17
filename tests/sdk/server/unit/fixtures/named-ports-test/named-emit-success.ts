@@ -29,7 +29,7 @@ type NamedEmitSuccessOutputs = Outputs<{
 
 class NamedEmitSuccess extends IONode<
   Config,
-  Record<string, never>,
+  never,
   NamedEmitSuccessInput,
   NamedEmitSuccessOutputs
 > {

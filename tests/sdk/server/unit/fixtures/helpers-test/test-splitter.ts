@@ -32,7 +32,7 @@ type TestSplitterOutputs = Outputs<{
 
 class TestSplitter extends IONode<
   SplitterConfig,
-  Record<string, never>,
+  never,
   TestSplitterInput,
   TestSplitterOutputs
 > {

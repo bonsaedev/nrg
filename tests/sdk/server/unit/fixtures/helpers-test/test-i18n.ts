@@ -7,7 +7,7 @@ type TestI18nNodeOutputs = Outputs<{ out: Port<{ payload: string }> }>;
 
 class TestI18nNode extends IONode<
   any,
-  Record<string, never>,
+  never,
   TestI18nNodeInput,
   TestI18nNodeOutputs
 > {

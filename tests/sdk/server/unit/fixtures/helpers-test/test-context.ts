@@ -7,7 +7,7 @@ type TestContextNodeOutputs = Outputs<{ out: Port<{ payload: unknown }> }>;
 
 class TestContextNode extends IONode<
   any,
-  Record<string, never>,
+  never,
   TestContextNodeInput,
   TestContextNodeOutputs
 > {
