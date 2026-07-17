@@ -118,6 +118,20 @@ type Outputs<TPorts extends OutputSpec> = TPorts;
  */
 const Channels: unique symbol = Symbol.for("nrg.channels");
 
+/**
+ * The message-METADATA accessor symbol. Import it to read the framework metadata
+ * riding beside a message's data — `msg[Meta].source` is the producing node + port
+ * of THIS message, stamped by the framework on every `send` (a node author never
+ * writes it). A SYMBOL key for the same reasons as {@link Channels}: it can never
+ * collide with an author's data fields and stays off `JSON`/`Object.keys`.
+ *
+ * The accessor is INSTALLED AT DELIVERY over a clone-safe root carrier (today the
+ * `source` root key the framework already stamps — a root key survives Node-RED's
+ * fan-out clone, which drops symbol properties). `msg[Meta]` is the STABLE author
+ * surface: the carrier can move without touching node code.
+ */
+const Meta: unique symbol = Symbol.for("nrg.meta");
+
 /** A single off-the-wire channel: an open bag of string-keyed values, read (and
  * `delete`-d) through the `msg[Channels]` accessor and written on `send`. */
 type MessageChannel = Record<string, unknown>;
@@ -195,6 +209,26 @@ interface MessageMeta {
 }
 
 /**
+ * What `msg[Meta]` returns — the framework metadata beside the data. `source` is
+ * the producing node + port of this message; `undefined` when the upstream
+ * producer wasn't an nrg node (a core node, an inject, a test message). Read-only:
+ * the framework stamps it on `send`; an author never writes it.
+ */
+interface MessageMetadata {
+  readonly source?: MessageSource;
+}
+
+/**
+ * The metadata-accessor carrier intersected into every {@link Input} — the `[Meta]`
+ * twin of {@link WithMessageChannels}. Structural and additive: it adds only the
+ * symbol-keyed accessor, so wire shapes, port topology, and the `InputSpec` bound
+ * are unaffected.
+ */
+interface WithMeta {
+  readonly [Meta]: MessageMetadata;
+}
+
+/**
  * `Input<Port<TWire, TChannels>>` — the input gate. A node's single input is a PORT
  * carrying the on-the-wire type `TWire` and (optionally) a typed off-the-wire
  * {@link ChannelShape}; `Input<>` unwraps the {@link Port} into `TWire` plus the
@@ -213,7 +247,8 @@ interface MessageMeta {
  * overridden method's parameter from the base, so an un-annotated `input(msg)` is `any`.
  */
 type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
-  WithMessageChannels<PortChannels<TPort>>;
+  WithMessageChannels<PortChannels<TPort>> &
+  WithMeta;
 
 /**
  * The constraint on a node's `TInput` generic — "carries the {@link MessageChannels}
@@ -238,7 +273,7 @@ type InputSpec = {
  */
 type OmitMessageChannels<TInput> = [TInput] extends [never]
   ? never
-  : Omit<TInput, keyof WithMessageChannels>;
+  : Omit<TInput, keyof WithMessageChannels | keyof WithMeta>;
 
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
@@ -341,6 +376,8 @@ export type {
   MessageChannels,
   WithMessageChannels,
   MessageMeta,
+  MessageMetadata,
+  WithMeta,
   Input,
   InputSpec,
   OmitMessageChannels,
@@ -352,4 +389,4 @@ export type {
   StatusPortOutput,
 };
 
-export { Channels };
+export { Channels, Meta };

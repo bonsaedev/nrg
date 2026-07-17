@@ -19,7 +19,9 @@ export type { Infer } from "./schemas/types";
 export type { Port, Input, Outputs } from "./nodes/types/ports";
 // `Channels` — the channel accessor SYMBOL: read or write a message's off-the-wire
 // channel data with `msg[Channels].private` / `msg[Channels].protected`.
-export { Channels } from "./nodes/types/ports";
+// `Meta` — the metadata accessor SYMBOL: read the framework metadata beside the
+// data with `msg[Meta].source` (the producing node + port; framework-stamped).
+export { Channels, Meta } from "./nodes/types/ports";
 
 // The built-in lifecycle port message shapes, public so a generated package
 // `index.d.ts` can reference them in its `NodeTypes` registry.
@@ -28,6 +30,9 @@ export type {
   MessageChannels,
   WithMessageChannels,
   MessageMeta,
+  MessageMetadata,
+  WithMeta,
+  MessageSource,
   NodeSource,
   ErrorPortOutput as ErrorPort,
   CompletePortOutput as CompletePort,

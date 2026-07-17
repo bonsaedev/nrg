@@ -653,24 +653,27 @@ function assertClientAssetWired(clientAsset: string): void {
  * under node_modules, and nrg isn't in its own node_modules — hence this rewrite.
  */
 function shareChannelsSymbol(dtsPath: string): void {
-  const DECL = "declare const Channels: unique symbol;\n";
-  const original = readFileSync(dtsPath, "utf-8");
-  if (!original.includes(DECL)) {
-    throw new Error(
-      `${dtsPath}: could not find the inlined \`${DECL.trim()}\` to rewrite ` +
-        `into a shared \`import { Channels } from "@bonsae/nrg/server"\`. The ` +
-        `dts-bundle-generator output shape changed — without this the Channels ` +
-        `unique symbol silently fragments across bundles and consumer tests need ` +
-        `a cast to read \`sent(...)[i][Channels]\`.`,
-    );
+  const SYMBOLS = ["Channels", "Meta"];
+  let content = readFileSync(dtsPath, "utf-8");
+  for (const name of SYMBOLS) {
+    const decl = `declare const ${name}: unique symbol;\n`;
+    if (!content.includes(decl)) {
+      throw new Error(
+        `${dtsPath}: could not find the inlined \`${decl.trim()}\` to rewrite ` +
+          `into a shared import from "@bonsae/nrg/server". The ` +
+          `dts-bundle-generator output shape changed — without this the ${name} ` +
+          `unique symbol silently fragments across bundles and consumer tests ` +
+          `need a cast to read \`sent(...)[i][${name}]\`.`,
+      );
+    }
+    content = content.replace(decl, "");
   }
   writeFileSync(
     dtsPath,
-    `import { Channels } from "@bonsae/nrg/server";\n` +
-      original.replace(DECL, ""),
+    `import { ${SYMBOLS.join(", ")} } from "@bonsae/nrg/server";\n` + content,
   );
   console.log(
-    "✓ Shared the Channels symbol from @bonsae/nrg/server → test-server-unit.d.ts",
+    `✓ Shared the ${SYMBOLS.join(" + ")} symbols from @bonsae/nrg/server → test-server-unit.d.ts`,
   );
 }
 

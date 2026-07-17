@@ -17,7 +17,7 @@ import {
   NRG_PROTECTED_CHANNEL,
 } from "../symbols";
 import { channelProxy, packageChannel } from "../channels-store";
-import { Channels } from "./types/ports";
+import { Channels, Meta } from "./types/ports";
 import type {
   OutputPortNames,
   PortValue,
@@ -443,6 +443,7 @@ abstract class IONode<
     // The channels key off `_msgid`, which the rebase preserves, so a rebased
     // message still resolves the same partitions.
     this.#setupChannels(msg);
+    this.#setupMeta(msg);
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
     // lives in the store — there is no shared instance field to race on.
@@ -508,6 +509,28 @@ abstract class IONode<
           protected: channelProxy(store, msgid, NRG_PROTECTED_CHANNEL),
           private: channelProxy(store, msgid, pkg),
         };
+      },
+    });
+  }
+
+  /**
+   * Install the read-only `[Meta]` accessor on the incoming message — the typed
+   * window onto the framework metadata beside the data (`msg[Meta].source` = the
+   * producing node + port). Installed at DELIVERY, like `[Channels]`, over a
+   * clone-safe root carrier: Node-RED's fan-out clone (messages 2..N) drops
+   * symbol properties, so the metadata itself must ride an enumerable root key —
+   * today the `source` key `#wrapOutgoing` already stamps. `msg[Meta]` is the
+   * STABLE author surface; the carrier can change without touching node code.
+   * `source` is `undefined` when the upstream producer wasn't an nrg node (a core
+   * node, an inject, a bare test message) — typed optional for exactly that case.
+   */
+  #setupMeta(msg: unknown): void {
+    if (msg == null || typeof msg !== "object") return;
+    Object.defineProperty(msg, Meta, {
+      configurable: true,
+      enumerable: false,
+      get() {
+        return { source: (this as { source?: MessageSource }).source };
       },
     });
   }

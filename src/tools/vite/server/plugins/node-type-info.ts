@@ -1022,16 +1022,17 @@ function defaultExportClass(
   return referencedName ? classByName(referencedName) : undefined;
 }
 
-/** True when a type is the framework's off-the-wire channel CARRIER
- * ({@link WithMessageChannels}) — the symbol-keyed accessor the `Input<>` gate
- * intersects onto every input. Its member is keyed by nrg's `Channels` SYMBOL, which
- * can't be matched by string name through the checker, so the carrier is identified
- * by its nrg-internal alias name `WithMessageChannels` — a reliable discriminant a
- * consumer type would not collide with as an `&`-member of an `Input<Port<…>>`. */
+/** True when a type is one of the framework's symbol-keyed accessor CARRIERS the
+ * `Input<>` gate intersects onto every input — the off-the-wire channels
+ * ({@link WithMessageChannels}) or the message metadata (`WithMeta`). Their members
+ * are keyed by nrg SYMBOLS, which can't be matched by string name through the
+ * checker, so a carrier is identified by its nrg-internal alias name — a reliable
+ * discriminant a consumer type would not collide with as an `&`-member of an
+ * `Input<Port<…>>`. */
+const CARRIER_NAMES = new Set(["WithMessageChannels", "WithMeta"]);
 function isChannelCarrier(_checker: ts.TypeChecker, type: ts.Type): boolean {
-  return (
-    (type.aliasSymbol ?? type.getSymbol())?.getName() === "WithMessageChannels"
-  );
+  const name = (type.aliasSymbol ?? type.getSymbol())?.getName();
+  return name !== undefined && CARRIER_NAMES.has(name);
 }
 
 /**

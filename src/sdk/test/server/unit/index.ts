@@ -3,7 +3,7 @@ import { createRED, createNodeRedNode } from "./mocks";
 import { ensurePortTopology } from "../port-topology";
 import { initValidator, initChannelStore } from "@/sdk/lib/server/init";
 import { channelProxy, packageChannel } from "@/sdk/lib/server/channels-store";
-import { Channels } from "@/sdk/lib/server/nodes/types/ports";
+import { Channels, Meta } from "@/sdk/lib/server/nodes/types/ports";
 import type { NodeRedNode } from "@/sdk/lib/server/red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
@@ -26,6 +26,8 @@ import type {
   WithMessageChannels,
   MessageChannels,
   MessageMeta,
+  WithMeta,
+  MessageSource,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 interface CreateNodeOptions {
@@ -92,6 +94,7 @@ type PortMessage<T, P extends string> =
 type WrappedPort<V, TInput, TChan extends ChannelShape = object> = {
   output: V;
 } & WithMessageChannels<TChan> &
+  WithMeta &
   ([TInput] extends [never]
     ? unknown
     : unknown extends TInput
@@ -450,6 +453,15 @@ async function createNode<T extends NodeClass>(
         get: () => ({
           protected: channelProxy(channelStore, msgid, NRG_PROTECTED_CHANNEL),
           private: channelProxy(channelStore, msgid, channelPartition),
+        }),
+      });
+      // The `[Meta]` twin: a typed view over the frame's clone-safe root carrier
+      // (the `source` key the runtime stamps) — same as the delivery-time install.
+      Object.defineProperty(frame, Meta, {
+        configurable: true,
+        enumerable: false,
+        get: () => ({
+          source: (frame as { source?: MessageSource }).source,
         }),
       });
     },
