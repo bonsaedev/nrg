@@ -3,7 +3,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 // One base output port (`out`) plus the built-in complete port (enabled via
 // config). `input()` returns a value, so the auto-emitted complete frame carries
 // it under `complete`. Used to prove the complete port's `input` frame is the
-// message the node actually PROCESSED (rebased by `inputRoot`), not the raw one.
+// message the node actually PROCESSED.
 type CompleterInput = Input<Port<{ value?: unknown }>>;
 type CompleterOutputs = Outputs<{ out: Port<unknown> }>;
 

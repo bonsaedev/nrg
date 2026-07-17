@@ -27,7 +27,6 @@ function localesGenerator(options: {
   // Users can override any key in their own label files.
   const frameworkLabels: Record<string, Record<string, unknown>> = {
     "en-US": {
-      input: { inputRoot: "Input Root" },
       configs: { name: "Name" },
       toggles: {
         validateInputTypes: "Validate Types",
@@ -47,13 +46,12 @@ function localesGenerator(options: {
         port: "Port",
         label: "Label",
         validate: "Validate Data",
-        returnProperty: "Return Property",
         contextMode: "Context Mode",
         schema: "Data Schema",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -64,14 +62,10 @@ function localesGenerator(options: {
           "Type-check wires from this port on deploy (TypeScript).",
         validateData:
           "Check the sent value against this port's schema before it is emitted.",
-        returnProperty:
-          "The message property the sent value is placed on (default: output).",
         contextMode:
-          "How the incoming message is carried to this port: passthrough or reset.",
+          "How this port builds its outgoing message: merge (add this port's fields onto the incoming message) or reset (start a fresh message).",
         validateInput:
           "Validate incoming messages against the input schema before input() runs.",
-        inputRoot:
-          "The message property input() reads its fields from. Empty (or 'msg') = the whole message; any other value (e.g. 'output') rebuilds the message rooted there before input() runs.",
         outputs:
           "Per-port output settings. Validate Data checks the sent value against the port's schema; Context Mode controls how the incoming message is carried.",
         lifecyclePorts:
@@ -100,7 +94,6 @@ function localesGenerator(options: {
       },
     },
     de: {
-      input: { inputRoot: "Eingabewurzel" },
       configs: { name: "Name" },
       toggles: {
         validateInputTypes: "Typen prüfen",
@@ -120,13 +113,12 @@ function localesGenerator(options: {
         port: "Port",
         label: "Bezeichnung",
         validate: "Daten validieren",
-        returnProperty: "Rückgabe-Eigenschaft",
         contextMode: "Kontextmodus",
         schema: "Datenschema",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -137,14 +129,10 @@ function localesGenerator(options: {
           "Typprüfung der von diesem Port ausgehenden Verbindungen beim Deployment (TypeScript).",
         validateData:
           "Prüft den gesendeten Wert gegen das Schema dieses Ports, bevor er ausgegeben wird.",
-        returnProperty:
-          "Die Nachrichteneigenschaft, unter der der gesendete Wert abgelegt wird (Standard: output).",
         contextMode:
-          "Wie die eingehende Nachricht zu diesem Port getragen wird: passthrough oder reset.",
+          "Wie dieser Port seine ausgehende Nachricht erstellt: merge (die Felder dieses Ports werden mit der eingehenden Nachricht zusammengeführt) oder reset (eine neue Nachricht beginnen).",
         validateInput:
           "Eingehende Nachrichten vor dem Ausführen von input() gegen das Eingabe-Schema validieren.",
-        inputRoot:
-          "Die Nachrichteneigenschaft, aus der input() seine Felder liest. Leer (oder 'msg') = die ganze Nachricht; jeder andere Wert (z. B. 'output') baut die Nachricht mit dieser Eigenschaft als Wurzel neu auf, bevor input() läuft.",
         outputs:
           "Ausgabe-Einstellungen pro Port. Daten validieren prüft den gesendeten Wert gegen das Schema des Ports; Kontextmodus steuert, wie die eingehende Nachricht übertragen wird.",
         lifecyclePorts:
@@ -173,7 +161,6 @@ function localesGenerator(options: {
       },
     },
     "es-ES": {
-      input: { inputRoot: "Raíz de entrada" },
       configs: { name: "Nombre" },
       toggles: {
         validateInputTypes: "Validar tipos",
@@ -193,13 +180,12 @@ function localesGenerator(options: {
         port: "Puerto",
         label: "Etiqueta",
         validate: "Validar datos",
-        returnProperty: "Propiedad de retorno",
         contextMode: "Modo de contexto",
         schema: "Esquema de datos",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -210,14 +196,10 @@ function localesGenerator(options: {
           "Comprueba los tipos de las conexiones desde este puerto al desplegar (TypeScript).",
         validateData:
           "Comprueba el valor enviado contra el esquema de este puerto antes de emitirlo.",
-        returnProperty:
-          "La propiedad del mensaje donde se coloca el valor enviado (predeterminado: output).",
         contextMode:
-          "Cómo se transporta el mensaje entrante a este puerto: passthrough o reset.",
+          "Cómo este puerto construye su mensaje saliente: merge (añade los campos de este puerto al mensaje entrante) o reset (comienza un mensaje nuevo).",
         validateInput:
           "Valida los mensajes entrantes con el esquema de entrada antes de ejecutar input().",
-        inputRoot:
-          "La propiedad del mensaje de la que input() lee sus campos. Vacío (o 'msg') = el mensaje completo; cualquier otro valor (p. ej. 'output') reconstruye el mensaje con esa propiedad como raíz antes de ejecutar input().",
         outputs:
           "Ajustes de salida por puerto. Validar datos comprueba el valor enviado con el esquema del puerto; Modo de contexto controla cómo se transporta el mensaje entrante.",
         lifecyclePorts:
@@ -246,7 +228,6 @@ function localesGenerator(options: {
       },
     },
     fr: {
-      input: { inputRoot: "Racine d'entrée" },
       configs: { name: "Nom" },
       toggles: {
         validateInputTypes: "Valider les types",
@@ -266,13 +247,12 @@ function localesGenerator(options: {
         port: "Port",
         label: "Libellé",
         validate: "Valider les données",
-        returnProperty: "Propriété de retour",
         contextMode: "Mode de contexte",
         schema: "Schéma de données",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -283,14 +263,10 @@ function localesGenerator(options: {
           "Vérifie les types des liaisons issues de ce port au déploiement (TypeScript).",
         validateData:
           "Vérifie la valeur envoyée par rapport au schéma de ce port avant l'émission.",
-        returnProperty:
-          "La propriété du message où la valeur envoyée est placée (par défaut : output).",
         contextMode:
-          "Comment le message entrant est transporté vers ce port : passthrough ou reset.",
+          "Comment ce port construit son message sortant : merge (ajoute les champs de ce port au message entrant) ou reset (démarre un nouveau message).",
         validateInput:
           "Valide les messages entrants avec le schéma d'entrée avant l'exécution de input().",
-        inputRoot:
-          "La propriété du message à partir de laquelle input() lit ses champs. Vide (ou 'msg') = le message entier ; toute autre valeur (par ex. 'output') reconstruit le message enraciné à cette propriété avant l'exécution de input().",
         outputs:
           "Réglages de sortie par port. Valider les données vérifie la valeur envoyée avec le schéma du port ; Mode de contexte contrôle la façon dont le message entrant est transmis.",
         lifecyclePorts:
@@ -319,7 +295,6 @@ function localesGenerator(options: {
       },
     },
     ko: {
-      input: { inputRoot: "입력 루트" },
       configs: { name: "이름" },
       toggles: {
         validateInputTypes: "타입 검증",
@@ -339,13 +314,12 @@ function localesGenerator(options: {
         port: "포트",
         label: "레이블",
         validate: "데이터 검증",
-        returnProperty: "반환 속성",
         contextMode: "컨텍스트 모드",
         schema: "데이터 스키마",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -355,13 +329,10 @@ function localesGenerator(options: {
         validateTypes:
           "배포 시 이 포트에서 나가는 와이어의 타입을 검사합니다 (TypeScript).",
         validateData: "값을 내보내기 전에 이 포트의 스키마에 대해 검사합니다.",
-        returnProperty: "전송된 값이 배치되는 메시지 속성 (기본값: output).",
         contextMode:
-          "들어오는 메시지를 이 포트로 전달하는 방식: passthrough 또는 reset.",
+          "이 포트가 나가는 메시지를 만드는 방식: merge (이 포트의 필드를 들어오는 메시지에 병합) 또는 reset (새 메시지 시작).",
         validateInput:
           "input() 실행 전에 들어오는 메시지를 입력 스키마로 검증합니다.",
-        inputRoot:
-          "input()이 필드를 읽어오는 메시지 속성. 비어 있음(또는 'msg') = 전체 메시지; 다른 값(예: 'output')은 input() 실행 전에 해당 속성을 루트로 메시지를 재구성합니다.",
         outputs:
           "포트별 출력 설정. 데이터 검증은 전송 값을 포트 스키마로 확인하고, 컨텍스트 모드는 들어온 메시지를 전달하는 방식을 제어합니다.",
         lifecyclePorts:
@@ -390,7 +361,6 @@ function localesGenerator(options: {
       },
     },
     "pt-BR": {
-      input: { inputRoot: "Raiz de entrada" },
       configs: { name: "Nome" },
       toggles: {
         validateInputTypes: "Validar tipos",
@@ -410,13 +380,12 @@ function localesGenerator(options: {
         port: "Porta",
         label: "Rótulo",
         validate: "Validar dados",
-        returnProperty: "Propriedade de retorno",
         contextMode: "Modo de contexto",
         schema: "Esquema de dados",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -427,14 +396,10 @@ function localesGenerator(options: {
           "Verifica os tipos das conexões a partir desta porta ao implantar (TypeScript).",
         validateData:
           "Verifica o valor enviado em relação ao esquema desta porta antes de emiti-lo.",
-        returnProperty:
-          "A propriedade da mensagem onde o valor enviado é colocado (padrão: output).",
         contextMode:
-          "Como a mensagem recebida é transportada para esta porta: passthrough ou reset.",
+          "Como esta porta constrói sua mensagem de saída: merge (adiciona os campos desta porta à mensagem recebida) ou reset (inicia uma nova mensagem).",
         validateInput:
           "Valida as mensagens recebidas com o esquema de entrada antes de input() executar.",
-        inputRoot:
-          "A propriedade da mensagem de onde input() lê seus campos. Vazio (ou 'msg') = a mensagem inteira; qualquer outro valor (ex.: 'output') reconstrói a mensagem com essa propriedade como raiz antes de input() executar.",
         outputs:
           "Configurações de saída por porta. Validar dados verifica o valor enviado com o esquema da porta; Modo de contexto controla como a mensagem recebida é transportada.",
         lifecyclePorts:
@@ -463,7 +428,6 @@ function localesGenerator(options: {
       },
     },
     ru: {
-      input: { inputRoot: "Корень ввода" },
       configs: { name: "Имя" },
       toggles: {
         validateInputTypes: "Проверять типы",
@@ -483,13 +447,12 @@ function localesGenerator(options: {
         port: "Порт",
         label: "Метка",
         validate: "Проверять данные",
-        returnProperty: "Свойство возврата",
         contextMode: "Режим контекста",
         schema: "Схема данных",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -500,14 +463,10 @@ function localesGenerator(options: {
           "Проверяет типы соединений из этого порта при развёртывании (TypeScript).",
         validateData:
           "Проверяет отправляемое значение по схеме этого порта перед отправкой.",
-        returnProperty:
-          "Свойство сообщения, в которое помещается отправляемое значение (по умолчанию: output).",
         contextMode:
-          "Как входящее сообщение переносится в этот порт: passthrough или reset.",
+          "Как этот порт формирует исходящее сообщение: merge (поля этого порта добавляются к входящему сообщению) или reset (начинается новое сообщение).",
         validateInput:
           "Проверять входящие сообщения по схеме ввода перед вызовом input().",
-        inputRoot:
-          "Свойство сообщения, из которого input() читает свои поля. Пусто (или 'msg') = всё сообщение; любое другое значение (например, 'output') перестраивает сообщение с этим свойством в корне перед запуском input().",
         outputs:
           "Настройки вывода для каждого порта. «Проверять данные» сверяет отправленное значение со схемой порта; «Режим контекста» управляет тем, как переносится входящее сообщение.",
         lifecyclePorts:
@@ -536,7 +495,6 @@ function localesGenerator(options: {
       },
     },
     ja: {
-      input: { inputRoot: "入力ルート" },
       configs: { name: "名前" },
       toggles: {
         validateInputTypes: "型を検証",
@@ -556,13 +514,12 @@ function localesGenerator(options: {
         port: "ポート",
         label: "ラベル",
         validate: "データを検証",
-        returnProperty: "戻りプロパティ",
         contextMode: "コンテキストモード",
         schema: "データスキーマ",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -573,14 +530,10 @@ function localesGenerator(options: {
           "デプロイ時にこのポートから出るワイヤーの型を検査します（TypeScript）。",
         validateData:
           "送信前に、送信値をこのポートのスキーマに対して検証します。",
-        returnProperty:
-          "送信値が設定されるメッセージプロパティ（既定: output）。",
         contextMode:
-          "受信メッセージをこのポートへ運ぶ方法: passthrough、reset。",
+          "このポートが送信メッセージを構築する方法: merge (このポートのフィールドを受信メッセージに統合)、reset (新しいメッセージを開始)。",
         validateInput:
           "input() の実行前に、受信メッセージを入力スキーマで検証します。",
-        inputRoot:
-          "input() がフィールドを読み取るメッセージプロパティ。空（または 'msg'）= メッセージ全体。それ以外の値（例: 'output'）は、input() の実行前にそのプロパティをルートとしてメッセージを再構築します。",
         outputs:
           "ポートごとの出力設定。データの検証は送信値をポートのスキーマで確認し、コンテキストモードは受信メッセージの引き継ぎ方を制御します。",
         lifecyclePorts:
@@ -609,7 +562,6 @@ function localesGenerator(options: {
       },
     },
     "zh-CN": {
-      input: { inputRoot: "输入根" },
       configs: { name: "名称" },
       toggles: {
         validateInputTypes: "验证类型",
@@ -629,13 +581,12 @@ function localesGenerator(options: {
         port: "端口",
         label: "标签",
         validate: "验证数据",
-        returnProperty: "返回属性",
         contextMode: "上下文模式",
         schema: "数据模式",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -644,11 +595,9 @@ function localesGenerator(options: {
           "部署时对连接到此输入的连线进行类型检查（TypeScript）。",
         validateTypes: "部署时对从此端口发出的连线进行类型检查（TypeScript）。",
         validateData: "在发送前根据此端口的模式检查发送的值。",
-        returnProperty: "放置发送值的消息属性（默认：output）。",
-        contextMode: "传入消息如何传递到此端口：passthrough 或 reset。",
+        contextMode:
+          "此端口构建传出消息的方式：merge（将此端口的字段合并到传入消息）或 reset（开始一条新消息）。",
         validateInput: "在 input() 运行前，根据输入结构描述校验传入消息。",
-        inputRoot:
-          "input() 从中读取字段的消息属性。为空（或 'msg'）= 整个消息；其他任何值（例如 'output'）会在 input() 运行前以该属性为根重建消息。",
         outputs:
           "按端口的输出设置。验证数据根据端口结构描述校验发送的值；上下文模式控制如何携带传入消息。",
         lifecyclePorts:
@@ -677,7 +626,6 @@ function localesGenerator(options: {
       },
     },
     "zh-TW": {
-      input: { inputRoot: "輸入根" },
       configs: { name: "名稱" },
       toggles: {
         validateInputTypes: "驗證類型",
@@ -697,13 +645,12 @@ function localesGenerator(options: {
         port: "端口",
         label: "標籤",
         validate: "驗證資料",
-        returnProperty: "返回屬性",
         contextMode: "內容模式",
         schema: "資料綱要",
       },
       contextModes: {
         modes: {
-          passthrough: "passthrough",
+          merge: "merge",
           reset: "reset",
         },
       },
@@ -712,11 +659,9 @@ function localesGenerator(options: {
           "部署時對連接到此輸入的連線進行型別檢查（TypeScript）。",
         validateTypes: "部署時對從此埠發出的連線進行型別檢查（TypeScript）。",
         validateData: "在發送前根據此埠的結構描述檢查發送的值。",
-        returnProperty: "放置發送值的訊息屬性（預設：output）。",
-        contextMode: "傳入訊息如何傳遞到此埠：passthrough 或 reset。",
+        contextMode:
+          "此連接埠建構傳出訊息的方式：merge（將此連接埠的欄位合併到傳入訊息）或 reset（開始一條新訊息）。",
         validateInput: "在 input() 執行前，依輸入結構描述驗證傳入訊息。",
-        inputRoot:
-          "input() 從中讀取欄位的訊息屬性。留空（或 'msg'）= 整個訊息；其他任何值（例如 'output'）會在 input() 執行前以該屬性為根重建訊息。",
         outputs:
           "依連接埠的輸出設定。驗證資料依連接埠結構描述檢查送出的值；內容模式控制如何攜帶傳入訊息。",
         lifecyclePorts:

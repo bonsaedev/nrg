@@ -6,9 +6,8 @@ import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "", minLength: 1 }),
-    outputReturnProperties: SchemaType.OutputReturnProperties(),
     outputContextModes: SchemaType.OutputContextModes({
-      default: { 0: "passthrough" },
+      default: { 0: "merge" },
     }),
     errorPort: SchemaType.Boolean({ default: false }),
     completePort: SchemaType.Boolean({ default: false }),

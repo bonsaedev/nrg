@@ -85,12 +85,11 @@ export default defineComponent({
     // defaults may be shared {} references) so edits don't leak across nodes.
     // Clone whichever maps the node actually declares — not gated on a runtime
     // `outputsSchema`, since a types-first node can declare `outputContextModes`
-    // / `outputReturnProperties` (etc.) with no output schema at all.
+    // (etc.) with no output schema at all.
     for (const key of [
       "validateOutputs",
       "validateOutputTypes",
       "outputContextModes",
-      "outputReturnProperties",
       "outputSchemas",
     ] as const) {
       const existing = this.localNode[key];

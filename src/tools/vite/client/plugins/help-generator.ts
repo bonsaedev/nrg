@@ -128,8 +128,6 @@ const NRG_SYSTEM_FIELDS = new Set([
   "validateOutput",
   "validateOutputs",
   "validateOutputTypes",
-  "outputReturnProperty",
-  "outputReturnProperties",
   "outputContextMode",
   "outputContextModes",
   // Flow-author data-validation schema overrides (per IONodeConfig) — system

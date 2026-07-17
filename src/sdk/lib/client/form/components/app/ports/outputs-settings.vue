@@ -25,9 +25,6 @@
           >
             {{ resolveLabel("outputs.validateTypes", "Validate Types") }}
           </th>
-          <th v-if="hasOutputReturnProperties" class="nrg-outputs-return-col">
-            {{ resolveLabel("outputs.returnProperty", "Return Property") }}
-          </th>
           <th v-if="hasOutputContextModes" class="nrg-outputs-context-col">
             {{ resolveLabel("outputs.contextMode", "Context Mode") }}
           </th>
@@ -75,21 +72,6 @@
               :aria-label="`${resolveLabel('outputs.validateTypes', 'Validate Types')} — ${port.label}`"
               @update:model-value="
                 (val: boolean) => setValidateOutputTypes(port.index, val)
-              "
-            />
-          </td>
-          <td v-if="hasOutputReturnProperties" class="nrg-outputs-return-col">
-            <input
-              type="text"
-              class="nrg-outputs-return"
-              placeholder="output"
-              :value="returnPropertyFor(port.index)"
-              @input="
-                (e) =>
-                  setReturnProperty(
-                    port.index,
-                    (e.target as HTMLInputElement).value,
-                  )
               "
             />
           </td>
@@ -154,25 +136,6 @@
           >{{ resolveLabel("help.learnMore", "Learn more") }}</a
         >
       </li>
-      <li v-if="hasOutputReturnProperties">
-        <strong>{{
-          resolveLabel("outputs.returnProperty", "Return Property")
-        }}</strong>
-        —
-        {{
-          resolveLabel(
-            "help.returnProperty",
-            "The message property the sent value is placed on (default: output).",
-          )
-        }}
-        <a
-          class="nrg-help-link"
-          :href="docsUrl('/guide/message-model#overriding-the-return-key')"
-          target="_blank"
-          rel="noopener noreferrer"
-          >{{ resolveLabel("help.learnMore", "Learn more") }}</a
-        >
-      </li>
       <li v-if="hasOutputContextModes">
         <strong>{{
           resolveLabel("outputs.contextMode", "Context Mode")
@@ -181,7 +144,7 @@
         {{
           resolveLabel(
             "help.contextMode",
-            "How the incoming message is carried to this port: passthrough or reset.",
+            "How this port builds its outgoing message: merge (add this port's fields onto the incoming message) or reset (start a fresh message).",
           )
         }}
         <a
@@ -205,7 +168,6 @@ const {
   hasOutputValidation,
   hasOutputSchemas,
   supportsOutputTypeValidation,
-  hasOutputReturnProperties,
   hasOutputContextModes,
   outputRows,
   contextModeOptions,
@@ -215,8 +177,6 @@ const {
   setValidateOutput,
   validateOutputTypesFor,
   setValidateOutputTypes,
-  returnPropertyFor,
-  setReturnProperty,
   contextModeFor,
   setContextMode,
   openOutputSchemaEditor,
@@ -228,32 +188,11 @@ const {
   width: 3em;
 }
 
-/* Sized to hold the "Return Property" / "Context Mode" headers on one line; the
-   inner input/select fills the column (width: 100%). */
-.nrg-outputs-return-col {
-  width: 150px;
-  white-space: nowrap;
-}
-
+/* Sized to hold the "Context Mode" header on one line; the inner select fills
+   the column (width: 100%). */
 .nrg-outputs-context-col {
   width: 130px;
   white-space: nowrap;
-}
-
-.nrg-outputs-return {
-  width: 100%;
-  height: 28px;
-  box-sizing: border-box;
-  padding: 0 6px;
-  text-align: left;
-  border: 1px solid
-    var(
-      --red-ui-form-input-border-color,
-      var(--red-ui-secondary-border-color, #ccc)
-    );
-  border-radius: 5px;
-  background: var(--red-ui-form-input-background, #fff);
-  color: var(--red-ui-form-text-color, inherit);
 }
 
 .nrg-outputs-context {
@@ -286,17 +225,10 @@ const {
   cursor: not-allowed;
 }
 
-/* Node-RED's global rules force input[type=text] (and select) to 34px with
-   their own padding/margin and beat a single scoped class. Re-assert ours at
-   higher specificity (.nrg-outputs td .x → wins over .red-ui-editor
-   input[type=text]) so the return-property input and context-mode select share
-   one height and line up in the row. */
-.nrg-outputs td .nrg-outputs-return {
-  height: 28px;
-  margin: 0;
-  padding: 0 6px;
-  line-height: normal;
-}
+/* Node-RED's global rules force select to 34px with their own padding/margin
+   and beat a single scoped class. Re-assert ours at higher specificity
+   (.nrg-outputs td .x → wins over .red-ui-editor select) so the context-mode
+   select keeps its height and lines up in the row. */
 .nrg-outputs td .nrg-outputs-context {
   height: 28px;
   margin: 0;

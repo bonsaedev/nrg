@@ -4,7 +4,6 @@ import type TestConfig from "../../server/nodes/test-config";
 const ConfigsSchema = defineSchema(
   {
     name: SchemaType.String({ default: "", minLength: 1 }),
-    outputReturnProperties: SchemaType.OutputReturnProperties(),
     outputContextModes: SchemaType.OutputContextModes({
       default: { 0: "reset" },
     }),

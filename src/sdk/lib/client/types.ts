@@ -95,10 +95,9 @@ interface NodeRedNode {
   validateOutputs?: Record<number, boolean>;
   /** design-time: type-check wires out of a base output port (editor wire check) */
   validateOutputTypes?: Record<number, boolean>;
-  outputContextModes?: Record<number, "passthrough" | "reset">;
-  outputReturnProperties?: Record<number, string>;
-  /** which message property input() reads from ("" / "." / "msg" = whole message) */
-  inputRoot?: string;
+  /** per-port context modes: merge (default) or reset; legacy "passthrough"
+   * values from old flows resolve to merge */
+  outputContextModes?: Record<number, "merge" | "reset" | "passthrough">;
 
   [key: string]: any;
 }

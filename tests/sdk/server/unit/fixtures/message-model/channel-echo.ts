@@ -8,7 +8,7 @@ import {
 } from "@/sdk/lib/server";
 
 // Reads a ROOT wire field AND an off-the-wire private channel, and echoes both.
-// Used to prove that an `inputRoot` rebase preserves `_msgid` — the key the
+// Used to prove that delivery preserves `_msgid` — the key the
 // channel store is partitioned by — so a rebased message still resolves its
 // channels.
 type RawIn = { value?: unknown };

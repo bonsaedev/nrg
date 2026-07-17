@@ -2,7 +2,7 @@ import { IONode, type Input, type Outputs, type Port } from "@/sdk/lib/server";
 
 // Types-first fixture: one input, one output port (`out`). Echoes two ROOT fields
 // of the incoming message back out — so a test can prove what `input()` actually
-// read (which is what the `inputRoot` rebase controls). `foo` lives OUTSIDE a
+// read off the incoming record. `foo` lives OUTSIDE a
 // typical rebase root, so it proves the rebase is lossy.
 type EchoInput = Input<Port<{ value?: unknown; foo?: unknown }>>;
 type EchoOutputs = Outputs<{ out: Port<{ seen: unknown; foo: unknown }> }>;

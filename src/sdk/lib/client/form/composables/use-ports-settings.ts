@@ -31,9 +31,6 @@ function usePortsSettings() {
   const features = inject<NodeFeatures>("__nrg_features")!;
   const openSchemaTray = inject<OpenSchemaTray>("__nrg_open_schema_tray")!;
 
-  const hasOutputReturnProperties = computed(
-    (): boolean => schema?.properties?.outputReturnProperties !== undefined,
-  );
   const hasOutputContextModes = computed(
     (): boolean => schema?.properties?.outputContextModes !== undefined,
   );
@@ -53,7 +50,7 @@ function usePortsSettings() {
   /**
    * The node author's per-port context-mode defaults, declared in the schema.
    * A port present here is configurable (its dropdown is enabled and seeded to
-   * this value); a port absent here is locked to `carry`.
+   * this value); a port absent here defaults to `merge`.
    */
   const authorContextModeDefaults = computed(
     (): Record<number, string> =>
@@ -106,8 +103,8 @@ function usePortsSettings() {
   /**
    * Show the Outputs subsection whenever the node has output ports (topology
    * from its TYPES). The framework injects every per-port control (Validate
-   * Data, Return Property, Context Mode) into every IONode, so a node with
-   * output ports always has something to configure.
+   * Data, Context Mode) into every IONode, so a node with output ports always
+   * has something to configure.
    */
   const showOutputs = computed((): boolean => outputRows.value.length > 0);
   const showPortsSettings = computed(
@@ -125,8 +122,8 @@ function usePortsSettings() {
   const contextModeOptions = computed(
     (): { value: string; label: string }[] => [
       {
-        value: "passthrough",
-        label: resolveLabel("contextModes.modes.passthrough", "passthrough"),
+        value: "merge",
+        label: resolveLabel("contextModes.modes.merge", "merge"),
       },
       {
         value: "reset",
@@ -179,35 +176,23 @@ function usePortsSettings() {
     };
   }
 
-  function returnPropertyFor(index: number): string {
-    return localNode.outputReturnProperties?.[index] ?? "";
-  }
-
-  function setReturnProperty(index: number, value: string) {
-    const next = { ...(localNode.outputReturnProperties ?? {}) };
-    if (value.trim()) {
-      next[index] = value;
-    } else {
-      delete next[index];
-    }
-    localNode.outputReturnProperties = next;
-  }
-
   /** The mode shown for a port: the flow author's saved choice, else the node
-   * author's declared default, else `passthrough`. Every port's dropdown is always
-   * editable — the flow author can pick any mode regardless of declaration. */
+   * author's declared default, else `merge`. A legacy `passthrough` stored in an
+   * old flow displays as `merge` (the runtime resolves it the same way). Every
+   * port's dropdown is always editable — the flow author can pick any mode
+   * regardless of declaration. */
   function contextModeFor(index: number): string {
-    return (
+    const stored =
       localNode.outputContextModes?.[index] ??
       authorContextModeDefaults.value[index] ??
-      "passthrough"
-    );
+      "merge";
+    return stored === "reset" ? "reset" : "merge";
   }
 
   function setContextMode(index: number, value: string) {
     localNode.outputContextModes = {
       ...(localNode.outputContextModes ?? {}),
-      [index]: value as "passthrough" | "reset",
+      [index]: value as "merge" | "reset",
     };
   }
 
@@ -272,7 +257,6 @@ function usePortsSettings() {
     hasStatusPort,
     hasOutputValidation,
     hasOutputSchemas,
-    hasOutputReturnProperties,
     hasOutputContextModes,
     acceptsInputSchema,
     supportsInputTypeValidation,
@@ -288,8 +272,6 @@ function usePortsSettings() {
     setValidateOutput,
     validateOutputTypesFor,
     setValidateOutputTypes,
-    returnPropertyFor,
-    setReturnProperty,
     contextModeFor,
     setContextMode,
     outputSchemaFor,

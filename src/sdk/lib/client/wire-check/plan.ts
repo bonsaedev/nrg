@@ -17,8 +17,7 @@ interface NodeLike {
   statusPort?: boolean;
   validateInputTypes?: boolean;
   validateOutputTypes?: Record<number, boolean>;
-  outputReturnProperties?: Record<number, string>;
-  outputContextModes?: Record<number, "passthrough" | "reset">;
+  outputContextModes?: Record<number, "merge" | "reset" | "passthrough">;
   _def?: { set?: { module?: string } };
 }
 
@@ -43,8 +42,7 @@ type SourcePortInput =
   | {
       kind: "base";
       index: number;
-      returnKey?: string;
-      mode?: "passthrough" | "reset";
+      mode?: "merge" | "reset" | "passthrough";
     }
   | { kind: "complete" }
   | { kind: "error" }
@@ -146,7 +144,6 @@ function buildRequest(
       ? {
           kind: "base",
           index: port.index,
-          returnKey: link.source.outputReturnProperties?.[port.index],
           mode: link.source.outputContextModes?.[port.index],
         }
       : { kind: port.kind };

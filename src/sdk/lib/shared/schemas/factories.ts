@@ -169,37 +169,6 @@ function NrgString(options?: NrgStringOptions): TString {
 }
 
 /**
- * Declares the `outputReturnProperties` config map: the return property for
- * each output port, keyed by port index. A missing entry falls back to the
- * built-in `output` key. The node author supplies per-port defaults here;
- * declaring it also exposes an editable Return Property column per port in the
- * editor so flow authors can override them. Without it, every output uses
- * `output`.
- *
- * @example
- * ```ts
- * // port 0 defaults to `result`; every other port falls back to `output`
- * outputReturnProperties: SchemaType.OutputReturnProperties({
- *   default: { 0: "result" },
- * }),
- * ```
- */
-function OutputReturnProperties(
-  options?: NrgSchemaOptions & { default?: Record<number, string> },
-) {
-  return BaseType.Record(
-    BaseType.Number(),
-    BaseType.String({ pattern: "^[A-Za-z_$][A-Za-z0-9_$]*$" }),
-    {
-      description:
-        "Per-port return property, keyed by output port index. A missing entry falls back to `output`.",
-      default: {},
-      ...options,
-    },
-  );
-}
-
-/**
  * Declares the `outputContextModes` config map: how each output port builds its
  * outgoing message RECORD, keyed by port index.
  * - `merge` (default): `{ ...incoming, ...additions }` — the message is the
@@ -238,26 +207,6 @@ function OutputContextModes(
       ...options,
     },
   );
-}
-
-/**
- * Declares the `inputRoot` config field: which property of the incoming message
- * the node's `input()` reads its fields from. Empty (the default), `"."`, or
- * `"msg"` mean the whole message (default Node-RED behavior). Any other value
- * (e.g. `"output"`) REBUILDS the message rooted at that property before
- * `input()` runs — `msg = { ...msg[inputRoot], _msgid }` — so the node reads
- * `msg.<field>` at the root and TypedInput `msg.` expressions resolve there too.
- * This is lossy by design: everything outside the chosen property is dropped, so
- * a flow author uses it deliberately (e.g. to read an upstream nrg node's
- * `output` directly, no Set node needed).
- */
-function InputRoot(options?: NrgSchemaOptions & { default?: string }) {
-  return BaseType.String({
-    description:
-      "The message property to read input fields from. Empty / '.' / 'msg' = the whole message; any other value rebuilds the message rooted at that property before input() runs.",
-    default: "",
-    ...options,
-  });
 }
 
 /**
@@ -355,8 +304,8 @@ function NrgUnsafe<T = unknown>(options?: object): TUnsafe<UnsafeBrand<T>> {
 
 /**
  * Extended TypeBox type builder with NRG-specific schema types.
- * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput},
- * {@link OutputReturnProperties} and {@link OutputContextModes}.
+ * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput}
+ * and {@link OutputContextModes}.
  *
  * For ports or config fields that carry non-data values (functions, class
  * instances, Buffers, streams, connections), use `Unsafe<T>()` to get the
@@ -374,11 +323,9 @@ const NRG_SCHEMA_TYPES_FACTORIES = {
   Unsafe: NrgUnsafe,
   NodeRef,
   TypedInput,
-  OutputReturnProperties,
   OutputContextModes,
   OutputSchemas,
   InputSchema,
-  InputRoot,
 };
 
 const SchemaType: Omit<
@@ -426,7 +373,7 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
     }
   }
 
-  // Record schemas (SchemaType.Record, OutputReturnProperties/ContextModes) put
+  // Record schemas (SchemaType.Record, OutputContextModes) put
   // their value schema under patternProperties / additionalProperties, not
   // properties — recurse so a non-JSON Record value is marked too.
   if (schema.patternProperties) {

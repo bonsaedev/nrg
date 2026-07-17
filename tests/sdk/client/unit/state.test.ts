@@ -146,9 +146,9 @@ describe("applyState", () => {
   });
 
   it("clears a per-port map entry the user removed", () => {
-    const target: any = { outputReturnProperties: { 0: "payload" } };
-    applyState(target, { outputReturnProperties: {} });
-    expect(target.outputReturnProperties).toEqual({});
+    const target: any = { outputContextModes: { 0: "reset" } };
+    applyState(target, { outputContextModes: {} });
+    expect(target.outputContextModes).toEqual({});
   });
 
   it("creates target object when missing", () => {
