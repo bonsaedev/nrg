@@ -12,8 +12,10 @@ import {
 } from "@/sdk/lib/shared/schemas";
 
 // A types-first multi-output node: two named output ports (no outputsSchema).
-// Routes a message to port `out0` or `out1` based on a config threshold — a null
-// slot leaves the other port empty.
+// Routes a message to port `out0` or `out1` based on a config threshold. The
+// port not routed to is simply never sent to — under the accumulating-record
+// model `send(port, null)` FORWARDS the record (a merge of nothing), it does
+// not suppress the port, so "no message here" means "no send".
 const SplitterSchema = defineSchema(
   {
     name: SchemaType.String({ default: "splitter" }),
@@ -26,8 +28,8 @@ type SplitterConfig = Infer<typeof SplitterSchema>;
 type TestSplitterInput = Input<Port<{ payload: number }>>;
 type OutMsg = { payload: number; label: string };
 type TestSplitterOutputs = Outputs<{
-  out0: Port<OutMsg | null>;
-  out1: Port<OutMsg | null>;
+  out0: Port<OutMsg>;
+  out1: Port<OutMsg>;
 }>;
 
 class TestSplitter extends IONode<
@@ -43,9 +45,7 @@ class TestSplitter extends IONode<
   override async input(msg: TestSplitterInput) {
     if (msg.payload > this.config.threshold) {
       this.send("out0", { payload: msg.payload, label: "above" });
-      this.send("out1", null);
     } else {
-      this.send("out0", null);
       this.send("out1", { payload: msg.payload, label: "below" });
     }
   }

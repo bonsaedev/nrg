@@ -327,14 +327,15 @@ describe("buildPackageDts", () => {
       "complete: CompletePort<{ text: string; }, { parsed: number; }>",
     );
     expect(dts).toMatch(/import type \{[^}]*\bCompletePort\b/);
-    // A downstream handler can read the carried original input, the `input`
-    // provenance frame, and the error metadata off the registry, type-safely.
+    // A downstream handler reads the CARRIED RECORD's fields (typed optional —
+    // merge rule) and the error metadata off the registry, type-safely. There is
+    // no `input` frame — the record IS the context.
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
        import type { NodeTypes } from "@bonsae/nrg/server";
-       const carried: { text: string } =
-         null as unknown as NodeTypes["csv-parser"]["error"]["input"];
+       const carried: string | undefined =
+         null as unknown as NodeTypes["csv-parser"]["error"]["text"];
        const message: string =
          null as unknown as NodeTypes["csv-parser"]["error"]["error"]["message"];
        void carried;
@@ -503,38 +504,36 @@ describe("buildPackageDts — built-in port envelopes", () => {
     `,
   };
 
-  it("a void node's complete is the assignable standard envelope (source + carried input), not never", () => {
+  it("a void node's complete is the assignable carried record (merge rule), not never", () => {
     const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
-    // If complete were `never`, this object literal would be unassignable.
-    // `source` and `input` ride the root; a void return omits the `complete` key.
-    // `_msgid` rides the message at runtime but is deliberately untyped, so the
-    // envelope is exactly `{ source, input }`.
+    // If complete were `never`, these literals would be unassignable. The frame
+    // is the PROCESSED RECORD with the input's fields typed optional (merge
+    // rule); a void return contributes nothing. Provenance rides msg[Meta] at
+    // runtime and `_msgid`/`_meta` stay deliberately untyped.
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
        import type { NodeTypes } from "@bonsae/nrg/server";
-       const c: NodeTypes["void-node"]["complete"] = {
-         source: { id: "1", type: "void-node", name: undefined },
-         input: { payload: "x" },
-       };
-       void c;`,
+       const c: NodeTypes["void-node"]["complete"] = { payload: "x" };
+       const empty: NodeTypes["void-node"]["complete"] = {};
+       void c; void empty;`,
     );
     expect(diags).toHaveLength(0);
   });
 
-  it("the input() return rides complete under `complete`; a void return has none", () => {
+  it("the input() return's FIELDS ride the complete frame; a void return adds none", () => {
     const dts = buildPackageDts(extractPkg(ENVELOPE_PKG));
     const diags = compilePackage(
       dts,
       `import "acme-nodes";
        import type { NodeTypes } from "@bonsae/nrg/server";
-       // return-node: input() returns { ok } → carried under \`complete\`.
-       const out: { ok: boolean } =
-         null as unknown as NodeTypes["return-node"]["complete"]["complete"];
-       void out;
-       // void-node: no return → no \`complete\` field (accessing it errors).
-       // @ts-expect-error — a void-returning node's complete carries no value
-       type _NoComplete = NodeTypes["void-node"]["complete"]["complete"];`,
+       // return-node: input() returns { ok } → \`ok\` is a required frame field.
+       const ok: boolean =
+         null as unknown as NodeTypes["return-node"]["complete"]["ok"];
+       void ok;
+       // void-node: no return → no returned fields on the frame.
+       // @ts-expect-error — a void-returning node's complete carries no return fields
+       type _NoComplete = NodeTypes["void-node"]["complete"]["ok"];`,
     );
     expect(diags).toHaveLength(0);
   });

@@ -98,7 +98,6 @@ describe("extractNodeDefinitions", () => {
     "errorPort",
     "completePort",
     "statusPort",
-    "outputReturnProperties",
     "outputContextModes",
   ];
 

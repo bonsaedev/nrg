@@ -20,7 +20,7 @@ class SingleOutput extends IONode<
   static override readonly type = "single-output";
 
   override async input(msg: SingleOutputInput) {
-    this.send("out", msg.payload);
+    this.send("out", { result: msg.payload });
   }
 }
 

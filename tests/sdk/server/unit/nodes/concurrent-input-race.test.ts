@@ -67,20 +67,21 @@ describe("io-node concurrent-input race", () => {
     release();
     await Promise.all([a, b]);
 
-    // `Record<string, any>` to read the trace-mode `input` provenance frame,
-    // which the typed port shape doesn't model (same idiom as return-property).
+    // `Record<string, any>` to read the merged record's carried incoming fields,
+    // which the fixture's typed port shape doesn't model.
     const first = node.sent()[0][0] as Record<string, any>;
     const second = node.sent()[1][0] as Record<string, any>;
 
-    // A resumes first. Both its value AND its carried context (under `input`) are
-    // A's, even though B overwrote the shared instance field while A was awaiting
-    // — because the context is scoped to A's invocation. (Pre-fix this was "B".)
-    expect(first.output.echoedId).toBe("A");
-    expect(first.input.id).toBe("A");
+    // A resumes first. Both its addition (`echoedId`) AND its carried context
+    // (the merged incoming fields, e.g. `id`) are A's, even though B overwrote
+    // the shared instance field while A was awaiting — because the merge base in
+    // #wrapOutgoing is scoped to A's invocation. (Pre-fix this was "B".)
+    expect(first.echoedId).toBe("A");
+    expect(first.id).toBe("A");
 
     // B is likewise internally consistent.
-    expect(second.output.echoedId).toBe("B");
-    expect(second.input.id).toBe("B");
+    expect(second.echoedId).toBe("B");
+    expect(second.id).toBe("B");
   });
 
   it("CONTROL: sequential (awaited) inputs never cross — isolates the cause to overlap", async () => {
@@ -94,14 +95,14 @@ describe("io-node concurrent-input race", () => {
     await node.receive({ id: "A", payload: "a" });
     await node.receive({ id: "B", payload: "b" });
 
-    // `Record<string, any>` to read the trace-mode `input` provenance frame,
-    // which the typed port shape doesn't model (same idiom as return-property).
+    // `Record<string, any>` to read the merged record's carried incoming fields,
+    // which the fixture's typed port shape doesn't model.
     const first = node.sent()[0][0] as Record<string, any>;
     const second = node.sent()[1][0] as Record<string, any>;
 
-    expect(first.input.id).toBe("A");
-    expect(first.output.echoedId).toBe("A");
-    expect(second.input.id).toBe("B");
-    expect(second.output.echoedId).toBe("B");
+    expect(first.id).toBe("A");
+    expect(first.echoedId).toBe("A");
+    expect(second.id).toBe("B");
+    expect(second.echoedId).toBe("B");
   });
 });

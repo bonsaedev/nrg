@@ -83,7 +83,7 @@ describe("named output ports", () => {
       await node.receive({});
 
       expect(node.sent("success")).toEqual([
-        { output: { payload: "ok" }, source: src(0, "success") },
+        { payload: "ok", _meta: { source: src(0, "success") } },
       ]);
       expect(node.sent("failure")).toEqual([]);
     });
@@ -97,7 +97,7 @@ describe("named output ports", () => {
 
       expect(node.sent("success")).toEqual([]);
       expect(node.sent("failure")).toEqual([
-        { output: { payload: { reason: "bad" } }, source: src(1, "failure") },
+        { payload: { reason: "bad" }, _meta: { source: src(1, "failure") } },
       ]);
     });
 
@@ -109,7 +109,7 @@ describe("named output ports", () => {
       await node.receive({});
 
       expect(node.sent("success")).toEqual([
-        { output: { payload: "ok" }, source: src(0, "success") },
+        { payload: "ok", _meta: { source: src(0, "success") } },
       ]);
     });
 
@@ -153,7 +153,7 @@ describe("named output ports", () => {
       await node.receive({});
 
       expect(node.sent(5)).toEqual([
-        { output: { payload: "oob" }, source: src(5) },
+        { payload: "oob", _meta: { source: src(5) } },
       ]);
       expect(node.sent(0)).toEqual([]);
     });
@@ -166,7 +166,7 @@ describe("named output ports", () => {
       await node.receive({});
 
       expect(node.sent(0)).toEqual([
-        { output: { payload: "by-index" }, source: src(0, "success") },
+        { payload: "by-index", _meta: { source: src(0, "success") } },
       ]);
     });
   });

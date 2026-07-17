@@ -3,17 +3,17 @@ import type {
   CompletePortOutput,
   StatusPortOutput,
   MessageSource,
-  NodeSource,
   OutputPortNames,
   Port,
 } from "@/sdk/lib/server/nodes/types/ports";
 import type { IONode, Input, Outputs } from "@/sdk/lib/server";
 
 // Type-level proof that the built-in port message shapes match the runtime
-// (`#wrapOutgoing` / the input-handler emit sites in io-node.ts). Compiled by
-// `tsc -p tests/tsconfig.json`, never executed. Every port keeps `source` and
-// `input` at the ROOT, side by side with the port's payload block — no `source`
-// nested inside `error`/`complete`.
+// (`#wrapOutgoing` / `#emitLifecycle` in io-node.ts). Compiled by
+// `tsc -p tests/tsconfig.json`, never executed. Every lifecycle frame follows
+// the MERGE rule: the processed record's fields (typed optional) plus the
+// port's additions (`error` block / the returned fields / `status`). Provenance
+// rides `msg[Meta]` at runtime — never a typed root key.
 
 type In = { payload: string };
 
@@ -61,56 +61,54 @@ declare const dyn: IONode<
   Input<Port<{ p: string }>>,
   Outputs<Port<{ v: number }>[]>
 >;
-const dynV: number = dyn.sent(0)[0].output.v;
+const dynV: number = dyn.sent(0)[0].v;
 void dynV;
-// @ts-expect-error — output.v is a number, not a string (precise, not `unknown`/`any`)
-const dynBad: string = dyn.sent(0)[0].output.v;
+// @ts-expect-error — v is a number, not a string (precise, not `unknown`/`any`)
+const dynBad: string = dyn.sent(0)[0].v;
 void dynBad;
 
-// --- ERROR port: `error` block at root, `source` + `input` beside it ----------
+// --- ERROR port: the failing record's fields (optional) plus the `error` block
 function errorProof(m: ErrorPortOutput<In, { code: string }>) {
   const name: string = m.error.name;
   const message: string = m.error.message;
   const stack: string | undefined = m.error.stack; // carried explicitly
   const code: string = m.error.code; // author's own field rides `error`
-  const source: NodeSource = m.source; // source is at the ROOT
-  const input: In = m.input; // failing message at the ROOT
+  const payload: string | undefined = m.payload; // the record that failed, carried
   // @ts-expect-error — `_msgid` rides the message at runtime but is deliberately
   // NOT typed (framework-internal lineage/channel key, hidden from authors)
   m._msgid;
-  // @ts-expect-error — source is NOT nested inside the `error` block
-  m.error.source;
-  return { name, message, stack, code, source, input };
+  // @ts-expect-error — provenance rides msg[Meta] at runtime, never a typed root key
+  m.source;
+  return { name, message, stack, code, payload };
 }
 
-// --- COMPLETE port (with a return value): value under `complete` --------------
+// --- COMPLETE port (with a return value): the returned FIELDS ride the frame --
 function completeReturnProof(m: CompletePortOutput<In, { ok: boolean }>) {
-  const value: { ok: boolean } = m.complete; // return value under `complete`
-  const source: NodeSource = m.source;
-  const input: In = m.input;
+  const ok: boolean = m.ok; // the returned field, merged (required)
+  const payload: string | undefined = m.payload; // the processed record, carried
   // @ts-expect-error — `_msgid` is deliberately not typed (hidden from authors)
   m._msgid;
-  return { value, source, input };
+  return { ok, payload };
 }
 
-// --- COMPLETE port (void return): source + input only, no `complete` key ------
+// --- COMPLETE port (void return): only the carried record — no return fields --
 function completeVoidProof(m: CompletePortOutput<In, void>) {
-  const source: NodeSource = m.source;
-  const input: In = m.input;
-  // @ts-expect-error — a void return carries no `complete` value
-  m.complete;
-  return { source, input };
+  const payload: string | undefined = m.payload;
+  // @ts-expect-error — a void return contributes no fields
+  m.ok;
+  return { payload };
 }
 
-// --- STATUS port: status + source (no input — a notification) -----------------
+// --- STATUS port: the `status` block (provenance rides msg[Meta] at runtime) --
 function statusRootProof(m: StatusPortOutput) {
-  const source: NodeSource = m.source; // source at the root
   // @ts-expect-error — `_msgid` is deliberately not typed (hidden from authors)
   m._msgid;
-  return { status: m.status, source };
+  // @ts-expect-error — provenance rides msg[Meta], never a typed root key
+  m.source;
+  return { status: m.status };
 }
 
-// --- MessageSource (data-port `msg.source`): node identity + port -------------
+// --- MessageSource (`msg[Meta].source`): node identity + port -----------------
 function messageSourceProof(s: MessageSource) {
   const id: string = s.id;
   const type: string = s.type;

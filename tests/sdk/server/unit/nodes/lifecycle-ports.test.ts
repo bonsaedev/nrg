@@ -190,8 +190,10 @@ describe("lifecycle ports", () => {
       // An unset optional field (own enumerable prop valued `undefined`) is
       // stripped — it carries no information and would only clutter the panel.
       expect("hint" in error).toBe(false);
-      // `source` rides the root, beside `error` — not inside it.
-      expect(errorSends[0].source).toMatchObject({ type: "emit-test" });
+      // provenance rides the `_meta` carrier, beside `error` — not inside it.
+      expect(errorSends[0]).toMatchObject({
+        _meta: { source: { type: "emit-test" } },
+      });
       // The full Error structure is preserved: `stack` is non-enumerable, so it
       // is carried explicitly (not lost to the enumerable-only spread).
       expect(error.stack).toEqual(expect.any(String));
@@ -248,7 +250,9 @@ describe("lifecycle ports", () => {
       expect(statusSends).toHaveLength(1);
       expect(statusSends[0].status.fill).toBe("green");
       expect(statusSends[0].status.text).toBe("ok");
-      expect(statusSends[0].source.type).toBe("emit-test");
+      expect(statusSends[0]).toMatchObject({
+        _meta: { source: { type: "emit-test" } },
+      });
       // The data port received nothing.
       expect(node.sent(0)).toHaveLength(0);
     });
@@ -284,11 +288,16 @@ describe("lifecycle ports", () => {
       await node.receive({ payload: "explicit-error" });
 
       const errorSend = node.sent("error")[0];
-      // `source` is at the root, a sibling of `error`/`input`.
-      expect(errorSend.source).toEqual({
-        id: expect.any(String),
-        type: "emit-test",
-        name: expect.any(String),
+      // provenance rides `_meta.source`, with the built-in port's slot + name.
+      expect(errorSend).toMatchObject({
+        _meta: {
+          source: {
+            id: expect.any(String),
+            type: "emit-test",
+            name: expect.any(String),
+            portName: "error",
+          },
+        },
       });
     });
 
@@ -321,10 +330,15 @@ describe("lifecycle ports", () => {
 
       const statusSend = node.sent("status")[0];
       expect(statusSend).toBeDefined();
-      expect(statusSend.source).toEqual({
-        id: expect.any(String),
-        type: "emit-test",
-        name: expect.any(String),
+      expect(statusSend).toMatchObject({
+        _meta: {
+          source: {
+            id: expect.any(String),
+            type: "emit-test",
+            name: expect.any(String),
+            portName: "status",
+          },
+        },
       });
     });
 
@@ -406,13 +420,12 @@ describe("lifecycle ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      // the value is wrapped under the return key; carry (the default mode)
-      // keeps the incoming message under `input`. Index 0 resolves to the node's
-      // named port "out", so `source` carries the resolved `portName`.
+      // the additions MERGE onto the incoming record. Index 0 resolves to the
+      // node's named port "out", so `_meta.source` carries the resolved name.
       expect((sent[0] as unknown[])[0]).toEqual({
-        output: "record",
-        source: src(0, "out"),
-        input: { payload: "go" },
+        payload: "go",
+        note: "record",
+        _meta: { source: src(0, "out") },
       });
     });
 
@@ -431,7 +444,6 @@ describe("lifecycle ports", () => {
       expect(statusSend).toEqual(
         expect.objectContaining({
           status: expect.objectContaining({ text: "working" }),
-          source: expect.anything(),
         }),
       );
     });
@@ -458,10 +470,10 @@ describe("lifecycle ports", () => {
       // Two named sends → two emissions, each addressing exactly one base port.
       expect(node.sent()).toHaveLength(2);
       expect(node.sent("out0")).toEqual([
-        expect.objectContaining({ output: { payload: "port-0" } }),
+        expect.objectContaining({ payload: "port-0" }),
       ]);
       expect(node.sent("out1")).toEqual([
-        expect.objectContaining({ output: { payload: "port-1" } }),
+        expect.objectContaining({ payload: "port-1" }),
       ]);
       // The built-in slots are never touched by an author send.
       expect(node.sent("error")).toHaveLength(0);
@@ -502,34 +514,41 @@ describe("lifecycle ports", () => {
 
       const sent = node.sent();
       expect(sent).toHaveLength(1);
-      // carry (default) keeps the incoming message under `input`
-      expect(sent[0][0]).toEqual(
-        expect.objectContaining({ input: { payload: "hello" } }),
-      );
+      // merge (default) carries the incoming record's fields forward
+      expect(sent[0][0]).toEqual(expect.objectContaining({ payload: "hello" }));
     });
   });
 
   describe("input() return value on the complete port", () => {
-    it("carries input()'s return value under `complete`, with source/input at the root", async () => {
+    it("merges input()'s returned fields onto the complete frame", async () => {
       const { node } = await createNode(ReturnComplete, {
         config: { completePort: true },
       });
       await node.receive({ payload: "go" });
 
       const completeMsg = node.sent("complete")[0];
-      expect(completeMsg.complete).toEqual({ sum: 42 }); // the return value
-      expect(completeMsg.source.type).toBe("return-complete-test");
+      // the returned FIELDS ride the frame, merged onto the processed record
+      expect(completeMsg).toMatchObject({
+        sum: 42,
+        payload: "go",
+        _meta: {
+          source: { type: "return-complete-test", portName: "complete" },
+        },
+      });
     });
 
-    it("omits the `complete` key when input() returns nothing (the wire is the signal)", async () => {
+    it("a void return contributes no fields — arrival on the wire is the signal", async () => {
       const { node } = await createNode(VoidComplete, {
         config: { completePort: true },
       });
       await node.receive({ payload: "go" });
 
       const completeMsg = node.sent("complete")[0];
-      expect(completeMsg.complete).toBeUndefined(); // void return → no `complete` key
-      expect(completeMsg.source).toBeDefined(); // still identified by source at the root
+      // a void return contributes no fields — the frame is the record + _meta
+      expect(completeMsg).toMatchObject({
+        payload: "go",
+        _meta: { source: { portName: "complete" } },
+      });
     });
   });
 
@@ -558,7 +577,10 @@ describe("lifecycle ports", () => {
       });
 
       // A throw with the error port on routes there and receive() resolves.
-      await node.receive({ _msgid: "lineage-error", payload: "throw-primitive" });
+      await node.receive({
+        _msgid: "lineage-error",
+        payload: "throw-primitive",
+      });
 
       const err = node.sent("error")[0];
       expect((err as Record<string, unknown>)._msgid).toBe("lineage-error");

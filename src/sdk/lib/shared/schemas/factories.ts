@@ -200,18 +200,19 @@ function OutputReturnProperties(
 }
 
 /**
- * Declares the `outputContextModes` config map: how each output port carries the
- * incoming message forward, keyed by port index.
- * - `passthrough` (default): attach the incoming message under `input` (one hop
- *   deep — its own `input` is stripped, so the chain never grows), alongside the
- *   port's value under its return key.
- * - `reset`: emit only the port's value — no `input` frame (a fresh message).
+ * Declares the `outputContextModes` config map: how each output port builds its
+ * outgoing message RECORD, keyed by port index.
+ * - `merge` (default): `{ ...incoming, ...additions }` — the message is the
+ *   flow's shared accumulating record; this port's named fields are merged on
+ *   and everything upstream flows through untouched.
+ * - `reset`: `{ ...additions }` — a fresh record (a new logical signal).
  * Declaring this exposes an editable Mode column in the editor for ports that get
- * a default; otherwise every port resolves to `passthrough` and the column is hidden.
+ * a default; otherwise every port resolves to `merge` and the column is hidden.
+ * A legacy `passthrough` value (flows saved before the rename) resolves to `merge`.
  *
  * @example
  * ```ts
- * // port 0 is configurable (seeded to `reset`); every other port is `passthrough`
+ * // port 0 is configurable (seeded to `reset`); every other port is `merge`
  * outputContextModes: SchemaType.OutputContextModes({
  *   default: { 0: "reset" },
  * }),
@@ -219,18 +220,20 @@ function OutputReturnProperties(
  */
 function OutputContextModes(
   options?: NrgSchemaOptions & {
-    default?: Record<number, "passthrough" | "reset">;
+    default?: Record<number, "merge" | "reset" | "passthrough">;
   },
 ) {
   return BaseType.Record(
     BaseType.Number(),
     BaseType.Union([
-      BaseType.Literal("passthrough"),
+      BaseType.Literal("merge"),
       BaseType.Literal("reset"),
+      // legacy value from flows saved before the merge rename; resolves to merge
+      BaseType.Literal("passthrough"),
     ]),
     {
       description:
-        "Per-port output mode, keyed by output port index. A missing entry falls back to `passthrough`.",
+        "Per-port output mode, keyed by output port index: `merge` (default — the outgoing record is the incoming record plus this send's fields) or `reset` (a fresh record).",
       default: {},
       ...options,
     },

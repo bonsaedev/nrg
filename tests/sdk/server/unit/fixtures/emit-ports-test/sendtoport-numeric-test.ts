@@ -31,7 +31,7 @@ class SendToPortNumeric extends IONode<
   static override readonly configSchema = ConfigSchema;
 
   override async input() {
-    this.send(0, "record");
+    this.send(0, { note: "record" });
   }
 }
 

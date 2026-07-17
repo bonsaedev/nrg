@@ -14,14 +14,14 @@ const defaultOf = (
 
 describe("mergeConfigDefaults", () => {
   // Every built-in field an IONode carries, whether or not it declares them.
+  // (The flat-record message model retired `outputReturnProperties` and
+  // `inputRoot` — the record has no envelope to re-key or re-root.)
   const IO_NODE_KEYS = [
     "name",
     "errorPort",
     "completePort",
     "statusPort",
-    "outputReturnProperties",
     "outputContextModes",
-    "inputRoot",
     "inputSchema",
     "outputSchemas",
     "validateInput",
@@ -52,13 +52,12 @@ describe("mergeConfigDefaults", () => {
 
     const merged = mergeConfigDefaults(author, "nrg:soql:config");
 
-    // Lifecycle ports + input validation default OFF; per-port maps default empty.
+    // Lifecycle ports + input validation default OFF; per-port maps default
+    // empty — an empty outputContextModes map means every port merges.
     expect(defaultOf(merged, "errorPort")).toBe(false);
     expect(defaultOf(merged, "completePort")).toBe(false);
     expect(defaultOf(merged, "statusPort")).toBe(false);
-    expect(defaultOf(merged, "outputReturnProperties")).toEqual({});
     expect(defaultOf(merged, "outputContextModes")).toEqual({});
-    expect(defaultOf(merged, "inputRoot")).toBe("");
     expect(defaultOf(merged, "validateInput")).toBe(false);
     expect(defaultOf(merged, "validateOutputs")).toEqual({});
   });
@@ -66,7 +65,8 @@ describe("mergeConfigDefaults", () => {
   it("lets an author declaration override the built-in default (declaring only changes the default)", () => {
     const author = defineSchema(
       {
-        // Author wants the error port ON by default and a non-passthrough context mode.
+        // Author wants the error port ON by default and port 0 starting a
+        // fresh record instead of merging onto the incoming one.
         errorPort: SchemaType.Boolean({ default: true }),
         outputContextModes: SchemaType.OutputContextModes({
           default: { 0: "reset" },
@@ -155,5 +155,23 @@ describe("mergeConfigDefaults", () => {
     expect(Object.keys(CONFIG_DEFAULTS).sort()).toEqual(
       [...IO_NODE_KEYS].sort(),
     );
+  });
+
+  it("outputContextModes allows merge/reset plus the legacy passthrough alias", () => {
+    const merged = mergeConfigDefaults(undefined, "nrg:modes:config");
+
+    // `Record<number, mode>` → TypeBox emits `patternProperties` keyed by the
+    // numeric-index pattern; the per-port value is the mode union. `passthrough`
+    // stays ACCEPTED so flows saved before the merge rename still validate, but
+    // it is only an alias — the runtime resolves it to `merge`.
+    // narrowing the loosely-typed generated TypeBox schema shape
+    const modes = merged.properties.outputContextModes as {
+      patternProperties?: Record<string, { anyOf?: { const?: unknown }[] }>;
+    };
+    const perPort = Object.values(modes.patternProperties ?? {})[0];
+    const literals = (perPort?.anyOf ?? []).map(
+      (literal: { const?: unknown }) => literal.const,
+    );
+    expect(literals).toEqual(["merge", "reset", "passthrough"]);
   });
 });

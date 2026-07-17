@@ -91,9 +91,8 @@ type PortMessage<T, P extends string> =
  * `toEqual({ output })` still matches. They ride data-port frames only, never the
  * built-in error/complete/status frames.
  */
-type WrappedPort<V, TInput, TChan extends ChannelShape = object> = {
-  output: V;
-} & WithMessageChannels<TChan> &
+type WrappedPort<V, TInput, TChan extends ChannelShape = object> = V &
+  WithMessageChannels<TChan> &
   WithMeta &
   ([TInput] extends [never]
     ? unknown
@@ -461,7 +460,8 @@ async function createNode<T extends NodeClass>(
         configurable: true,
         enumerable: false,
         get: () => ({
-          source: (frame as { source?: MessageSource }).source,
+          source: (frame as { _meta?: { source?: MessageSource } })._meta
+            ?.source,
         }),
       });
     },

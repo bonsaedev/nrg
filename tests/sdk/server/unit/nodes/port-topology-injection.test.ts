@@ -56,7 +56,7 @@ describe("port topology injection (types-only node behaves like a built node)", 
     await node.receive({ payload: "ok" });
 
     expect(node.sent(0)).toHaveLength(1);
-    expect(node.sent(0)[0].output).toEqual({ value: 1 });
+    expect(node.sent(0)[0]).toMatchObject({ value: 1 });
   });
 
   it("derives one output port from an explicit `unknown` output", async () => {
@@ -79,12 +79,12 @@ describe("port topology injection (types-only node behaves like a built node)", 
     expect(node.baseOutputs).toBe(2);
 
     await node.receive({ payload: "x" });
-    expect(node.sent("ok")[0].output).toEqual({ value: 1 });
+    expect(node.sent("ok")[0]).toMatchObject({ value: 1 });
     expect(node.sent("err")).toHaveLength(0);
 
     node.reset();
     await node.receive({ bad: true });
-    expect(node.sent("err")[0].output).toEqual({ reason: "bad" });
+    expect(node.sent("err")[0]).toMatchObject({ reason: "bad" });
     expect(node.sent("ok")).toHaveLength(0);
   });
 });

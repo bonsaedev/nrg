@@ -34,9 +34,7 @@ describe("createNode context helper", () => {
 
     await node.receive({});
 
-    expect(
-      (node.sent()[0][0] as { output: { count: number } }).output.count,
-    ).toBe(11);
+    expect((node.sent()[0][0] as { count: number }).count).toBe(11);
     expect(await node.context.flow!.get("count")).toBe(11);
   });
 });

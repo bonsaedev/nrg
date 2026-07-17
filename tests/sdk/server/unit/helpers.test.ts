@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "url";
-import { IONode } from "@/sdk/lib/server";
+import { IONode, Meta } from "@/sdk/lib/server";
 import { createNode } from "@/sdk/test/server/unit";
 
 // The nodes under test are TYPES-ONLY (no inputSchema/outputsSchema); their port
@@ -69,9 +69,16 @@ describe("createNode", () => {
     await node.receive({ payload: "world" });
 
     expect(node.sent()).toHaveLength(1);
-    expect(node.sent(0).map((m) => m.output)).toEqual([
-      { payload: "hello world" },
-    ]);
+    // The frame IS the flow's accumulating record: the sent fields sit at the
+    // TOP level (no `output` envelope), and the provenance rides the typed
+    // `[Meta]` accessor — not a root `source` key.
+    const frame = node.sent("out")[0];
+    expect(frame.payload).toBe("hello world");
+    expect(frame[Meta].source).toMatchObject({
+      type: "test-io",
+      port: 0,
+      portName: "out",
+    });
   });
 
   it("should capture status calls", async () => {
@@ -115,7 +122,7 @@ describe("createNode", () => {
 
     await node.receive({ payload: "b" });
     expect(node.sent()).toHaveLength(1);
-    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: "hello b" }]);
+    expect(node.sent("out").map((m) => m.payload)).toEqual(["hello b"]);
   });
 });
 
@@ -166,9 +173,9 @@ describe("node.receive", () => {
     });
 
     await node.receive({ payload: "there" });
-    expect(node.sent().map((m) => m[0].output)).toEqual([
-      { payload: "hey there" },
-    ]);
+    // Positional access: `sent()[i][j]` is port j of emission i — the frame is
+    // the record itself, so the sent field reads at the top level.
+    expect(node.sent().map((m) => m[0].payload)).toEqual(["hey there"]);
   });
 
   it("should handle multiple messages", async () => {
@@ -178,13 +185,13 @@ describe("node.receive", () => {
     await node.receive({ payload: "b" });
 
     expect(node.sent()).toHaveLength(2);
-    expect(node.sent(0).map((m) => m.output)).toEqual([
-      { payload: "hello a" },
-      { payload: "hello b" },
+    expect(node.sent("out").map((m) => m.payload)).toEqual([
+      "hello a",
+      "hello b",
     ]);
   });
 
-  it("should support multi-output nodes with sent(port)", async () => {
+  it("should support multi-output nodes with per-port sent()", async () => {
     const { node } = await createNode(TestSplitter, {
       config: { threshold: 50 },
     });
@@ -192,12 +199,11 @@ describe("node.receive", () => {
     await node.receive({ payload: 75 });
     await node.receive({ payload: 30 });
 
-    expect(node.sent(0).map((m) => m.output)).toEqual([
-      { payload: 75, label: "above" },
-    ]);
-    expect(node.sent(1).map((m) => m.output)).toEqual([
-      { payload: 30, label: "below" },
-    ]);
+    // Each frame is the accumulating record: the incoming `payload` is carried
+    // and the routing `label` this node adds sits beside it (`toMatchObject`
+    // because the frame also carries the framework's `_meta` provenance).
+    expect(node.sent("out0")).toMatchObject([{ payload: 75, label: "above" }]);
+    expect(node.sent("out1")).toMatchObject([{ payload: 30, label: "below" }]);
   });
 
   it("should return empty array for port with no messages", async () => {
@@ -205,6 +211,8 @@ describe("node.receive", () => {
 
     await node.receive({ payload: 75 });
 
+    // The splitter only ever sends to the matching port — the other port sees
+    // no emission at all (there is no "null slot" in the record model).
     expect(node.sent(0)).toHaveLength(1);
     expect(node.sent(1)).toHaveLength(0);
   });
@@ -214,12 +222,8 @@ describe("node.receive", () => {
 
     await node.receive({ payload: "hello" });
 
-    expect(node.sent(0).map((m) => m.output)).toEqual([
-      { payload: "hello", port: 0 },
-    ]);
-    expect(node.sent(1).map((m) => m.output)).toEqual([
-      { payload: "hello", port: 1 },
-    ]);
+    expect(node.sent("out0")).toMatchObject([{ payload: "hello", port: 0 }]);
+    expect(node.sent("out1")).toMatchObject([{ payload: "hello", port: 1 }]);
   });
 });
 
@@ -245,7 +249,7 @@ describe("credentials", () => {
     });
 
     await node.receive({ payload: "test" });
-    expect(node.sent(0).map((m) => m.output)).toEqual([
+    expect(node.sent("out")).toMatchObject([
       { payload: "test", auth: "secret-123" },
     ]);
   });
@@ -267,7 +271,7 @@ describe("TypedInput resolution", () => {
     });
 
     await node.receive({ payload: "from-msg" });
-    expect(node.sent(0).map((m) => m.output)).toEqual([
+    expect(node.sent("out")).toMatchObject([
       { payload: "from-msg", auth: "key" },
     ]);
   });
@@ -279,9 +283,7 @@ describe("TypedInput resolution", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0).map((m) => m.output)).toEqual([
-      { payload: "hello", auth: "key" },
-    ]);
+    expect(node.sent("out")).toMatchObject([{ payload: "hello", auth: "key" }]);
   });
 
   it("should resolve number via TypedInput", async () => {
@@ -291,9 +293,7 @@ describe("TypedInput resolution", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0).map((m) => m.output)).toEqual([
-      { payload: 42, auth: "key" },
-    ]);
+    expect(node.sent("out")).toMatchObject([{ payload: 42, auth: "key" }]);
   });
 });
 
@@ -319,7 +319,7 @@ describe("context store", () => {
     await node.receive({});
     await node.receive({});
 
-    expect(node.sent(0).map((m) => m.output)).toEqual([
+    expect(node.sent(0).map((m) => ({ payload: m.payload }))).toEqual([
       { payload: 1 },
       { payload: 2 },
     ]);
@@ -330,7 +330,7 @@ describe("context store", () => {
 
     await node.receive({ scope: "flow" });
 
-    expect(node.sent(0).map((m) => m.output)).toEqual([
+    expect(node.sent(0).map((m) => ({ payload: m.payload }))).toEqual([
       { payload: "flow-value" },
     ]);
   });
@@ -340,7 +340,7 @@ describe("context store", () => {
 
     await node.receive({ scope: "global" });
 
-    expect(node.sent(0).map((m) => m.output)).toEqual([
+    expect(node.sent(0).map((m) => ({ payload: m.payload }))).toEqual([
       { payload: "global-value" },
     ]);
   });
@@ -353,7 +353,7 @@ describe("i18n", () => {
     await node.receive({});
 
     // RED._ mock returns the key prefixed with node type
-    expect(node.sent(0).map((m) => m.output)).toEqual([
+    expect(node.sent(0).map((m) => ({ payload: m.payload }))).toEqual([
       { payload: "test-i18n.greeting" },
     ]);
   });
@@ -375,14 +375,18 @@ describe("settings", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 3000 }]);
+    expect(node.sent(0).map((m) => ({ payload: m.payload }))).toEqual([
+      { payload: 3000 },
+    ]);
   });
 
   it("should use default settings when not provided", async () => {
     const { node } = await createNode(TestSettingsNode);
 
     await node.receive({});
-    expect(node.sent(0).map((m) => m.output)).toEqual([{ payload: 5000 }]);
+    expect(node.sent(0).map((m) => ({ payload: m.payload }))).toEqual([
+      { payload: 5000 },
+    ]);
   });
 
   describe("created() failure semantics", () => {

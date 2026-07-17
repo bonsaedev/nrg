@@ -295,16 +295,21 @@ interface NodeSource {
 }
 
 /**
- * Provenance stamped on every DATA-port output under `msg.source`: the producing
- * node ({@link NodeSource}) plus the port the message was sent on. It rides the
- * message ROOT (beside `_msgid`), NOT inside `msg.output` — so `msg.output` stays
- * exactly the author's value. It travels the `input` chain, so `msg.input.source`,
- * `msg.input.input.source`, … identify the producer of each frame.
+ * Provenance of a message: the producing node ({@link NodeSource}) plus the port
+ * it was sent on. Read via `msg[Meta].source` (the `_meta` root key is the
+ * clone-safe carrier — framework-internal, never on a typed surface). Every
+ * frame carries a port index — a built-in lifecycle port occupies a real slot
+ * in the node's TOTAL output layout (base ports first, then the enabled
+ * error/complete/status in that order), and stamps that slot index with the
+ * built-in name as `portName`.
  */
 interface MessageSource extends NodeSource {
-  /** Base output port index the message was sent on. */
+  /** Output port index the message was sent on, within the node's total output
+   * layout (base ports, then enabled built-ins in error → complete → status
+   * order). */
   port: number;
-  /** Named-port name, when the node declares a `Port<T>` record output. */
+  /** Named-port name (a `Port<T>` record output), or the built-in port name
+   * (`"error"` / `"complete"` / `"status"`) for a lifecycle frame. */
   portName?: string;
 }
 
@@ -318,37 +323,52 @@ interface ErrorInfo {
 }
 
 /**
- * Message emitted on the built-in ERROR port. The `error` block holds the error
- * data (`name`/`message`/`stack` plus the author's extra fields — the enumerable
- * own properties of a thrown `Error` subclass, or the `msg` passed to
- * `this.error(message, msg)`); `source` (the producing node) and `input` (the
- * failing message) ride the ROOT beside it — the same shape as every other port.
- * A downstream node reads `msg.error`. `name`/`message`/`stack` stay authoritative
- * over `TError`. Node-RED's `_msgid` rides the root at runtime but is deliberately
- * NOT typed here — the framework's lineage/channel key stays hidden from authors,
- * exactly as it is on the input side (see {@link MessageMeta}).
+ * The record fields carried forward on a lifecycle-port frame: the PROCESSED
+ * record's fields, typed optional (a lifecycle emission can also fire with no
+ * record in scope — a source node, a status() outside input()). `never` (a
+ * source node) and an untyped input both collapse to `unknown` so the frame
+ * stays readable.
  */
-type ErrorPortOutput<TInput = unknown, TError extends object = object> = {
+type CarriedRecord<TInput> = [TInput] extends [never]
+  ? unknown
+  : unknown extends TInput
+    ? unknown
+    : Partial<TInput>;
+
+/**
+ * Message emitted on the built-in ERROR port — the same MERGE rule as every
+ * port: the frame is the PROCESSED RECORD plus the `error` block
+ * (`name`/`message`/`stack` layered over the author's extra fields — the
+ * enumerable own properties of a thrown `Error` subclass, or the record passed
+ * to `this.error(message, msg)`). A downstream handler reads `msg.error` AND
+ * the record that failed, side by side. Provenance rides `msg[Meta].source`;
+ * Node-RED's `_msgid` rides the root at runtime but is deliberately NOT typed
+ * (framework-internal, hidden from authors — see {@link MessageMeta}).
+ */
+type ErrorPortOutput<
+  TInput = unknown,
+  TError extends object = object,
+> = CarriedRecord<TInput> & {
   error: Omit<TError, keyof ErrorInfo> & ErrorInfo;
-  source: NodeSource;
-  input: TInput;
 };
 
 /**
- * Message emitted on the built-in COMPLETE port. `source` (who completed it) and
- * `input` (the message it was processing) ride the root. The `complete` key
- * carries `input()`'s return value (`TReturn`) when there is one; a `void` return
- * omits `complete` entirely — arrival on the complete wire is itself the signal.
- * Node-RED's `_msgid` rides the root at runtime but is deliberately not typed here
+ * Message emitted on the built-in COMPLETE port — the same MERGE rule as every
+ * port: the frame is the PROCESSED RECORD plus `input()`'s returned FIELDS
+ * (`TReturn`, a plain object — the return value IS the complete-port record
+ * contribution). A `void` return contributes nothing — arrival on the complete
+ * wire is itself the signal. Provenance rides `msg[Meta].source`; Node-RED's
+ * `_msgid` is at the root at runtime but deliberately NOT typed here
  * (framework-internal, hidden from authors — see {@link MessageMeta}).
  */
-type CompletePortOutput<TInput = unknown, TReturn = void> = {
-  source: NodeSource;
-  input: TInput;
-} & ([TReturn] extends [void] ? unknown : { complete: TReturn });
+type CompletePortOutput<
+  TInput = unknown,
+  TReturn = void,
+> = CarriedRecord<TInput> & ([TReturn] extends [void] ? unknown : TReturn);
 
-/** Message emitted on the built-in STATUS port (no carried input/provenance).
- * Node-RED's `_msgid` rides the root at runtime but is deliberately not typed here
+/** Message emitted on the built-in STATUS port — the processed record (when a
+ * record was in scope) plus `status`. Provenance rides `msg[Meta].source`;
+ * `_msgid` is at the root at runtime but deliberately not typed here
  * (framework-internal, hidden from authors — see {@link MessageMeta}). */
 interface StatusPortOutput {
   status:
@@ -358,7 +378,6 @@ interface StatusPortOutput {
         text?: string;
       }
     | string;
-  source: NodeSource;
 }
 
 export type {

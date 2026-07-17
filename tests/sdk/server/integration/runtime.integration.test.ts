@@ -60,8 +60,8 @@ describe("server integration runtime", () => {
 
     await node.receive({});
 
-    const out = (await node.read()) as { output: { token: string } };
-    expect(out.output.token).toBe("secret-123");
+    const out = (await node.read()) as { token: string };
+    expect(out.token).toBe("secret-123");
   });
 
   it("deploys a node in a real runtime and captures its output", async () => {
@@ -71,8 +71,8 @@ describe("server integration runtime", () => {
 
     await node.receive({ value: 21 });
 
-    const out = (await node.read()) as { output: { doubled: number } };
-    expect(out.output.doubled).toBe(42);
+    const out = (await node.read()) as { doubled: number };
+    expect(out.doubled).toBe(42);
     expect(node.sent()).toHaveLength(1);
   });
 
@@ -86,9 +86,9 @@ describe("server integration runtime", () => {
     // macrotask, which the old single-setImmediate settle would have missed.
     await node.receive({ value: "hi" });
 
-    const sent = node.sent(0) as Array<{ output: { echoed: string } }>;
+    const sent = node.sent(0) as Array<{ echoed: string }>;
     expect(sent).toHaveLength(1);
-    expect(sent[0].output.echoed).toBe("hi");
+    expect(sent[0].echoed).toBe("hi");
   });
 
   it("resolves a config node through a real NodeRef", async () => {
@@ -99,8 +99,8 @@ describe("server integration runtime", () => {
 
     await greeter.receive({ who: "world" });
 
-    const out = (await greeter.read()) as { output: { text: string } };
-    expect(out.output.text).toBe("hello, world");
+    const out = (await greeter.read()) as { text: string };
+    expect(out.text).toBe("hello, world");
   });
 
   it("delivers a message across a wire", async () => {
@@ -112,8 +112,8 @@ describe("server integration runtime", () => {
 
     await a.receive({ value: 5 });
 
-    const relayed = (await b.read()) as { output: { relayed: boolean } };
-    expect(relayed.output.relayed).toBe(true);
+    const relayed = (await b.read()) as { relayed: boolean };
+    expect(relayed.relayed).toBe(true);
     expect(b.received().length).toBeGreaterThanOrEqual(1);
   });
 
@@ -130,7 +130,7 @@ describe("server integration runtime", () => {
 
     // the node read/incremented the real flow context...
     const count = async () =>
-      ((await counter.read()) as { output: { count: number } }).output.count;
+      ((await counter.read()) as { count: number }).count;
     expect(await count()).toBe(11);
     expect(await count()).toBe(12);
 
@@ -145,8 +145,7 @@ describe("server integration runtime", () => {
 
     await repeater.receive({ count: 3 });
 
-    const out = async () =>
-      ((await repeater.read()) as { output: { i: number } }).output.i;
+    const out = async () => ((await repeater.read()) as { i: number }).i;
     expect(await out()).toBe(0);
     expect(await out()).toBe(1);
     expect(await out()).toBe(2);

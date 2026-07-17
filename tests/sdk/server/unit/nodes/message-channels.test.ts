@@ -223,7 +223,7 @@ describe("message channels (protected / private)", () => {
       { _msgid: "sig-reader", payload: { hi: 1 } },
       { private: { secret: 42 } },
     );
-    const out = node.sent()[0][0].output;
+    const out = node.sent()[0][0];
     expect(out.payload).toEqual({ hi: 1 });
     expect(out.secret).toBe(42);
   });
@@ -248,7 +248,7 @@ describe("message channels (protected / private)", () => {
     );
 
     // It echoed what it received onto its output — that's the observable proof:
-    const out = node.sent()[0][0].output;
+    const out = node.sent()[0][0];
     expect(out.trace).toBe("abc");
     expect(out.secret).toBe(99);
     // The author-facing enumeration never reveals the channels:
@@ -264,7 +264,7 @@ describe("message channels (protected / private)", () => {
       { private: { res: "R" } },
     );
 
-    const out = node.sent()[0][0].output;
+    const out = node.sent()[0][0];
     expect(out.before).toBe("R"); // read before the delete
     expect(out.after).toBeUndefined(); // gone after
   });
@@ -362,7 +362,7 @@ describe("message channels (protected / private)", () => {
       { protected: { token: "T" } },
     );
 
-    const out = node.sent()[0][0].output;
+    const out = node.sent()[0][0];
     expect(out.before).toBe("T");
     expect(out.after).toBeUndefined();
   });

@@ -40,14 +40,11 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> & {
      * base-output port index (editor wire check).
      */
     validateOutputTypes?: Record<number, boolean>;
-    /** Per-port return properties, keyed by base-output port index. */
-    outputReturnProperties?: Record<number, string>;
-    /** Per-port context modes, keyed by base-output port index. */
-    outputContextModes?: Record<number, "passthrough" | "reset">;
-    /** Which message property `input()` reads its fields from. "" / "." / "msg"
-     * (the default) = the whole message; any other value rebuilds the message
-     * rooted at that property before `input()` runs. */
-    inputRoot?: string;
+    /** Per-port context modes, keyed by base-output port index. `"merge"`
+     * (default — the outgoing record is `{ ...incoming, ...additions }`) or
+     * `"reset"` (a fresh record). A legacy `"passthrough"` value saved in an
+     * old flow resolves to `"merge"`. */
+    outputContextModes?: Record<number, "merge" | "reset" | "passthrough">;
     /** Flow-author input data-validation schema (JSON Schema string), applied
      * when `validateInput` is on. */
     inputSchema?: string;
@@ -109,7 +106,8 @@ interface IIONode<
   // framework-managed — not `send`-able.
   send<P extends OutputPortNames<TOutput> | number>(
     port: P,
-    msg: P extends keyof TOutput
+    // optional: `send(port)` forwards the record unchanged (merge of nothing)
+    msg?: P extends keyof TOutput
       ? PortValue<TOutput[P]>
       : P extends number
         ? PortValue<TOutput[keyof TOutput]>

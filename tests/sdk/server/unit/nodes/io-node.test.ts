@@ -224,16 +224,16 @@ describe("IONode", () => {
 
       await node.receive({ payload: "result" });
 
-      // Every send wraps the value under the return key (default "output") and is
+      // Every send MERGES its named additions onto the incoming record and is
       // delivered as a positional array (one slot per port) via the invocation's
-      // send callback while inside input(). carry (the default mode) keeps the
-      // incoming message under `input`. The node emits to its named port "out", so
-      // `source` carries the resolved `portName`.
+      // send callback while inside input(). The incoming fields are carried
+      // (`payload`), the addition sits at the root (`result`), and provenance
+      // rides the `_meta` carrier with the resolved `portName`.
       expect(node.sent(0)).toEqual([
         {
-          output: "result",
-          source: src(0, "out"),
-          input: { payload: "result" },
+          payload: "result",
+          result: "result",
+          _meta: { source: src(0, "out") },
         },
       ]);
     });
@@ -244,12 +244,16 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
-      instance.send(0, "test");
+      instance.send(0, { note: "test" });
       // A topology-less node reports `inputs === 0` (the framework's default), so
       // it's treated as a source/trigger: the send mints a `_msgid` (to key the
       // frozen `transactionId`) instead of leaving it for Node-RED to assign.
       expect(node.send).toHaveBeenCalledWith([
-        { output: "test", source: src(0), _msgid: expect.any(String) },
+        {
+          note: "test",
+          _meta: { source: src(0) },
+          _msgid: expect.any(String),
+        },
       ]);
     });
 
@@ -342,7 +346,7 @@ describe("IONode", () => {
       }).not.toThrow();
     });
 
-    it("validates an array sent from a single-output node as the value", async () => {
+    it("rejects an array sent as the value — additions are named fields", async () => {
       // A single-output node treats an array argument as the value (not as
       // per-port messages), so the schema describes the array itself.
       const { node } = await createNode(SingleOutput, {
@@ -357,10 +361,10 @@ describe("IONode", () => {
         },
       });
 
-      // Valid: the array value matches the array schema.
-      expect(() => node.send("out", ["a", "b"])).not.toThrow();
-      // Invalid: an element fails the item schema.
-      expect(() => node.send("out", ["a", ""])).toThrow();
+      // An array is no longer a valid send value — additions are NAMED fields.
+      expect(() => node.send("out", ["a", "b"])).toThrow(
+        /OBJECT of named fields/,
+      );
     });
 
     it("should validate output when validateOutputs is on", async () => {
@@ -457,10 +461,10 @@ describe("IONode", () => {
       node.send("err", { reason: "x" });
 
       // Delivered as a positional array; "err" resolved to index 1 (index 0
-      // empty), wrapped under the default return key.
+      // empty). The additions ARE the record; provenance rides `_meta`.
       expect(node.sent(0)).toHaveLength(0);
       expect(node.sent("err")).toEqual([
-        { output: { reason: "x" }, source: src(1, "err") },
+        { reason: "x", _meta: { source: src(1, "err") } },
       ]);
     });
   });

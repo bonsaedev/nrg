@@ -38,11 +38,11 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
   // --- single output -------------------------------------------------------
   it("types a single output positionally at sent()[i][0]", async () => {
     const { node } = await createNode(TdSingle);
-    // sent()[emission][port].output is the declared output value
-    const id: string = node.sent()[0][0].output.id;
+    // sent()[emission][port] IS the record — the port's fields at the top level
+    const id: string = node.sent()[0][0].id;
     void id;
-    // @ts-expect-error output.id is a string, not a number
-    const bad: number = node.sent()[0][0].output.id;
+    // @ts-expect-error id is a string, not a number
+    const bad: number = node.sent()[0][0].id;
     void bad;
   });
 
@@ -52,12 +52,12 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     // Precise per-port access is by NAME. Positional `sent()[i][0]`/`[i][1]` is the
     // sound UNION of the ports' values (record key order is not type-recoverable),
     // so `sent(name)` is the precise accessor.
-    const a: string = node.sent("out0")[0].output.a;
-    const b: number = node.sent("out1")[0].output.b;
+    const a: string = node.sent("out0")[0].a;
+    const b: number = node.sent("out1")[0].b;
     void a;
     void b;
     // @ts-expect-error port out1 holds { b: number }, it has no `a`
-    const bad: string = node.sent("out1")[0].output.a;
+    const bad: string = node.sent("out1")[0].a;
     void bad;
   });
 
@@ -66,15 +66,15 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     const { node } = await createNode(TdRecord);
     // named access is precise (record key order is not type-recoverable, so this
     // is the precise per-port accessor)
-    const ok: string = node.sent("success")[0].output.ok;
-    const err: number = node.sent("failure")[0].output.err;
+    const ok: string = node.sent("success")[0].ok;
+    const err: number = node.sent("failure")[0].err;
     void ok;
     void err;
     // Anti-`any` guard: if the record-port output ever widens to `any` (the
     // failure mode of a brand/resolver regression) the positive assertions above
     // still compile, so pin a type mismatch that only breaks when it's precise.
-    // @ts-expect-error output.ok is a string, not a number
-    const badOk: number = node.sent("success")[0].output.ok;
+    // @ts-expect-error ok is a string, not a number
+    const badOk: number = node.sent("success")[0].ok;
     void badOk;
     // @ts-expect-error "missing" is not a declared port
     node.sent("missing");
@@ -87,8 +87,10 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
   // primitive port de-type the whole record → names became unaddressable).
   it("keeps primitive-valued named ports addressable", async () => {
     const { node } = await createNode(TdPrimitivePorts);
-    const ok: string = node.sent("success")[0].output;
-    const err: number = node.sent("failure")[0].output;
+    // (runtime now requires OBJECT additions; primitive-valued ports remain
+    // type-addressable by name, which is what this proof pins)
+    const ok: string = node.sent("success")[0];
+    const err: number = node.sent("failure")[0];
     void ok;
     void err;
     // @ts-expect-error "success" carries a string message, not a number
@@ -102,7 +104,7 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
   it("treats a single object-of-objects output as ONE port", async () => {
     const { node } = await createNode(TdSingleObjOfObj);
     // it is ONE output port (port 0), addressed by send("out", …)/index — not by field.
-    const v: number = node.sent()[0][0].output.meta.v;
+    const v: number = node.sent()[0][0].meta.v;
     void v;
     // @ts-expect-error "meta" is a field of the single output, not an output port
     node.send("meta", { v: 1 });
@@ -115,21 +117,21 @@ describe("sent() positional typing (from the node's Input/Output generics)", () 
     // The read side stays permissive too: sent(name) and sent(index) are both
     // allowed (each message is `any`), mirroring sendToPort — `sent` uses the same
     // `OutputPortNames` as the runtime, so there's no stricter test-only variant.
-    const byName = node.sent("whatever")[0]?.output;
-    const byIndex = node.sent(3)[0]?.output;
+    const byName = node.sent("whatever")[0];
+    const byIndex = node.sent(3)[0];
     void byName;
     void byIndex;
   });
 
   // --- source node: a `never` INPUT (no input port) must not poison the emitted
   //     message type. A source emits from outside input() carrying no incoming
-  //     message, so sent()[i][0] is `{ output: Output }`, never `never`.
+  //     message, so sent()[i][0] is the output record itself, never `never`.
   it("types a never-input source node's single output at sent()[i][0]", async () => {
     const { node } = await createNode(TdSource);
-    const id: string = node.sent()[0][0].output.event.id;
+    const id: string = node.sent()[0][0].event.id;
     void id;
-    // @ts-expect-error output.event.id is a string, not a number
-    const bad: number = node.sent()[0][0].output.event.id;
+    // @ts-expect-error event.id is a string, not a number
+    const bad: number = node.sent()[0][0].event.id;
     void bad;
   });
 
