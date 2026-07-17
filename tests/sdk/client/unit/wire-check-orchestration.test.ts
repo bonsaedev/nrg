@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 
 // Drives the editor wire-check orchestration (wire-check/index.ts) with a mocked
 // RED + mocked transport: a mismatch verdict on links:add destructively removes
-// the wire and toasts; a passing verdict stays silent. The pure planner and the
-// toggle gating are covered elsewhere — this is the interactive glue.
+// the wire and toasts; a passing verdict stays silent; the plugin's post-deploy
+// flow report arrives over RED.comms and raises exactly one notification. The
+// pure planner and the report helpers are covered elsewhere — this is the glue.
 
 const checkWire = vi.fn();
 const checkWires = vi.fn();
@@ -24,10 +25,32 @@ interface RedMock {
   };
   view: { redraw: ReturnType<typeof vi.fn> };
   notify: ReturnType<typeof vi.fn>;
+  comms: {
+    subscribe: (t: string, cb: (t: string, d: unknown) => void) => void;
+  };
 }
 
 let RED: RedMock;
+const commsSubs: Record<string, ((t: string, d: unknown) => void)[]> = {};
 const emit = (e: string, ...a: any[]) => RED.events.emit(e, ...a);
+/** Push a plugin deploy report to the editor, as RED.comms would deliver it. */
+const pushReport = (data: unknown) =>
+  (commsSubs["nrg/type-check"] ?? []).forEach((cb) =>
+    cb("nrg/type-check", data),
+  );
+const reportWire = (id: string, ok: boolean) => ({
+  id,
+  label: id,
+  ok,
+  ...(ok ? {} : { message: "type mismatch" }),
+});
+const flowReport = (wires: ReturnType<typeof reportWire>[]) => ({
+  ok: wires.every((w) => w.ok),
+  wires,
+  uncheckedTypes: [],
+  unattributed: [],
+  checkedAt: "now",
+});
 
 const link = (over: Record<string, unknown> = {}) => ({
   source: {
@@ -66,6 +89,9 @@ describe("wire-check editor orchestration", () => {
       nodes: { removeLink: vi.fn(), eachLink: vi.fn() },
       view: { redraw: vi.fn() },
       notify: vi.fn(),
+      comms: {
+        subscribe: (t, cb) => (commsSubs[t] ??= []).push(cb),
+      },
     };
     (globalThis as { RED?: unknown }).RED = RED;
 
@@ -181,90 +207,37 @@ describe("wire-check editor orchestration", () => {
     expect(RED.notify).not.toHaveBeenCalled();
   });
 
-  it("on deploy, batches every gated wire and toasts a summary of the failures", async () => {
-    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) => {
-      cb(link());
-      cb(
-        link({
-          target: {
-            id: "t2",
-            type: "tgt",
-            validateInputTypes: true,
-            _def: { set: { module: "pkg" } },
-          },
-        }),
-      );
-    });
-    checkWires.mockResolvedValueOnce([
-      { id: "s:0:t", ok: true, checked: true },
-      {
-        id: "s:0:t2",
-        ok: false,
-        checked: true,
-        message: "Property 'marker' is missing",
-      },
-    ]);
+  it("an all-green deploy report is silent (no prior failures)", () => {
+    pushReport(flowReport([reportWire("s:0:t", true)]));
+    expect(RED.notify).not.toHaveBeenCalled();
+  });
 
-    emit("deploy");
+  it("a deploy report with failures raises ONE sticky error notification", () => {
+    pushReport(
+      flowReport([reportWire("s:0:t", true), reportWire("s:0:t2", false)]),
+    );
 
-    await vi.waitFor(() => expect(RED.notify).toHaveBeenCalled());
+    expect(RED.notify).toHaveBeenCalledTimes(1);
     const [text, opts] = RED.notify.mock.calls[0];
-    expect(text).toContain("failed type validation");
+    expect(text).toContain("1 wire(s) failed");
     expect(text).toContain("s:0:t2");
     expect(opts).toMatchObject({ type: "error", timeout: 0 });
-    // exactly the two gated wires were sent to the transport
-    expect(checkWires).toHaveBeenCalledWith([
-      expect.objectContaining({ id: "s:0:t" }),
-      expect.objectContaining({ id: "s:0:t2" }),
-    ]);
   });
 
-  it("on deploy, stays silent when every gated wire passes", async () => {
-    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) =>
-      cb(link()),
-    );
-    checkWires.mockResolvedValueOnce([
-      { id: "s:0:t", ok: true, checked: true },
-    ]);
+  it("green AFTER failures toasts a brief success", () => {
+    pushReport(flowReport([reportWire("s:0:t", false)]));
+    RED.notify.mockReset();
 
-    emit("deploy");
-
-    await vi.waitFor(() => expect(checkWires).toHaveBeenCalled());
-    await new Promise((r) => setTimeout(r, 20));
-    expect(RED.notify).not.toHaveBeenCalled();
+    pushReport(flowReport([reportWire("s:0:t", true)]));
+    expect(RED.notify).toHaveBeenCalledTimes(1);
+    const [text, opts] = RED.notify.mock.calls[0];
+    expect(text).toContain("green");
+    expect(opts).toMatchObject({ type: "success" });
   });
 
-  it("on deploy with no gated wires, never calls the transport", async () => {
-    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) =>
-      // neither endpoint opted in → buildRequest returns null → nothing to send
-      cb(
-        link({
-          source: {
-            id: "s",
-            type: "src",
-            outputs: 1,
-            _def: { set: { module: "pkg" } },
-          },
-          target: { id: "t", type: "tgt", _def: { set: { module: "pkg" } } },
-        }),
-      ),
-    );
-
-    emit("deploy");
-    await new Promise((r) => setTimeout(r, 20));
-    expect(checkWires).not.toHaveBeenCalled();
-    expect(RED.notify).not.toHaveBeenCalled();
-  });
-
-  it("on deploy, stays silent when the transport batch fails open (null)", async () => {
-    RED.nodes.eachLink.mockImplementation((cb: (l: unknown) => void) =>
-      cb(link()),
-    );
-    checkWires.mockResolvedValueOnce(null);
-
-    emit("deploy");
-    await vi.waitFor(() => expect(checkWires).toHaveBeenCalled());
-    await new Promise((r) => setTimeout(r, 20));
+  it("a malformed comms payload is ignored (fails open)", () => {
+    pushReport({ nonsense: true });
+    pushReport(null);
     expect(RED.notify).not.toHaveBeenCalled();
   });
 });

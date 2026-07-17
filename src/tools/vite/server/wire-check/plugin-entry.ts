@@ -30,6 +30,7 @@ import type { FlowNode } from "./compile";
 interface NodeRedRuntime {
   nodes: { eachNode(cb: (node: FlowNode) => void): void };
   events: { on(event: string, cb: () => void): void };
+  comms?: { publish(topic: string, data: unknown, retain?: boolean): void };
   log: { info(msg: string): void; warn(msg: string): void };
   plugins: { registerPlugin(id: string, def: object): void };
   auth: { needsPermission(perm: string): unknown };
@@ -68,6 +69,14 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
     RED.nodes.eachNode((n) => flow.push({ ...n }));
     latest = checkFlowConfig(flow, built.registry, built.declarations);
     for (const line of formatReport(latest)) RED.log.info(line);
+    // Push the finished report to the editor (retained: a freshly-opened
+    // editor immediately receives the latest verdict) — ./report on the client
+    // paints failing wires red and raises one notification.
+    try {
+      RED.comms?.publish("nrg/type-check", latest, true);
+    } catch {
+      /* comms unavailable (tests, embedded runtimes) — terminal report stands */
+    }
   }
 
   RED.events.on("flows:started", () => {

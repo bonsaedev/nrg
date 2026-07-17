@@ -1,8 +1,9 @@
-import { buildRequest, wireId, summarize, rejectMessage } from "./plan";
-import type { EditorLink, WireCheckRequest } from "./plan";
+import { buildRequest, wireId, rejectMessage } from "./plan";
+import type { EditorLink } from "./plan";
 import { isNrgType } from "./registry";
-import { checkWire, checkWires } from "./transport";
+import { checkWire } from "./transport";
 import { typeCheckEnabled, refreshTypeCheckAvailability } from "./availability";
+import { subscribeFlowReport } from "./report";
 
 /**
  * Editor wire-check integration — a self-registering side-effect module bundled
@@ -13,8 +14,11 @@ import { typeCheckEnabled, refreshTypeCheckAvailability } from "./availability";
  *  - `links:add`   → interactive per-wire check; a real mismatch destructively
  *                    removes the wire and explains why (a passing / uncheckable
  *                    wire stays silent, so drawing wires isn't noisy).
- *  - `deploy`      → full-flow sweep, batched into one request; incompatible
- *                    wires and unvalidatable ones are gathered into ONE summary.
+ *  - deploy report → the plugin re-checks the WHOLE flow after every deploy
+ *                    (flows:started) and PUSHES the per-wire report over
+ *                    RED.comms; ./report consumes it — failing wires painted
+ *                    red on the canvas plus one notification. (A deploy-event
+ *                    sweep would race the server and read stale verdicts.)
  *  - `links:remove`→ cancels an in-flight check for a wire the author just
  *                    deleted, so a late verdict never toasts a gone wire.
  *
@@ -82,26 +86,6 @@ function onLinksRemove(link: EditorLink): void {
   if (inFlight.has(id)) cancelled.add(id);
 }
 
-function onDeploy(): void {
-  if (!typeCheckEnabled.value) return; // feature off / plugin not installed
-  const reqs: WireCheckRequest[] = [];
-  RED.nodes.eachLink((link) => {
-    const req = buildRequest(link as unknown as EditorLink, isNrgType);
-    if (req) reqs.push(req);
-  });
-  if (!reqs.length) return;
-  checkWires(reqs).then((results) => {
-    if (!results) return;
-    const summary = summarize(results);
-    if (!summary) return;
-    RED.notify(summary.text, {
-      type: summary.level,
-      // Errors stick until dismissed; warnings auto-clear.
-      timeout: summary.level === "error" ? 0 : 10000,
-    });
-  });
-}
-
 function install(): void {
   if (typeof RED === "undefined" || !RED.events) return;
   // Probe the plugin once; publishes to typeCheckEnabled, which gates the hooks
@@ -114,7 +98,7 @@ function install(): void {
   });
   RED.events.on("links:add", (link: EditorLink) => onLinksAdd(link));
   RED.events.on("links:remove", (link: EditorLink) => onLinksRemove(link));
-  RED.events.on("deploy", onDeploy);
+  subscribeFlowReport();
 }
 
 install();
