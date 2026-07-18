@@ -281,10 +281,18 @@ abstract class IONode<
                 }. Name the result — e.g. \`return { count }\`.`,
               );
             }
-            this.#emitLifecycle(
-              "complete",
-              store.inputMsg,
-              (result as Record<string, unknown> | undefined) ?? {},
+            // Bind the auto-emit to THIS invocation's store. It runs after the
+            // `await` above, so the run() scope has already exited — and Node-RED
+            // may have delivered a nested node's message synchronously in the
+            // meantime, leaving a DIFFERENT invocation's store ambient. Re-entering
+            // this store makes #deliver route through this node's own send. (see
+            // #deliver / #emitLifecycle)
+            IONode.#invocation.run(store, () =>
+              this.#emitLifecycle(
+                "complete",
+                store.inputMsg,
+                (result as Record<string, unknown> | undefined) ?? {},
+              ),
             );
           }
 
@@ -331,14 +339,20 @@ abstract class IONode<
               // every port: the frame is the PROCESSED RECORD plus `error`, so a
               // handler keeps the full context that failed.
               const stack = error instanceof Error ? error.stack : undefined;
-              this.#emitLifecycle("error", store.inputMsg, {
-                error: {
-                  ...errorData,
-                  name: (error as { name?: string })?.name ?? "Error",
-                  message: errorMsg,
-                  ...(stack ? { stack } : {}),
-                },
-              });
+              // Bind to THIS invocation's store — this runs after the `await`, so
+              // the run() scope has exited and a nested node's synchronous delivery
+              // may have left another invocation's store ambient (see the complete
+              // auto-emit above and #deliver).
+              IONode.#invocation.run(store, () =>
+                this.#emitLifecycle("error", store.inputMsg, {
+                  error: {
+                    ...errorData,
+                    name: (error as { name?: string })?.name ?? "Error",
+                    message: errorMsg,
+                    ...(stack ? { stack } : {}),
+                  },
+                }),
+              );
               this.node.error(errorMsg); // log only — no msg, so no Catch routing
             }
             done();
