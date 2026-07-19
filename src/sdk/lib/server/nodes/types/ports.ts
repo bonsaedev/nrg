@@ -22,8 +22,8 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
  *   async input(msg: Input<Port<In>>) { this.send("rows", parse(msg.payload)); } // "rows" | "failed" checked
  * }
  */
-interface Port<T, TChannels extends ChannelShape = object> {
-  readonly __nrg_port: T;
+interface Port<TMessage, TChannels extends ChannelShape = object> {
+  readonly __nrg_port: TMessage;
   /**
    * Phantom brand for the port's off-the-wire {@link ChannelShape} — what a node
    * WRITES on `send` (output ports) and READS via `msg[Channels]` (input ports).
