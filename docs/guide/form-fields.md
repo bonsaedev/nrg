@@ -80,6 +80,21 @@ SchemaType.String({
 
 TypeScript autocomplete is available for all `x-nrg-form` properties — no imports needed.
 
+::: tip Field help text
+A field's **label** and a **help note** shown under its input both come from the label file, not the schema — so they stay translatable per locale. Add a `description` to the field's `configs`/`credentials` entry:
+
+```json
+"configs": {
+  "timeout": {
+    "label": "Timeout (ms)",
+    "description": "Abort the request after this many milliseconds."
+  }
+}
+```
+
+The description renders as a muted note beneath the input (above any validation error) and in the field's Description column in the auto-generated help docs. See [Locales & Help Docs](./locales).
+:::
+
 **Example — adding icons to labels:**
 
 ```typescript
@@ -105,7 +120,7 @@ export const ConfigsSchema = defineSchema(
 ```
 
 ::: tip Label slot
-When building a custom form, all input components (`<NodeRedInput>`, `<NodeRedTypedInput>`, etc.) accept `label`, `icon`, and `required` props. You can also override the label entirely using the `label` slot for full customization:
+When building a custom form, all input components (`<NodeRedInput>`, `<NodeRedTypedInput>`, etc.) accept `label`, `icon`, `required`, and `help` props (`help` renders a muted note under the input, above the error). You can also override the label entirely using the `label` slot for full customization:
 
 ```vue
 <NodeRedInput v-model="node.name">

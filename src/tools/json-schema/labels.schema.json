@@ -23,16 +23,16 @@
       "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
     },
     "configs": {
-      "$ref": "#/$defs/labelMap",
-      "description": "Labels for config properties"
+      "$ref": "#/$defs/fieldMap",
+      "description": "Config property fields. Each value is a bare string (the field's display label) or a { label, description } object; the description renders as a help note under the field in the editor form and in the field's Description column in the auto-generated help docs."
     },
     "options": {
       "$ref": "#/$defs/portLabelMap",
       "description": "User-facing labels for enum/union option values, keyed by config field then option value (e.g. \"provider\": { \"anthropic\": \"Anthropic API\" }). Unset values fall back to the raw option value."
     },
     "credentials": {
-      "$ref": "#/$defs/labelMap",
-      "description": "Labels for credential properties"
+      "$ref": "#/$defs/fieldMap",
+      "description": "Credential property fields. Each value is a bare string (the field's display label) or a { label, description } object; the description renders as a help note under the field in the editor form and in the field's Description column in the auto-generated help docs."
     },
     "input": {
       "$ref": "#/$defs/port",
@@ -64,6 +64,26 @@
         "type": "string"
       },
       "description": "Maps property keys to human-readable labels"
+    },
+    "fieldMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/field" },
+      "description": "Maps a config/credential property key to its { label, description } entry."
+    },
+    "field": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The field's display label, shown next to its input in the editor form and in the Property column of the auto-generated help docs. Falls back to the schema title, then the property key, when unset."
+        },
+        "description": {
+          "type": "string",
+          "description": "A help note for the field: rendered under its input in the editor form (above any validation error) and in the field's Description column in the auto-generated help docs."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A config/credential field: its display label and a help note describing it."
     },
     "portLabelMap": {
       "type": "object",

@@ -25,6 +25,7 @@
         :aria-labelledby="labelId || undefined"
       ></div>
     </div>
+    <div v-if="help" class="node-red-vue-input-help-message">{{ help }}</div>
     <div v-show="error" class="node-red-vue-input-error-message">
       {{ error }}
     </div>
@@ -174,6 +175,11 @@ export default defineComponent({
       default: false,
     },
     error: {
+      type: String,
+      default: "",
+    },
+    /** A help note rendered under the input, above the error message. */
+    help: {
       type: String,
       default: "",
     },

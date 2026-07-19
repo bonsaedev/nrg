@@ -244,7 +244,7 @@ describe("help-generator", () => {
         title: ptBR.sections.configuration,
         schema,
         t: ptBR,
-        labels: { host: "Servidor", url: "URL" },
+        labels: { host: { label: "Servidor" }, url: { label: "URL" } },
       });
 
       expect(section).toContain("Configuração");
@@ -261,7 +261,7 @@ describe("help-generator", () => {
         title: "Test",
         schema,
         t: enUS,
-        labels: { host: "Host", url: "URL" },
+        labels: { host: { label: "Host" }, url: { label: "URL" } },
       });
 
       const labelPos = section.indexOf("<th>Label</th>");
@@ -320,7 +320,7 @@ describe("help-generator", () => {
         title: "Test",
         schema,
         t: enUS,
-        labels: { host: "Host", url: "URL" },
+        labels: { host: { label: "Host" }, url: { label: "URL" } },
         includeDefault: true,
       });
 
@@ -332,7 +332,7 @@ describe("help-generator", () => {
         title: "Test",
         schema,
         t: enUS,
-        labels: { host: "Host", url: "URL" },
+        labels: { host: { label: "Host" }, url: { label: "URL" } },
         includeDefault: false,
       });
 
@@ -453,7 +453,7 @@ describe("help-generator", () => {
         title: "Test",
         schema: schemaNoDefaults,
         t: enUS,
-        labels: { host: "Host" },
+        labels: { host: { label: "Host" } },
         includeDefault: true,
       });
 
@@ -519,7 +519,7 @@ describe("help-generator", () => {
     it("generates Properties section with Default column", () => {
       const doc = generateHelpDoc(
         mockNodeClass,
-        { configs: { url: "URL" } },
+        { configs: { url: { label: "URL" } } },
         enUS,
       );
 
@@ -532,8 +532,8 @@ describe("help-generator", () => {
         mockNodeClass,
         {
           description: "Descrição do nó.",
-          configs: { url: "URL" },
-          credentials: { apiKey: "Chave" },
+          configs: { url: { label: "URL" } },
+          credentials: { apiKey: { label: "Chave" } },
         },
         ptBR,
       );
@@ -585,8 +585,8 @@ describe("help-generator", () => {
         labelPath,
         JSON.stringify({
           description: "A test node",
-          configs: { host: "Host" },
-          credentials: { apiKey: "API Key" },
+          configs: { host: { label: "Host" } },
+          credentials: { apiKey: { label: "API Key" } },
           input: { label: "Request", description: "The incoming request" },
           outputs: {
             result: { label: "Result", description: "The parsed result" },
@@ -596,8 +596,8 @@ describe("help-generator", () => {
 
       const result = loadNodeLabels(labelPath);
       expect(result.description).toBe("A test node");
-      expect(result.configs).toEqual({ host: "Host" });
-      expect(result.credentials).toEqual({ apiKey: "API Key" });
+      expect(result.configs).toEqual({ host: { label: "Host" } });
+      expect(result.credentials).toEqual({ apiKey: { label: "API Key" } });
       expect(result.input).toEqual({
         label: "Request",
         description: "The incoming request",
@@ -755,7 +755,7 @@ describe("help-generator", () => {
       fs.mkdirSync(nodeLabelsDir);
       fs.writeFileSync(
         path.join(nodeLabelsDir, "en-US.json"),
-        JSON.stringify({ configs: { host: "Host" } }),
+        JSON.stringify({ configs: { host: { label: "Host" } } }),
       );
       expect(fs.existsSync(path.join(outDir, "index.js"))).toBe(false);
       expect(fs.existsSync(path.join(outDir, "index.mjs"))).toBe(false);
@@ -879,11 +879,11 @@ describe("help-generator", () => {
       fs.mkdirSync(nodeLabelsDir);
       fs.writeFileSync(
         path.join(nodeLabelsDir, "en-US.json"),
-        JSON.stringify({ configs: { host: "Host" } }),
+        JSON.stringify({ configs: { host: { label: "Host" } } }),
       );
       fs.writeFileSync(
         path.join(nodeLabelsDir, "pt-BR.json"),
-        JSON.stringify({ configs: { host: "Servidor" } }),
+        JSON.stringify({ configs: { host: { label: "Servidor" } } }),
       );
 
       const plugin = helpGenerator({

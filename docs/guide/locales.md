@@ -31,11 +31,14 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
   "paletteLabel": "Node",
   "description": "What this node does",
   "configs": {
-    "url": "API URL",
-    "timeout": "Timeout (ms)"
+    "url": { "label": "API URL" },
+    "timeout": {
+      "label": "Timeout (ms)",
+      "description": "Abort the request after this many milliseconds."
+    }
   },
   "credentials": {
-    "apiKey": "API Key"
+    "apiKey": { "label": "API Key" }
   },
   "input": {
     "label": "Request",
@@ -57,7 +60,7 @@ Each label file follows a standard flat format. Add `$schema` for IDE validation
 }
 ```
 
-Both `input` and each `outputs` entry are shaped `{ label, description }`: the **label** is the port's name on the canvas, and the **description** is the free-text shown in the port's row of the auto-generated help docs. Both keys are optional — an unset label leaves the port unlabeled on the canvas; in the generated help docs the port's row falls back to its declared port name.
+Every `configs`, `credentials`, `input`, and `outputs` entry is shaped `{ label, description }`. For a **config/credential field**, the **label** is shown next to its input in the editor form and in the Property column of the help docs, and the **description** renders as a help note under the field in the form (above any validation error) and in the field's Description column in the help docs. For a **port**, the **label** is the port's canvas name and the **description** is the free-text shown in the port's help-doc row. Both keys are optional — an unset config/credential label falls back to the schema title, then a spaced, Title-cased version of the property name; an unset port label leaves the port unlabeled on the canvas and its help-doc row falls back to the declared port name.
 
 ### Fields
 
@@ -66,9 +69,9 @@ Both `input` and each `outputs` entry are shaped `{ label, description }`: the *
 | `label` | Yes | Display name shown in the palette and workspace. Also used as the canvas label when no `name` is set. |
 | `paletteLabel` | No | Label shown in the palette. Falls back to `label` if not set. |
 | `description` | No | Node description for the help panel and palette tooltip. |
-| `configs` | No | Labels for config properties (maps property key → display label). Keys must match property names in your `configSchema` — e.g., `configs.url` provides the label for the `url` field. Also used in the auto-generated editor form. |
+| `configs` | No | Config-property fields (maps property key → `{ label, description }`). Keys must match property names in your `configSchema` — e.g., `configs.url` labels the `url` field. `label` is the field's editor-form label; `description` is a per-locale help note shown under the field. Both used in the auto-generated editor form and help docs. |
 | `options` | No | Friendly names for the choices in a dropdown field. Nest them by field name, then by the stored value — e.g. `{ "provider": { "anthropic": "Anthropic API" } }`. Any value you don't list keeps its raw name. |
-| `credentials` | No | Labels for credential properties |
+| `credentials` | No | Credential-property fields, same `{ label, description }` shape as `configs`. |
 | `input` | No | The single input port as `{ label, description }` — its canvas name and a help-doc description. |
 | `outputs` | No | The output ports. Use an **object keyed by port name** (named outputs — the common case) or an **array in tuple order** (positional/dynamic outputs); each entry is `{ label, description }`. |
 | `errors` | No | Custom error messages. Use `__field__` for placeholder substitution. |
@@ -91,7 +94,7 @@ An unset `label` shows no text on the canvas (the declared port name is used onl
 - **Always flat** — do not nest under the node type key. The build system wraps it automatically.
 - **`input` / `outputs` are per-port `{ label, description }`** — key `outputs` by port name (named ports) or by tuple index via an array (positional ports). Built-in error/complete/status ports are labeled automatically.
 - **`name` is optional** in `configs` — it's a system field and already has a built-in label
-- **`configs` labels are used in forms** — the auto-generated editor form resolves field labels from `configs` in the locale file, falling back to a spaced, Title-cased version of the field name (e.g. `apiUrl` → 'Api Url')
+- **`configs` fields are used in forms** — the auto-generated editor form resolves each field's label from `configs.<key>.label` (falling back to a spaced, Title-cased version of the field name, e.g. `apiUrl` → 'Api Url') and its help note from `configs.<key>.description`
 
 ### JSON Schema
 
@@ -142,16 +145,16 @@ For local development or when using a linked package, use the local path instead
       "description": "Node description for this language. Overrides the class-level description in auto-generated help docs."
     },
     "configs": {
-      "$ref": "#/$defs/labelMap",
-      "description": "Labels for config properties"
+      "$ref": "#/$defs/fieldMap",
+      "description": "Config property fields. Each value is a { label, description } object; the description renders as a help note under the field in the editor form and in the field's Description column in the auto-generated help docs."
     },
     "options": {
       "$ref": "#/$defs/portLabelMap",
       "description": "User-facing labels for enum/union option values, keyed by config field then option value (e.g. \"provider\": { \"anthropic\": \"Anthropic API\" }). Unset values fall back to the raw option value."
     },
     "credentials": {
-      "$ref": "#/$defs/labelMap",
-      "description": "Labels for credential properties"
+      "$ref": "#/$defs/fieldMap",
+      "description": "Credential property fields. Each value is a { label, description } object; the description renders as a help note under the field in the editor form and in the field's Description column in the auto-generated help docs."
     },
     "input": {
       "$ref": "#/$defs/port",
@@ -183,6 +186,26 @@ For local development or when using a linked package, use the local path instead
         "type": "string"
       },
       "description": "Maps property keys to human-readable labels"
+    },
+    "fieldMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/field" },
+      "description": "Maps a config/credential property key to its { label, description } entry."
+    },
+    "field": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The field's display label, shown next to its input in the editor form and in the Property column of the auto-generated help docs. Falls back to the schema title, then the property key, when unset."
+        },
+        "description": {
+          "type": "string",
+          "description": "A help note for the field: rendered under its input in the editor form (above any validation error) and in the field's Description column in the auto-generated help docs."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A config/credential field: its display label and a help note describing it."
     },
     "portLabelMap": {
       "type": "object",

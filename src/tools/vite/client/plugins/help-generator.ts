@@ -37,6 +37,7 @@ function buildPropertyRow(
   label?: string,
   parsedType?: string,
   tsType?: string,
+  labelDescription?: string,
 ): PropertyRow {
   let type = "";
   if (schema?.["x-nrg-node-type"]) {
@@ -96,7 +97,9 @@ function buildPropertyRow(
 
   const defaultVal =
     schema?.default !== undefined ? JSON.stringify(schema.default) : "";
-  const description = schema?.description ?? "";
+  // The label file's per-locale description wins; the schema's own description
+  // (untranslated) is the fallback when the label file omits one.
+  const description = labelDescription ?? schema?.description ?? "";
 
   return { name, label: label ?? "", type, required, defaultVal, description };
 }
@@ -144,7 +147,7 @@ interface SchemaSectionOptions {
    * alone; the schema, when present, only enriches config/credentials/settings. */
   schema?: any;
   t: HelpTranslations;
-  labels?: Record<string, string>;
+  labels?: Record<string, LabelEntry>;
   heading?: string;
   includeDefault?: boolean;
   /** Show the Description column. Type-driven sections (input/output) have no
@@ -269,9 +272,10 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
             f.name,
             schema?.properties?.[f.name],
             !f.optional,
-            labels?.[f.name],
+            labels?.[f.name]?.label,
             parsed?.[f.name],
             f.type,
+            labels?.[f.name]?.description,
           ),
         )
     : Object.entries(schema.properties)
@@ -281,8 +285,10 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
             key,
             propSchema as any,
             required.has(key),
-            labels?.[key],
+            labels?.[key]?.label,
             parsed?.[key],
+            undefined,
+            labels?.[key]?.description,
           ),
         );
 
@@ -294,22 +300,22 @@ function generateSchemaSection(options: SchemaSectionOptions): string {
   return `<${tag}>${title}</${tag}>\n${table}\n`;
 }
 
-/** One port's label file entry: its display label + a human description of what
- * it carries (mirrors the `port` $def in labels.schema.json). */
-interface PortLabels {
+/** A label-file entry with a display label + a human description — the shared
+ * shape of a config/credential `field` and a `port` in labels.schema.json. */
+interface LabelEntry {
   label?: string;
   description?: string;
 }
 
 interface NodeLabels {
   description?: string;
-  configs?: Record<string, string>;
-  credentials?: Record<string, string>;
+  configs?: Record<string, LabelEntry>;
+  credentials?: Record<string, LabelEntry>;
   /** The single input port: its label + payload-property labels. */
-  input?: PortLabels;
+  input?: LabelEntry;
   /** Output ports: an object keyed by port name (named) or an array in tuple
    * order (positional). Each entry gives the port's label + property labels. */
-  outputs?: PortLabels[] | Record<string, PortLabels>;
+  outputs?: LabelEntry[] | Record<string, LabelEntry>;
 }
 
 function loadNodeLabels(labelPath: string): NodeLabels {
@@ -331,10 +337,10 @@ function loadNodeLabels(labelPath: string): NodeLabels {
 /** Resolve an output port's label-file entry — by name for a named-port object,
  * by index for a positional array. */
 function outputPortLabels(
-  outputs: PortLabels[] | Record<string, PortLabels> | undefined,
+  outputs: LabelEntry[] | Record<string, LabelEntry> | undefined,
   port: NodeOutputPort,
   index: number,
-): PortLabels | undefined {
+): LabelEntry | undefined {
   if (!outputs) return undefined;
   if (Array.isArray(outputs)) return outputs[index];
   return port.name ? outputs[port.name] : undefined;

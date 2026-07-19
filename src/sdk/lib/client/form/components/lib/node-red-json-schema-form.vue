@@ -11,6 +11,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.${field.key}`]"
         :input-id="fieldId(field.key)"
       />
@@ -20,6 +21,7 @@
           :model-value="node[field.key]"
           :label="field.label"
           :icon="field.icon"
+          :help="field.helpText"
           @update:model-value="(val: boolean) => (node[field.key] = val)"
         />
       </div>
@@ -42,6 +44,9 @@
             }
           "
         />
+        <div v-if="field.helpText" class="node-red-vue-input-help-message">
+          {{ field.helpText }}
+        </div>
       </div>
 
       <NodeRedSelectInput
@@ -52,6 +57,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.${field.key}`]"
         :label-id="fieldId(field.key)"
       />
@@ -63,6 +69,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.${field.key}`]"
         :label-id="fieldId(field.key)"
       />
@@ -76,6 +83,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.${field.key}`]"
         :label-id="fieldId(field.key)"
       />
@@ -117,6 +125,9 @@
               .filter(Boolean)
           "
         />
+        <div v-if="field.helpText" class="node-red-vue-input-help-message">
+          {{ field.helpText }}
+        </div>
         <span
           v-if="errors[`node.${field.key}`]"
           class="node-red-vue-input-error-message"
@@ -136,6 +147,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.${field.key}`]"
         :label-id="fieldId(field.key)"
         @update:value="setObjectField(field.key, $event)"
@@ -148,6 +160,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.${field.key}`]"
         :label-id="fieldId(field.key)"
       />
@@ -164,6 +177,7 @@
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
+        :help="field.helpText"
         :error="errors[`node.credentials.${field.key}`]"
         :input-id="fieldId(`credentials.${field.key}`)"
       />
@@ -227,6 +241,9 @@ interface FormField {
   min?: number;
   max?: number;
   step?: number;
+  /** A per-locale help note (the field's `description` in the label catalog),
+   *  rendered under the input, above the error. */
+  helpText?: string;
   options?: Array<{ value: string; label: string }>;
   multiple?: boolean;
   types?: (NodeRED.DefaultTypedInputType | NodeRED.TypedInputTypeDefinition)[];
@@ -263,7 +280,33 @@ function isFieldRequired(isNonOptional: boolean): boolean {
   return isNonOptional;
 }
 
+/**
+ * Build a form field from its schema, then attach its help note. The note is a
+ * per-locale string from the label catalog (a config/credential field's
+ * `description`), resolved by the caller — never hardcoded in the schema, so
+ * every user-facing string stays translatable.
+ */
 function buildField(
+  key: string,
+  schema: FieldSchema,
+  required: boolean,
+  i18nLabel?: string,
+  i18nHelp?: string,
+  resolveOptionLabel?: (value: string) => string | undefined,
+): FormField {
+  const field = buildFieldBase(
+    key,
+    schema,
+    required,
+    i18nLabel,
+    resolveOptionLabel,
+  );
+  if (typeof i18nHelp === "string" && i18nHelp.trim())
+    field.helpText = i18nHelp.trim();
+  return field;
+}
+
+function buildFieldBase(
   key: string,
   schema: FieldSchema,
   required: boolean,
@@ -479,7 +522,8 @@ export default defineComponent({
             key,
             propSchema as FieldSchema,
             isFieldRequired(required.has(key)),
-            this.resolveI18n("configs", key),
+            this.resolveI18nLabel("configs", key),
+            this.resolveI18nHelp("configs", key),
             (value) => this.resolveOptionLabel(key, value),
           ),
         );
@@ -495,7 +539,8 @@ export default defineComponent({
           key,
           propSchema as FieldSchema,
           isFieldRequired(required.has(key)),
-          this.resolveI18n("credentials", key),
+          this.resolveI18nLabel("credentials", key),
+          this.resolveI18nHelp("credentials", key),
         );
         // Force credential fields to be text/password inputs
         if (f.inputType !== "text") {
@@ -533,26 +578,30 @@ export default defineComponent({
         node[key] = raw;
       }
     },
-    resolveI18n(prefix: string, key: string): string | undefined {
-      const resolved = this.$i18n(`${prefix}.${key}`);
-      const fullKey = `${this.node.type}.${prefix}.${key}`;
-      // RED._() returns the key itself when not found
-      if (resolved && resolved !== fullKey && resolved !== `${prefix}.${key}`) {
+    // Resolve a dotted i18n subpath in the node's locale catalog. RED._()
+    // echoes the key when unmapped, so a result equal to the key (bare or
+    // type-prefixed) means "not found" → undefined.
+    resolveI18nPath(path: string): string | undefined {
+      const resolved = this.$i18n(path);
+      const fullKey = `${this.node.type}.${path}`;
+      if (resolved && resolved !== fullKey && resolved !== path) {
         return resolved;
       }
       return undefined;
+    },
+    // A config/credential field's display label: `<prefix>.<key>.label`.
+    resolveI18nLabel(prefix: string, key: string): string | undefined {
+      return this.resolveI18nPath(`${prefix}.${key}.label`);
+    },
+    // A config/credential field's help note: `<prefix>.<key>.description`.
+    resolveI18nHelp(prefix: string, key: string): string | undefined {
+      return this.resolveI18nPath(`${prefix}.${key}.description`);
     },
     // Per-option label lookup: `options.<field>.<value>` in the node's locale
     // catalog. Returns undefined when unset so the caller falls back to the raw
     // enum value.
     resolveOptionLabel(field: string, value: string): string | undefined {
-      const subKey = `options.${field}.${value}`;
-      const resolved = this.$i18n(subKey);
-      const fullKey = `${this.node.type}.${subKey}`;
-      if (resolved && resolved !== fullKey && resolved !== subKey) {
-        return resolved;
-      }
-      return undefined;
+      return this.resolveI18nPath(`options.${field}.${value}`);
     },
   },
 });

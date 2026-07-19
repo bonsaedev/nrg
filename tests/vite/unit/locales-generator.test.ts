@@ -174,7 +174,7 @@ describe("locales-generator", () => {
         fs.readFileSync(path.join(outDir, "ja", "index.json"), "utf-8"),
       );
       // Should have ja framework labels
-      expect(output["my-node"].configs.name).toBe("名前");
+      expect(output["my-node"].configs.name).toEqual({ label: "名前" });
       expect(output["my-node"].portSettings.inputsTable.validate).toBe(
         "データを検証",
       );

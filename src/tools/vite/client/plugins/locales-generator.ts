@@ -27,7 +27,7 @@ function localesGenerator(options: {
   // Users can override any key in their own label files.
   const frameworkLabels: Record<string, Record<string, unknown>> = {
     "en-US": {
-      configs: { name: "Name" },
+      configs: { name: { label: "Name" } },
       toggles: {
         errorPort: "Error Port",
         completePort: "Complete Port",
@@ -85,7 +85,7 @@ function localesGenerator(options: {
       },
     },
     de: {
-      configs: { name: "Name" },
+      configs: { name: { label: "Name" } },
       toggles: {
         errorPort: "Fehler-Port",
         completePort: "Abschluss-Port",
@@ -143,7 +143,7 @@ function localesGenerator(options: {
       },
     },
     "es-ES": {
-      configs: { name: "Nombre" },
+      configs: { name: { label: "Nombre" } },
       toggles: {
         errorPort: "Puerto de error",
         completePort: "Puerto de completado",
@@ -201,7 +201,7 @@ function localesGenerator(options: {
       },
     },
     fr: {
-      configs: { name: "Nom" },
+      configs: { name: { label: "Nom" } },
       toggles: {
         errorPort: "Port d'erreur",
         completePort: "Port de complétion",
@@ -259,7 +259,7 @@ function localesGenerator(options: {
       },
     },
     ko: {
-      configs: { name: "이름" },
+      configs: { name: { label: "이름" } },
       toggles: {
         errorPort: "오류 포트",
         completePort: "완료 포트",
@@ -316,7 +316,7 @@ function localesGenerator(options: {
       },
     },
     "pt-BR": {
-      configs: { name: "Nome" },
+      configs: { name: { label: "Nome" } },
       toggles: {
         errorPort: "Porta de Erro",
         completePort: "Porta de Conclusão",
@@ -374,7 +374,7 @@ function localesGenerator(options: {
       },
     },
     ru: {
-      configs: { name: "Имя" },
+      configs: { name: { label: "Имя" } },
       toggles: {
         errorPort: "Порт ошибки",
         completePort: "Порт завершения",
@@ -432,7 +432,7 @@ function localesGenerator(options: {
       },
     },
     ja: {
-      configs: { name: "名前" },
+      configs: { name: { label: "名前" } },
       toggles: {
         errorPort: "エラーポート",
         completePort: "完了ポート",
@@ -490,7 +490,7 @@ function localesGenerator(options: {
       },
     },
     "zh-CN": {
-      configs: { name: "名称" },
+      configs: { name: { label: "名称" } },
       toggles: {
         errorPort: "错误端口",
         completePort: "完成端口",
@@ -546,7 +546,7 @@ function localesGenerator(options: {
       },
     },
     "zh-TW": {
-      configs: { name: "名稱" },
+      configs: { name: { label: "名稱" } },
       toggles: {
         errorPort: "錯誤端口",
         completePort: "完成端口",

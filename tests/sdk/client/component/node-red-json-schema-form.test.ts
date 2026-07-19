@@ -101,6 +101,49 @@ describe("NodeRedJsonSchemaForm", () => {
     expect(input?.getAttribute("step")).toBeNull();
   });
 
+  test("renders the config field's label-catalog description as help text", async () => {
+    const { node } = createNode({ retries: 3 });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: { retries: { type: "integer", title: "Retries" } },
+        },
+      },
+      global: {
+        mocks: {
+          // The help note is the field's `description` in the label catalog
+          // (per-locale), NOT a schema property — so it stays translatable.
+          $i18n: (key: string) =>
+            key === "configs.retries.description"
+              ? "How many times to retry."
+              : key,
+        },
+      },
+    });
+    const help = screen.container.querySelector(
+      ".node-red-vue-input-help-message",
+    );
+    expect(help?.textContent?.trim()).toBe("How many times to retry.");
+  });
+
+  test("no help node when the label catalog has no description for the field", async () => {
+    const { node } = createNode({ retries: 3 });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: { retries: { type: "integer", title: "Retries" } },
+        },
+      },
+    });
+    expect(
+      screen.container.querySelector(".node-red-vue-input-help-message"),
+    ).toBeNull();
+  });
+
   test("renders boolean with toggle option as toggle", async () => {
     const { node } = createNode({ enabled: true });
     const screen = render(NodeRedJsonSchemaForm, {

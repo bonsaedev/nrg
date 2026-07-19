@@ -3,7 +3,7 @@
   "label": "Config Server",
   "description": "Test config server for broker connections",
   "configs": {
-    "host": "Hostname",
-    "port": "Port"
+    "host": { "label": "Hostname" },
+    "port": { "label": "Port" }
   }
 }

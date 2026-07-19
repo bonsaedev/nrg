@@ -507,7 +507,11 @@ describe("help-generator — type-driven rendering", () => {
           },
         },
         t: enUS,
-        labels: { timeout: "Timeout", code: "Code", email: "Email" },
+        labels: {
+          timeout: { label: "Timeout" },
+          code: { label: "Code" },
+          email: { label: "Email" },
+        },
         typeFields: [
           { name: "timeout", type: "number", optional: false },
           { name: "code", type: "string", optional: false },
@@ -564,7 +568,7 @@ describe("help-generator — type-driven rendering", () => {
             },
           },
         },
-        { configs: { retries: "Retries" } },
+        { configs: { retries: { label: "Retries" } } },
         enUS,
         undefined,
         ioTypes({
@@ -656,14 +660,14 @@ describe("help-generator — type-driven rendering", () => {
     it("passing nodeTypes: undefined is identical to omitting the argument", () => {
       const withUndefined = generateHelpDoc(
         nodeClass,
-        { configs: { host: "Host" } },
+        { configs: { host: { label: "Host" } } },
         enUS,
         undefined,
         undefined,
       );
       const withoutArg = generateHelpDoc(
         nodeClass,
-        { configs: { host: "Host" } },
+        { configs: { host: { label: "Host" } } },
         enUS,
       );
       expect(withUndefined).toBe(withoutArg);
@@ -672,7 +676,7 @@ describe("help-generator — type-driven rendering", () => {
     it("renders config/credentials from schema, but no type-only Input/Output", () => {
       const doc = generateHelpDoc(
         nodeClass,
-        { configs: { host: "Host" } },
+        { configs: { host: { label: "Host" } } },
         enUS,
         undefined,
         undefined,

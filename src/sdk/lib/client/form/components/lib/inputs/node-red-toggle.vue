@@ -19,6 +19,7 @@
       </span>
       <span class="nrg-toggle__slider"></span>
     </label>
+    <div v-if="help" class="node-red-vue-input-help-message">{{ help }}</div>
   </div>
 </template>
 
@@ -37,6 +38,11 @@ export default defineComponent({
       default: "",
     },
     icon: {
+      type: String,
+      default: "",
+    },
+    /** A help note rendered under the toggle. */
+    help: {
       type: String,
       default: "",
     },

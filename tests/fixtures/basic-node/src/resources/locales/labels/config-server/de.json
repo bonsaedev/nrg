@@ -3,7 +3,7 @@
   "label": "Konfigurationsserver",
   "description": "Test-Konfigurationsserver fuer Broker-Verbindungen",
   "configs": {
-    "host": "Hostname",
-    "port": "Anschluss"
+    "host": { "label": "Hostname" },
+    "port": { "label": "Anschluss" }
   }
 }

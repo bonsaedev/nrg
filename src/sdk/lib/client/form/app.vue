@@ -216,6 +216,16 @@ export default defineComponent({
   color: var(--red-ui-text-color-error);
 }
 
+/* x-nrg-form.helpText — a muted note under a field's input, above its error.
+   Rendered by the input components (and inline fields); themed with Node-RED's
+   secondary-text color so it matches light/dark. */
+:deep(.node-red-vue-input-help-message) {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--red-ui-secondary-text-color, #888);
+}
+
 :deep(.form-row input[type="text"]),
 :deep(.form-row input[type="number"]),
 :deep(.form-row input[type="password"]) {
