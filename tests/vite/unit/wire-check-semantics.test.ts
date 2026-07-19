@@ -1003,4 +1003,42 @@ describe("wire-check semantics (TDD)", () => {
       report.paths.find((p) => p.wireIds.includes("s:0:r"))?.warn,
     ).toBeUndefined();
   });
+
+  // ── clearing a field with `undefined` (the supported "remove" convention) ──
+  // The record only ever grows or overwrites, so a node "clears" a field by
+  // re-adding it as `undefined` (Port<{ field: undefined }>). Downstream readers
+  // that REQUIRE the field then red; optional / non-readers stay green.
+  const clearReg: Registry = {
+    src: {
+      source: true,
+      reads: "object",
+      ports: [{ name: "o", adds: "{ price: number }" }],
+    },
+    clear: {
+      reads: "{ price: number }",
+      ports: [{ name: "o", adds: "{ price: undefined }" }], // clears price
+    },
+    wantPrice: { reads: "{ price: number }", ports: [] }, // requires it
+    wantOptional: { reads: "{ price?: number }", ports: [] }, // optional
+  };
+
+  it("clearing a field with `undefined` reds a downstream reader that REQUIRES it", () => {
+    const flow = [
+      tab,
+      n("s", "src", [["c"]]),
+      n("c", "clear", [["r"]]),
+      n("r", "wantPrice", []),
+    ];
+    expect(failed(flow, clearReg)).toEqual(["c:0:r"]);
+  });
+
+  it("clearing a field with `undefined` stays green for an OPTIONAL reader", () => {
+    const flow = [
+      tab,
+      n("s", "src", [["c"]]),
+      n("c", "clear", [["r"]]),
+      n("r", "wantOptional", []),
+    ];
+    expect(failed(flow, clearReg)).toEqual([]);
+  });
 });
