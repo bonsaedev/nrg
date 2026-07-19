@@ -149,8 +149,8 @@ const {
   white-space: nowrap;
 }
 
-/* Control columns (Validate Data / Data Schema / Validate Types / Enable) fit
-   their header + control, on a single line. */
+/* Control columns (Validate Data / Data Schema / Enable) fit their header +
+   control, on a single line. */
 :deep(.nrg-cell-flag) {
   white-space: nowrap;
 }

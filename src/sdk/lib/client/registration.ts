@@ -1,5 +1,4 @@
 import { defineNode } from "./define-node";
-import { registerNrgType } from "./wire-check/registry";
 import {
   validateNode,
   composeValidationSchema,
@@ -292,10 +291,6 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       onpaletteadd: nodeDefinition.onPaletteAdd,
       onpaletteremove: nodeDefinition.onPaletteRemove,
     });
-
-    // Record this as an nrg-owned type so the wire checker can tell an nrg
-    // endpoint (resolvable, carries an owning module) from a plain Node-RED node.
-    registerNrgType(type);
   } catch (error) {
     console.error(`Error while registering node type ${type}:`, error);
     throw error;

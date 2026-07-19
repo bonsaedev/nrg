@@ -81,16 +81,10 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
 
     // Data-validation config (`inputSchema`/`outputSchemas`/`validateInput`/
     // `validateOutputs`) is merged into the config schema for every IONode, so
-    // its defaults come straight from `getDefaultsFromSchema` — no
-    // special injection here. Only the design-time wire type-check flags are
-    // added, gated on the node actually having a typed input / typed outputs.
+    // its defaults come straight from `getDefaultsFromSchema` — no special
+    // injection here. (Wire type-checking is deploy-only, with no per-node opt-in,
+    // so there are no `validateInputTypes`/`validateOutputTypes` defaults.)
     const defaults = getDefaultsFromSchema(configSchema);
-    if (defaults && NodeClass.inputs > 0) {
-      defaults.validateInputTypes = { required: false, value: false };
-    }
-    if (defaults && NodeClass.outputs > 0) {
-      defaults.validateOutputTypes = { required: false, value: {} };
-    }
     const credentials = getCredentialsFromSchema(credentialsSchema);
 
     definitions[type] = {

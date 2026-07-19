@@ -91,8 +91,9 @@ function checkFlowConfig(
       }
     }
 
-    // An untyped-source → typed-reader caveat rides the PATH; map it onto each raw
-    // wire the path traverses so a per-wire probe (the editor) can surface it too.
+    // A typed↔untyped boundary caveat rides the PATH; map it onto each raw wire
+    // the path traverses so the editor can paint each one (report.ts reads the
+    // per-wire `warn` to paint the boundary yellow).
     const warnByWireId = new Map<string, string>();
     for (const p of paths) {
       if (!p.warn) continue;

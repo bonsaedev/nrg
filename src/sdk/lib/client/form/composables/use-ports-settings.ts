@@ -1,6 +1,5 @@
 import { type JSONSchemaType } from "ajv";
 import { computed, inject } from "vue";
-import { typeCheckEnabled } from "../../wire-check/availability";
 import type { NodeFeatures, NodeRedNode } from "../../types";
 import {
   outputRows as computeOutputRows,
@@ -31,19 +30,6 @@ function usePortsSettings() {
   const features = inject<NodeFeatures>("__nrg_features")!;
   const openSchemaTray = inject<OpenSchemaTray>("__nrg_open_schema_tray")!;
 
-  /**
-   * Whether THIS node offers input/output type-checking. The build injects the
-   * `validateInputTypes` / `validateOutputTypes` default only for nodes with a
-   * typed input / typed outputs, so its presence on the node definition is the
-   * node's opt-in. The Validate Types column renders only when the node offers
-   * it AND the type-check plugin is installed ({@link typeCheckEnabled}).
-   */
-  const supportsInputTypeValidation = computed(
-    (): boolean => localNode._def?.defaults?.validateInputTypes !== undefined,
-  );
-  const supportsOutputTypeValidation = computed(
-    (): boolean => localNode._def?.defaults?.validateOutputTypes !== undefined,
-  );
   /**
    * Whether this node accepts per-port output DATA-VALIDATION schema overrides
    * — true when its config schema declares `outputSchemas`. Renders the Schema
@@ -147,17 +133,6 @@ function usePortsSettings() {
     };
   }
 
-  function validateOutputTypesFor(index: number): boolean {
-    return localNode.validateOutputTypes?.[index] ?? false;
-  }
-
-  function setValidateOutputTypes(index: number, checked: boolean) {
-    localNode.validateOutputTypes = {
-      ...(localNode.validateOutputTypes ?? {}),
-      [index]: checked,
-    };
-  }
-
   /** The effective schema string for a port: the flow-author override, else the
    * author default, else empty. */
   function outputSchemaFor(index: number): string {
@@ -209,7 +184,6 @@ function usePortsSettings() {
     localNode,
     errors,
     features,
-    typeCheckEnabled,
     // computed
     showPortsSettings,
     showOutputs,
@@ -220,8 +194,6 @@ function usePortsSettings() {
     hasOutputValidation,
     hasOutputSchemas,
     acceptsInputSchema,
-    supportsInputTypeValidation,
-    supportsOutputTypeValidation,
     outputRows,
     inputLabel,
     // functions
@@ -230,8 +202,6 @@ function usePortsSettings() {
     recalculateOutputs,
     validateOutputFor,
     setValidateOutput,
-    validateOutputTypesFor,
-    setValidateOutputTypes,
     outputSchemaFor,
     setOutputSchema,
     inputSchemaValue,

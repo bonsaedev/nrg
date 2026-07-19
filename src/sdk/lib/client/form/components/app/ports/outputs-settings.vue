@@ -24,17 +24,6 @@
                 resolveLabel("portSettings.outputsTable.schema", "Data Schema")
               }}
             </th>
-            <th
-              v-if="typeCheckEnabled && supportsOutputTypeValidation"
-              class="nrg-cell-flag"
-            >
-              {{
-                resolveLabel(
-                  "portSettings.outputsTable.validateTypes",
-                  "Validate Types",
-                )
-              }}
-            </th>
             <th class="nrg-cell-desc">
               {{
                 resolveLabel(
@@ -77,18 +66,6 @@
                 </span>
               </button>
             </td>
-            <td
-              v-if="typeCheckEnabled && supportsOutputTypeValidation"
-              class="nrg-cell-flag"
-            >
-              <NodeRedToggle
-                :model-value="validateOutputTypesFor(port.index)"
-                :aria-label="`${resolveLabel('portSettings.outputsTable.validateTypes', 'Validate Types')} — ${port.label}`"
-                @update:model-value="
-                  (val: boolean) => setValidateOutputTypes(port.index, val)
-                "
-              />
-            </td>
             <td class="nrg-cell-desc">{{ port.description }}</td>
           </tr>
         </tbody>
@@ -119,33 +96,6 @@
           }}</a
         >
       </li>
-      <li v-if="typeCheckEnabled && supportsOutputTypeValidation">
-        <strong>{{
-          resolveLabel(
-            "portSettings.outputsTable.validateTypes",
-            "Validate Types",
-          )
-        }}</strong>
-        —
-        {{
-          resolveLabel(
-            "portSettings.outputsTable.help.validateTypes",
-            "Type-check wires from this port on deploy (TypeScript).",
-          )
-        }}
-        <a
-          class="nrg-help-link"
-          :href="docsUrl('/guide/schemas#output-schema')"
-          target="_blank"
-          rel="noopener noreferrer"
-          >{{
-            resolveLabel(
-              "portSettings.outputsTable.help.learnMore",
-              "Learn more",
-            )
-          }}</a
-        >
-      </li>
     </ul>
   </div>
 </template>
@@ -155,17 +105,13 @@ import { usePortsSettings } from "../../../composables/use-ports-settings";
 
 const {
   errors,
-  typeCheckEnabled,
   hasOutputValidation,
   hasOutputSchemas,
-  supportsOutputTypeValidation,
   outputRows,
   resolveLabel,
   docsUrl,
   validateOutputFor,
   setValidateOutput,
-  validateOutputTypesFor,
-  setValidateOutputTypes,
   openOutputSchemaEditor,
 } = usePortsSettings();
 </script>

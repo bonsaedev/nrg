@@ -1,17 +1,14 @@
 /**
  * Deploy-report consumer — the editor half of the dev-loop wire check.
  *
- * The wire-check plugin re-checks the WHOLE flow after every deploy
- * (`flows:started`) and pushes the per-wire report over `RED.comms` (retained,
- * so a freshly-opened editor receives the latest verdict immediately). This
- * module subscribes, paints failing wires red on the canvas, and raises one
- * notification — the push arrives when the check has actually FINISHED, unlike
- * a deploy-event sweep, which would race the server and read stale verdicts.
- *
- * NOTE: the deploy report paints EVERY failing wire — it intentionally ignores
- * the per-wire opt-in gate (`plan.shouldCheck`) that filters interactive
- * `links:add` checks. A deploy is a whole-flow verdict; the gate only throttles
- * the live per-wire probes.
+ * The wire check is DEPLOY-ONLY: the plugin re-checks the WHOLE flow after every
+ * deploy (`flows:started`) and pushes the per-wire report over `RED.comms`
+ * (retained, so a freshly-opened editor receives the latest verdict immediately).
+ * This module subscribes, paints failing wires red and typed↔untyped boundaries
+ * yellow, and raises one notification — the push arrives when the check has
+ * actually FINISHED, unlike a deploy-event sweep, which would race the server and
+ * read stale verdicts. There is no per-wire probe or per-node opt-in: a wire's
+ * validity depends on the whole upstream accumulation, not its two endpoints.
  */
 
 interface ReportWire {

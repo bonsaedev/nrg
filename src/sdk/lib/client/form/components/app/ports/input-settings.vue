@@ -26,17 +26,6 @@
                 resolveLabel("portSettings.inputsTable.schema", "Data Schema")
               }}
             </th>
-            <th
-              v-if="typeCheckEnabled && supportsInputTypeValidation"
-              class="nrg-cell-flag"
-            >
-              {{
-                resolveLabel(
-                  "portSettings.inputsTable.validateTypes",
-                  "Validate Types",
-                )
-              }}
-            </th>
             <th class="nrg-cell-desc">
               {{
                 resolveLabel(
@@ -85,25 +74,6 @@
                 </span>
               </button>
             </td>
-            <td
-              v-if="typeCheckEnabled && supportsInputTypeValidation"
-              class="nrg-cell-flag"
-            >
-              <NodeRedToggle
-                :model-value="localNode.validateInputTypes"
-                :aria-label="
-                  resolveLabel(
-                    'portSettings.inputsTable.validateTypes',
-                    'Validate Types',
-                  )
-                "
-                @update:model-value="
-                  (val: boolean) => {
-                    localNode.validateInputTypes = val;
-                  }
-                "
-              />
-            </td>
             <td class="nrg-cell-desc">
               {{ resolveLabel("input.description", "") }}
             </td>
@@ -136,21 +106,6 @@
           }}</a
         >
       </li>
-      <li v-if="typeCheckEnabled && supportsInputTypeValidation">
-        <strong>{{
-          resolveLabel(
-            "portSettings.inputsTable.validateTypes",
-            "Validate Types",
-          )
-        }}</strong>
-        —
-        {{
-          resolveLabel(
-            "portSettings.inputsTable.help.validateTypes",
-            "Type-check wires connected to this input on deploy (TypeScript).",
-          )
-        }}
-      </li>
     </ul>
   </div>
 </template>
@@ -161,9 +116,7 @@ import { usePortsSettings } from "../../../composables/use-ports-settings";
 const {
   localNode,
   errors,
-  typeCheckEnabled,
   acceptsInputSchema,
-  supportsInputTypeValidation,
   inputLabel,
   resolveLabel,
   docsUrl,

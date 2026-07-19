@@ -40,13 +40,10 @@ function localesGenerator(options: {
           label: "Label",
           validate: "Validate Data",
           schema: "Data Schema",
-          validateTypes: "Validate Types",
           description: "Description",
           help: {
             validate:
               "Validate incoming messages against the input schema before input() runs.",
-            validateTypes:
-              "Type-check wires connected to this input on deploy (TypeScript).",
             learnMore: "Learn more",
           },
         },
@@ -55,13 +52,10 @@ function localesGenerator(options: {
           label: "Label",
           validate: "Validate Data",
           schema: "Data Schema",
-          validateTypes: "Validate Types",
           description: "Description",
           help: {
             validate:
               "Check the sent value against this port's schema before it is emitted.",
-            validateTypes:
-              "Type-check wires from this port on deploy (TypeScript).",
             learnMore: "Learn more",
           },
         },
@@ -104,13 +98,10 @@ function localesGenerator(options: {
           label: "Bezeichnung",
           validate: "Daten validieren",
           schema: "Datenschema",
-          validateTypes: "Typen prüfen",
           description: "Beschreibung",
           help: {
             validate:
               "Eingehende Nachrichten vor dem Ausführen von input() gegen das Eingabe-Schema validieren.",
-            validateTypes:
-              "Typprüfung der mit diesem Eingang verbundenen Verbindungen beim Deployment (TypeScript).",
             learnMore: "Mehr erfahren",
           },
         },
@@ -119,13 +110,10 @@ function localesGenerator(options: {
           label: "Bezeichnung",
           validate: "Daten validieren",
           schema: "Datenschema",
-          validateTypes: "Typen prüfen",
           description: "Beschreibung",
           help: {
             validate:
               "Prüft den gesendeten Wert gegen das Schema dieses Ports, bevor er ausgegeben wird.",
-            validateTypes:
-              "Typprüfung der von diesem Port ausgehenden Verbindungen beim Deployment (TypeScript).",
             learnMore: "Mehr erfahren",
           },
         },
@@ -168,13 +156,10 @@ function localesGenerator(options: {
           label: "Etiqueta",
           validate: "Validar datos",
           schema: "Esquema de datos",
-          validateTypes: "Validar tipos",
           description: "Descripción",
           help: {
             validate:
               "Valida los mensajes entrantes con el esquema de entrada antes de ejecutar input().",
-            validateTypes:
-              "Comprueba los tipos de las conexiones a esta entrada al desplegar (TypeScript).",
             learnMore: "Más información",
           },
         },
@@ -183,13 +168,10 @@ function localesGenerator(options: {
           label: "Etiqueta",
           validate: "Validar datos",
           schema: "Esquema de datos",
-          validateTypes: "Validar tipos",
           description: "Descripción",
           help: {
             validate:
               "Comprueba el valor enviado contra el esquema de este puerto antes de emitirlo.",
-            validateTypes:
-              "Comprueba los tipos de las conexiones desde este puerto al desplegar (TypeScript).",
             learnMore: "Más información",
           },
         },
@@ -232,13 +214,10 @@ function localesGenerator(options: {
           label: "Libellé",
           validate: "Valider les données",
           schema: "Schéma de données",
-          validateTypes: "Valider les types",
           description: "Description",
           help: {
             validate:
               "Valide les messages entrants avec le schéma d'entrée avant l'exécution de input().",
-            validateTypes:
-              "Vérifie les types des liaisons connectées à cette entrée au déploiement (TypeScript).",
             learnMore: "En savoir plus",
           },
         },
@@ -247,13 +226,10 @@ function localesGenerator(options: {
           label: "Libellé",
           validate: "Valider les données",
           schema: "Schéma de données",
-          validateTypes: "Valider les types",
           description: "Description",
           help: {
             validate:
               "Vérifie la valeur envoyée par rapport au schéma de ce port avant l'émission.",
-            validateTypes:
-              "Vérifie les types des liaisons issues de ce port au déploiement (TypeScript).",
             learnMore: "En savoir plus",
           },
         },
@@ -296,13 +272,10 @@ function localesGenerator(options: {
           label: "레이블",
           validate: "데이터 검증",
           schema: "데이터 스키마",
-          validateTypes: "타입 검증",
           description: "설명",
           help: {
             validate:
               "input() 실행 전에 들어오는 메시지를 입력 스키마로 검증합니다.",
-            validateTypes:
-              "배포 시 이 입력에 연결된 와이어의 타입을 검사합니다 (TypeScript).",
             learnMore: "자세히 보기",
           },
         },
@@ -311,12 +284,9 @@ function localesGenerator(options: {
           label: "레이블",
           validate: "데이터 검증",
           schema: "데이터 스키마",
-          validateTypes: "타입 검증",
           description: "설명",
           help: {
             validate: "값을 내보내기 전에 이 포트의 스키마에 대해 검사합니다.",
-            validateTypes:
-              "배포 시 이 포트에서 나가는 와이어의 타입을 검사합니다 (TypeScript).",
             learnMore: "자세히 보기",
           },
         },
@@ -359,13 +329,10 @@ function localesGenerator(options: {
           label: "Rótulo",
           validate: "Validar dados",
           schema: "Esquema de dados",
-          validateTypes: "Validar tipos",
           description: "Descrição",
           help: {
             validate:
               "Valida as mensagens recebidas com o esquema de entrada antes de input() executar.",
-            validateTypes:
-              "Verifica os tipos das conexões ligadas a esta entrada ao implantar (TypeScript).",
             learnMore: "Saiba mais",
           },
         },
@@ -374,13 +341,10 @@ function localesGenerator(options: {
           label: "Rótulo",
           validate: "Validar dados",
           schema: "Esquema de dados",
-          validateTypes: "Validar tipos",
           description: "Descrição",
           help: {
             validate:
               "Verifica o valor enviado em relação ao esquema desta porta antes de emiti-lo.",
-            validateTypes:
-              "Verifica os tipos das conexões a partir desta porta ao implantar (TypeScript).",
             learnMore: "Saiba mais",
           },
         },
@@ -423,13 +387,10 @@ function localesGenerator(options: {
           label: "Метка",
           validate: "Проверять данные",
           schema: "Схема данных",
-          validateTypes: "Проверять типы",
           description: "Описание",
           help: {
             validate:
               "Проверять входящие сообщения по схеме ввода перед вызовом input().",
-            validateTypes:
-              "Проверяет типы соединений с этим входом при развёртывании (TypeScript).",
             learnMore: "Подробнее",
           },
         },
@@ -438,13 +399,10 @@ function localesGenerator(options: {
           label: "Метка",
           validate: "Проверять данные",
           schema: "Схема данных",
-          validateTypes: "Проверять типы",
           description: "Описание",
           help: {
             validate:
               "Проверяет отправляемое значение по схеме этого порта перед отправкой.",
-            validateTypes:
-              "Проверяет типы соединений из этого порта при развёртывании (TypeScript).",
             learnMore: "Подробнее",
           },
         },
@@ -487,13 +445,10 @@ function localesGenerator(options: {
           label: "ラベル",
           validate: "データを検証",
           schema: "データスキーマ",
-          validateTypes: "型を検証",
           description: "説明",
           help: {
             validate:
               "input() の実行前に、受信メッセージを入力スキーマで検証します。",
-            validateTypes:
-              "デプロイ時にこの入力に接続されたワイヤーの型を検査します（TypeScript）。",
             learnMore: "詳細",
           },
         },
@@ -502,13 +457,10 @@ function localesGenerator(options: {
           label: "ラベル",
           validate: "データを検証",
           schema: "データスキーマ",
-          validateTypes: "型を検証",
           description: "説明",
           help: {
             validate:
               "送信前に、送信値をこのポートのスキーマに対して検証します。",
-            validateTypes:
-              "デプロイ時にこのポートから出るワイヤーの型を検査します（TypeScript）。",
             learnMore: "詳細",
           },
         },
@@ -551,12 +503,9 @@ function localesGenerator(options: {
           label: "标签",
           validate: "验证数据",
           schema: "数据模式",
-          validateTypes: "验证类型",
           description: "说明",
           help: {
             validate: "在 input() 运行前，根据输入结构描述校验传入消息。",
-            validateTypes:
-              "部署时对连接到此输入的连线进行类型检查（TypeScript）。",
             learnMore: "了解更多",
           },
         },
@@ -565,12 +514,9 @@ function localesGenerator(options: {
           label: "标签",
           validate: "验证数据",
           schema: "数据模式",
-          validateTypes: "验证类型",
           description: "说明",
           help: {
             validate: "在发送前根据此端口的模式检查发送的值。",
-            validateTypes:
-              "部署时对从此端口发出的连线进行类型检查（TypeScript）。",
             learnMore: "了解更多",
           },
         },
@@ -613,12 +559,9 @@ function localesGenerator(options: {
           label: "標籤",
           validate: "驗證資料",
           schema: "資料綱要",
-          validateTypes: "驗證類型",
           description: "說明",
           help: {
             validate: "在 input() 執行前，依輸入結構描述驗證傳入訊息。",
-            validateTypes:
-              "部署時對連接到此輸入的連線進行型別檢查（TypeScript）。",
             learnMore: "瞭解更多",
           },
         },
@@ -627,12 +570,9 @@ function localesGenerator(options: {
           label: "標籤",
           validate: "驗證資料",
           schema: "資料綱要",
-          validateTypes: "驗證類型",
           description: "說明",
           help: {
             validate: "在發送前根據此埠的結構描述檢查發送的值。",
-            validateTypes:
-              "部署時對從此埠發出的連線進行型別檢查（TypeScript）。",
             learnMore: "瞭解更多",
           },
         },

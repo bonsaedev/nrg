@@ -83,14 +83,8 @@ export default defineComponent({
   beforeMount() {
     // Per-port output maps: give each node its own objects (the injected
     // defaults may be shared {} references) so edits don't leak across nodes.
-    // Clone whichever maps the node actually declares — not gated on a runtime
-    // `outputsSchema`, since a types-first node can declare these (e.g.
-    // `validateOutputTypes`) with no output schema at all.
-    for (const key of [
-      "validateOutputs",
-      "validateOutputTypes",
-      "outputSchemas",
-    ] as const) {
+    // Clone whichever maps the node actually declares.
+    for (const key of ["validateOutputs", "outputSchemas"] as const) {
       const existing = this.localNode[key];
       if (existing && typeof existing === "object") {
         this.localNode[key] = { ...existing };

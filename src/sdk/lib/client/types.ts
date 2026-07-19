@@ -81,20 +81,16 @@ interface NodeRedNode {
   outputs?: number;
   /** injected when the node has an inputSchema */
   validateInput?: boolean;
-  /** design-time: type-check wires into this node's input (editor wire check) */
-  validateInputTypes?: boolean;
   /** built-in port toggles, present when declared in the configSchema */
   errorPort?: boolean;
   completePort?: boolean;
   statusPort?: boolean;
   /**
-   * Per-port output settings, indexed by base-output port. All three are
-   * framework config fields merged into every IONode's config schema; read at
+   * Per-port output data-validation settings, indexed by base-output port — a
+   * framework config field merged into every IONode's config schema; read at
    * runtime by IONode.
    */
   validateOutputs?: Record<number, boolean>;
-  /** design-time: type-check wires out of a base output port (editor wire check) */
-  validateOutputTypes?: Record<number, boolean>;
 
   [key: string]: any;
 }

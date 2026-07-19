@@ -5,15 +5,15 @@
  * to Node-RED's `nodesDir` by the nrg vite launcher, so `pnpm dev` in any nrg
  * package gets flow type-checking with ZERO extra installs:
  *
+ * The check is DEPLOY-ONLY — a wire's validity depends on the whole upstream
+ * accumulation, not its two endpoints, so there is no per-wire probe and no
+ * per-node opt-in:
  *  - on every DEPLOY (`flows:started`) the whole flow config is compiled into
  *    a program (accumulating-record model) and type-checked in memory; the
- *    per-wire verdicts are printed to the Node-RED log — i.e. straight into
- *    the `pnpm dev` terminal;
- *  - `GET  nrg/type-check/status` → `{ available: true }` (the editor's
- *    feature gate — turns the Validate Types controls on);
- *  - `GET  nrg/type-check/flow`   → the latest full report (curl-able);
- *  - `POST nrg/type-check` / `.../batch` → verdicts for specific wires, looked
- *    up from the latest deploy report (the editor's per-wire probes).
+ *    per-wire verdicts are printed to the Node-RED log (the `pnpm dev` terminal)
+ *    AND pushed over `RED.comms` so the editor paints the canvas;
+ *  - `GET  nrg/type-check/status` → `{ available: true }` (health/introspection);
+ *  - `GET  nrg/type-check/flow`   → the latest full report (curl-able).
  *
  * The registry (node types → reads/adds) is built ONCE per process from the
  * package's server source via the production extractor; the dev loop restarts
@@ -116,62 +116,10 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
       res.json(latest ?? { ok: true, wires: [], pending: true });
     },
   );
-
-  // Per-wire probes from the editor: answer from the latest deploy report.
-  // The `checked` field is REQUIRED by the client contract — its interactive
-  // reject only fires on `{ ok:false, checked:true }`; an unknown (not-yet-
-  // deployed) wire fails OPEN with `checked:false` + a reason, so a freshly-drawn
-  // wire is "deploy to check", never destructively removed.
-  const wireVerdict = (
-    id: string,
-  ): {
-    ok: boolean;
-    checked: boolean;
-    message?: string;
-    warn?: string;
-    reason?: string;
-  } => {
-    const hit = latest?.wires.find((w) => w.id === id);
-    if (!hit) {
-      return {
-        ok: true,
-        checked: false,
-        reason: "unchecked — deploy to type-check this wire",
-      };
-    }
-    // A warn (untyped source → typed reader) rides ON a passing wire — surface it
-    // even when ok, so the editor can flag the unverified boundary non-fatally.
-    return hit.ok
-      ? { ok: true, checked: true, ...(hit.warn ? { warn: hit.warn } : {}) }
-      : { ok: false, checked: true, message: hit.message };
-  };
-
-  const parseBody = (
-    req: { body?: unknown; on(ev: string, cb: (c?: string) => void): void },
-    _res: unknown,
-    next: () => void,
-  ): void => {
-    if (req.body) return next();
-    let raw = "";
-    req.on("data", (c) => (raw += c ?? ""));
-    req.on("end", () => {
-      try {
-        req.body = JSON.parse(raw || "{}");
-      } catch {
-        req.body = {};
-      }
-      next();
-    });
-  };
-
-  RED.httpAdmin.post(
-    "/nrg/type-check",
-    read,
-    parseBody,
-    (req: { body?: { id?: string } }, res: { json(v: unknown): void }) => {
-      res.json(wireVerdict(req.body?.id ?? ""));
-    },
-  );
+  // No per-wire POST route: the check is DEPLOY-ONLY. The whole-flow report is
+  // pushed over RED.comms on every deploy and the editor paints from it; there is
+  // no interactive per-wire probe (a wire's validity needs the whole upstream
+  // accumulation, not its two endpoints — see the deploy-only design).
 }
 
 // Node-RED requires the plugin module and CALLS module.exports(RED) directly;
