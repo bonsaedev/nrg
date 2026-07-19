@@ -38,7 +38,7 @@ describe("types-only node in a real runtime", () => {
 
     await node.receive({ payload: "ok" });
 
-    const out = (await node.read()) as { value: number };
+    const out = await node.read("out");
     expect(out.value).toBe(1);
     expect(node.sent()).toHaveLength(1);
   });

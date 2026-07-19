@@ -3,8 +3,46 @@ import type {
   NodeConstructor,
   NodeContextStore,
 } from "@/sdk/lib/server/nodes/types/node";
+import type {
+  PortTuple,
+  WrappedPort,
+  PortMessage,
+  ErrorPortOutput,
+  CompletePortOutput,
+  StatusPortOutput,
+  OutputPortNames,
+  PortChannels,
+  InputSpec,
+  OutputSpec,
+} from "@/sdk/test/server/unit";
 import type { Recorder } from "./recorder";
 import type { NodeRedApi, RuntimeNode } from "./runtime";
+
+/** Recover a node instance's declared input/output port maps from the phantom
+ * marker the test-only `sent` shim adds to `IONode` — the wrapper handle can't
+ * read `TInput`/`TOutput` in lexical scope the way the unit harness's augmented
+ * `sent()` does, so it reads them structurally off the marker instead. */
+type NodeOut<N> = N extends {
+  readonly ["~nrgPortMaps"]?: { output: infer O };
+}
+  ? O extends OutputSpec
+    ? O
+    : never
+  : never;
+type NodeIn<N> = N extends { readonly ["~nrgPortMaps"]?: { input: infer I } }
+  ? I extends InputSpec
+    ? I
+    : never
+  : never;
+
+/** One frame off any output port — the element type `read()`/`sent()` yield when
+ * the port isn't named (a bare `read()` reads across ports). */
+type AnyFrame<N> = PortTuple<NodeOut<N>, NodeIn<N>>[number];
+
+/** The channel shape declared on a named port — guarded so a resolved-but-conditional
+ * `NodeOut<N>` is indexable (`P extends OutputPortNames<NodeOut<N>>` alone doesn't
+ * prove `P` keys the conditional type). */
+type PortChannelsOf<O, P> = P extends keyof O ? PortChannels<O[P]> : object;
 
 interface NodeContext {
   node: NodeContextStore;
@@ -41,7 +79,7 @@ interface ReadOptions {
  * instance lives inside the runtime, so harness methods (`receive`/`read`/…)
  * never collide with the node's own methods.
  */
-class NodeRef {
+class NodeRef<N = unknown> {
   readonly id: string;
   readonly type: string;
   readonly isConfig: boolean;
@@ -52,27 +90,68 @@ class NodeRef {
 
   readonly #flow: Flow;
   readonly #readCursor = new Map<number | undefined, number>();
+  /** The node's declared data-output port names (type-derived), used to resolve
+   * `read("portName")` and the built-in lifecycle slots to their slot index. */
+  readonly #outputPortNames: string[];
 
   constructor(
     flow: Flow,
     type: string,
     isConfig: boolean,
     config: Record<string, unknown>,
+    outputPortNames: string[],
     opts: AddNodeOptions,
   ) {
     this.#flow = flow;
     this.type = type;
     this.isConfig = isConfig;
     this.config = config;
+    this.#outputPortNames = outputPortNames;
     this.credentials = opts.credentials;
     this.id = opts.id ?? genId("n");
     this.name = opts.name ?? "";
   }
 
-  /** Wire this node's output `port` to `target`'s input. */
-  wire(target: NodeRef, port = 0): this {
-    while (this.wires.length <= port) this.wires.push([]);
-    this.wires[port].push(target.id);
+  /** Resolve a port reference to its slot index. A number passes through; a
+   * data-port name resolves via the type-derived names; the built-in lifecycle
+   * names resolve to their positional slot beyond the data ports — the same
+   * layout the runtime uses (`error`, then `complete`, then `status`, each only
+   * when enabled in config). Returns undefined when the name isn't a slot. */
+  #resolvePort(port: number | string): number | undefined {
+    if (typeof port === "number") return port;
+    const base = this.#outputPortNames.length;
+    const cfg = this.config as {
+      errorPort?: boolean;
+      completePort?: boolean;
+      statusPort?: boolean;
+    };
+    if (port === "error") return cfg.errorPort ? base : undefined;
+    if (port === "complete") {
+      return cfg.completePort ? base + (cfg.errorPort ? 1 : 0) : undefined;
+    }
+    if (port === "status") {
+      return cfg.statusPort
+        ? base + (cfg.errorPort ? 1 : 0) + (cfg.completePort ? 1 : 0)
+        : undefined;
+    }
+    const idx = this.#outputPortNames.indexOf(port);
+    return idx === -1 ? undefined : idx;
+  }
+
+  /** Wire this node's output `port` to `target`'s input. `port` is a slot index
+   * or a port name — a data port (`"item"`) or a built-in lifecycle port
+   * (`"error"` / `"complete"` / `"status"`), resolved the same way `read`/`sent`
+   * do. Wiring an unknown or disabled port throws rather than silently no-op. */
+  wire(target: NodeRef<any>, port: number | string = 0): this {
+    const idx = typeof port === "number" ? port : this.#resolvePort(port);
+    if (idx === undefined) {
+      throw new Error(
+        `Cannot wire "${this.type}" output port "${port}" — no such port ` +
+          `(is it enabled in this node's config?)`,
+      );
+    }
+    while (this.wires.length <= idx) this.wires.push([]);
+    this.wires[idx].push(target.id);
     return this;
   }
 
@@ -107,9 +186,25 @@ class NodeRef {
     await tick();
   }
 
-  /** Snapshot of everything this node has emitted (optionally one port). */
-  sent(port?: number): unknown[] {
-    return this.#flow.recorder.snapshot("sent", this.id, port);
+  /** Snapshot of everything this node has emitted, typed from the node's declared
+   * output ports. Read one port by name — a data port (`sent("records")`) or a
+   * built-in lifecycle port (`sent("error")` / `"complete"` / `"status"`) — for
+   * its precise frame; a bare `sent()` yields frames across all ports. */
+  sent(): AnyFrame<N>[];
+  sent(port: "error"): ErrorPortOutput[];
+  sent(port: "complete"): CompletePortOutput[];
+  sent(port: "status"): StatusPortOutput[];
+  sent<P extends OutputPortNames<NodeOut<N>>>(
+    port: P,
+  ): WrappedPort<
+    PortMessage<NodeOut<N>, P>,
+    NodeIn<N>,
+    PortChannelsOf<NodeOut<N>, P>
+  >[];
+  sent(port: number): AnyFrame<N>[];
+  sent(port?: number | string): unknown[] {
+    const idx = typeof port === "string" ? this.#resolvePort(port) : port;
+    return this.#flow.recorder.snapshot("sent", this.id, idx);
   }
 
   /** Snapshot of everything delivered to this node's input. */
@@ -138,18 +233,45 @@ class NodeRef {
 
   /**
    * Consume the next un-read message this node emitted (FIFO cursor), awaiting
-   * it if not yet sent. Call repeatedly to walk multiple emissions.
+   * it if not yet sent. Call repeatedly to walk multiple emissions. Reads are
+   * typed from the node's declared output: `read("records")` yields that port's
+   * frame, `read("error")` the built-in error frame; a bare `read()` reads the
+   * next emission on any port.
    */
-  async read(port?: number, opts: ReadOptions = {}): Promise<unknown> {
-    const cursor = this.#readCursor.get(port) ?? 0;
+  read(opts?: ReadOptions): Promise<AnyFrame<N>>;
+  read(port: "error", opts?: ReadOptions): Promise<ErrorPortOutput>;
+  read(port: "complete", opts?: ReadOptions): Promise<CompletePortOutput>;
+  read(port: "status", opts?: ReadOptions): Promise<StatusPortOutput>;
+  read<P extends OutputPortNames<NodeOut<N>>>(
+    port: P,
+    opts?: ReadOptions,
+  ): Promise<
+    WrappedPort<
+      PortMessage<NodeOut<N>, P>,
+      NodeIn<N>,
+      PortChannelsOf<NodeOut<N>, P>
+    >
+  >;
+  read(port: number, opts?: ReadOptions): Promise<AnyFrame<N>>;
+  async read(
+    port?: number | string | ReadOptions,
+    opts: ReadOptions = {},
+  ): Promise<unknown> {
+    // The no-arg form may pass ReadOptions as the first argument.
+    const portRef =
+      typeof port === "number" || typeof port === "string" ? port : undefined;
+    if (port && typeof port === "object") opts = port;
+    const idx =
+      typeof portRef === "string" ? this.#resolvePort(portRef) : portRef;
+    const cursor = this.#readCursor.get(idx) ?? 0;
     const msg = await this.#flow.recorder.next(
       "sent",
       this.id,
-      port,
+      idx,
       cursor,
       opts.timeout ?? 5000,
     );
-    this.#readCursor.set(port, cursor + 1);
+    this.#readCursor.set(idx, cursor + 1);
     return msg;
   }
 }
@@ -163,23 +285,34 @@ class Flow {
 
   readonly #RED: NodeRedApi;
   readonly #flowId = genId("flow");
-  #nodes: NodeRef[] = [];
+  #nodes: NodeRef<any>[] = [];
 
   constructor(RED: NodeRedApi, recorder: Recorder) {
     this.#RED = RED;
     this.recorder = recorder;
   }
 
-  /** Add any node — regular or config (detected via `category === "config"`). */
-  addNode(
-    Cls: NodeConstructor,
+  /** Add any node — regular or config (detected via `category === "config"`).
+   * Returns a handle typed from the node class, so `ref.read()`/`ref.sent()`
+   * yield frames typed from the node's declared output ports (no cast). */
+  addNode<C extends NodeConstructor>(
+    Cls: C,
     config: Record<string, unknown> = {},
     opts: AddNodeOptions = {},
-  ): NodeRef {
+  ): NodeRef<InstanceType<C>> {
     const isConfig = Cls.category === "config";
-    const ref = new NodeRef(this, Cls.type, isConfig, config, opts);
+    const outputPortNames =
+      (Cls as { outputPortNames?: string[] }).outputPortNames ?? [];
+    const ref = new NodeRef(
+      this,
+      Cls.type,
+      isConfig,
+      config,
+      outputPortNames,
+      opts,
+    );
     this.#nodes.push(ref);
-    return ref;
+    return ref as NodeRef<InstanceType<C>>;
   }
 
   /** Build the flow JSON and deploy it; resolves once the flow has started. */

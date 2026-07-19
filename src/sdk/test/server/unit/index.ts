@@ -73,14 +73,14 @@ type PortMessage<T, P extends string> =
     : never;
 
 /**
- * A single delivered port message. The default return key `"output"` holds the
- * declared value `V`; carry/trace mode also spread the incoming message, so the
- * node's declared input keys may be present (typed optional). Extra keys are
- * derived from the node — never `unknown` — and an `any` input collapses to just
- * the precisely typed `output`. A `never` input (a SOURCE node: no input port,
- * so it emits from outside any `input()` and carries no incoming message) also
- * collapses to just `{ output: V }` — without this guard `Partial<never>` would
- * poison the intersection to `never`, making `sent()[i][0].output` unreadable.
+ * A single emitted frame: the port's declared additions `V` merged onto the
+ * incoming record. `V`'s fields are precisely typed; the node's declared input
+ * keys may also be present (merge carries them), so they're spread as optional.
+ * An `any`/`unknown` input means the node reads no specific field but (in merge
+ * mode) carries EVERY incoming field, so arbitrary carried fields stay readable
+ * as `Record<string, unknown>`. A `never` input (a SOURCE node: no input port, so
+ * it carries no incoming message) adds nothing — without the guard `Partial<never>`
+ * would poison the intersection to `never`, making the frame unreadable.
  *
  * `& WithMessageChannels`: the harness exposes the off-the-wire channels on each emitted
  * frame — `private` in the PRODUCER's own package partition, so it reads back what
@@ -88,7 +88,7 @@ type PortMessage<T, P extends string> =
  * empty partition). A producer test asserts `sent(0)[0][Channels].protected.x` /
  * `sent(0)[0][Channels].private.x` (the data the node emitted via
  * `send(port, value, { protected, private })`). The `[Channels]` accessor is non-enumerable, so
- * `toEqual({ output })` still matches. They ride data-port frames only, never the
+ * `toEqual({ … })` still matches. They ride data-port frames only, never the
  * built-in error/complete/status frames.
  */
 type WrappedPort<V, TInput, TChan extends ChannelShape = object> = V &
@@ -97,7 +97,7 @@ type WrappedPort<V, TInput, TChan extends ChannelShape = object> = V &
   ([TInput] extends [never]
     ? unknown
     : unknown extends TInput
-      ? unknown
+      ? Record<string, unknown>
       : Partial<TInput>);
 
 /**
@@ -140,7 +140,12 @@ type PortTuple<TOutput, TInput> =
 // the input message and custom props (`& Record<string, unknown>`), and the
 // status port is narrowed to the object form the assertions read (the runtime
 // union also allows a bare string, which these helpers never surface).
-type ErrorPortOutput = CoreErrorPortOutput & Record<string, unknown>;
+// The framework spreads a thrown error's OWN enumerable fields onto `msg.error`
+// (a custom error's `code`, etc.); the harness can't know them per-node, so the
+// `error` object also carries arbitrary fields as `unknown` — readable, cast-free.
+type ErrorPortOutput = Omit<CoreErrorPortOutput, "error"> & {
+  error: CoreErrorPortOutput["error"] & Record<string, unknown>;
+} & Record<string, unknown>;
 type CompletePortOutput = CoreCompletePortOutput & Record<string, unknown>;
 type StatusPortOutput = Omit<CoreStatusPortOutput, "status"> & {
   status: Extract<CoreStatusPortOutput["status"], object>;
@@ -455,14 +460,15 @@ async function createNode<T extends NodeClass>(
         }),
       });
       // The `[Meta]` twin: a typed view over the frame's clone-safe root carrier
-      // (the `source` key the runtime stamps) — same as the delivery-time install.
+      // (the `source` key the runtime stamps) — same as the delivery-time
+      // install.
       Object.defineProperty(frame, Meta, {
         configurable: true,
         enumerable: false,
-        get: () => ({
-          source: (frame as { _meta?: { source?: MessageSource } })._meta
-            ?.source,
-        }),
+        get: () => {
+          const meta = (frame as { _meta?: { source?: MessageSource } })._meta;
+          return { source: meta?.source };
+        },
       });
     },
   };

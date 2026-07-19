@@ -37,6 +37,11 @@ declare module "@bonsae/nrg/server" {
     TOutput extends OutputSpec,
     TSettings,
   > {
+    /** Phantom port-map marker — never assigned, present only in test typings.
+     * The integration harness returns a wrapper handle (not the node instance),
+     * so it can't read `TInput`/`TOutput` in lexical scope the way `sent()` does
+     * here; it recovers them structurally from this marker instead. */
+    readonly ["~nrgPortMaps"]?: { input: TInput; output: TOutput };
     /** All raw emissions, each a positional array — `sent()[i][0]` is port 0 of
      * emission `i`, typed from the node's declared output. Read one port directly
      * with `sent(name)` / `sent(port)`, including the built-in lifecycle ports by

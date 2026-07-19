@@ -211,8 +211,8 @@ interface MessageMeta {
 /**
  * What `msg[Meta]` returns — the framework metadata beside the data. `source` is
  * the producing node + port of this message; `undefined` when the upstream
- * producer wasn't an nrg node (a core node, an inject, a test message). Read-only:
- * the framework stamps it on `send`; an author never writes it.
+ * producer wasn't an nrg node (a core node, an inject, a test message).
+ * Read-only: the framework stamps it on `send`; an author never writes it.
  */
 interface MessageMetadata {
   readonly source?: MessageSource;

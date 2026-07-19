@@ -60,7 +60,7 @@ describe("server integration runtime", () => {
 
     await node.receive({});
 
-    const out = (await node.read()) as { token: string };
+    const out = await node.read("out");
     expect(out.token).toBe("secret-123");
   });
 
@@ -71,7 +71,7 @@ describe("server integration runtime", () => {
 
     await node.receive({ value: 21 });
 
-    const out = (await node.read()) as { doubled: number };
+    const out = await node.read("out");
     expect(out.doubled).toBe(42);
     expect(node.sent()).toHaveLength(1);
   });
@@ -86,7 +86,7 @@ describe("server integration runtime", () => {
     // macrotask, which the old single-setImmediate settle would have missed.
     await node.receive({ value: "hi" });
 
-    const sent = node.sent(0) as Array<{ echoed: string }>;
+    const sent = node.sent("out");
     expect(sent).toHaveLength(1);
     expect(sent[0].echoed).toBe("hi");
   });
@@ -99,7 +99,7 @@ describe("server integration runtime", () => {
 
     await greeter.receive({ who: "world" });
 
-    const out = (await greeter.read()) as { text: string };
+    const out = await greeter.read("out");
     expect(out.text).toBe("hello, world");
   });
 
@@ -112,7 +112,7 @@ describe("server integration runtime", () => {
 
     await a.receive({ value: 5 });
 
-    const relayed = (await b.read()) as { relayed: boolean };
+    const relayed = await b.read("out");
     expect(relayed.relayed).toBe(true);
     expect(b.received().length).toBeGreaterThanOrEqual(1);
   });
