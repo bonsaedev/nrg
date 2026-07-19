@@ -636,6 +636,22 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       const bodyWires = inWires(n);
       if (def.ports.length === 0 && builtins.length === 0) {
         if (IN) push(`n_${fn}(${IN});`, bodyWires);
+      } else if (IN === null) {
+        // NO wire feeds this node's input. It never fires, and there is no incoming
+        // wire to check — so DON'T emit `n_type(null)` (tsc reds that as an
+        // UNATTRIBUTED "not a wire fault" diagnostic, pure noise for a half-wired
+        // flow). Its output is its Adds alone (In is empty), so pre-declare each
+        // wired output const at that type; downstream wires still resolve and check.
+        for (const p of dataPorts) {
+          push(
+            `declare const m_${ident(id)}_${ident(p.name)}: ${p.adds}; // "${n.name ?? n.id}" (no input wire)`,
+          );
+        }
+        for (const name of builtins) {
+          push(
+            `declare const m_${ident(id)}_${ident(name)}: ${builtinAdds(def, name)}; // "${n.name ?? n.id}" ${name} (no input wire)`,
+          );
+        }
       } else {
         // per-PORT emission — data ports plus wired built-in lifecycle ports. Every
         // port merges the node's input record (`Omit<In, keyof Adds> & Adds`).
