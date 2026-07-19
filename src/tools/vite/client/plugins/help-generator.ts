@@ -514,7 +514,7 @@ function generateHelpDoc(
       lines.push(outputsTable);
       // Explain the wire shape the inline types don't reveal: value under the
       // return property, plus the source/input provenance keys.
-      lines.push(`<p><small>${t.notes.outputEnvelope}</small></p>`);
+      lines.push(`<p><small>${t.notes.outputRecord}</small></p>`);
     }
   }
 

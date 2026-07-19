@@ -21,9 +21,10 @@ interface HelpTranslations {
     no: string;
   };
   notes: {
-    /** Explains the output message envelope (return property + source/input),
-     * which the type sections don't otherwise reveal. */
-    outputEnvelope: string;
+    /** Explains how a node's output fields land on the message record (merged at
+     * the root; provenance on msg[Meta].source), which the type sections don't
+     * otherwise reveal. */
+    outputRecord: string;
   };
 }
 
@@ -51,8 +52,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "No",
     },
     notes: {
-      outputEnvelope:
-        "Data outputs are placed under the return property (default <code>output</code>). Every port message also carries <code>source</code> (the producing node) and <code>input</code> (the message being processed).",
+      outputRecord:
+        "Output fields are merged onto the message record — a downstream node reads them at the root (e.g. <code>msg.payload</code>). The producing node is recorded on <code>msg[Meta].source</code>.",
     },
   },
   de: {
@@ -78,8 +79,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "Nein",
     },
     notes: {
-      outputEnvelope:
-        "Datenausgaben werden unter der Rückgabe-Eigenschaft abgelegt (Standard <code>output</code>). Jede Port-Nachricht enthält zudem <code>source</code> (den erzeugenden Node) und <code>input</code> (die verarbeitete Nachricht).",
+      outputRecord:
+        "Ausgabefelder werden in den Nachrichten-Datensatz eingemischt — nachgelagerte Nodes lesen sie an der Wurzel (z. B. <code>msg.payload</code>). Der erzeugende Node wird in <code>msg[Meta].source</code> festgehalten.",
     },
   },
   "es-ES": {
@@ -105,8 +106,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "No",
     },
     notes: {
-      outputEnvelope:
-        "Las salidas de datos se colocan bajo la propiedad de retorno (predeterminado <code>output</code>). Cada mensaje de puerto también incluye <code>source</code> (el nodo que lo produce) e <code>input</code> (el mensaje en proceso).",
+      outputRecord:
+        "Los campos de salida se fusionan en el registro del mensaje: los nodos posteriores los leen en la raíz (p. ej. <code>msg.payload</code>). El nodo que los produce queda registrado en <code>msg[Meta].source</code>.",
     },
   },
   fr: {
@@ -132,8 +133,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "Non",
     },
     notes: {
-      outputEnvelope:
-        "Les sorties de données sont placées sous la propriété de retour (par défaut <code>output</code>). Chaque message de port comporte aussi <code>source</code> (le nœud émetteur) et <code>input</code> (le message traité).",
+      outputRecord:
+        "Les champs de sortie sont fusionnés dans l'enregistrement du message — les nœuds en aval les lisent à la racine (par ex. <code>msg.payload</code>). Le nœud émetteur est indiqué dans <code>msg[Meta].source</code>.",
     },
   },
   ko: {
@@ -159,8 +160,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "아니오",
     },
     notes: {
-      outputEnvelope:
-        "데이터 출력은 반환 속성 아래에 배치됩니다(기본값 <code>output</code>). 모든 포트 메시지에는 <code>source</code>(생성한 노드)와 <code>input</code>(처리 중인 메시지)도 포함됩니다.",
+      outputRecord:
+        "출력 필드는 메시지 레코드에 병합됩니다 — 다운스트림 노드는 루트에서 읽습니다(예: <code>msg.payload</code>). 생성한 노드는 <code>msg[Meta].source</code>에 기록됩니다.",
     },
   },
   "pt-BR": {
@@ -186,8 +187,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "Não",
     },
     notes: {
-      outputEnvelope:
-        "As saídas de dados são colocadas sob a propriedade de retorno (padrão <code>output</code>). Cada mensagem de porta também carrega <code>source</code> (o nó de origem) e <code>input</code> (a mensagem em processamento).",
+      outputRecord:
+        "Os campos de saída são mesclados no registro da mensagem — os nós posteriores os leem na raiz (por ex. <code>msg.payload</code>). O nó de origem fica registrado em <code>msg[Meta].source</code>.",
     },
   },
   ru: {
@@ -213,8 +214,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "Нет",
     },
     notes: {
-      outputEnvelope:
-        "Выходные данные помещаются в свойство возврата (по умолчанию <code>output</code>). Каждое сообщение порта также содержит <code>source</code> (узел-источник) и <code>input</code> (обрабатываемое сообщение).",
+      outputRecord:
+        "Поля вывода объединяются в запись сообщения — последующие узлы читают их в корне (например, <code>msg.payload</code>). Узел-источник фиксируется в <code>msg[Meta].source</code>.",
     },
   },
   ja: {
@@ -240,8 +241,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "いいえ",
     },
     notes: {
-      outputEnvelope:
-        "データ出力は戻りプロパティ（既定は <code>output</code>）の下に格納されます。各ポートのメッセージには <code>source</code>（生成元ノード）と <code>input</code>（処理中のメッセージ）も含まれます。",
+      outputRecord:
+        "出力フィールドはメッセージレコードにマージされます。下流のノードはルートで読み取ります（例: <code>msg.payload</code>）。生成元ノードは <code>msg[Meta].source</code> に記録されます。",
     },
   },
   "zh-CN": {
@@ -267,8 +268,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "否",
     },
     notes: {
-      outputEnvelope:
-        "数据输出放在返回属性下（默认 <code>output</code>）。每个端口消息还带有 <code>source</code>（产生该消息的节点）和 <code>input</code>（正在处理的消息）。",
+      outputRecord:
+        "输出字段会合并到消息记录中——下游节点在根级读取它们（例如 <code>msg.payload</code>）。产生该消息的节点记录在 <code>msg[Meta].source</code> 中。",
     },
   },
   "zh-TW": {
@@ -294,8 +295,8 @@ const translations: Record<string, HelpTranslations> = {
       no: "否",
     },
     notes: {
-      outputEnvelope:
-        "資料輸出置於回傳屬性之下（預設 <code>output</code>）。每個埠訊息也會帶有 <code>source</code>（產生訊息的節點）與 <code>input</code>（正在處理的訊息）。",
+      outputRecord:
+        "輸出欄位會合併到訊息記錄中——下游節點於根層級讀取（例如 <code>msg.payload</code>）。產生訊息的節點記錄在 <code>msg[Meta].source</code>。",
     },
   },
 };

@@ -710,10 +710,10 @@ describe("help-generator — type-driven rendering", () => {
           ],
         }),
       );
-      expect(doc).toContain(enUS.notes.outputEnvelope);
+      expect(doc).toContain(enUS.notes.outputRecord);
     });
 
-    it("does not append the envelope note when there are no outputs", () => {
+    it("does not append the output-record note when there are no outputs", () => {
       const doc = generateHelpDoc(
         { type: "n" },
         {},
@@ -723,7 +723,7 @@ describe("help-generator — type-driven rendering", () => {
           config: role("{ host: string }", [{ name: "host", type: "string" }]),
         }),
       );
-      expect(doc).not.toContain(enUS.notes.outputEnvelope);
+      expect(doc).not.toContain(enUS.notes.outputRecord);
     });
 
     it("escapes a port label carrying HTML-special characters", () => {
