@@ -100,6 +100,14 @@ function injectCss(): void {
   stroke: var(--red-ui-text-color-error, #ad1625) !important;
   stroke-dasharray: 10 4;
   stroke-width: 4px;
+}
+/* SELECTED error wire — Node-RED tags the link's <g> with .red-ui-flow-link-selected.
+   Recolor to the editor's own selection color (keeps the dash so it still reads as an
+   error, bumps width so the selection is obvious). Higher specificity + !important so it
+   beats the red rule above, which otherwise hides Node-RED's selection styling. */
+g.red-ui-flow-link-selected path.${ERROR_CLASS} {
+  stroke: var(--red-ui-node-selected-color) !important;
+  stroke-width: 5px;
 }`;
   document.head.appendChild(style);
 }
