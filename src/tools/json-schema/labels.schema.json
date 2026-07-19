@@ -36,7 +36,7 @@
     },
     "input": {
       "$ref": "#/$defs/port",
-      "description": "The single input port: its display label (shown on the canvas + as the help-doc heading) and per-property labels for its payload fields."
+      "description": "The single input port: its display label (shown on the canvas + as the help-doc heading) and description."
     },
     "outputs": {
       "oneOf": [
@@ -49,7 +49,7 @@
           "items": { "$ref": "#/$defs/port" }
         }
       ],
-      "description": "Output ports. Use an object keyed by port name for named outputs (the common case: the key is the port name from the node's Output type), or an array in tuple order for positional/dynamic outputs. Each entry gives the port's display label and per-property labels for its payload fields."
+      "description": "Output ports. Use an object keyed by port name for named outputs (the common case: the key is the port name from the node's Output type), or an array in tuple order for positional/dynamic outputs. Each entry gives the port's display label and description."
     },
     "errors": {
       "$ref": "#/$defs/labelMap",
