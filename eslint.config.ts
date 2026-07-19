@@ -21,6 +21,13 @@ export default typescriptEslint.config(
       globals: { ...globals["shared-node-browser"] },
       parserOptions: {
         parser: typescriptEslint.parser,
+        // Pin the TS parser root to THIS repo, statically. Without it,
+        // typescript-eslint infers the root by walking up — and when a consumer
+        // (e.g. bonsae-salesforce) dev-links `@bonsae/nrg`, one IDE ESLint
+        // instance sees files under both repos and throws "multiple candidate
+        // TSConfigRootDirs are present". `import.meta.dirname` (the dir of this
+        // config) is unambiguous regardless of the ESLint process cwd.
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {
