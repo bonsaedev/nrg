@@ -100,6 +100,8 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 
 At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](./config-nodes#extending-a-published-node)). Schemas are **not** required for any of this.
 
+Wire type-checking runs once at deploy (on `flows:started`) over the whole compiled flow and paints failing wires red — there is no per-node toggle or live per-draw check. (This is separate from **Validate Data**, the runtime data validation discussed below.)
+
 <p align="center">
   <img alt="Port topology on the Node-RED canvas — source (Input=never) has no input port, trigger (Input=any) has one, route (named Port record) has two outputs, sink (Output=never) has no output" src="/port-topology-canvas.png" width="540"/>
 </p>
@@ -230,7 +232,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
-| `this.error(message, msg?)` | Log an error; pass the `msg` object to also emit the [error port](#lifecycle-output-ports) |
+| `this.error(message)` | Log an error-level diagnostic (LOG-ONLY — emits no port and does not route to Node-RED Catch). The [error port](#lifecycle-output-ports) fires on `throw` only; model expected/recoverable failures as typed data ports |
 | `this.i18n(key)` | Get a translated string |
 | `this.config.<prop>.resolve(msg?)` | Resolve a TypedInput value |
 | `this.setTimeout(fn, ms)` | Auto-cleared timeout |
@@ -313,9 +315,9 @@ When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `errorPort` | A thrown/uncaught error in `input()`, or `this.error(message, msg)` called with a message object — `this.error(message)` without the `msg` argument only logs and does **not** emit to the error port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg[Meta].source`. |
+| `errorPort` | A thrown/uncaught error in `input()` (the terminal failure). `this.error()` is log-only and never emits this port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg[Meta].source`. |
 | `completePort` | `input()` finishes successfully | The processed record merged with `input()`'s returned fields — `{ ...record, ...returnValue }` (a `void`/`undefined` return contributes nothing — arrival on the wire is itself the signal) ([see below](#returning-a-custom-completion-message)). Provenance is read via `msg[Meta].source`. |
-| `statusPort` | Every `this.status()` call | The processed record merged with a `status` block — `{ ...record, status: { fill, shape, text } }`. Provenance is read via `msg[Meta].source`. |
+| `statusPort` | Every `this.status()` call | The processed record merged with a `status` block — `{ ...record, status: { fill, shape, text } }`. The record fields are carried only when a record is in scope; they may be absent for a `status()` fired outside `input()` (e.g. a source node). Provenance is read via `msg[Meta].source`. |
 
 Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
 
@@ -327,7 +329,7 @@ Port 3: Complete     (if completePort enabled)
 Port 4: Status       (if statusPort enabled)
 ```
 
-These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorPort<TInput, TError>`, `CompletePort<TInput, TReturn>`, and `StatusPort` — the error and complete shapes are generic over the node's input message (and, for complete, `input()`'s return value), so a downstream handler sees the original message under `input`, the `source` provenance, and any custom fields. NRG feeds these into the generated `NodeTypes` registry, so the editor can type-check a wire coming off a built-in port too.
+These built-in port messages are **typed**. Each frame is the accumulated record merged with its lifecycle block: an error frame is `{ ...record, error }`, a complete frame `{ ...record, ...returnFields }`, and a status frame `{ ...record, status }`. There is no `input` sub-frame and no root `source` key — provenance is read via `msg[Meta].source`. The corresponding types (`ErrorPortOutput<TInput, TError>`, `CompletePortOutput<TInput, TReturn>`, and `StatusPortOutput`) are server-owned and not part of the public import surface. The deploy-time wire check (a whole-flow compile) type-checks and paints wires coming off a built-in port too.
 
 #### Framework config fields {#framework-config-fields}
 
@@ -398,7 +400,8 @@ contributes no fields — arrival on the complete wire is itself the signal.
 override async input(msg: Input<Port<{ items: unknown[] }>>): Promise<Summary> {
   const results = await Promise.all(this.collect(msg));
   // continues on the complete port as the merged record:
-  //   { ...msg, ...summary, _meta, _msgid }
+  //   { ...msg, ...summary }
+  // (provenance stays on msg[Meta].source; _msgid lineage is framework-managed)
   return summarize(results);
 }
 ```
@@ -417,8 +420,10 @@ when you `throw` an `Error`). If you **throw a custom `Error` subclass**, its ow
 enumerable properties are merged in too, so a downstream flow can route and react
 on structured detail instead of parsing a string — `name`, `message`, and `stack`
 are layered last, so they stay authoritative over anything you add. `msg.error`
-sits at the root (with `source` and `input` beside it) — the same place a Node-RED
-**Catch** node puts it — so a node reading it feels familiar; but the error travels
+sits at the root alongside the accumulated record fields that failed
+(`{ ...record, error }`) — the same root placement a Node-RED **Catch** node uses
+for `msg.error` — so a node reading it feels familiar; provenance is read via
+`msg[Meta].source` (not an on-data `source`/`input` frame). The error travels
 the port's wire, it does **not** trigger Catch nodes (the port is the sole handler).
 
 ```typescript
@@ -431,8 +436,9 @@ class RateLimitError extends Error {
 
 override async input(msg: Input<Port<{ payload: unknown }>>) {
   throw new RateLimitError(2000);
-  // error port: { error: { name: "RateLimitError", message: "rate limited",
-  //                        stack: "…", retryAfterMs: 2000 }, source, input: msg }
+  // error port: { ...record, error: { name: "RateLimitError", message: "rate limited",
+  //                                   stack: "…", retryAfterMs: 2000 } }
+  // (provenance rides msg[Meta].source)
 }
 ```
 
@@ -480,5 +486,5 @@ export default class HttpClient extends IONode<Config, any, HttpClientInput, Htt
 If the user enables both `errorPort` and `statusPort`, the node gets 3 outputs: data (port 0), error (port 1), and status (port 2). If they leave both off, the node has a single output as usual.
 
 ::: tip Error port replaces Catch; complete/status run alongside
-The **complete** and **status** ports work _alongside_ Node-RED's built-in `complete` and `status` nodes — enabling a port doesn't disable the implicit behavior, both fire. The **error** port is different: when it is enabled it becomes the **sole** error handler, so a thrown error (or `this.error(message, msg)`) travels its wire and does **not** also trigger Node-RED `catch` nodes — routing to both would report the same error twice and stamp a second, differently-shaped error onto the message. Node-RED's `catch` mechanism is the fallback **only when a node has no error port**. (A framework misuse — e.g. `send("error", …)` to a reserved built-in port — is a developer bug, not runtime data, so it always surfaces loudly regardless of the error port.)
+The **complete** and **status** ports work _alongside_ Node-RED's built-in `complete` and `status` nodes — enabling a port doesn't disable the implicit behavior, both fire. The **error** port is different: when it is enabled it becomes the **sole** error handler, so a thrown error travels its wire and does **not** also trigger Node-RED `catch` nodes — routing to both would report the same error twice and stamp a second, differently-shaped error onto the message. (`this.error("…")` is log-only and never travels the port.) Node-RED's `catch` mechanism is the fallback **only when a node has no error port**. (A framework misuse — e.g. `send("error", …)` to a reserved built-in port — is a developer bug, not runtime data, so it always surfaces loudly regardless of the error port.)
 :::

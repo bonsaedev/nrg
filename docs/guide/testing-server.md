@@ -96,7 +96,7 @@ Every node returned by `createNode` has these helpers:
 
 | Method                 | Description                                                                                                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `node.receive(msg)`    | Send a message through the node's `input()` handler (extra Node-RED message props beyond the input schema are allowed) |
+| `node.receive(msg)`    | Send a message through the node's `input()` handler (extra Node-RED message props beyond the input schema are allowed). A second `receive(msg, { protected, private })` arg seeds the off-the-wire message channels an upstream node would have attached (requires an `_msgid` — channels key off it). |
 | `node.close(removed?)` | Trigger the `closed()` lifecycle hook                                                                                                                                                           |
 | `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
 | `node.sent()`          | Every emission is an array with one slot per output port, so `sent()[i][0]` is port 0 of emission `i`. To read a single port directly, use `sent(port)` (by index) or `sent(name)` (by port name). |
@@ -116,6 +116,7 @@ import { createNode } from "@bonsae/nrg/test/server/unit";
 import {
   IONode,
   Meta,
+  Channels,
   type Input,
   type Outputs,
   type Port,
@@ -506,10 +507,14 @@ describe("built-in emit ports", () => {
 
     await node.receive({ payload: "abc" });
     expect(node.sent("complete")).toHaveLength(1);
-    // input()'s return value rides under `complete`, not `output`. (A void
-    // return omits the `complete` key — arrival on the wire is the signal.)
+    // input()'s return FIELDS merge onto the record at the root (the same merge
+    // rule as send). A void return contributes nothing — arrival on the complete
+    // wire is itself the signal. complete is the accumulating-record exception:
+    // only the error and status ports use a named sub-key.
     expect(node.sent("complete")[0]).toMatchObject({
-      complete: { id: "abc", ok: true },
+      payload: "abc",
+      id: "abc",
+      ok: true,
     });
   });
 
@@ -523,6 +528,51 @@ describe("built-in emit ports", () => {
     expect(node.sent("status")[0]).toMatchObject({
       status: { fill: "green", text: "ok" },
     });
+  });
+});
+
+describe("message channels", () => {
+  // Channels ride the data-port frame OFF the wire — never on the data keys and
+  // never on the built-in error/complete/status frames. Import `Channels` from
+  // `@bonsae/nrg/server` (the sibling symbol to `Meta`). Each emitted data-port
+  // frame exposes a non-enumerable `[Channels]` accessor with `.protected` (shared
+  // across the message's whole journey) and `.private` (readable back only within
+  // the producer's own package partition). A node writes them with the send
+  // channels arg: `this.send(port, adds, { protected, private })`.
+
+  type Traced = Input<Port<{ payload: string }>>;
+  class Tracer extends IONode<
+    any,
+    any,
+    Traced,
+    Outputs<{ out: Port<{ upper: string }> }>
+  > {
+    static override readonly type = "tracer";
+    override async input(msg: Traced) {
+      // read an incoming channel, then attach outgoing ones
+      const traceId = msg[Channels].protected.traceId;
+      this.send(
+        "out",
+        { upper: msg.payload.toUpperCase() },
+        { protected: { traceId }, private: { attempt: 1 } },
+      );
+    }
+  }
+
+  it("seeds incoming channels and asserts the emitted ones", async () => {
+    const { node } = await createNode(Tracer);
+
+    // Seed the channels an upstream node would have attached. Channels key off
+    // `_msgid`, so the message must carry one.
+    await node.receive(
+      { _msgid: "sig-1", payload: "hi" },
+      { protected: { traceId: "t-42" } },
+    );
+
+    const frame = node.sent("out")[0];
+    expect(frame).toMatchObject({ upper: "HI" }); // data on the record root
+    expect(frame[Channels].protected.traceId).toBe("t-42"); // shared channel
+    expect(frame[Channels].private.attempt).toBe(1); // own-package channel
   });
 });
 ```
@@ -643,6 +693,8 @@ A handle to one node in the flow. Harness methods never collide with your node's
 Each emission IS the record: the incoming fields carried forward plus the send's named additions at the top level, with provenance on the `msg[Meta]` accessor (the `_meta` carrier) — there is no `output` wrapper. So assertions read fields directly: `(await node.read()).doubled`.
 
 The incoming record's fields are always carried forward and merged with the send's additions (`{ ...incoming, ...additions }`).
+
+Off-the-wire message channels ride the data-port frame the same way as in the unit tier and are typed per port on `read`/`sent`. Import `Channels` from `@bonsae/nrg/server` and read `(await node.read("out"))[Channels].protected.x` / `[Channels].private.x` — channels ride data-port frames only (never the built-in error/complete/status frames), `private` reads back only within the producer's own package partition, and they key off the message's `_msgid`. A real upstream node seeds them by sending with the channels arg: `this.send(port, adds, { protected, private })`.
 :::
 
 ### Examples

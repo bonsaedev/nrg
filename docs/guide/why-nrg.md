@@ -547,14 +547,14 @@ override async input(msg: Input<Port<{ items: string[] }>>) {
     this.send("each", { item });        // each element → `each` output → Process Item
   }
   return { count: msg.items.length };   // → `complete` port → Summarize
-  // a throw (or this.error(message, msg)) → `error` port → Notify Ops
+  // a throw → `error` port → Notify Ops
 }
 ```
 
 Now the loop, its success, and its failure all read top-to-bottom in one method, and on the canvas they are three real wires you can follow — not a self-loop plus two nodes linked by hidden scope. What each port carries:
 
 - **`complete`** — `input()`'s returned fields, merged onto the processed record. `return { count }` puts `count` on the record the complete wire carries; returning nothing makes arrival on the wire itself the "done" signal.
-- **`error`** — the processed record merged with an `error` block (`{ name, message, stack? }`); provenance is read via `msg[Meta].source`. An error handler sees the failure details and the record that caused them side by side — the same information a Catch node reads, but on this wire instead. (`stack` is present only when an `Error` was thrown.)
+- **`error`** — the processed record merged with an `error` block (`{ name, message, stack? }`); provenance is read via `msg[Meta].source`. An error handler sees the failure details and the record that caused them side by side — the same information a Catch node reads, but on this wire instead. (`stack` is present only when an `Error` was thrown.) Only a `throw` leaves the error port; `this.error("...")` is log-only observability — it takes only a message string and does not route to any port.
 - **`status`** — whatever you pass to `this.status(...)`.
 
 ## TypedInput Resolution

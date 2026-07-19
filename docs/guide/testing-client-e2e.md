@@ -654,6 +654,10 @@ describe("my-node editor", () => {
     await editor.editNode("n1");
     const count = editor.field("Count");
     expect(await count.getInputType()).toBe("number");
+    // Schema-driven attributes: an integer field steps by 1, and
+    // schema.minimum/maximum forward to the input's min/max. There is no
+    // dedicated getter — read them off `field.input` like getInputType does.
+    expect(await count.input.getAttribute("step")).toBe("1");
     await editor.clickCancel();
   });
 
@@ -732,7 +736,8 @@ describe("my-node editor", () => {
 
   test("labels display translated text", async () => {
     await editor.editNode("n1");
-    // Node-RED loads locales/<lang>/my-node.json at runtime.
+    // Node-RED loads the built label catalog from
+    // src/resources/locales/labels/my-node/<lang>.json at runtime.
     // E2E tests run against the real editor, so translations are resolved.
     const name = editor.field("Name");
     await name.expectVisible();

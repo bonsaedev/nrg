@@ -92,7 +92,9 @@ describe("validateNode", () => {
     const result = validateNode(subject, schema);
 
     expect(result).not.toBe(true);
-    expect(result).toContain("must NOT have fewer than 1 characters");
+    expect((result as string[])[0]).toContain(
+      "must NOT have fewer than 1 characters",
+    );
   });
 });
 ```

@@ -1,17 +1,21 @@
 # Non-Data Ports (Streams, Instances, Connections)
 
-Ports usually carry plain JSON. But a port can also carry a **non-serializable**
-value — a stream, a class instance, a `Buffer`, or a live connection. This page
-covers how to type such ports with `SchemaType.Unsafe<T>()` and how the framework
-passes them through intact. It's advanced; skip it until you build a node that
-moves live objects between ports.
+Ports usually carry plain JSON. But a port can also add a **non-serializable**
+field to the message — a stream, a class instance, a `Buffer`, or a live
+connection. This page covers how to type such a field with
+`SchemaType.Unsafe<T>()` and how the framework passes it through intact. It's
+advanced; skip it until you build a node that moves live objects between nodes.
 
+> A live/non-serializable value survives a **single wire** by reference but not a
+> **fan-out** clone. For connections, streams, and sockets that must cross a
+> fan-out, prefer the [private channel](./message-channels) instead.
 
-Not every port carries plain data. A node might emit a function, a class
-instance, a `Buffer` or stream, or a database client — or accept a message with
-non-serializable parts. A port's **type** comes from the `Input`/`Output`
-generic, so a non-data value just needs a plain type — there is nothing to
-validate:
+Not every port adds plain data. A node might add a function, a class
+instance, a `Buffer` or stream, or a database client to the record — or accept a
+message with non-serializable parts. A port adds one or more **named fields** to
+the flow's accumulating record, and each field's **type** comes from the
+`Input`/`Output` generic — so a non-data field just needs a plain type as one
+property of the output schema; there is nothing to validate:
 
 ```typescript
 import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
@@ -39,7 +43,10 @@ export default class OpenConnection extends IONode<
   }
 
   override async input(msg: OpenConnectionInput) {
-    // The live pool is a non-data value — it rides the wire intact.
+    // The live pool is a non-data value — it rides a single wire intact by
+    // reference. This is safe only on a single hop; a live pool does NOT survive
+    // a fan-out clone. For a handle that must cross a fan-out, carry it on the
+    // private channel instead (see message-channels, below).
     this.send("out", { connection: this.#pool, rowCount: 0 });
   }
 }
@@ -50,9 +57,10 @@ The build reads the `Output` generic, so the generated node help renders the
 `number` — recovered from the source at build time, with nothing to keep in sync
 by hand.
 
-The wire carries the **actual object**, not a copy — the framework never
-deep-clones `output`, so a live stream or an HTTP request/response travels the
-wire and works downstream unchanged. A node can emit a `Readable` on a typed
+The wire carries the **actual object**, not a copy — on a single downstream wire
+the framework passes the message by reference and never deep-clones it, so a live
+stream or an HTTP request/response travels intact on that one hop (a fan-out is
+different — see below). A node can emit a `Readable` on a typed
 port:
 
 ```typescript
@@ -60,7 +68,7 @@ import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server"
 import { Readable } from "node:stream";
 
 type FetchStreamInput = Input<Port<{ url: string }>>;
-type FetchStreamOutputs = Outputs<{ body: Port<Readable> }>;
+type FetchStreamOutputs = Outputs<{ body: Port<{ body: Readable }> }>;
 
 export default class FetchStream extends IONode<
   Config,
@@ -73,16 +81,18 @@ export default class FetchStream extends IONode<
 
   override async input(msg: FetchStreamInput) {
     const res = await fetch(msg.url);
-    // Send the Readable itself — the wire moves the STREAM object, not its
-    // bytes. A downstream node receives this exact instance and can `.pipe()` it.
-    this.send("body", Readable.fromWeb(res.body!));
+    // Name the `body` field — `send` merges this object onto the accumulating
+    // record. The wire moves the STREAM object, not its bytes: the exact
+    // `Readable` instance is set on `msg.body`, so a downstream node reads
+    // `msg.body` and can `.pipe()` it.
+    this.send("body", { body: Readable.fromWeb(res.body!) });
   }
 }
 ```
 
-`Port<Readable>` type-checks the wire in the editor — it only connects to a node
-whose input accepts a `Readable`. The same pattern carries an HTTP request/
-response pair (`{ req: Port<IncomingMessage>; res: Port<ServerResponse> }`), a
+`Port<{ body: Readable }>` type-checks the wire in the editor — it only connects
+to a node whose input reads `msg.body` as a `Readable`. The same pattern carries an HTTP request/
+response pair (`Port<{ req: IncomingMessage; res: ServerResponse }>`), a
 `Buffer`, a socket, or any class instance: nrg nodes compose like typed function
 calls that pass real objects around, not just JSON hand-offs.
 

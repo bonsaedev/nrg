@@ -17,7 +17,7 @@ Message channels give every message two channels that ride *alongside* it withou
 ```typescript
 import { Channels } from "@bonsae/nrg/server";
 
-this.send("out", publicMsg, { protected: protectedData, private: privateData });
+this.send("out", { payload }, { protected: protectedData, private: privateData });
 
 // a downstream node reads them back off its incoming message:
 msg[Channels].protected["otel.span"];  // visible to a node from ANY package
@@ -29,7 +29,7 @@ delete msg[Channels].private.conn;     // release it when you're done
 `msg[Channels]` gives you `{ protected, private }`. A symbol key can never collide with
 your own message fields and is invisible to `JSON`, `Object.keys`, and the debug panel for
 free — which is exactly why the channels use it. The incoming accessor is **read + delete
-only** — write channel data on `send` (`this.send(port, value, { protected, private })`);
+only** — write channel data on `send` (`this.send(port, additions, { protected, private })`);
 assigning `msg[Channels].private.x = …` throws.
 
 Channel data never rides the wire message. It lives in a per-runtime store keyed by the
@@ -103,7 +103,7 @@ authorize with the caller's credentials.
 // @acme/auth — mints a live principal, stamps it on the shared PROTECTED channel.
 override async input(msg: Input<Port<{ request: unknown }>>) {
   const principal = await this.verify(msg);              // { getAccessToken(): Promise<string> }
-  this.send("out", msg, { protected: { "auth.principal": principal } }); // raw token never touches the wire
+  this.send("out", undefined, { protected: { "auth.principal": principal } }); // forward the record unchanged; raw token never touches the wire
 }
 ```
 
@@ -233,14 +233,14 @@ put off the wire.
 ## Writing and reading channels
 
 You **write** channels through `send`'s 3rd argument — a single `{ protected, private }`
-object (either key optional), after the port and value:
+object (either key optional), after the port and the additions:
 
 ```typescript
-// send(portNameOrIndex, value, { protected?, private? })
+// send(portNameOrIndex, additions, { protected?, private? })
 this.send("out", { payload }, { protected: { "otel.span": span }, private: { conn } });
 
 // either key is optional — private only, no `undefined` placeholder:
-this.send("rows", rows, { private: { conn } });
+this.send("rows", { rows }, { private: { conn } });
 ```
 
 When the OUTPUT port declares a channel shape (the same `Port<Wire, Shape>` you'd use on an
@@ -318,7 +318,7 @@ A channel entry is removed with `delete`:
 
 ```typescript
 override async input(
-  msg: Input<Port<{ output: unknown }, { private: { res?: ServerResponse } }>>,
+  msg: Input<Port<{ payload: unknown }, { private: { res?: ServerResponse } }>>,
 ) {
   const res = msg[Channels].private.res; // typed `ServerResponse | undefined` — no cast
   if (!res) return;
@@ -439,7 +439,7 @@ author seeing it and without it going on the wire:
 // @acme/otel — trace-start.ts
 override async input(msg: Input<Port<{ payload: unknown }>>) {
   const span = tracer.startSpan("flow");
-  this.send("out", msg, { protected: { "otel.span": span } }); // protected: any package can read it
+  this.send("out", undefined, { protected: { "otel.span": span } }); // forward the record unchanged; protected: any package can read it
 }
 ```
 
@@ -464,7 +464,7 @@ long-running node from any package honors it:
 ```typescript
 // producer — stamp the signal
 const controller = new AbortController();
-this.send("out", msg, { protected: { "abort.signal": controller.signal } });
+this.send("out", undefined, { protected: { "abort.signal": controller.signal } });
 
 // consumer in another package — honor it
 const signal = msg[Channels].protected["abort.signal"] as AbortSignal | undefined;

@@ -47,7 +47,8 @@ export const SettingsSchema = defineSchema(
 | `SchemaType.String()` | Text input |
 | `SchemaType.String({ format: "password" })` | Password input |
 | `SchemaType.String({ "x-nrg-form": { editorLanguage: "..." } })` | Code editor with syntax highlighting |
-| `SchemaType.Number()` | Number input |
+| `SchemaType.Number()` | Number input (`minimum`/`maximum`/`multipleOf` → `min`/`max`/`step`) |
+| `SchemaType.Integer()` | Number input that steps by 1 |
 | `SchemaType.Boolean()` | Checkbox |
 | `SchemaType.Optional(...)` | Marks a property as optional |
 | `SchemaType.Array(SchemaType.String())` | Textarea (one entry per line) |
@@ -167,6 +168,21 @@ export const ConfigsSchema = defineSchema(
   { $id: "my-node:configs" }
 );
 ```
+
+The JSON-Schema numeric constraints `minimum`, `maximum`, and `multipleOf` flow
+through to the generated `<input>` as its `min`, `max`, and `step`:
+
+```typescript
+export const ConfigsSchema = defineSchema(
+  {
+    retries: SchemaType.Number({ default: 3, minimum: 0, maximum: 10, multipleOf: 1 }),
+  },
+  { $id: "my-node:configs" }
+);
+```
+
+An **integer** schema (`SchemaType.Integer({ ... })`) always steps by 1,
+regardless of `multipleOf`.
 
 ### Checkbox
 

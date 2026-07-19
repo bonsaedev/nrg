@@ -158,7 +158,7 @@ For local development or when using a linked package, use the local path instead
     },
     "input": {
       "$ref": "#/$defs/port",
-      "description": "The single input port: its display label (shown on the canvas + as the help-doc heading) and description."
+      "description": "The single input port: its display label (shown on the canvas and in the Port column of the auto-generated Input table) and description."
     },
     "outputs": {
       "oneOf": [
@@ -197,7 +197,7 @@ For local development or when using a linked package, use the local path instead
       "properties": {
         "label": {
           "type": "string",
-          "description": "The field's display label, shown next to its input in the editor form and in the Property column of the auto-generated help docs. Falls back to the schema title, then the property key, when unset."
+          "description": "The field's display label, shown next to its input in the editor form and in the Property column of the auto-generated help docs. In the editor form it falls back to the schema title, then a spaced, Title-cased version of the property name, when unset; in the help-docs Label column it is simply blank when unset (the raw key always appears in the separate Property column)."
         },
         "description": {
           "type": "string",
@@ -261,7 +261,7 @@ For a node with this label file:
 {
   "label": "Splitter",
   "description": "Splits messages based on a threshold.",
-  "configs": { "threshold": "Threshold" },
+  "configs": { "threshold": { "label": "Threshold", "description": "Numeric threshold" } },
   "input": { "label": "Value", "description": "The number to route." },
   "outputs": {
     "low": { "label": "Low", "description": "Below the threshold." },

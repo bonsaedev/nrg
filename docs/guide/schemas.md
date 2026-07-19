@@ -187,7 +187,7 @@ runs a **pure predicate**: no coercion, no defaults, and it never rewrites the
 message. If it fails the node throws (routed to the error port when enabled); if it
 passes, the message flows through byte-for-byte. It is also **opt-in** — off unless
 (a) an effective schema resolves for the port (a default the node author seeded, or
-one the flow author types in the editor) **and** (b) the port's _Validate_ toggle is
+one the flow author types in the editor) **and** (b) the port's _Validate Data_ toggle is
 on. The `inputSchema` / `outputSchemas` config fields exist on every IONode
 automatically, so you never have to "expose" them.
 
@@ -228,7 +228,7 @@ message.
 
 ## Input Data Validation {#input-schema}
 
-Input validation **checks** incoming messages before they reach your `input()` handler. It does not create the input port (the `Input` generic does), and it is **not** a static on the class — it's a **config-schema framework control**. The input Schema editor and _Validate_ toggle render on every IONode already; adding a `SchemaType.InputSchema()` field to your config schema just seeds a default JSON Schema in that editor. The flow author can then override it and turn the per-instance _Validate_ toggle on.
+Input validation **checks** incoming messages before they reach your `input()` handler. It does not create the input port (the `Input` generic does), and it is **not** a static on the class — it's a **config-schema framework control**. The input _Data Schema_ editor and _Validate Data_ toggle render on every IONode already; adding a `SchemaType.InputSchema()` field to your config schema just seeds a default JSON Schema in that editor. The flow author can then override it and turn the per-instance _Validate Data_ toggle on.
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -249,7 +249,7 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-Validation runs when the flow author turns on the port's _Validate_ toggle (which sets `config.validateInput`). Invalid messages throw an error — routed to the error port when it's enabled. Validation is a **pure predicate**: it never coerces or defaults the message.
+Validation runs when the flow author turns on the port's _Validate Data_ toggle (which sets `config.validateInput`). Invalid messages throw an error — routed to the error port when it's enabled. Validation is a **pure predicate**: it never coerces or defaults the message.
 
 ### What input validation checks {#input-validation-scope}
 
@@ -260,7 +260,7 @@ Input validation runs against the **whole incoming message**, not only the field
 
 ## Output Data Validation {#output-schema}
 
-Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**, and the per-port Schema editor and _Validate_ toggle render on every IONode already. Seed per-port default output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):
+Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**, and the per-port _Data Schema_ editor and _Validate Data_ toggle render on every IONode already. Seed per-port default output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):
 
 ```typescript
 import { defineSchema, SchemaType } from "@bonsae/nrg/schema";
@@ -285,7 +285,7 @@ export const ConfigsSchema = defineSchema(
 );
 ```
 
-A port validates when the flow author turns on its _Validate_ toggle (which sets `config.validateOutputs[port]`) and a schema exists for that port. Only ports you seed a default for are overridable in the editor. Validation is a pure predicate — it never coerces or defaults the outgoing value.
+A port validates when the flow author turns on its _Validate Data_ toggle (which sets `config.validateOutputs[port]`) and a schema exists for that port. Only ports you seed a default for are overridable in the editor. Validation is a pure predicate — it never coerces or defaults the outgoing value.
 
 Port **count and names** come from the `Output` generic, not from these schemas — a one-key `Outputs<{ out: Port<T> }>` is a single named port, a multi-key `Port<T>` record is multiple named ports, and an `Outputs<Port<T>[]>` array is dynamic index-addressed ports. See [Inputs and Outputs](./creating-a-node#inputs-and-outputs) and [Named Output Ports](./creating-a-node#named-output-ports).
 
@@ -295,8 +295,8 @@ Input and output data validation is a **config-schema framework control** — ne
 
 Two pieces make this work:
 
-1. **The Validate toggle.** Every IONode's **Ports Settings** table already shows a _Validate_ toggle per port (input and output). Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance.
-2. **The Schema editor.** An editable **Schema** button (a Monaco JSON editor) already appears per port in the Ports Settings table. Declaring `SchemaType.InputSchema()` (input) / `SchemaType.OutputSchemas()` (outputs) just seeds that editor with the `default` you provide.
+1. **The Validate Data toggle.** Every IONode's **Ports Settings** table already shows a _Validate Data_ toggle per port (input and output). Toggling it writes `config.validateInput` / `config.validateOutputs[port]`, which enable validation for that instance.
+2. **The Data Schema editor.** An editable **Data Schema** button (a Monaco JSON editor) already appears per port in the Ports Settings table. Declaring `SchemaType.InputSchema()` (input) / `SchemaType.OutputSchemas()` (outputs) just seeds that editor with the `default` you provide.
 
 ```typescript
 const ConfigsSchema = defineSchema(
@@ -314,7 +314,7 @@ const ConfigsSchema = defineSchema(
 );
 ```
 
-The schema a flow author types is stored as a JSON-Schema **string** in `config.inputSchema` / `config.outputSchemas[port]`; NRG uses it when present and valid. An unparseable or non-compiling schema is ignored (warned once). Validation still runs only when the port's _Validate_ toggle is on.
+The schema a flow author types is stored as a JSON-Schema **string** in `config.inputSchema` / `config.outputSchemas[port]`; NRG uses it when present and valid. An unparseable or non-compiling schema is ignored (warned once). Validation still runs only when the port's _Validate Data_ toggle is on.
 
 ![Editor: configuring input and output validation schemas](/editor-schemas.png)
 

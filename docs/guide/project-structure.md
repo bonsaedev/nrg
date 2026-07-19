@@ -126,10 +126,9 @@ dist/
 └── package.json          # Generated package.json for publishing
 ```
 
-The `index.d.ts` file holds auto-generated server-side type declarations. NRG derives them from your nodes' TypeScript types and emits three things:
+The `index.d.ts` file holds auto-generated server-side type declarations. NRG runs TypeScript's own declaration emit over your node classes (plus shared schemas) and rolls the result up with API Extractor — your own types are inlined, external `node_modules` types stay externalized. The resulting `index.d.ts` contains two things:
 
 - **Inheritable node classes** — each node is emitted as a type-only class declaration with all its type parameters filled in, so another package can `import { MyNode }` and write `class Extended extends MyNode {}` to build on it.
-- **The `NodeTypes` registry** — a lookup table, keyed by node-type string, of each message-processing (IONode) node's port types (`input`, `outputs`, `complete`, `error`, `status`). Config nodes have no wireable message ports, so they get a class declaration (above) but no registry entry. Every installed package adds its own nodes to this shared table, so the editor can look up any node's port types and type-check a wire drawn between two nodes — even nodes from different packages.
 - **The module default** — `{ nodes: [...] }`, typed from the classes above.
 
 Consumers import these when they reference your schemas or node definitions from their own code. See [Building & Running](./building-and-running#production-build) for details on the build process.

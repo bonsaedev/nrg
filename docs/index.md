@@ -18,7 +18,7 @@ hero:
 
 features:
   - title: TypeScript-First
-    details: Write nodes as typed classes. Your TypeScript types decide the input/output ports and which nodes can connect, your schema shapes the config — so wrong wiring or a bad setting is a red squiggle in your editor, not a 3am production page.
+    details: Write nodes as typed classes. Your TypeScript types decide the input/output ports and which nodes can connect, your schema shapes the config — so a bad setting is caught live in the editor form, and wrong wiring is painted red the moment you deploy, not a 3am production page.
   - title: Batteries-Included Tooling
     details: Vite dev + build, Vitest with helpers to mount a single node or spin up a real Node-RED runtime, and shared ESLint, Prettier, and TypeScript configs — all in the box. Scaffold a project and it already builds, tests, types, lints, and formats — the whole toolchain is wired up for you, nothing to assemble.
   - title: Schema-Driven Editor Forms

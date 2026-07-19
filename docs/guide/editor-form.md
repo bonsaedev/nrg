@@ -9,12 +9,12 @@ NRG generates the node's edit dialog from your schema — you don't write any HT
 ![The generated editor form](/editor-form.png)
 
 - **Ports Settings** — rendered on **every** IONode (config nodes never get it). Its subsections:
-  - **Outputs** — a per-port table, one row per base output port. The **rows** come from the node's **types** (its port topology); the columns are framework controls:
-    - **Validate Data** (+ **Schema**) — renders on every node with output ports; the framework injects [`outputSchemas`](./schemas#editor-schema-overrides) into every IONode. Toggle it on for a port to check the sent value against that port's schema.
+  - **Outputs** — a per-port table, one row per base output port. The **rows** come from the node's **types** (its port topology); the columns are **Label**, **Validate Data**, **Data Schema**, and **Description** (the port's description from the label catalog):
+    - **Validate Data** (+ **Data Schema**) — renders on every node with output ports; the framework injects [`outputSchemas`](./schemas#editor-schema-overrides) into every IONode. Toggle it on for a port to check the sent value against that port's schema.
 
     The table tracks the node's live output count, so dynamic-output nodes grow and shrink the rows automatically (lifecycle ports excluded).
   - **Lifecycle Output Ports** — _Error_, _Complete_, and _Status_ toggles, on every node (off by default). Enabling one adds that output port. See [lifecycle output ports](./creating-a-node#lifecycle-output-ports).
-  - **Input** — a _Validate Data_ toggle, rendered on every node with an input port; the framework injects [`inputSchema`](./schemas#editor-schema-overrides) into every IONode. Toggle it on to validate incoming messages against a schema.
+  - **Input** — a single-row table mirroring the Outputs columns (**Label**, **Validate Data**, **Data Schema**, **Description**), rendered on every node with an input port; the framework injects [`inputSchema`](./schemas#editor-schema-overrides) into every IONode. Toggle **Validate Data** on to validate incoming messages against a schema.
 
 Each help line links to the relevant docs.
 
@@ -51,6 +51,20 @@ NRG auto-generates everything needed for the Node-RED editor from your schema. Y
 If your node has a `configSchema` and `credentialsSchema`, NRG automatically generates a form using `<NodeRedJsonSchemaForm>`, wires up defaults and credential fields, and registers the node in the editor. You only need client files when you want to customize behavior beyond what the schema provides.
 :::
 
+To add per-field help in the generated form, give the field a `description` in the [label file](./locales). Each config and credential field entry can be a bare string (the label) or a `{ label, description }` object; the `description` renders as a muted, per-locale help note beneath the field (above its validation error). This is the supported way to document a generated field — set it per locale in the labels JSON:
+
+```json
+{
+  "label": "My Node",
+  "configs": {
+    "threshold": {
+      "label": "Threshold",
+      "description": "Rows above this value are forwarded."
+    }
+  }
+}
+```
+
 ### `src/client/index.ts` — Custom Registration
 
 Use this when you need to control the order nodes are registered, fetch data before registration, or run initialization logic:
@@ -76,6 +90,8 @@ The client package uses your node's TypeBox schemas to provide full type safety 
 | `SchemaType.Boolean()` | `boolean` | `boolean` |
 | `SchemaType.NodeRef<T>("type")` | Config node instance (`T`) | `string` (node ID) |
 | `SchemaType.TypedInput<T>()` | `TypedInput<T>` (with `.resolve()`) | `{ value: string; type: string }` |
+
+For a numeric field, the generated form also forwards the schema's `minimum`, `maximum`, and `multipleOf` to the `<input>` as `min`, `max`, and `step` (an integer schema steps by `1`) — so out-of-range and decimal values read as invalid for free.
 
 #### `useFormNode` (recommended)
 

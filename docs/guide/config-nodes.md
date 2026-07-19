@@ -57,4 +57,6 @@ export default class AuthedHttpClient extends HttpClient {
 }
 ```
 
-The build also augments `@bonsae/nrg/server`'s `NodeTypes` registry with every message-processing (IONode) node's port types, keyed by node-type string (config nodes have no ports, so they get an inheritable class declaration but no registry entry). Because each installed package merges into the same registry, the editor can type-check a wire between nodes from _different_ packages. See [the generated `index.d.ts`](./project-structure#dist) for the full type surface.
+The generated `index.d.ts` (produced via API Extractor from the built barrel) exposes each node as an inheritable, type-only class declaration with its port types intact, alongside the `{ nodes: [...] }` module default — so a consumer can import and extend a node class with its schema and port types carried over. Config nodes have no wireable ports, so they simply contribute an inheritable class declaration and nothing to wiring. See [the generated `index.d.ts`](./project-structure#dist) for the full type surface.
+
+Because each installed package's node port types are available to the compiler, the deploy-only [wire check](./message-model#the-wire-check) — run once on `flows:started` across the whole flow — validates wires between nodes from _different_ packages, pushing per-connection verdicts to the editor so it paints failing wires red.
