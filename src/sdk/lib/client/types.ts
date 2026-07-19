@@ -95,9 +95,6 @@ interface NodeRedNode {
   validateOutputs?: Record<number, boolean>;
   /** design-time: type-check wires out of a base output port (editor wire check) */
   validateOutputTypes?: Record<number, boolean>;
-  /** per-port context modes: merge (default) or reset; legacy "passthrough"
-   * values from old flows resolve to merge */
-  outputContextModes?: Record<number, "merge" | "reset" | "passthrough">;
 
   [key: string]: any;
 }
@@ -203,9 +200,9 @@ interface NodeFeatures {
   hasInput: boolean;
   /**
    * Base output ports (excludes built-in error/complete/status), in port-index
-   * order. Drives the per-port context-mode rows in the Outputs subsection.
+   * order. Drives the per-port rows in the Outputs subsection.
    */
-  outputPorts: { index: number; label: string }[];
+  outputPorts: { index: number; label: string; description?: string }[];
 }
 
 // -- Client-side type inference --

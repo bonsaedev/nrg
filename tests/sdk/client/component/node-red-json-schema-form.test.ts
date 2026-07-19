@@ -6,7 +6,7 @@ import { getJQueryState } from "@/sdk/test/client/mocks/jquery";
 
 describe("NodeRedJsonSchemaForm", () => {
   test("skips the built-in per-port output fields (rendered by the app shell)", () => {
-    const { node } = createNode({ name: "n", outputContextModes: {} });
+    const { node } = createNode({ name: "n" });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
         node,
@@ -19,18 +19,12 @@ describe("NodeRedJsonSchemaForm", () => {
               title: "Validate Outputs",
               default: {},
             },
-            outputContextModes: {
-              type: "object",
-              title: "Context Modes",
-              default: {},
-            },
           },
         },
       },
     });
     // all framework-managed output fields are rendered by the app shell, not here
     expect(screen.container.textContent).not.toContain("Validate Outputs");
-    expect(screen.container.textContent).not.toContain("Context Modes");
     expect(screen.container.querySelectorAll('input[type="text"]').length).toBe(
       1,
     ); // only "name"

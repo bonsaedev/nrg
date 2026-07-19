@@ -76,26 +76,34 @@ function syncConfigInputs(
 function computeBuiltinPortOutputs(
   defaults: NodeDefaults,
   baseOutputs: number,
-): { hasBuiltinPorts: boolean; baseOutputs: number } {
+): { hasBuiltinPorts: boolean; baseOutputs: number; initialOutputs: number } {
   const hasBuiltinPorts =
     "errorPort" in defaults ||
     "completePort" in defaults ||
     "statusPort" in defaults;
 
+  // The initial output-port count = base ports + every built-in lifecycle port
+  // whose default is ON. This MUST drive both `defaults.outputs` (applied when a
+  // node is dragged from the palette) AND the type's top-level `outputs` (used
+  // when a node is imported/loaded WITHOUT an `outputs` field — Node-RED then
+  // falls back to `_def.outputs` and TRIMS any wires beyond it). If the two
+  // disagree, a default-on port (e.g. `completePort: true`) silently loses its
+  // port and its wire on load.
+  let initialOutputs = baseOutputs;
+  if (defaults.errorPort?.value) initialOutputs++;
+  if (defaults.completePort?.value) initialOutputs++;
+  if (defaults.statusPort?.value) initialOutputs++;
+
   if (hasBuiltinPorts && !("outputs" in defaults)) {
-    let initialOutputs = baseOutputs;
-    if (defaults.errorPort?.value) initialOutputs++;
-    if (defaults.completePort?.value) initialOutputs++;
-    if (defaults.statusPort?.value) initialOutputs++;
     defaults.outputs = { value: initialOutputs };
   }
 
-  return { hasBuiltinPorts, baseOutputs };
+  return { hasBuiltinPorts, baseOutputs, initialOutputs };
 }
 
 /**
  * Resolves the base output ports (excluding built-in error/complete/status) the
- * context-mode rows configure. Labels follow the same precedence as the canvas
+ * Outputs rows configure. Labels follow the same precedence as the canvas
  * port labels (`createDefaultOutputLabels`): the port's `<type>.outputs.<name>.label`
  * catalog entry (named ports — the port name from the Output type is the lookup
  * KEY only, resolved server-side into `outputPortNames`), then the positional
@@ -106,9 +114,9 @@ function computeOutputPorts(
   type: string,
   outputPortNames: string[] | undefined,
   baseOutputs: number,
-): { index: number; label: string }[] {
+): { index: number; label: string; description: string }[] {
   const names = outputPortNames ?? [];
-  const ports: { index: number; label: string }[] = [];
+  const ports: { index: number; label: string; description: string }[] = [];
   for (let i = 0; i < baseOutputs; i++) {
     const name = names[i];
     const label =
@@ -117,7 +125,15 @@ function computeOutputPorts(
         ...(name ? [`${type}.outputs.${name}.label`] : []),
         `${type}.outputs.${i}.label`,
       ) ?? `Output ${i}`;
-    ports.push({ index: i, label });
+    // Same precedence as the label: the port's `outputs.<name>.description`
+    // catalog entry, then positional `outputs.<index>.description`; else blank.
+    const description =
+      resolveI18n(
+        node,
+        ...(name ? [`${type}.outputs.${name}.description`] : []),
+        `${type}.outputs.${i}.description`,
+      ) ?? "";
+    ports.push({ index: i, label, description });
   }
   return ports;
 }
@@ -153,11 +169,10 @@ async function registerType(definition: NodeDefinition): Promise<void> {
 
     let hasBuiltinPorts = false;
     let baseOutputs = nodeDefinition.outputs || 0;
+    let initialOutputs = baseOutputs;
     if (defaults) {
-      ({ hasBuiltinPorts, baseOutputs } = computeBuiltinPortOutputs(
-        defaults,
-        baseOutputs,
-      ));
+      ({ hasBuiltinPorts, baseOutputs, initialOutputs } =
+        computeBuiltinPortOutputs(defaults, baseOutputs));
     }
     if (validationSchema && defaults) {
       const firstProp = Object.keys(defaults)[0];
@@ -247,7 +262,11 @@ async function registerType(definition: NodeDefinition): Promise<void> {
       color: nodeDefinition.color || "#FFFFFF",
       icon: nodeDefinition.icon,
       inputs: nodeDefinition.inputs || 0,
-      outputs: nodeDefinition.outputs || 0,
+      // Top-level `outputs` must equal the initial computed count (base + default-on
+      // built-in ports), NOT just the base — Node-RED uses this when loading a node
+      // with no explicit `outputs` field, and trims wires past it. (see
+      // computeBuiltinPortOutputs)
+      outputs: initialOutputs,
       label: nodeDefinition.label || createDefaultLabel(type),
       paletteLabel:
         nodeDefinition.paletteLabel || createDefaultPaletteLabel(type),

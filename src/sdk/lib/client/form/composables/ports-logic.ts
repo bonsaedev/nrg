@@ -13,7 +13,7 @@ import type { NodeFeatures, NodeRedNode } from "../../types";
 function outputRows(
   node: NodeRedNode,
   features: NodeFeatures,
-): { index: number; label: string }[] {
+): { index: number; label: string; description: string }[] {
   const builtins =
     (node.errorPort ? 1 : 0) +
     (node.completePort ? 1 : 0) +
@@ -26,6 +26,7 @@ function outputRows(
   return Array.from({ length: base }, (_, index) => ({
     index,
     label: features.outputPorts[index]?.label ?? `Output ${index}`,
+    description: features.outputPorts[index]?.description ?? "",
   }));
 }
 

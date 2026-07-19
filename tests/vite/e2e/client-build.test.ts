@@ -269,15 +269,23 @@ describe("client build", () => {
     );
     // config-server has user labels but no configs.name — framework should inject it
     expect(labels["config-server"].configs.name).toBe("Name");
-    expect(labels["config-server"].toggles.validateInput).toBe("Validate Data");
+    expect(labels["config-server"].portSettings.inputsTable.validate).toBe(
+      "Validate Data",
+    );
     expect(labels["config-server"].toggles.errorPort).toBe("Error Port");
     // per-port Outputs table + Lifecycle Output Ports editor labels
-    expect(labels["config-server"].outputs.contextMode).toBe("Context Mode");
-    expect(labels["config-server"].sections.lifecyclePorts).toBe(
-      "Lifecycle Output Ports",
+    expect(labels["config-server"].portSettings.outputsTable.description).toBe(
+      "Description",
     );
-    expect(labels["config-server"].contextModes.modes.merge).toBe("merge");
-    expect(labels["config-server"].help.learnMore).toBe("Learn more");
+    expect(
+      labels["config-server"].portSettings.lifecyclePortsTable.section,
+    ).toBe("Lifecycle Output Ports");
+    expect(labels["config-server"].portSettings.lifecyclePortsTable.label).toBe(
+      "Label",
+    );
+    expect(
+      labels["config-server"].portSettings.inputsTable.help.learnMore,
+    ).toBe("Learn more");
   });
 
   it("should not overwrite user labels with framework defaults", () => {
@@ -299,11 +307,11 @@ describe("client build", () => {
     if (!fs.existsSync(dePath)) return;
     const labels = JSON.parse(fs.readFileSync(dePath, "utf-8"));
     expect(labels["config-server"].configs.name).toBe("Name");
-    expect(labels["config-server"].toggles.validateInput).toBe(
+    expect(labels["config-server"].portSettings.inputsTable.validate).toBe(
       "Daten validieren",
     );
-    expect(labels["config-server"].sections.lifecyclePorts).toBe(
-      "Lebenszyklus-Ausgangsports",
-    );
+    expect(
+      labels["config-server"].portSettings.lifecyclePortsTable.section,
+    ).toBe("Lebenszyklus-Ausgangsports");
   });
 });

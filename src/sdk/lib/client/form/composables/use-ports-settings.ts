@@ -31,9 +31,6 @@ function usePortsSettings() {
   const features = inject<NodeFeatures>("__nrg_features")!;
   const openSchemaTray = inject<OpenSchemaTray>("__nrg_open_schema_tray")!;
 
-  const hasOutputContextModes = computed(
-    (): boolean => schema?.properties?.outputContextModes !== undefined,
-  );
   /**
    * Whether THIS node offers input/output type-checking. The build injects the
    * `validateInputTypes` / `validateOutputTypes` default only for nodes with a
@@ -46,15 +43,6 @@ function usePortsSettings() {
   );
   const supportsOutputTypeValidation = computed(
     (): boolean => localNode._def?.defaults?.validateOutputTypes !== undefined,
-  );
-  /**
-   * The node author's per-port context-mode defaults, declared in the schema.
-   * A port present here is configurable (its dropdown is enabled and seeded to
-   * this value); a port absent here defaults to `merge`.
-   */
-  const authorContextModeDefaults = computed(
-    (): Record<number, string> =>
-      schema?.properties?.outputContextModes?.default ?? {},
   );
   /**
    * Whether this node accepts per-port output DATA-VALIDATION schema overrides
@@ -94,16 +82,17 @@ function usePortsSettings() {
    * Base output ports to render in the Outputs table. Reactive: a node with
    * dynamic outputs updates `localNode.outputs` (e.g. from a config field), so
    * the table grows/shrinks with it. The base count is the total minus the
-   * enabled lifecycle ports; labels reuse the static `features.outputPorts`
-   * when present, otherwise fall back to `Output {index}`.
+   * enabled lifecycle ports; labels + descriptions reuse the static
+   * `features.outputPorts` when present, otherwise fall back.
    */
-  const outputRows = computed((): { index: number; label: string }[] =>
-    computeOutputRows(localNode, features),
+  const outputRows = computed(
+    (): { index: number; label: string; description: string }[] =>
+      computeOutputRows(localNode, features),
   );
   /**
    * Show the Outputs subsection whenever the node has output ports (topology
    * from its TYPES). The framework injects every per-port control (Validate
-   * Data, Context Mode) into every IONode, so a node with output ports always
+   * Data, Data Schema) into every IONode, so a node with output ports always
    * has something to configure.
    */
   const showOutputs = computed((): boolean => outputRows.value.length > 0);
@@ -118,18 +107,6 @@ function usePortsSettings() {
    */
   const inputLabel = computed((): string =>
     resolveLabel("input.label", "Input"),
-  );
-  const contextModeOptions = computed(
-    (): { value: string; label: string }[] => [
-      {
-        value: "merge",
-        label: resolveLabel("contextModes.modes.merge", "merge"),
-      },
-      {
-        value: "reset",
-        label: resolveLabel("contextModes.modes.reset", "reset"),
-      },
-    ],
   );
 
   function resolveLabel(key: string, fallback: string): string {
@@ -176,26 +153,6 @@ function usePortsSettings() {
     };
   }
 
-  /** The mode shown for a port: the flow author's saved choice, else the node
-   * author's declared default, else `merge`. A legacy `passthrough` stored in an
-   * old flow displays as `merge` (the runtime resolves it the same way). Every
-   * port's dropdown is always editable — the flow author can pick any mode
-   * regardless of declaration. */
-  function contextModeFor(index: number): string {
-    const stored =
-      localNode.outputContextModes?.[index] ??
-      authorContextModeDefaults.value[index] ??
-      "merge";
-    return stored === "reset" ? "reset" : "merge";
-  }
-
-  function setContextMode(index: number, value: string) {
-    localNode.outputContextModes = {
-      ...(localNode.outputContextModes ?? {}),
-      [index]: value as "merge" | "reset",
-    };
-  }
-
   /** The effective schema string for a port: the flow-author override, else the
    * author default, else empty. */
   function outputSchemaFor(index: number): string {
@@ -215,7 +172,7 @@ function usePortsSettings() {
   /** Open a Monaco (JSON) tray to edit this port's validation schema, seeded
    * from the effective value and saved back to config on Done. */
   function openOutputSchemaEditor(index: number) {
-    const title = `${resolveLabel("outputs.schema", "Data Schema")} — ${
+    const title = `${resolveLabel("portSettings.outputsTable.schema", "Data Schema")} — ${
       outputRows.value[index]?.label ?? `Output ${index}`
     }`;
     openSchemaTray(title, outputSchemaFor(index), (value) =>
@@ -236,7 +193,7 @@ function usePortsSettings() {
   /** Open a Monaco (JSON) tray to edit the input's validation schema, seeded
    * from the effective value and saved back to config on Done. */
   function openInputSchemaEditor() {
-    const title = `${resolveLabel("outputs.schema", "Data Schema")} — ${
+    const title = `${resolveLabel("portSettings.inputsTable.schema", "Data Schema")} — ${
       inputLabel.value
     }`;
     openSchemaTray(title, inputSchemaValue(), (value) => setInputSchema(value));
@@ -257,13 +214,11 @@ function usePortsSettings() {
     hasStatusPort,
     hasOutputValidation,
     hasOutputSchemas,
-    hasOutputContextModes,
     acceptsInputSchema,
     supportsInputTypeValidation,
     supportsOutputTypeValidation,
     outputRows,
     inputLabel,
-    contextModeOptions,
     // functions
     resolveLabel,
     docsUrl,
@@ -272,8 +227,6 @@ function usePortsSettings() {
     setValidateOutput,
     validateOutputTypesFor,
     setValidateOutputTypes,
-    contextModeFor,
-    setContextMode,
     outputSchemaFor,
     setOutputSchema,
     inputSchemaValue,

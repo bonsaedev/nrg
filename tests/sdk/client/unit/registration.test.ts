@@ -301,6 +301,30 @@ describe("registerType — builtin ports", () => {
 
     const registered = spy.mock.calls[0][1];
     expect(registered.defaults.outputs.value).toBe(3);
+    // The top-level `outputs` MUST match — Node-RED uses it (not
+    // defaults.outputs.value) when a node is loaded without an `outputs` field,
+    // then trims wires past it. If they disagree, a default-on port loses its
+    // wire on load.
+    expect(registered.outputs).toBe(3);
+  });
+
+  it("top-level outputs reflects a default-ON builtin port (load without outputs field)", async () => {
+    // Regression: a node with `completePort` defaulting to true must register a
+    // top-level `outputs` of base + 1, so a flow node imported without an explicit
+    // `outputs` field still renders the complete port and keeps its wire.
+    await register({
+      type: "complete-default-node",
+      category: "function",
+      defaults: {
+        name: { value: "" },
+        completePort: { value: true },
+      },
+      outputs: 1,
+    });
+
+    const registered = spy.mock.calls[0][1];
+    expect(registered.defaults.outputs.value).toBe(2);
+    expect(registered.outputs).toBe(2);
   });
 
   it("does not add outputs entry when no builtin ports exist", async () => {
@@ -360,7 +384,7 @@ describe("registerType — output ports (context modes)", () => {
   ) {
     registered.oneditprepare.call(node);
     return vi.mocked(mountApp).mock.calls[0][3] as {
-      outputPorts: { index: number; label: string }[];
+      outputPorts: { index: number; label: string; description: string }[];
     };
   }
 
@@ -380,8 +404,8 @@ describe("registerType — output ports (context modes)", () => {
         })[k] ?? k,
     };
     expect(featuresFor(spy.mock.calls[0][1], node).outputPorts).toEqual([
-      { index: 0, label: "Succeeded" },
-      { index: 1, label: "Failed" },
+      { index: 0, label: "Succeeded", description: "" },
+      { index: 1, label: "Failed", description: "" },
     ]);
   });
 
@@ -393,8 +417,8 @@ describe("registerType — output ports (context modes)", () => {
     });
 
     expect(featuresFor(spy.mock.calls[0][1]).outputPorts).toEqual([
-      { index: 0, label: "Output 0" },
-      { index: 1, label: "Output 1" },
+      { index: 0, label: "Output 0", description: "" },
+      { index: 1, label: "Output 1", description: "" },
     ]);
   });
 
@@ -410,10 +434,14 @@ describe("registerType — output ports (context modes)", () => {
     });
 
     const node = {
-      _: (k: string) => (k === "ctx-i18n-node.outputs.0.label" ? "Result" : k),
+      _: (k: string) =>
+        ({
+          "ctx-i18n-node.outputs.0.label": "Result",
+          "ctx-i18n-node.outputs.0.description": "The result of the job.",
+        })[k] ?? k,
     };
     expect(featuresFor(spy.mock.calls[0][1], node).outputPorts).toEqual([
-      { index: 0, label: "Result" },
+      { index: 0, label: "Result", description: "The result of the job." },
     ]);
   });
 

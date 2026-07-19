@@ -4,25 +4,40 @@
        of a bright toggle label that outweighs the section title. -->
   <div class="nrg-subsection">
     <div class="nrg-subsection-title">
-      {{ resolveLabel("sections.input", "Input") }}
+      {{ resolveLabel("portSettings.inputsTable.section", "Input") }}
     </div>
     <table class="nrg-input">
       <thead>
         <tr>
           <th class="nrg-cell-label">
-            {{ resolveLabel("outputs.label", "Label") }}
+            {{ resolveLabel("portSettings.inputsTable.label", "Label") }}
           </th>
           <th class="nrg-cell-flag">
-            {{ resolveLabel("toggles.validateInput", "Validate Data") }}
+            {{
+              resolveLabel("portSettings.inputsTable.validate", "Validate Data")
+            }}
           </th>
           <th v-if="acceptsInputSchema" class="nrg-cell-flag">
-            {{ resolveLabel("outputs.schema", "Data Schema") }}
+            {{ resolveLabel("portSettings.inputsTable.schema", "Data Schema") }}
           </th>
           <th
             v-if="typeCheckEnabled && supportsInputTypeValidation"
             class="nrg-cell-flag"
           >
-            {{ resolveLabel("toggles.validateInputTypes", "Validate Types") }}
+            {{
+              resolveLabel(
+                "portSettings.inputsTable.validateTypes",
+                "Validate Types",
+              )
+            }}
+          </th>
+          <th class="nrg-cell-desc">
+            {{
+              resolveLabel(
+                "portSettings.inputsTable.description",
+                "Description",
+              )
+            }}
           </th>
         </tr>
       </thead>
@@ -33,7 +48,10 @@
             <NodeRedToggle
               :model-value="localNode.validateInput"
               :aria-label="
-                resolveLabel('toggles.validateInput', 'Validate Data')
+                resolveLabel(
+                  'portSettings.inputsTable.validate',
+                  'Validate Data',
+                )
               "
               @update:model-value="
                 (val: boolean) => {
@@ -51,7 +69,7 @@
               }"
               :title="errors['node.inputSchema'] || undefined"
               :disabled="!localNode.validateInput"
-              :aria-label="`${resolveLabel('outputs.schema', 'Data Schema')} — ${inputLabel}`"
+              :aria-label="`${resolveLabel('portSettings.inputsTable.schema', 'Data Schema')} — ${inputLabel}`"
               @click="openInputSchemaEditor()"
             >
               <span class="nrg-schema-glyph" aria-hidden="true">
@@ -68,7 +86,10 @@
             <NodeRedToggle
               :model-value="localNode.validateInputTypes"
               :aria-label="
-                resolveLabel('toggles.validateInputTypes', 'Validate Types')
+                resolveLabel(
+                  'portSettings.inputsTable.validateTypes',
+                  'Validate Types',
+                )
               "
               @update:model-value="
                 (val: boolean) => {
@@ -77,18 +98,21 @@
               "
             />
           </td>
+          <td class="nrg-cell-desc">
+            {{ resolveLabel("input.description", "") }}
+          </td>
         </tr>
       </tbody>
     </table>
     <ul class="nrg-help-list">
       <li>
         <strong>{{
-          resolveLabel("toggles.validateInput", "Validate Data")
+          resolveLabel("portSettings.inputsTable.validate", "Validate Data")
         }}</strong>
         —
         {{
           resolveLabel(
-            "help.validateInput",
+            "portSettings.inputsTable.help.validate",
             "Validate incoming messages against the input schema before input() runs.",
           )
         }}
@@ -97,17 +121,25 @@
           :href="docsUrl('/guide/schemas#input-schema')"
           target="_blank"
           rel="noopener noreferrer"
-          >{{ resolveLabel("help.learnMore", "Learn more") }}</a
+          >{{
+            resolveLabel(
+              "portSettings.inputsTable.help.learnMore",
+              "Learn more",
+            )
+          }}</a
         >
       </li>
       <li v-if="typeCheckEnabled && supportsInputTypeValidation">
         <strong>{{
-          resolveLabel("toggles.validateInputTypes", "Validate Types")
+          resolveLabel(
+            "portSettings.inputsTable.validateTypes",
+            "Validate Types",
+          )
         }}</strong>
         —
         {{
           resolveLabel(
-            "help.validateInputTypes",
+            "portSettings.inputsTable.help.validateTypes",
             "Type-check wires connected to this input on deploy (TypeScript).",
           )
         }}

@@ -1,7 +1,7 @@
 <template>
   <div v-if="showPortsSettings" class="nrg-section">
     <div class="nrg-section-title">
-      {{ resolveLabel("sections.portsSettings", "Ports Settings") }}
+      {{ resolveLabel("portSettings.title", "Ports Settings") }}
     </div>
     <JsonSchemaLogo />
     <InputSettings v-if="features.hasInput" />
@@ -64,6 +64,9 @@ const {
 
 :deep(.nrg-subsection) {
   margin-bottom: 10px;
+  /* Scroll the table horizontally when it can't fit the editor's default width,
+     instead of forcing the tray wider. */
+  overflow-x: auto;
 }
 
 :deep(.nrg-subsection-title) {
@@ -78,12 +81,13 @@ const {
 :deep(.nrg-outputs),
 :deep(.nrg-lifecycle),
 :deep(.nrg-input) {
-  /* Fill the panel so the table grows when the tray is widened. At the default
-     tray width this is moot: with the help prose capped (see .nrg-help), the
-     table's fixed column-sum is the widest intrinsic element, so Node-RED sizes
-     the tray to the table. Dragging the tray wider then stretches the columns. */
+  /* All three tables share one full-width fixed layout. Every column has an
+     explicit width, so the table's max-content is BOUNDED — otherwise the
+     widthless Description column would report its full text and Node-RED would
+     size the edit tray to it. The minimum keeps controls from squeezing; if the
+     editor is narrower, the .nrg-subsection wrapper scrolls. */
   width: 100%;
-  max-width: 100%;
+  min-width: 360px;
   table-layout: fixed;
   margin-top: 6px;
   border-collapse: separate;
@@ -92,27 +96,6 @@ const {
   border-radius: 3px;
   overflow: hidden;
   font-size: 12px;
-}
-
-/* Lifecycle table: auto layout so PORT and ENABLE shrink to their content and
-   DESCRIPTION (kept on one line) drives the table's natural width — Node-RED
-   then sizes the tray to fit it, so descriptions never wrap. Declared after the
-   shared rule so table-layout: auto wins over the fixed default. */
-:deep(.nrg-lifecycle),
-:deep(.nrg-input) {
-  table-layout: auto;
-}
-
-/* The Input table holds just Label + Validate Data (+ Validate Types), so unlike
-   the Outputs table it needn't span the panel — size it to its content. Declared
-   after the shared `width: 100%` so it wins. */
-:deep(.nrg-input) {
-  width: auto;
-}
-
-:deep(.nrg-lifecycle .nrg-cell-flag),
-:deep(.nrg-input .nrg-cell-flag) {
-  width: auto;
 }
 
 :deep(.nrg-outputs th),
@@ -152,30 +135,42 @@ const {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 /* Fixed Label column — long labels truncate with an ellipsis instead of
    widening the table. */
 :deep(.nrg-cell-label) {
-  width: 200px;
-  max-width: 200px;
+  width: 84px;
+  max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Fixed control column, wide enough to keep the "Validate Data" / "Data Schema"
+   headers on one line. */
 :deep(.nrg-cell-flag) {
-  /* Wide enough to keep the English "Validate Data" header on one line; the
-     extra width is taken from the auto columns (mostly the roomy Label column).
-     No nowrap: longer localized headers wrap to two lines instead of clipping
-     under table-layout:fixed + overflow:hidden. */
-  width: 116px;
+  width: 100px;
+  white-space: nowrap;
+}
+
+/* Description column — a FIXED width (not "remaining"), so the fixed-layout table
+   has a bounded max-content and Node-RED opens the tray at its default size.
+   Left-aligned, muted, and wraps within the column. */
+:deep(.nrg-cell-desc) {
+  width: 200px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--red-ui-text-color-disabled, #999);
+  font-size: 11px;
 }
 
 /* Center the toggle in the cell. Block-level `flex` (not the component's default
    inline-flex) so the cell's `vertical-align: middle` centers it on the row's
    true center, not the text x-height — otherwise the toggle sits slightly high
-   relative to the return-property input / context-mode select in the same row. */
+   relative to the taller schema button in the same row. */
 :deep(.nrg-cell-flag .nrg-toggle-wrapper) {
   display: flex;
   align-items: center;
@@ -211,17 +206,11 @@ const {
   color: var(--red-ui-text-color-error, #d33);
 }
 
-/* Match the return-property / context-mode field height (28px), scoped through
-   the flag cell to beat Node-RED's global `.red-ui-button-small` height (20px). */
+/* A comfortable 28px schema-button height, scoped through the flag cell to beat
+   Node-RED's global `.red-ui-button-small` height (20px). */
 :deep(.nrg-cell-flag .nrg-schema-btn) {
   height: 28px;
   box-sizing: border-box;
   border-radius: 5px;
-}
-
-/* Keep column headers (notably "Validate Data") on a single line. */
-:deep(.nrg-input thead th),
-:deep(.nrg-outputs thead th) {
-  white-space: nowrap;
 }
 </style>

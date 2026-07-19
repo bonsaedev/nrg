@@ -148,8 +148,10 @@ describe("locales-generator", () => {
       // User-provided key preserved
       expect(output["my-node"].configs.host).toBe("Host");
       // Framework default injected
-      expect(output["my-node"].toggles).toBeDefined();
-      expect(output["my-node"].toggles.validateInput).toBe("Validate Data");
+      expect(output["my-node"].portSettings).toBeDefined();
+      expect(output["my-node"].portSettings.inputsTable.validate).toBe(
+        "Validate Data",
+      );
     });
 
     it("falls back to en-US framework labels for unknown languages", () => {
@@ -173,7 +175,9 @@ describe("locales-generator", () => {
       );
       // Should have ja framework labels
       expect(output["my-node"].configs.name).toBe("名前");
-      expect(output["my-node"].toggles.validateInput).toBe("データを検証");
+      expect(output["my-node"].portSettings.inputsTable.validate).toBe(
+        "データを検証",
+      );
     });
 
     it("throws on invalid language codes", () => {
