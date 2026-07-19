@@ -1019,6 +1019,18 @@ describe("wire-check semantics (TDD)", () => {
     expect(report.uncheckedTypes).toContain("debug");
   });
 
+  it("warns on a core→core wire — a core node has no types either direction", () => {
+    // inject (core) -> debug (core): neither has types, so the wire is unchecked
+    // and warns (a core node's wires warn both directions).
+    const report = checkFlowConfig(
+      [tab, n("i", "inject", [["d"]]), n("d", "debug", [])],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("i:0:d"));
+    expect(p?.ok).toBe(true);
+    expect(p?.warn).toMatch(/core\/non-nrg node \(debug\)/);
+  });
+
   it("NEVER warns into an nrg node whose input reads any/unknown (accept-all passthrough)", () => {
     // A node declaring Input<Port<any>> or Input<Port<unknown>> explicitly accepts
     // anything — it is a passthrough, not a boundary. A wire into it stays grey no

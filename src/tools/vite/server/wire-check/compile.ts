@@ -80,10 +80,11 @@ interface WirePath {
   id: string;
   label: string;
   wireIds: string[];
-  /** A NON-fatal caveat about an otherwise-valid connection — set when an
-   * untyped source (a core/non-nrg node, or an nrg `Port<any>` output) feeds a
-   * TYPED nrg reader: the wire passes only because `any` satisfies everything, so
-   * the reader's contract goes UNVERIFIED. The connection stays green. */
+  /** A NON-fatal caveat about an otherwise-valid connection — set when a wire
+   * can't be type-checked: it touches a CORE/non-nrg node (no types, either
+   * direction), or an untyped source (`Port<any>`/`Port<unknown>` output) feeds a
+   * typed reader whose contract then goes UNVERIFIED. A wire into an nrg node that
+   * reads `any`/`unknown` (accept-all) is exempt. The connection stays green. */
   warn?: string;
 }
 
@@ -334,17 +335,15 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     }
     return label;
   };
-  // A TYPED ↔ UNTYPED BOUNDARY caveat: a wire between a typed nrg node and a
-  // CORE/non-nrg node, where type-checking can't cross. Flag it (non-fatal), both
-  // directions:
-  //   • untyped SOURCE → typed READER — the reader's declared contract is never
-  //     verified (`any` satisfies it); it could be handed the wrong shape.
-  //   • typed SOURCE → core READER — the typed message enters an unchecked node
-  //     (its contract can't be established, and anything past it is `any`).
-  // EXCEPT: an nrg node whose INPUT reads `any`/`unknown` explicitly accepts
-  // ANYTHING — a deliberate accept-all passthrough, NOT a boundary. Never warn on a
-  // wire into it, typed source or not. (An nrg `Port<any>`/`Port<unknown>` OUTPUT is
-  // still an untyped SOURCE — it gives the reader no type to check against.)
+  // A wire is a WARN (non-fatal, yellow) when type-checking can't be established on
+  // it — i.e. at least one endpoint is UNTYPED — with ONE exception:
+  //   • a CORE/non-nrg node has no types at all, so EVERY wire touching it is
+  //     unchecked → warn, both directions (into it AND out of it, even core→core).
+  //   • an untyped SOURCE (a core node, or an nrg `Port<any>`/`Port<unknown>`
+  //     OUTPUT) → a TYPED nrg reader: the reader's contract goes unverified.
+  //   • EXCEPT an nrg node whose INPUT reads `any`/`unknown` — it explicitly
+  //     accepts anything, a deliberate accept-all passthrough, NOT a boundary. Never
+  //     warn on a wire INTO it, whatever the source.
   // (Junctions are spliced out, so `e.src`/`e.dst` are the real endpoints.)
   const boundaryWarning = (e: Edge): string | undefined => {
     const src = byId.get(e.src)!;
@@ -352,24 +351,24 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     const srcName = src.name ?? src.id;
     const dstName = dst.name ?? dst.id;
     const dstDef = registry[dst.type];
-    // accept-all reader (Port<any>/Port<unknown> input) — never a boundary
+    // accept-all reader (nrg Port<any>/Port<unknown> input) — never a boundary
     if (dstDef && (dstDef.reads === "any" || dstDef.reads === "unknown"))
       return;
-
-    const srcUntyped = portAt(src, e.srcPort).adds === "any";
-    const dstUntyped = !dstDef; // only a core/non-nrg node is an untyped boundary now
-    if (srcUntyped && !dstUntyped) {
-      // untyped source → typed nrg reader
+    // target is a CORE/non-nrg node — no types at all, so this wire is never
+    // checked; warn regardless of the source (core nodes warn in both directions).
+    if (!dstDef) {
+      return `'${dstName}' is a core/non-nrg node (${dst.type}) — it has no types, so this wire isn't type-checked (type-checking stops here).`;
+    }
+    // target is a typed nrg reader — warn only if the SOURCE is untyped (a core
+    // node, or an nrg `Port<any>`/`Port<unknown>` output): the reader's contract
+    // then goes unverified.
+    if (portAt(src, e.srcPort).adds === "any") {
       const srcKind = registry[src.type]
         ? "an untyped output"
         : `a core/non-nrg node (${src.type})`;
-      return `'${srcName}' is ${srcKind} — the message it sends can't be checked against what '${dstName}' reads (${dstDef!.reads}).`;
+      return `'${srcName}' is ${srcKind} — the message it sends can't be checked against what '${dstName}' reads (${dstDef.reads}).`;
     }
-    if (!srcUntyped && dstUntyped) {
-      // typed source → core/non-nrg reader
-      return `'${dstName}' is a core/non-nrg node (${dst.type}) — '${srcName}''s typed output isn't checked into it, and type-checking stops here.`;
-    }
-    return; // both typed (checked) or both untyped (no contract) — no boundary
+    return; // both typed nrg — fully checked
   };
 
   const paths: WirePath[] = [];
