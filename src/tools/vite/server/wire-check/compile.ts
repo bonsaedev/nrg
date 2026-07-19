@@ -79,6 +79,9 @@ interface CompiledFlow {
   wires: WireRef[];
   /** Core/non-nrg node types that are wired — the unchecked `any` boundary. */
   uncheckedTypes: string[];
+  /** Wires that flow into a junction whose outputs reach no node input — a
+   * structural (not type) fault, red on its own with a fixed message. */
+  deadWires: WireRef[];
 }
 
 // The built-in error/status port additions. ERROR_ADDS mirrors the SDK
@@ -183,16 +186,121 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     dst: string;
     back: boolean;
   }
+  // A JUNCTION is a pure passthrough — Node-RED fans a message to all its outputs
+  // UNCHANGED. So the wire check treats it as TRANSPARENT: splice it out and let a
+  // source's real output type flow THROUGH to the real downstream input, instead of
+  // erasing to `any` like a `change`/`function` node (which can rewrite the record).
+  // Each spliced edge remembers the full PATH of real editor wires it stands for
+  // (source→junction, junction→…→target), so one verdict reds the whole path.
+  const junctions = new Set(
+    nodes.filter((n) => n.type === "junction").map((n) => n.id),
+  );
+  // A WireRef whose id matches the editor's link id (`src:port:dst`).
+  const rawRef = (src: string, srcPort: number, dst: string): WireRef => {
+    const s = byId.get(src)!;
+    const t = byId.get(dst)!;
+    return {
+      id: `${src}:${srcPort}:${dst}`,
+      label: `${s.name ?? s.id}[${portAt(s, srcPort).name}] -> ${t.name ?? t.id}`,
+    };
+  };
+  const rawTargets = (id: string): { port: number; dst: string }[] => {
+    const out: { port: number; dst: string }[] = [];
+    (byId.get(id)?.wires ?? []).forEach((targets, pi) => {
+      for (const t of targets) if (byId.has(t)) out.push({ port: pi, dst: t });
+    });
+    return out;
+  };
+  // Does junction `jId` reach any real (non-junction) node input downstream?
+  // Memoized + cycle-safe (a pure-junction cycle reaches nothing → false).
+  const reachMemo = new Map<string, boolean>();
+  const reachesReal = (jId: string, stack = new Set<string>()): boolean => {
+    const memo = reachMemo.get(jId);
+    if (memo !== undefined) return memo;
+    if (stack.has(jId)) return false;
+    stack.add(jId);
+    let reaches = false;
+    for (const { dst } of rawTargets(jId)) {
+      if (!junctions.has(dst) || reachesReal(dst, stack)) {
+        reaches = true;
+        break;
+      }
+    }
+    stack.delete(jId);
+    reachMemo.set(jId, reaches);
+    return reaches;
+  };
+  // Resolve a junction's outputs to real targets, each with the via-path of real
+  // wires taken to reach it (through junction→junction chains, cycle-guarded).
+  const resolveJunction = (
+    jId: string,
+    prefix: WireRef[],
+    stack = new Set<string>(),
+  ): { target: string; via: WireRef[] }[] => {
+    if (stack.has(jId)) return [];
+    stack.add(jId);
+    const out: { target: string; via: WireRef[] }[] = [];
+    for (const { port, dst } of rawTargets(jId)) {
+      const via = [...prefix, rawRef(jId, port, dst)];
+      if (junctions.has(dst)) out.push(...resolveJunction(dst, via, stack));
+      else out.push({ target: dst, via });
+    }
+    stack.delete(jId);
+    return out;
+  };
+
   const edges: Edge[] = [];
+  const edgeVia = new Map<Edge, WireRef[]>();
+  const deadWiresById = new Map<string, WireRef>();
   for (const n of nodes) {
+    if (junctions.has(n.id)) continue; // junction outgoing wires are spliced below
     (n.wires ?? []).forEach((targets, pi) => {
       for (const t of targets) {
-        if (byId.has(t))
-          edges.push({ src: n.id, srcPort: pi, dst: t, back: false });
-        // wires into disabled/missing nodes deliver nothing — dropped
+        if (!byId.has(t)) continue; // disabled/missing target — delivers nothing
+        const first = rawRef(n.id, pi, t);
+        if (!junctions.has(t)) {
+          const e: Edge = { src: n.id, srcPort: pi, dst: t, back: false };
+          edges.push(e);
+          edgeVia.set(e, [first]);
+        } else if (reachesReal(t)) {
+          for (const { target, via } of resolveJunction(t, [first])) {
+            const e: Edge = {
+              src: n.id,
+              srcPort: pi,
+              dst: target,
+              back: false,
+            };
+            edges.push(e);
+            edgeVia.set(e, via);
+          }
+        } else {
+          deadWiresById.set(first.id, first); // into a junction that goes nowhere
+        }
       }
     });
   }
+  // A wire INTO a dead junction FROM another junction is dead too — the whole path
+  // is wrong, not just the source's first hop.
+  for (const jId of junctions) {
+    for (const { port, dst } of rawTargets(jId)) {
+      if (junctions.has(dst) && !reachesReal(dst)) {
+        const w = rawRef(jId, port, dst);
+        deadWiresById.set(w.id, w);
+      }
+    }
+  }
+  const viaOf = (e: Edge): WireRef[] => edgeVia.get(e) ?? [];
+  // Every real editor wire, so the report lists the green ones too and every
+  // verdict (type or structural) attributes to a wire the editor can paint.
+  const allWires: WireRef[] = [];
+  for (const n of nodes) {
+    (n.wires ?? []).forEach((targets, pi) => {
+      for (const t of targets) {
+        if (byId.has(t)) allWires.push(rawRef(n.id, pi, t));
+      }
+    });
+  }
+
   const incoming = new Map<string, Edge[]>(nodes.map((n) => [n.id, []]));
   for (const e of edges) incoming.get(e.dst)!.push(e);
   const outgoing = new Map<string, Edge[]>(nodes.map((n) => [n.id, []]));
@@ -229,16 +337,6 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
   }
   const backEdges = edges.filter((e) => e.back);
   const pinned = new Set(backEdges.map((e) => e.dst));
-
-  const wireRef = (e: Edge): WireRef => {
-    const s = byId.get(e.src)!;
-    const t = byId.get(e.dst)!;
-    return {
-      id: `${e.src}:${e.srcPort}:${e.dst}`,
-      label: `${s.name ?? s.id}[${portAt(s, e.srcPort).name}] -> ${t.name ?? t.id}`,
-    };
-  };
-  const allWires = edges.map(wireRef);
 
   const lines: string[] = [];
   const wiresByLine = new Map<number, WireRef[]>();
@@ -408,7 +506,7 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     incoming
       .get(n.id)!
       .filter((e) => !e.back)
-      .map(wireRef);
+      .flatMap(viaOf);
 
   const deferred: { text: string; wires: WireRef[] }[] = [];
   for (const id of [...order, ...leftover]) {
@@ -460,7 +558,7 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       for (const e of inEdges) {
         push(
           `((x: ${def.reads}): void => void x)(${portRef(e)}); // fan-in wire`,
-          [wireRef(e)],
+          viaOf(e),
         );
       }
     } else {
@@ -491,7 +589,7 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     // the back-edge wire must satisfy the join's loop invariant (its declared reads)
     deferred.push({
       text: `((x: ${defFor(v).reads}): void => void x)(${portRef(e)}); // back-edge: loop invariant`,
-      wires: [wireRef(e)],
+      wires: viaOf(e),
     });
   }
   if (deferred.length) {
@@ -506,6 +604,7 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     wiresByLine,
     wires: allWires,
     uncheckedTypes: [...unknownTypes],
+    deadWires: [...deadWiresById.values()],
   };
 }
 

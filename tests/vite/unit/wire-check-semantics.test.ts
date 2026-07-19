@@ -798,4 +798,89 @@ describe("wire-check semantics (TDD)", () => {
     expect(report.uncheckedTypes).toContain("change");
     expect(report.wires.filter((w) => !w.ok)).toEqual([]); // complete wire stays green
   });
+
+  // ── junction nodes are TRANSPARENT (pure passthrough) ────────────────────
+  const producesA: Registry = {
+    src: {
+      source: true,
+      reads: "object",
+      ports: [{ name: "o", adds: "{ a: number }" }],
+    },
+    wantA: { reads: "{ a: number }", ports: [] },
+    wantB: { reads: "{ b: number }", ports: [] }, // b is produced by nobody
+  };
+
+  it("a junction passes the source type THROUGH to the reader (not `any`)", () => {
+    const report = checkFlowConfig(
+      [
+        tab,
+        n("s", "src", [["j"]]),
+        n("j", "junction", [["r"]]),
+        n("r", "wantA", []),
+      ],
+      producesA,
+    );
+    // a junction is no longer an unchecked boundary
+    expect(report.uncheckedTypes).not.toContain("junction");
+    expect(report.wires.filter((w) => !w.ok)).toEqual([]);
+  });
+
+  it("a real mismatch THROUGH a junction reds the WHOLE path", () => {
+    // src output { a } → wantB reads { b }. With the old any-boundary this falsely
+    // PASSED; transparent, it reds — and BOTH hops (s->j and j->r) go red.
+    const flow = [
+      tab,
+      n("s", "src", [["j"]]),
+      n("j", "junction", [["r"]]),
+      n("r", "wantB", []),
+    ];
+    expect(failed(flow, producesA).sort()).toEqual(["j:0:r", "s:0:j"]);
+  });
+
+  it("chained junctions stay transparent and red the whole chain on mismatch", () => {
+    const flow = [
+      tab,
+      n("s", "src", [["j1"]]),
+      n("j1", "junction", [["j2"]]),
+      n("j2", "junction", [["r"]]),
+      n("r", "wantB", []),
+    ];
+    expect(failed(flow, producesA).sort()).toEqual([
+      "j1:0:j2",
+      "j2:0:r",
+      "s:0:j1",
+    ]);
+  });
+
+  it("a junction fans the source type to every reader independently", () => {
+    // wantA is fine; wantB mismatches → only wantB's path reds (the shared s->j hop
+    // reds because a failing path runs through it).
+    const flow = [
+      tab,
+      n("s", "src", [["j"]]),
+      n("j", "junction", [["ra", "rb"]]),
+      n("ra", "wantA", []),
+      n("rb", "wantB", []),
+    ];
+    expect(failed(flow, producesA).sort()).toEqual(["j:0:rb", "s:0:j"]);
+  });
+
+  it("a junction whose outputs reach no node input is marked wrong (dead-end)", () => {
+    expect(
+      failed(
+        [tab, n("s", "src", [["j"]]), n("j", "junction", [[]])],
+        producesA,
+      ),
+    ).toEqual(["s:0:j"]);
+  });
+
+  it("a dead-end junction CHAIN reds the whole feeding path", () => {
+    const flow = [
+      tab,
+      n("s", "src", [["j1"]]),
+      n("j1", "junction", [["j2"]]),
+      n("j2", "junction", [[]]),
+    ];
+    expect(failed(flow, producesA).sort()).toEqual(["j1:0:j2", "s:0:j1"]);
+  });
 });

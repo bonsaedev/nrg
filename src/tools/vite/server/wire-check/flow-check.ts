@@ -39,7 +39,7 @@ function checkFlowConfig(
 ): FlowCheckReport {
   const checkedAt = new Date().toISOString();
   try {
-    const { code, wiresByLine, wires, uncheckedTypes } = compileFlow(
+    const { code, wiresByLine, wires, uncheckedTypes, deadWires } = compileFlow(
       flow,
       registry,
     );
@@ -66,6 +66,18 @@ function checkFlowConfig(
         }
       } else {
         unattributed.push(`line ${d.line}: ${d.message}`);
+      }
+    }
+
+    // Structural faults from the compiler — a wire into a junction whose outputs
+    // reach no node input. Real WIRING errors (the message dead-ends), not tsc
+    // diagnostics, so red them directly with a fixed message.
+    for (const w of deadWires) {
+      if (!failed.has(w.id)) {
+        failed.set(
+          w.id,
+          "This junction's output reaches no node input — the message dead-ends here.",
+        );
       }
     }
 
