@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   failedWires,
+  warnedWires,
   reportSummary,
   linkDatumId,
 } from "@/sdk/lib/client/wire-check/report";
@@ -28,6 +29,16 @@ describe("wire-check report helpers", () => {
   it("failedWires picks exactly the failing wires", () => {
     const r = report([wire("a:0:b", true), wire("b:0:c", false)]);
     expect(failedWires(r).map((w) => w.id)).toEqual(["b:0:c"]);
+  });
+
+  it("warnedWires picks the PASSING wires that carry a caveat (not failures)", () => {
+    const r = report([
+      { id: "a:0:b", label: "a → b", ok: true, warn: "untyped source" },
+      wire("b:0:c", true), // clean pass, no warn
+      { id: "c:0:d", label: "c → d", ok: false, message: "x", warn: "ignored" },
+    ]);
+    // only the green-but-warned wire; a failed wire is red, never yellow
+    expect(warnedWires(r).map((w) => w.id)).toEqual(["a:0:b"]);
   });
 
   it("summary is a sticky error listing failing wires, capped at 5", () => {

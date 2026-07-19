@@ -19,6 +19,9 @@ interface ReportWire {
   label: string;
   ok: boolean;
   message?: string;
+  /** A non-fatal caveat (untyped source → typed reader); the wire stays green
+   * but is painted yellow so the unchecked boundary is visible. */
+  warn?: string;
 }
 
 interface FlowReport {
@@ -34,6 +37,7 @@ interface FlowReport {
 
 const COMMS_TOPIC = "nrg/type-check";
 const ERROR_CLASS = "nrg-wire-type-error";
+const WARN_CLASS = "nrg-wire-type-warn";
 
 function isFlowReport(value: unknown): value is FlowReport {
   return (
@@ -46,6 +50,12 @@ function isFlowReport(value: unknown): value is FlowReport {
 /** The ids of the failing wires. */
 function failedWires(report: FlowReport): ReportWire[] {
   return report.wires.filter((w) => !w.ok);
+}
+
+/** Wires that PASS but carry a non-fatal caveat (untyped source → typed reader) —
+ * painted yellow. A failing wire is red, not yellow, so warned excludes failures. */
+function warnedWires(report: FlowReport): ReportWire[] {
+  return report.wires.filter((w) => w.ok && w.warn);
 }
 
 /** One editor notification per report: sticky error listing the failing wires
@@ -108,6 +118,17 @@ function injectCss(): void {
 g.red-ui-flow-link-selected path.${ERROR_CLASS} {
   stroke: var(--red-ui-node-selected-color) !important;
   stroke-width: 5px;
+}
+/* WARNING wire (untyped source -> typed reader): still valid, so yellow-dashed
+   rather than red. Selection uses the SAME editor selection color as the error. */
+.${WARN_CLASS} {
+  stroke: var(--red-ui-text-color-warning, #cab200) !important;
+  stroke-dasharray: 10 4;
+  stroke-width: 4px;
+}
+g.red-ui-flow-link-selected path.${WARN_CLASS} {
+  stroke: var(--red-ui-node-selected-color) !important;
+  stroke-width: 5px;
 }`;
   document.head.appendChild(style);
 }
@@ -119,6 +140,7 @@ function paintReport(report: FlowReport): void {
   if (typeof document === "undefined") return;
   injectCss();
   const failed = new Set(failedWires(report).map((w) => w.id));
+  const warned = new Set(warnedWires(report).map((w) => w.id));
   try {
     const links = Array.from(
       document.querySelectorAll(".red-ui-flow-link-line"),
@@ -126,8 +148,11 @@ function paintReport(report: FlowReport): void {
     for (const el of links) {
       const datum = (el as { __data__?: unknown }).__data__;
       const id = linkDatumId(datum);
-      if (id && failed.has(id)) el.classList.add(ERROR_CLASS);
-      else el.classList.remove(ERROR_CLASS);
+      // A failure (red) wins over a warning (yellow); a clean wire clears both.
+      const isFailed = id !== null && failed.has(id);
+      const isWarned = id !== null && !isFailed && warned.has(id);
+      el.classList.toggle(ERROR_CLASS, isFailed);
+      el.classList.toggle(WARN_CLASS, isWarned);
     }
   } catch {
     /* canvas internals moved — the notification still carries the verdict */
@@ -187,5 +212,11 @@ function subscribeFlowReport(): void {
   });
 }
 
-export { subscribeFlowReport, reportSummary, failedWires, linkDatumId };
+export {
+  subscribeFlowReport,
+  reportSummary,
+  failedWires,
+  warnedWires,
+  linkDatumId,
+};
 export type { FlowReport, ReportWire };
