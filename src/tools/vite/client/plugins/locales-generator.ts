@@ -75,7 +75,7 @@ function localesGenerator(options: {
           error: {
             name: "Error",
             description:
-              "Routes the message to a separate output when this node fails, so you can handle errors on their own wire.",
+              "Routes the message to a separate output when this node throws (an unexpected failure), so you can handle it on its own wire.",
           },
           complete: {
             name: "Complete",
@@ -139,7 +139,7 @@ function localesGenerator(options: {
           error: {
             name: "Fehler",
             description:
-              "Leitet die Nachricht an einen separaten Ausgang weiter, wenn dieser Node fehlschlägt, sodass Sie Fehler auf einer eigenen Leitung behandeln können.",
+              "Leitet die Nachricht an einen separaten Ausgang weiter, wenn dieser Node eine Ausnahme wirft (ein unerwarteter Fehler), sodass Sie ihn auf einer eigenen Leitung behandeln können.",
           },
           complete: {
             name: "Abschluss",
@@ -203,7 +203,7 @@ function localesGenerator(options: {
           error: {
             name: "Error",
             description:
-              "Dirige el mensaje a una salida independiente cuando este nodo falla, para que puedas gestionar los errores en su propio cable.",
+              "Dirige el mensaje a una salida independiente cuando este nodo lanza una excepción (un fallo inesperado), para que puedas gestionarlo en su propio cable.",
           },
           complete: {
             name: "Completado",
@@ -267,7 +267,7 @@ function localesGenerator(options: {
           error: {
             name: "Erreur",
             description:
-              "Achemine le message vers une sortie distincte lorsque ce nœud échoue, pour que vous puissiez gérer les erreurs sur leur propre fil.",
+              "Achemine le message vers une sortie distincte lorsque ce nœud lève une exception (une défaillance inattendue), pour que vous puissiez la gérer sur son propre fil.",
           },
           complete: {
             name: "Complétion",
@@ -330,7 +330,7 @@ function localesGenerator(options: {
           error: {
             name: "오류",
             description:
-              "이 노드가 실패하면 메시지를 별도의 출력으로 보내, 오류를 전용 연결선에서 처리할 수 있습니다.",
+              "이 노드가 예외를 던지면(예기치 않은 실패) 메시지를 별도의 출력으로 보내, 전용 연결선에서 처리할 수 있습니다.",
           },
           complete: {
             name: "완료",
@@ -394,7 +394,7 @@ function localesGenerator(options: {
           error: {
             name: "Erro",
             description:
-              "Encaminha a mensagem para uma saída separada quando este nó falha, para que você possa tratar os erros em um fio próprio.",
+              "Encaminha a mensagem para uma saída separada quando este nó lança uma exceção (uma falha inesperada), para que você possa tratá-la em um fio próprio.",
           },
           complete: {
             name: "Conclusão",
@@ -458,7 +458,7 @@ function localesGenerator(options: {
           error: {
             name: "Ошибка",
             description:
-              "Направляет сообщение на отдельный выход, когда этот узел завершается с ошибкой, чтобы вы могли обрабатывать ошибки на отдельном проводе.",
+              "Направляет сообщение на отдельный выход, когда этот узел выбрасывает исключение (непредвиденный сбой), чтобы вы могли обработать его на отдельном проводе.",
           },
           complete: {
             name: "Завершение",
@@ -522,7 +522,7 @@ function localesGenerator(options: {
           error: {
             name: "エラー",
             description:
-              "このノードが失敗したときにメッセージを別の出力へ送り、エラーを専用の線で処理できるようにします。",
+              "このノードが例外をスローした（予期しない失敗）ときにメッセージを別の出力へ送り、専用の線で処理できるようにします。",
           },
           complete: {
             name: "完了",
@@ -584,7 +584,7 @@ function localesGenerator(options: {
           error: {
             name: "错误",
             description:
-              "当此节点失败时，将消息发送到单独的输出，让你可以在专用连线上处理错误。",
+              "当此节点抛出异常（意外失败）时，将消息发送到单独的输出，让你可以在专用连线上处理。",
           },
           complete: {
             name: "完成",
@@ -646,7 +646,7 @@ function localesGenerator(options: {
           error: {
             name: "錯誤",
             description:
-              "當此節點失敗時，將訊息傳送到獨立的輸出，讓你可以在專用連線上處理錯誤。",
+              "當此節點擲出例外（非預期的失敗）時，將訊息傳送到獨立的輸出，讓你可以在專用連線上處理。",
           },
           complete: {
             name: "完成",

@@ -82,7 +82,7 @@
               {{
                 resolveLabel(
                   "portSettings.lifecyclePortsTable.error.description",
-                  "Routes the message to a separate output when this node fails, so you can handle errors on their own wire.",
+                  "Routes the message to a separate output when this node throws (an unexpected failure), so you can handle it on its own wire.",
                 )
               }}
             </td>
