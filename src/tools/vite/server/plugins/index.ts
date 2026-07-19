@@ -7,5 +7,5 @@ export {
   portTopology,
 } from "./node-type-info";
 export { portTopologyInjector } from "./port-topology-injector";
-export { writePackageDts } from "./node-types-dts";
+export { generatePackageDts } from "./package-dts";
 export { rewriteEmittedRuntimeImports } from "./runtime-imports";

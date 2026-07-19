@@ -12,7 +12,7 @@ import {
   extractNodeDefinitions,
   extractNodeTypesFromSrc,
   writeNodeTypesJson,
-  writePackageDts,
+  generatePackageDts,
   rewriteEmittedRuntimeImports,
   portTopology,
   portTopologyInjector,
@@ -57,10 +57,9 @@ async function build(
   // schema. Runs in dev too (a schema-free node needs its topology to route),
   // and is reused for node-types.json / index.d.ts (prod) so tsc runs once.
   // NOTE: the ts.Program is not cheap; caching per changed file is a follow-up.
-  const localTypes: Record<string, string> = {};
   let infos: ReturnType<typeof extractNodeTypesFromSrc> = [];
   try {
-    infos = extractNodeTypesFromSrc(resolvedSrcDir, undefined, localTypes);
+    infos = extractNodeTypesFromSrc(resolvedSrcDir);
   } catch (error) {
     logger.warn(`node type extraction skipped: ${(error as Error).message}`);
   }
@@ -176,21 +175,18 @@ module.exports = function (RED) {
     // emit it in dev too, so help docs show typed sections during development.
     writeNodeTypesJson(infos, buildContext.outDir);
 
-    // index.d.ts (the editor connection-type surface — inheritable classes + the
-    // NodeTypes wiring registry) is heavier and needed only by a published
-    // package's consumers, so it stays prod-only.
-    if (!buildContext.isDev) {
-      if (types) {
-        writePackageDts(
-          infos,
-          localTypes,
-          buildContext.outDir,
-          Object.keys(entryPoints),
-        );
-      }
-      if (infos.length) {
-        logger.info(`✓ Extracted types for ${infos.length} node(s)`);
-      }
+    // index.d.ts — the inheritable node-class surface for downstream packages.
+    // Generated with the standard toolchain (tsc declaration emit + API Extractor
+    // rollup) so the types are faithful by construction and externals stay
+    // externalized. Heavier than the runtime bundle and only a published package's
+    // consumers need it, so it stays prod-only.
+    if (!buildContext.isDev && types) {
+      generatePackageDts(
+        infos,
+        resolvedSrcDir,
+        buildContext.outDir,
+        Object.keys(entryPoints),
+      );
     }
 
     // Production only: rename the emitted server imports from the toolkit to the

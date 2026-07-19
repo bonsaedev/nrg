@@ -22,8 +22,8 @@ export type { Port, Input, Outputs } from "./nodes/types/ports";
 // data with `msg[Meta].source` (the producing node + port; framework-stamped).
 export { Channels, Meta } from "./nodes/types/ports";
 
-// The built-in lifecycle port message shapes, public so a generated package
-// `index.d.ts` can reference them in its `NodeTypes` registry.
+// The message channel + metadata shapes, public so a consumer can type code that
+// reads `msg[Channels]` / `msg[Meta]`.
 export type {
   MessageChannel,
   MessageChannels,
@@ -33,19 +33,4 @@ export type {
   WithMeta,
   MessageSource,
   NodeSource,
-  ErrorPortOutput as ErrorPort,
-  CompletePortOutput as CompletePort,
-  StatusPortOutput as StatusPort,
 } from "./nodes/types/ports";
-
-/**
- * The editor connection registry, keyed by node-type string. A package's build
- * AUGMENTS this interface (`declare module "@bonsae/nrg/server"`) with one entry
- * per node — `{ input, outputs, complete, error, status }` — so the editor can
- * look a node's port types up and type-check a wire by synthesizing
- * `NodeTypes[target]["input"] = x as NodeTypes[source]["outputs"][port]`.
- * Empty here; every installed package merges its nodes in. See
- * tools/vite/server/plugins/node-types-dts.
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- base interface, augmented per package
-export interface NodeTypes {}

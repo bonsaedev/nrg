@@ -1287,8 +1287,10 @@ function portTopology(info: NodeTypeInfo): PortTopology | undefined {
 }
 
 export {
+  collectTsFiles,
   extractNodeTypes,
   extractNodeTypesFromSrc,
+  resolveConsumerCompilerOptions,
   writeNodeTypesJson,
   portTopology,
 };

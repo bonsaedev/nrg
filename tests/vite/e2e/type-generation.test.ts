@@ -5,12 +5,11 @@ import ts from "typescript";
 import { build } from "../../../src/tools/vite/server/build";
 import type { ServerBuildOptions } from "../../../src/tools/vite/types";
 
-// Guards the emitted package `index.d.ts` — the editor connection-type surface.
-// It must carry (a) inheritable class declarations, (b) the `NodeTypes` wiring
-// registry (module augmentation, with the built-in error/status ports), (c) a
-// module default — and, above all, COMPILE CLEAN against the real framework, so
-// the editor's synthesized wire type-checks against real shapes (a dangling
-// reference would silently collapse to `any` and mis-validate every wire).
+// Guards the emitted package `index.d.ts` — the inheritable node-class surface.
+// It must carry (a) an inheritable class declaration for EVERY node in the
+// package, (b) a module default listing them — and, above all, COMPILE CLEAN
+// against the real framework, so a downstream package that extends a node sees
+// real shapes (a dangling reference would silently collapse to `any`).
 
 const REPO = path.resolve(__dirname, "../../..");
 const BASIC_FIXTURE = path.resolve(__dirname, "../../fixtures/basic-node");
@@ -113,33 +112,48 @@ describe("type generation — class-based nodes", () => {
   it("emits inheritable class declarations for each node", () => {
     expect(dts).toContain("export declare class TestNode extends IONode<");
     expect(dts).toContain("export declare class SecondNode extends IONode<");
+    // A config node with defaulted generics emits `extends ConfigNode` (no `<>`).
     expect(dts).toContain(
-      "export declare class ConfigServer extends ConfigNode<",
+      "export declare class ConfigServer extends ConfigNode",
     );
-    expect(dts).toMatch(/static readonly type: "test-node"/);
+    // tsc emits the literal initializer: `type = "test-node"` (not `type: …`).
+    expect(dts).toMatch(/static readonly type = "test-node"/);
   });
 
-  it("emits the NodeTypes wiring registry with the built-in lifecycle ports", () => {
-    expect(dts).toContain('declare module "@bonsae/nrg/server"');
-    expect(dts).toContain("interface NodeTypes {");
-    // IONode nodes get a registry entry; the config node does not.
-    expect(dts).toContain('"test-node": {');
-    expect(dts).toContain('"router-node": {');
-    expect(dts).not.toContain('"config-server": {');
-    // Built-in ports carry the delivered envelope, generic over each node's
-    // input (and its input() return, for complete). test-node declares no input
-    // generic, so it defaults to `any`; port-node's typed input flows through
-    // per-node.
-    expect(dts).toMatch(/error: ErrorPort<any>;/);
-    expect(dts).toMatch(/complete: CompletePort<any, void>;/);
-    expect(dts).toContain("error: ErrorPort<{ payload: string; }>");
-    expect(dts).toMatch(/status: StatusPort;/);
+  it("emits every node as a class + default-tuple entry (no NodeTypes registry)", () => {
+    // The old by-type-string NodeTypes wiring registry is no longer emitted —
+    // port types are read from source by the wire-check, so it was dead weight.
+    expect(dts).not.toContain('declare module "@bonsae/nrg/server"');
+    expect(dts).not.toContain("interface NodeTypes");
+    // COMPLETENESS: every node the package registers is present as an inheritable
+    // class AND listed in the default { nodes: [...] } tuple.
+    for (const cls of [
+      "TestNode",
+      "SecondNode",
+      "RouterNode",
+      "PortNode",
+      "ConfigServer",
+    ]) {
+      expect(dts).toContain(`export declare class ${cls} extends`);
+      expect(dts).toContain(`typeof ${cls}`);
+    }
   });
 
   it("emits a module default listing the node classes", () => {
     expect(dts).toContain("export default _default;");
     expect(dts).toMatch(/nodes: \[typeof \w/);
     expect(dts).toContain("typeof TestNode");
+  });
+
+  it("externalizes external deps as imports; inlines the package's own types", () => {
+    // External node_modules types stay as `import … from`, never inlined/duplicated.
+    expect(dts).toMatch(
+      /import \{[^}]*\bIONode\b[^}]*\} from ['"]@bonsae\/nrg\/server['"]/,
+    );
+    expect(dts).toMatch(/from ['"]@sinclair\/typebox['"]/); // schema's typebox types
+    expect(dts).not.toContain("@bonsae/nrg-runtime");
+    // The package's OWN types are declared locally (inlined), not imported.
+    expect(dts).toMatch(/declare (type|const) \w/);
   });
 
   it("compiles clean against the framework (no dangling references)", () => {
@@ -173,11 +187,19 @@ describe("type generation — custom-client package", () => {
     expect(fs.existsSync(dtsPath)).toBe(true);
   });
 
-  it("emits the NodeTypes registry for each node", () => {
-    expect(dts).toContain('declare module "@bonsae/nrg/server"');
-    expect(dts).toContain("interface NodeTypes {");
-    expect(dts).toContain('"custom-node": {');
-    expect(dts).toContain('"multi-output-node": {');
+  it("emits every node as a class + default-tuple entry (no NodeTypes registry)", () => {
+    expect(dts).not.toContain('declare module "@bonsae/nrg/server"');
+    expect(dts).not.toContain("interface NodeTypes");
+    for (const cls of [
+      "CustomNode",
+      "MinimalNode",
+      "MultiOutputNode",
+      "NoSchemaNode",
+      "ConfigServer",
+    ]) {
+      expect(dts).toContain(`export declare class ${cls} extends`);
+      expect(dts).toContain(`typeof ${cls}`);
+    }
   });
 
   it("emits a module default listing the node classes", () => {
