@@ -280,12 +280,33 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
   }
 
   // (1) declared functions — known registry types
-  const mergeDecl = (fn: string, name: string, reads: string, adds: string) =>
-    // LAST-WRITER-WINS: the runtime merge `{ ...incoming, ...additions }`
-    // OVERWRITES colliding keys, so the type drops the overwritten keys from In
-    // before intersecting — a plain `In & Adds` would collapse a re-added key to
-    // `In[k] & Adds[k]` (e.g. `never`).
-    `declare function n_${fn}_${ident(name)}<In extends ${reads}>(m: In): Omit<In, keyof (${adds})> & ${adds};`;
+  // A merge port is `<In extends reads>(m: In): Omit<In, keyof Adds> & Adds` —
+  // LAST-WRITER-WINS: the runtime spread `{ ...incoming, ...additions }`
+  // OVERWRITES colliding keys, so the type drops the overwritten keys from In
+  // before intersecting (a plain `In & Adds` would collapse a re-added key to
+  // `In[k] & Adds[k]`, e.g. `never`).
+  //
+  // `failOpen` — lifecycle ports ONLY: when `In` is `any` (an upstream core/non-nrg
+  // node erased the record), keep the output `any` so the wire stays UNCHECKED.
+  // A DATA port re-anchors to its declared `Adds` past such a boundary — its Adds is
+  // the node's contract, so a genuine downstream mismatch is still caught. A
+  // LIFECYCLE port (error/complete/status) instead carries the whole RECORD plus a
+  // small framework add ({error}/return value/{status}); its handler reads carried
+  // context, so re-anchoring to that tiny add would drop the carried keys and
+  // manufacture false failures (e.g. a `complete` into a node that reads fields the
+  // accumulated record still carries at runtime). `0 extends (1 & In)` is the
+  // standard is-any probe.
+  const mergeDecl = (
+    fn: string,
+    name: string,
+    reads: string,
+    adds: string,
+    failOpen = false,
+  ): string => {
+    const merged = `Omit<In, keyof (${adds})> & ${adds}`;
+    const ret = failOpen ? `0 extends (1 & In) ? any : (${merged})` : merged;
+    return `declare function n_${fn}_${ident(name)}<In extends ${reads}>(m: In): ${ret};`;
+  };
   for (const t of [...new Set(nodes.map((n) => n.type))]) {
     const def = registry[t];
     const fn = ident(t);
@@ -318,10 +339,12 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
         );
       }
     }
-    // built-in lifecycle ports (merge onto the record, like data ports)
+    // built-in lifecycle ports (merge onto the record, like data ports) — but
+    // FAIL-OPEN past an unchecked (`any`) boundary: their handlers read carried
+    // context, not a data contract (see mergeDecl).
     for (const name of builtinsByType.get(t) ?? []) {
       push(
-        `${mergeDecl(fn, name, def.reads, builtinAdds(def, name))} // built-in ${name} port`,
+        `${mergeDecl(fn, name, def.reads, builtinAdds(def, name), true)} // built-in ${name} port`,
       );
     }
   }

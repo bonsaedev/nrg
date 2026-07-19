@@ -765,4 +765,37 @@ describe("wire-check semantics (TDD)", () => {
     ];
     expect(failed(badFlow, reg)).toEqual(["af:0:r"]);
   });
+
+  it("a lifecycle port past a core boundary FAILS OPEN (unlike a re-anchoring data port)", () => {
+    // The accumulation/job case: a runner's `complete` merges its return
+    // ({ results }) onto the record. When a core node upstream erases the record to
+    // `any`, a complete wire into a node that reads CARRIED fields (item/index) must
+    // NOT red — the record carries them at runtime and the boundary makes it
+    // unverifiable, so a lifecycle port fails open. (A DATA port re-anchors to its
+    // adds past the same boundary — see the test above — so real mismatches there
+    // are still caught.)
+    const reg: Registry = {
+      src: {
+        source: true,
+        reads: "object",
+        ports: [{ name: "item", adds: "{ item: unknown; index: number }" }],
+      },
+      runner: {
+        reads: "{ items: unknown[] }",
+        ports: [{ name: "item", adds: "{ item: unknown; index: number }" }],
+        complete: "{ results: number[] }",
+      },
+      ret: { reads: "{ item: unknown; index: number }", ports: [] },
+    };
+    const flow = [
+      tab,
+      n("s", "src", [["chg"]]),
+      n("chg", "change", [["r"]]), // core node — erases the record to `any`
+      n("r", "runner", [[], ["e"]], { completePort: true }), // item(0)=[], complete(1)->ret
+      n("e", "ret", []),
+    ];
+    const report = checkFlowConfig(flow, reg);
+    expect(report.uncheckedTypes).toContain("change");
+    expect(report.wires.filter((w) => !w.ok)).toEqual([]); // complete wire stays green
+  });
 });
