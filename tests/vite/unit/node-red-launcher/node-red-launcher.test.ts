@@ -306,24 +306,26 @@ describe("NodeRedLauncher", () => {
       );
     });
 
-    it("logs stdout lines directly after ready", async () => {
+    it("logs stdout lines live after flushLogs", async () => {
       mockHappyStart();
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const launcher = new NodeRedLauncher("dist", {});
 
       await launcher.start();
-      lastOnLine()("After ready", "stdout", true);
+      launcher.flushLogs(); // go live: subsequent lines stream straight through
+      lastOnLine()("After flush", "stdout", true);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("After ready"),
+        expect.stringContaining("After flush"),
       );
     });
 
-    it("routes stderr lines after ready to logger.error", async () => {
+    it("routes stderr lines to logger.error when live", async () => {
       mockHappyStart();
       const launcher = new NodeRedLauncher("dist", {});
 
       await launcher.start();
+      launcher.flushLogs(); // go live
       lastOnLine()("something broke", "stderr", true);
 
       expect(clack.log.error).toHaveBeenCalledWith(
@@ -544,7 +546,11 @@ describe("NodeRedLauncher", () => {
       lastOnLine()("line 2", "stderr", false);
 
       launcher.flushLogs();
-      expect(consoleSpy).toHaveBeenCalledTimes(2);
+      // stdout drains to console.log; stderr keeps its routing to logger.error
+      expect(consoleSpy).toHaveBeenCalledTimes(1);
+      expect(clack.log.error).toHaveBeenCalledWith(
+        expect.stringContaining("line 2"),
+      );
 
       consoleSpy.mockClear();
       launcher.flushLogs();

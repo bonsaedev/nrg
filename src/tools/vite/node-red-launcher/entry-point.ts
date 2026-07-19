@@ -39,19 +39,19 @@ async function resolveNodeRed(options: ResolveNodeRedOptions): Promise<string> {
 
   const nodeRedCommand = getNodeRedCommand(version);
 
-  logger.info(`Resolving ${nodeRedCommand} entry point...`);
+  logger.updateSpinner(`Resolving ${nodeRedCommand} entry point...`);
 
   const hasExplicitVersion = version !== undefined && version !== "latest";
 
   if (!hasExplicitVersion) {
     const localEntry = resolveNodeRedFromLocalNodeModules();
     if (localEntry) {
-      logger.info(`Resolved from local node_modules: ${localEntry}`);
+      logger.updateSpinner(`Resolved from local node_modules: ${localEntry}`);
       return localEntry;
     }
   }
 
-  logger.info(
+  logger.updateSpinner(
     hasExplicitVersion
       ? `Using configured version (${version}), downloading via npx...`
       : `Not found locally, downloading via npx (this may take a while)...`,
@@ -110,7 +110,7 @@ for (const d of dirs) {
       );
     }
 
-    logger.info(`Resolved via npx: ${entryPoint}`);
+    logger.updateSpinner(`Resolved via npx: ${entryPoint}`);
     return entryPoint;
   } finally {
     try {

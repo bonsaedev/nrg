@@ -116,8 +116,11 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       }
 
       const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+      // Initial start settles the "Starting Node-RED" spinner silently — the
+      // links banner that follows is the ready signal, so "Ready" is redundant.
+      // A rebuild keeps its timing line.
       logger.stopSpinner(
-        phase === "initial" ? "Ready" : `Node-RED ready · ${elapsed}s`,
+        phase === "initial" ? undefined : `Node-RED ready · ${elapsed}s`,
       );
       logger.flushWarnings(verbose);
     } catch (error) {

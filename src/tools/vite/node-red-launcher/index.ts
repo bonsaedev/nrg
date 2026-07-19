@@ -17,7 +17,13 @@ class NodeRedLauncher implements INodeRedLauncher {
   private unwatchExit: (() => void) | null = null;
   private nodeRedEntryPoint: string | null = null;
   private tempFiles: string[] = [];
-  private bufferedLogs: string[] = [];
+  private bufferedLogs: { line: string; source: LogSource }[] = [];
+  // Node-RED logs are held until `flushLogs()` runs — which the dev server calls
+  // AFTER printing the Vite/Node-RED links banner — so every Node-RED line lands
+  // beneath the banner in one block, never split across it. The process's own
+  // `ready` flag is NOT enough: the banner is gated on Vite's httpServer
+  // `listening` event, so live lines would otherwise leak out before it.
+  private live = false;
   private port: number | null = null;
 
   private readonly outDir: string;
@@ -56,14 +62,16 @@ class NodeRedLauncher implements INodeRedLauncher {
     this.logger.raw(line);
   }
 
-  private handleProcessLine(
-    line: string,
-    source: LogSource,
-    ready: boolean,
-  ): void {
-    if (!ready) {
-      this.bufferedLogs.push(line);
-    } else if (source === "stderr") {
+  private handleProcessLine(line: string, source: LogSource): void {
+    if (!this.live) {
+      this.bufferedLogs.push({ line, source });
+      return;
+    }
+    this.emit(line, source);
+  }
+
+  private emit(line: string, source: LogSource): void {
+    if (source === "stderr") {
       this.logger.error(line);
     } else {
       this.log(line);
@@ -164,8 +172,7 @@ class NodeRedLauncher implements INodeRedLauncher {
           entryPoint: nodeRedEntryPoint,
           settingsPath: settings.filepath,
           args: this.options.args ?? [],
-          onLine: (line, source, ready) =>
-            this.handleProcessLine(line, source, ready),
+          onLine: (line, source) => this.handleProcessLine(line, source),
         });
 
         await this.process.ready;
@@ -216,8 +223,12 @@ class NodeRedLauncher implements INodeRedLauncher {
   }
 
   flushLogs(): void {
-    for (const line of this.bufferedLogs) {
-      this.log(line);
+    // Called after the links banner is printed: drain everything Node-RED has
+    // said so far (in order, preserving stderr routing), then switch to live so
+    // later lines stream straight through beneath the banner.
+    this.live = true;
+    for (const { line, source } of this.bufferedLogs) {
+      this.emit(line, source);
     }
     this.bufferedLogs = [];
   }

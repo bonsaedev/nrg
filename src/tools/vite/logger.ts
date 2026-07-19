@@ -268,11 +268,17 @@ export class Logger {
     }
   }
 
-  stopSpinner(message: string): void {
+  stopSpinner(message?: string): void {
     if (this.spinnerActive) {
-      this.spinner.stop(this.format(message));
+      // No message → settle the spinner on its current text (clack renders the
+      // final frame) so a caller can stop it without printing an extra line.
+      if (message !== undefined) {
+        this.spinner.stop(this.format(message));
+      } else {
+        this.spinner.stop();
+      }
       this.spinnerActive = false;
-    } else {
+    } else if (message !== undefined) {
       console.log(`◇  ${this.format(message)}`);
     }
   }
