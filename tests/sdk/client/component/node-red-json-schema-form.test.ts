@@ -66,7 +66,7 @@ describe("NodeRedJsonSchemaForm", () => {
     expect(input).not.toBeNull();
   });
 
-  test("renders integer field as number input", async () => {
+  test("renders integer field as number input with step=1 and min from the schema", async () => {
     const { node } = createNode({ retries: 3 });
     const screen = render(NodeRedJsonSchemaForm, {
       props: {
@@ -74,13 +74,31 @@ describe("NodeRedJsonSchemaForm", () => {
         schema: {
           type: "object",
           properties: {
-            retries: { type: "integer", title: "Retries" },
+            retries: { type: "integer", title: "Retries", minimum: 0 },
           },
         },
       },
     });
     const input = screen.container.querySelector('input[type="number"]');
     expect(input).not.toBeNull();
+    // integer → step of 1 (no decimals); minimum → min (no negatives)
+    expect(input?.getAttribute("step")).toBe("1");
+    expect(input?.getAttribute("min")).toBe("0");
+  });
+
+  test("a plain number field has no step (decimals allowed)", async () => {
+    const { node } = createNode({ ratio: 1.5 });
+    const screen = render(NodeRedJsonSchemaForm, {
+      props: {
+        node,
+        schema: {
+          type: "object",
+          properties: { ratio: { type: "number", title: "Ratio" } },
+        },
+      },
+    });
+    const input = screen.container.querySelector('input[type="number"]');
+    expect(input?.getAttribute("step")).toBeNull();
   });
 
   test("renders boolean with toggle option as toggle", async () => {

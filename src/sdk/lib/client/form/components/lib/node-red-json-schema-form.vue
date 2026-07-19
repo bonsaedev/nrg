@@ -5,6 +5,9 @@
         v-if="field.inputType === 'text' || field.inputType === 'number'"
         v-model:value="node[field.key]"
         :type="field.htmlType"
+        :min="field.min"
+        :max="field.max"
+        :step="field.step"
         :label="field.label"
         :icon="field.icon"
         :required="field.required"
@@ -220,6 +223,10 @@ interface FormField {
     | "object-json";
   required: boolean;
   htmlType?: "text" | "number" | "password";
+  /** `<input>` numeric constraints for a number/integer field. */
+  min?: number;
+  max?: number;
+  step?: number;
   options?: Array<{ value: string; label: string }>;
   multiple?: boolean;
   types?: (NodeRED.DefaultTypedInputType | NodeRED.TypedInputTypeDefinition)[];
@@ -366,6 +373,14 @@ function buildField(
         inputType: "number",
         required,
         htmlType: "number",
+        // Forward JSON-Schema numeric constraints to the <input> so an integer
+        // field steps by 1 and out-of-range/decimal values read as invalid.
+        min: (schema as { minimum?: number }).minimum,
+        max: (schema as { maximum?: number }).maximum,
+        step:
+          schema.type === "integer"
+            ? 1
+            : (schema as { multipleOf?: number }).multipleOf,
       };
 
     case "array":

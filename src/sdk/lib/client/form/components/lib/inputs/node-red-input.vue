@@ -15,6 +15,9 @@
       :type="type"
       :value="internalValue"
       :placeholder="placeholder"
+      :min="min"
+      :max="max"
+      :step="step"
       style="width: 100%"
       @input="onInput"
       @focus="onFocus"
@@ -46,6 +49,21 @@ export default defineComponent({
     type: {
       type: String,
       default: "text",
+    },
+    /** `<input>` numeric constraints — forwarded for a `type="number"` field so
+     * the spinner steps correctly and out-of-range/decimal values show invalid.
+     * Ignored by the browser for non-number types. */
+    min: {
+      type: [String, Number],
+      default: undefined,
+    },
+    max: {
+      type: [String, Number],
+      default: undefined,
+    },
+    step: {
+      type: [String, Number],
+      default: undefined,
     },
     placeholder: {
       type: String,
