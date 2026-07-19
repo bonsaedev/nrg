@@ -1019,6 +1019,32 @@ describe("wire-check semantics (TDD)", () => {
     expect(report.uncheckedTypes).toContain("debug");
   });
 
+  it("NEVER warns into an nrg node whose input reads any/unknown (accept-all passthrough)", () => {
+    // A node declaring Input<Port<any>> or Input<Port<unknown>> explicitly accepts
+    // anything — it is a passthrough, not a boundary. A wire into it stays grey no
+    // matter the source (typed src, or a core inject).
+    const reg: Registry = {
+      src: {
+        source: true,
+        reads: "object",
+        ports: [{ name: "o", adds: "{ a: number }" }],
+      },
+      acceptAny: { reads: "any", ports: [] },
+      acceptUnknown: { reads: "unknown", ports: [] },
+    };
+    const warnOf = (srcType: string, srcId: string, dstType: string) => {
+      const rep = checkFlowConfig(
+        [tab, n(srcId, srcType, [["d"]]), n("d", dstType, [])],
+        reg,
+      );
+      return rep.paths.find((p) => p.wireIds.includes(`${srcId}:0:d`))?.warn;
+    };
+    expect(warnOf("src", "s", "acceptAny")).toBeUndefined(); // typed → any
+    expect(warnOf("src", "s", "acceptUnknown")).toBeUndefined(); // typed → unknown
+    expect(warnOf("inject", "i", "acceptAny")).toBeUndefined(); // untyped → any
+    expect(warnOf("inject", "i", "acceptUnknown")).toBeUndefined(); // untyped → unknown
+  });
+
   // ── clearing a field with `undefined` (the supported "remove" convention) ──
   // The record only ever grows or overwrites, so a node "clears" a field by
   // re-adding it as `undefined` (Port<{ field: undefined }>). Downstream readers
