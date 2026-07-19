@@ -60,6 +60,18 @@ Declare only what you actually read. The wire check then guarantees a node
 *somewhere upstream* produced each field — wiring your node where a required
 field doesn't exist is a type error on that wire, before deploy.
 
+Your `Input` type is a declaration of **what you read from the shared record — not
+a filter on what reaches the node.** The whole accumulating message always arrives
+at `input()`; the type just names and types the fields you touch, so the wire check
+can prove they exist upstream and TypeScript can type them in the handler. Fields
+you don't declare still ride along on `msg` — you simply haven't typed them.
+
+Runtime **data validation** is a separate, opt-in concern. The `Input` type is
+compile-time only; to *reject* bad messages at runtime, turn on the input's
+**Validate Data** toggle and give it an `inputSchema`. That schema validates the
+**whole incoming message** and is independent of the `Input` type — see
+[Input Data Validation](./schemas#input-schema).
+
 ## Provenance: `msg[Meta]`
 
 The framework stamps every emission with its producer — node id, type, name,

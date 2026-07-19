@@ -31,8 +31,16 @@ export default class OpenConnection extends IONode<
   static override readonly type = "db-open";
   static override readonly configSchema = ConfigsSchema;
 
-  override async input() {
-    this.send("out", { connection: pool, rowCount: 0 }); // pool passes through intact
+  #pool!: Connection;
+
+  override async created() {
+    // Open the live connection once, when the node is deployed.
+    this.#pool = await openPool(this.config);
+  }
+
+  override async input(msg: OpenConnectionInput) {
+    // The live pool is a non-data value — it rides the wire intact.
+    this.send("out", { connection: this.#pool, rowCount: 0 });
   }
 }
 ```

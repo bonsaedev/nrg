@@ -251,6 +251,13 @@ export const ConfigsSchema = defineSchema(
 
 Validation runs when the flow author turns on the port's _Validate_ toggle (which sets `config.validateInput`). Invalid messages throw an error — routed to the error port when it's enabled. Validation is a **pure predicate**: it never coerces or defaults the message.
 
+### What input validation checks {#input-validation-scope}
+
+Input validation runs against the **whole incoming message**, not only the fields your `Input` type declares — the schema alone decides what's allowed. Two things follow:
+
+- **It's independent of the port type.** The `inputSchema` is authored (your default, or the flow author's editor override), so it can require or shape fields the `Input<Port<T>>` type never mentions, and vice versa. The type drives the wire check and types your handler; the schema is the runtime gate.
+- **Leave `additionalProperties` open.** Because the message is the flow's shared, accumulating record, it carries fields other nodes added upstream. Validate only the fields you actually read (as above — `required: ["payload"]`, no `additionalProperties: false`); setting `additionalProperties: false` would reject every field the record legitimately accumulated.
+
 ## Output Data Validation {#output-schema}
 
 Output validation **checks** each value you `send()` before it leaves the port. Like input validation, it is **not** a static — it's a **config-schema framework control**, and the per-port Schema editor and _Validate_ toggle render on every IONode already. Seed per-port default output schemas by adding a `SchemaType.OutputSchemas()` field to your config schema, keyed by output port index. Each entry seeds that port's default validation schema (Monaco-editable by the flow author):

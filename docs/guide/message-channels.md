@@ -178,7 +178,6 @@ reinvention *is* message channels; nrg just builds it in, off the wire, and hidd
 | --- | --- | --- | --- |
 | Survives cloning between wires | No (except `req`/`res`) | N/A | **Yes** |
 | Bound to one message | Yes | No (keyed by name) | **Yes (by `_msgid`)** |
-| Survives the flow author's `merge`/`reset` wire choice | No (`reset` drops it) | N/A | **Yes (rides `_msgid`)** |
 | Holds live/non-serializable objects | No | No (serialization-oriented) | **Yes (in-process store)** |
 | Hidden from the flow author | No | No | **Yes** |
 | Concurrency-safe across in-flight messages | Yes | No | **Yes** |
@@ -495,7 +494,7 @@ const { node } = await createNode(HttpResponse, {});
 const res = { statusCode: 0, end: vi.fn() };
 
 await node.receive(
-  { _msgid: "r1", output: { ok: true } },
+  { _msgid: "r1", payload: { ok: true } },
   { private: { res } }, // the incoming private channel
 );
 

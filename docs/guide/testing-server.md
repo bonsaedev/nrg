@@ -218,7 +218,7 @@ describe("credentials", () => {
 
     await node.receive({ payload: "test" });
     expect(node.sent(0)).toMatchObject([
-      { output: { result: "authenticated" }, input: { payload: "test" } },
+      { result: "authenticated", payload: "test" },
     ]);
   });
 });
@@ -230,9 +230,9 @@ describe("settings", () => {
     });
 
     await node.receive({});
-    // receive({}) carries no fields, so there's no `input` frame — just
-    // `output` and `source`.
-    expect(node.sent(0)).toMatchObject([{ output: { timeout: 3000 } }]);
+    // receive({}) carries no fields, so the outgoing record is just this send's
+    // additions (provenance rides msg[Meta].source, off the data keys).
+    expect(node.sent(0)).toMatchObject([{ timeout: 3000 }]);
   });
 });
 
@@ -251,7 +251,7 @@ describe("TypedInput", () => {
 
     await node.receive({ payload: "from-msg" });
     expect(node.sent(0)).toMatchObject([
-      { output: { value: "from-msg" }, input: { payload: "from-msg" } },
+      { value: "from-msg", payload: "from-msg" },
     ]);
   });
 
@@ -261,7 +261,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toMatchObject([{ output: { value: "hello" } }]);
+    expect(node.sent(0)).toMatchObject([{ value: "hello" }]);
   });
 
   it("should resolve number via TypedInput", async () => {
@@ -270,7 +270,7 @@ describe("TypedInput", () => {
     });
 
     await node.receive({});
-    expect(node.sent(0)).toMatchObject([{ output: { value: 42 } }]);
+    expect(node.sent(0)).toMatchObject([{ value: 42 }]);
   });
 });
 
@@ -299,10 +299,10 @@ describe("multi-output nodes", () => {
     await node.receive({ payload: 30 });
 
     expect(node.sent(0)).toMatchObject([
-      { output: { value: 75, label: "above" }, input: { payload: 75 } },
+      { value: 75, label: "above", payload: 75 },
     ]);
     expect(node.sent(1)).toMatchObject([
-      { output: { value: 30, label: "below" }, input: { payload: 30 } },
+      { value: 30, label: "below", payload: 30 },
     ]);
   });
 });
@@ -331,10 +331,7 @@ describe("context store", () => {
     await node.receive({});
     await node.receive({});
 
-    expect(node.sent(0)).toMatchObject([
-      { output: { count: 1 } },
-      { output: { count: 2 } },
-    ]);
+    expect(node.sent(0)).toMatchObject([{ count: 1 }, { count: 2 }]);
   });
 
   it("can preset and assert context directly", async () => {
@@ -346,7 +343,7 @@ describe("context store", () => {
     await node.receive({});
 
     // ...then assert what the node read/wrote
-    expect(node.sent(0)).toMatchObject([{ output: { count: 11 } }]);
+    expect(node.sent(0)).toMatchObject([{ count: 11 }]);
     expect(await node.context.flow!.get("count")).toBe(11);
   });
 });
@@ -374,7 +371,7 @@ describe("i18n", () => {
     const { node } = await createNode(MyNode);
 
     await node.receive({});
-    expect(node.sent(0)).toMatchObject([{ output: { greeting: "my-node.greeting" } }]);
+    expect(node.sent(0)).toMatchObject([{ greeting: "my-node.greeting" }]);
   });
 });
 
@@ -400,7 +397,7 @@ describe("named output ports (send by name)", () => {
 
     await node.receive({ payload: 75 });
     expect(node.sent("success")).toMatchObject([
-      { output: { result: "passed" }, input: { payload: 75 } },
+      { result: "passed", payload: 75 },
     ]);
     expect(node.sent("failure")).toHaveLength(0);
   });
@@ -412,7 +409,7 @@ describe("named output ports (send by name)", () => {
 
     await node.receive({ payload: 10 });
     expect(node.sent("failure")).toMatchObject([
-      { output: { error: "below threshold" }, input: { payload: 10 } },
+      { error: "below threshold", payload: 10 },
     ]);
   });
 });

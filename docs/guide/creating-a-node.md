@@ -64,8 +64,8 @@ export default class MyNode extends IONode<
 
   override async input(msg: MyNodeInput) {
     const apiKey = this.credentials?.apiKey;
-    // send the port's value by name — the framework puts it at the `output` key
-    // and carries the incoming record's fields forward (the default merge mode)
+    // send merges the named fields onto the incoming record — the flow's shared,
+    // accumulating message — so upstream fields carry through: { ...msg, greeting }
     this.send("out", { greeting: `${this.config.prefix}: ${msg.payload}` });
   }
 
@@ -313,9 +313,9 @@ When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `errorPort` | A thrown/uncaught error in `input()`, or `this.error(message, msg)` called with a message object — `this.error(message)` without the `msg` argument only logs and does **not** emit to the error port | `{ error: { name, message, stack? }, source: { id, type, name }, input: <incoming msg> }` — the error data is in `error`; `source` (producing node) and the failing message (`input`) ride the root beside it; plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)) |
-| `completePort` | `input()` finishes successfully | `{ complete: <return value>, source: { id, type, name }, input: <incoming msg> }` — `source`/`input` at the root; the `complete` key carries `input()`'s return value when there is one (a `void` return omits it — arrival on the wire is the signal) ([see below](#returning-a-custom-completion-message)) |
-| `statusPort` | Every `this.status()` call | `{ status: { fill, shape, text }, source: { id, type, name } }` |
+| `errorPort` | A thrown/uncaught error in `input()`, or `this.error(message, msg)` called with a message object — `this.error(message)` without the `msg` argument only logs and does **not** emit to the error port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg[Meta].source`. |
+| `completePort` | `input()` finishes successfully | The processed record merged with `input()`'s returned fields — `{ ...record, ...returnValue }` (a `void`/`undefined` return contributes nothing — arrival on the wire is itself the signal) ([see below](#returning-a-custom-completion-message)). Provenance is read via `msg[Meta].source`. |
+| `statusPort` | Every `this.status()` call | The processed record merged with a `status` block — `{ ...record, status: { fill, shape, text } }`. Provenance is read via `msg[Meta].source`. |
 
 Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
 
@@ -389,17 +389,16 @@ Leave a property out entirely and the node simply uses its framework default. Th
 
 #### Returning a custom completion message {#returning-a-custom-completion-message}
 
-The complete port normally carries a plain "done" signal — just `source` and
-`input` at the root. If your `input()` handler **returns a value**, that value
-rides the complete port under the **`complete`** key, and the flow continues with
-it. Returning nothing (or `undefined`) omits the `complete` key entirely (arrival
-on the complete wire is itself the signal), so this is backward-compatible.
+The complete port normally carries the processed record as a plain "done" signal.
+If your `input()` handler **returns an object**, its fields are **merged** onto
+that record and the flow continues with them. Returning nothing (or `undefined`)
+contributes no fields — arrival on the complete wire is itself the signal.
 
 ```typescript
 override async input(msg: Input<Port<{ items: unknown[] }>>): Promise<Summary> {
   const results = await Promise.all(this.collect(msg));
-  // continues on the complete port as
-  //   { complete: <summary>, source, input: msg }
+  // continues on the complete port as the merged record:
+  //   { ...msg, ...summary, _meta, _msgid }
   return summarize(results);
 }
 ```

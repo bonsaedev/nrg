@@ -71,7 +71,7 @@ Every message gets two **off-the-wire channels** — **`private`** (only your pa
                 off the wire, never cloned, never logged
 ```
 
-`http-in` sends only a clone-safe request snapshot on the wire and parks the live `res` on its **private** channel; `http-response`, anywhere downstream, reads the socket back and replies. The channel rides the `_msgid`, so it survives every `merge`/`reset` and any nodes in between:
+`http-in` sends only a clone-safe request snapshot on the wire and parks the live `res` on its **private** channel; `http-response`, anywhere downstream, reads the socket back and replies. The channel rides the `_msgid`, so it survives every merge and any nodes in between:
 
 ```typescript
 import { Channels } from "@bonsae/nrg/server";
@@ -553,8 +553,8 @@ override async input(msg: Input<Port<{ items: string[] }>>) {
 
 Now the loop, its success, and its failure all read top-to-bottom in one method, and on the canvas they are three real wires you can follow — not a self-loop plus two nodes linked by hidden scope. What each port carries:
 
-- **`complete`** — `input()`'s returned value, under a `complete` key.
-- **`error`** — `{ error: { name, message, stack? }, source, input: msg }`, the same shape a Catch node reads, but it travels this wire instead of firing a Catch node. (`stack` is present only when an `Error` was thrown.)
+- **`complete`** — `input()`'s returned fields, merged onto the processed record. `return { count }` puts `count` on the record the complete wire carries; returning nothing makes arrival on the wire itself the "done" signal.
+- **`error`** — the processed record merged with an `error` block (`{ name, message, stack? }`); provenance is read via `msg[Meta].source`. An error handler sees the failure details and the record that caused them side by side — the same information a Catch node reads, but on this wire instead. (`stack` is present only when an `Error` was thrown.)
 - **`status`** — whatever you pass to `this.status(...)`.
 
 ## TypedInput Resolution
