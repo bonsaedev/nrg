@@ -883,4 +883,65 @@ describe("wire-check semantics (TDD)", () => {
     ];
     expect(failed(flow, producesA).sort()).toEqual(["j1:0:j2", "s:0:j1"]);
   });
+
+  // ── report PATHS splice junctions back in as one node-to-node connection ──
+  it("reports a junction connection as one full path, not per-hop segments", () => {
+    // s -> j -> r is TWO raw wires but ONE connection: the report path stitches
+    // the junction back in as a waypoint (`s[o] -> j -> r`), and carries both raw
+    // wire ids so the editor still paints each hop.
+    const report = checkFlowConfig(
+      [
+        tab,
+        n("s", "src", [["j"]]),
+        n("j", "junction", [["r"]]),
+        n("r", "wantA", []),
+      ],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("j:0:r"));
+    expect(p?.label).toBe("s[o] -> j -> r");
+    expect(p?.wireIds).toEqual(["s:0:j", "j:0:r"]);
+    expect(p?.ok).toBe(true);
+  });
+
+  it("a chained-junction path lists every waypoint in order", () => {
+    const report = checkFlowConfig(
+      [
+        tab,
+        n("s", "src", [["j1"]]),
+        n("j1", "junction", [["j2"]]),
+        n("j2", "junction", [["r"]]),
+        n("r", "wantA", []),
+      ],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("j2:0:r"));
+    expect(p?.label).toBe("s[o] -> j1 -> j2 -> r");
+    expect(p?.wireIds).toEqual(["s:0:j1", "j1:0:j2", "j2:0:r"]);
+  });
+
+  it("a direct (junction-free) wire is a single-hop path", () => {
+    const report = checkFlowConfig(
+      [tab, n("s", "src", [["r"]]), n("r", "wantA", [])],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("s:0:r"));
+    expect(p?.label).toBe("s[o] -> r");
+    expect(p?.wireIds).toEqual(["s:0:r"]);
+  });
+
+  it("a whole-path mismatch marks the CONNECTION red (not just one hop)", () => {
+    const report = checkFlowConfig(
+      [
+        tab,
+        n("s", "src", [["j"]]),
+        n("j", "junction", [["r"]]),
+        n("r", "wantB", []),
+      ],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("j:0:r"));
+    expect(p?.ok).toBe(false);
+    expect(p?.label).toBe("s[o] -> j -> r");
+  });
 });

@@ -1,5 +1,5 @@
 import { compileFlow } from "./compile";
-import type { FlowNode, Registry, WireRef } from "./compile";
+import type { FlowNode, Registry, WireRef, WirePath } from "./compile";
 import { checkProgram } from "./checker";
 
 interface WireVerdict extends WireRef {
@@ -7,9 +7,19 @@ interface WireVerdict extends WireRef {
   message?: string;
 }
 
+/** A node-to-node connection verdict — junctions spliced back in as waypoints.
+ * This is what the human report prints; `ok` is false iff any raw wire the path
+ * traverses failed (whole-path red). */
+interface PathVerdict extends WirePath {
+  ok: boolean;
+  message?: string;
+}
+
 interface FlowCheckReport {
   ok: boolean;
   wires: WireVerdict[];
+  /** Node-to-node connection paths (junctions spliced in) — the human report. */
+  paths: PathVerdict[];
   /** Core/non-nrg node types on wires — the unchecked `any` boundary. */
   uncheckedTypes: string[];
   /** Errors that could not be attributed to a wire (compiler-shape issues). */
@@ -39,10 +49,8 @@ function checkFlowConfig(
 ): FlowCheckReport {
   const checkedAt = new Date().toISOString();
   try {
-    const { code, wiresByLine, wires, uncheckedTypes, deadWires } = compileFlow(
-      flow,
-      registry,
-    );
+    const { code, wiresByLine, wires, paths, uncheckedTypes, deadWires } =
+      compileFlow(flow, registry);
     const header = declarations
       ? `// local type declarations (extractor)\n${declarations}\n\n`
       : "";
@@ -86,6 +94,17 @@ function checkFlowConfig(
       ok: !failed.has(w.id),
       ...(failed.has(w.id) ? { message: failed.get(w.id) } : {}),
     }));
+    // Path verdicts (what the human report prints): a connection is red iff ANY
+    // raw wire it traverses failed — whole-path red — and it reports the first
+    // such wire's message.
+    const pathVerdicts: PathVerdict[] = paths.map((p) => {
+      const badId = p.wireIds.find((id) => failed.has(id));
+      return {
+        ...p,
+        ok: badId === undefined,
+        ...(badId !== undefined ? { message: failed.get(badId) } : {}),
+      };
+    });
     // `ok` reflects the WIRING only — an unattributed diagnostic (a garbled
     // extracted type, an unresolved consumer dependency, or a checker-shape
     // issue) is an INTERNAL fault, reported on its own channel; it must never
@@ -94,6 +113,7 @@ function checkFlowConfig(
     return {
       ok: failed.size === 0,
       wires: verdicts,
+      paths: pathVerdicts,
       uncheckedTypes,
       unattributed,
       internalError: unattributed.length > 0,
@@ -103,6 +123,7 @@ function checkFlowConfig(
     return {
       ok: true, // fail OPEN — never block authoring on a checker failure
       wires: [],
+      paths: [],
       uncheckedTypes: [],
       unattributed: [
         `checker failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -113,32 +134,34 @@ function checkFlowConfig(
   }
 }
 
-/** Terminal-friendly report — what `pnpm dev` prints after every deploy. */
+/** Terminal-friendly report — what `pnpm dev` prints after every deploy. Reports
+ * whole CONNECTIONS (junctions spliced back in as `-> waypoint ->`), not the raw
+ * per-hop wires, so a source→target route reads as one line. */
 function formatReport(report: FlowCheckReport): string[] {
   const lines: string[] = [];
-  const failed = report.wires.filter((w) => !w.ok);
+  const failed = report.paths.filter((p) => !p.ok);
   if (report.uncheckedTypes.length) {
     lines.push(
       `wire-check: unchecked boundary (core/non-nrg): ${report.uncheckedTypes.join(", ")}`,
     );
   }
-  for (const w of report.wires) {
-    if (w.ok) lines.push(`wire-check: ✔ ${w.label}`);
+  for (const p of report.paths) {
+    if (p.ok) lines.push(`wire-check: ✔ ${p.label}`);
   }
-  for (const w of failed) {
-    lines.push(`wire-check: ✖ ${w.label}`);
-    if (w.message) lines.push(`wire-check:     ${w.message}`);
+  for (const p of failed) {
+    lines.push(`wire-check: ✖ ${p.label}`);
+    if (p.message) lines.push(`wire-check:     ${p.message}`);
   }
   for (const u of report.unattributed) {
     lines.push(`wire-check: ⚠ internal (not a wire fault): ${u}`);
   }
   lines.push(
     failed.length === 0
-      ? `wire-check: GREEN — ${report.wires.length} wire(s) type-check`
-      : `wire-check: RED — ${failed.length} of ${report.wires.length} wire(s) failed`,
+      ? `wire-check: GREEN — ${report.paths.length} connection(s) type-check`
+      : `wire-check: RED — ${failed.length} of ${report.paths.length} connection(s) failed`,
   );
   return lines;
 }
 
 export { checkFlowConfig, formatReport };
-export type { FlowCheckReport, WireVerdict };
+export type { FlowCheckReport, WireVerdict, PathVerdict };

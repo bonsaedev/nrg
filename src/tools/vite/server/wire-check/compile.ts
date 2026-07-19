@@ -71,12 +71,27 @@ interface WireRef {
   label: string;
 }
 
+/** A full source-port → target-input CONNECTION for human reporting: the ordered
+ * raw editor wires it traverses (`wireIds`) and a combined label that splices any
+ * junction waypoints back IN (`Src[port] -> Junction -> Target`). One path per
+ * source→target route; it fails iff ANY raw wire it traverses fails (whole-path
+ * red). Distinct from `wires` — the per-raw-wire verdicts the editor paints. */
+interface WirePath {
+  id: string;
+  label: string;
+  wireIds: string[];
+}
+
 interface CompiledFlow {
   code: string;
   /** Emitted-line number (1-based) → the wires that line checks. */
   wiresByLine: Map<number, WireRef[]>;
-  /** Every checkable wire in the flow (for reporting the green ones too). */
+  /** Every checkable wire in the flow (for reporting the green ones too), keyed
+   * by raw editor-wire id — what the editor paints per wire. */
   wires: WireRef[];
+  /** Node-to-node connection PATHS for the human report: junctions spliced back
+   * in as waypoints, one entry per source→target route. */
+  paths: WirePath[];
   /** Core/non-nrg node types that are wired — the unchecked `any` boundary. */
   uncheckedTypes: string[];
   /** Wires that flow into a junction whose outputs reach no node input — a
@@ -300,6 +315,36 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       }
     });
   }
+
+  // Node-to-node PATHS for the human report: each spliced edge carries the full
+  // ordered `via` of raw wires it stands for (source→junction→…→target), so we
+  // stitch the junction waypoints back into ONE label — `Src[port] -> J -> Target`
+  // — instead of logging each raw hop on its own line. A dead-end junction wire
+  // has no real target, so it shows as its own broken path.
+  const pathLabelFor = (via: WireRef[]): string => {
+    let label = via[0].label; // already `Src[port] -> firstHopTarget`
+    for (let i = 1; i < via.length; i++) {
+      const dst = via[i].id.split(":")[2]; // id = `src:port:dst`
+      label += ` -> ${byId.get(dst)?.name ?? dst}`;
+    }
+    return label;
+  };
+  const paths: WirePath[] = [];
+  const pathSeen = new Set<string>();
+  const addPath = (via: WireRef[]): void => {
+    if (!via.length) return;
+    const wireIds = via.map((v) => v.id);
+    const key = wireIds.join("|");
+    if (pathSeen.has(key)) return;
+    pathSeen.add(key);
+    paths.push({
+      id: wireIds[wireIds.length - 1],
+      label: pathLabelFor(via),
+      wireIds,
+    });
+  };
+  for (const e of edges) addPath(viaOf(e));
+  for (const w of deadWiresById.values()) addPath([w]);
 
   const incoming = new Map<string, Edge[]>(nodes.map((n) => [n.id, []]));
   for (const e of edges) incoming.get(e.dst)!.push(e);
@@ -603,6 +648,7 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     code: lines.join("\n"),
     wiresByLine,
     wires: allWires,
+    paths,
     uncheckedTypes: [...unknownTypes],
     deadWires: [...deadWiresById.values()],
   };
@@ -615,5 +661,6 @@ export type {
   RegistryPort,
   FlowNode,
   WireRef,
+  WirePath,
   CompiledFlow,
 };
