@@ -79,13 +79,5 @@ async function checkWire(
   return isResult(res) ? res : null;
 }
 
-async function checkWires(
-  reqs: WireCheckRequest[],
-): Promise<WireCheckResult[] | null> {
-  const res = await postJson(`${ENDPOINT}/batch`, { wires: reqs });
-  const results = (res as { results?: unknown })?.results;
-  return Array.isArray(results) && results.every(isResult) ? results : null;
-}
-
-export { checkWire, checkWires, fetchStatus };
+export { checkWire, fetchStatus };
 export type { TypeCheckStatus };

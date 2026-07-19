@@ -7,6 +7,11 @@
  * module subscribes, paints failing wires red on the canvas, and raises one
  * notification — the push arrives when the check has actually FINISHED, unlike
  * a deploy-event sweep, which would race the server and read stale verdicts.
+ *
+ * NOTE: the deploy report paints EVERY failing wire — it intentionally ignores
+ * the per-wire opt-in gate (`plan.shouldCheck`) that filters interactive
+ * `links:add` checks. A deploy is a whole-flow verdict; the gate only throttles
+ * the live per-wire probes.
  */
 
 interface ReportWire {
@@ -21,6 +26,9 @@ interface FlowReport {
   wires: ReportWire[];
   uncheckedTypes: string[];
   unattributed: string[];
+  /** The checker hit an internal fault (not a wire mismatch) — the `ok` verdict
+   * still stands, but the check wasn't fully clean. */
+  internalError?: boolean;
   checkedAt: string;
 }
 
@@ -118,14 +126,32 @@ function paintReport(report: FlowReport): void {
   }
 }
 
+/** A content fingerprint (verdict + which wires failed) — identical reports
+ * (a retained re-delivery on reconnect) share it; any change to the verdict or
+ * the failing set produces a new one. */
+function reportIdentity(report: FlowReport): string {
+  return `${report.ok}|${failedWires(report)
+    .map((w) => w.id)
+    .sort()
+    .join(",")}`;
+}
+
 let lastReport: FlowReport | null = null;
 let lastHadFailures = false;
+let lastNotifiedIdentity: string | null = null;
 
 function handleReport(report: FlowReport): void {
-  const summary = reportSummary(report, lastHadFailures);
   lastReport = report;
-  lastHadFailures = failedWires(report).length > 0;
+  // Painting is idempotent, so always re-apply (the canvas rebuilds its link
+  // elements on reconnect/workspace switch).
   paintReport(report);
+  // A retained report is re-delivered verbatim on every editor reconnect — don't
+  // re-fire the sticky notification for a report we've already announced.
+  const identity = reportIdentity(report);
+  if (identity === lastNotifiedIdentity) return;
+  const summary = reportSummary(report, lastHadFailures);
+  lastNotifiedIdentity = identity;
+  lastHadFailures = failedWires(report).length > 0;
   if (summary) {
     RED.notify(summary.text, {
       type: summary.level,

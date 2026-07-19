@@ -7,7 +7,6 @@ import {
   wireId,
   moduleOf,
   buildRequest,
-  summarize,
   uncheckableMessage,
 } from "@/sdk/lib/client/wire-check/plan";
 import type {
@@ -114,7 +113,6 @@ describe("wire-check plan — request building", () => {
           id: "s",
           type: "src",
           validateOutputTypes: { 0: true },
-          outputContextModes: { 0: "reset" },
           _def: { set: { module: "pkg-a" } },
         }),
       }),
@@ -125,7 +123,7 @@ describe("wire-check plan — request building", () => {
       source: {
         type: "src",
         module: "pkg-a",
-        port: { kind: "base", index: 0, mode: "reset" },
+        port: { kind: "base", index: 0 },
       },
       target: { type: "tgt", module: undefined },
     });
@@ -160,39 +158,12 @@ describe("wire-check plan — request building", () => {
   });
 });
 
-describe("wire-check plan — summaries", () => {
+describe("wire-check plan — helpers", () => {
   const r = (over: Partial<WireCheckResult>): WireCheckResult => ({
     id: "w",
     ok: true,
     checked: true,
     ...over,
-  });
-
-  it("returns null when everything passed and nothing was skipped", () => {
-    expect(summarize([r({}), r({ id: "x" })])).toBeNull();
-  });
-
-  it("reports failures as an error summary", () => {
-    const s = summarize([
-      r({ id: "a", ok: false, message: "Property 'x' is missing" }),
-      r({ id: "b" }),
-    ]);
-    expect(s?.level).toBe("error");
-    expect(s?.text).toContain("a: Property 'x' is missing");
-  });
-
-  it("reports only-unchecked as a warning with the verbatim wording", () => {
-    const s = summarize([
-      r({
-        id: "w1",
-        checked: false,
-        reason: 'the source node "inject" is not an nrg node',
-      }),
-    ]);
-    expect(s?.level).toBe("warning");
-    expect(s?.text).toContain(
-      'Type Validation for wire w1 couldn\'t be done because the source node "inject" is not an nrg node',
-    );
   });
 
   it("wireId / uncheckableMessage format as documented", () => {

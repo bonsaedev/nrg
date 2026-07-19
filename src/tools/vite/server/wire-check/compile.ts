@@ -5,12 +5,14 @@
  * lets tsc compose the types; a wire error surfaces on the exact call line.
  *
  * Semantics compiled in:
- *  - merge (default): a port's function is `(In) => In & Adds` — the record
- *    accumulates; reset: `(Reads) => Adds` — a fresh record whose type is
- *    knowable WITHOUT its input (pre-declared const), which is also what breaks
- *    feedback-loop circularity by construction.
- *  - context modes resolve PER INSTANCE: flow.json `outputContextModes[idx]`
- *    overrides the registry (author) default; legacy "passthrough" = merge.
+ *  - the message is always the accumulating record: a data port's function is
+ *    `<In extends Reads>(In) => In & Adds` — the record accumulates, nothing
+ *    upstream is lost. (The record always merges — a flow author who needs a
+ *    fresh message uses a core `change`/`set` node.)
+ *  - some ports' output is knowable WITHOUT their input, so they're emitted as
+ *    pre-declared consts (which is also what breaks feedback-loop circularity by
+ *    construction): SOURCE nodes (no input port), the UNCHECKED `any` boundary
+ *    (core/non-nrg types), and the BUILT-IN lifecycle ports.
  *  - BUILT-IN lifecycle ports (error/complete/status) occupy the slots AFTER
  *    the declared base ports, enabled-only, in that fixed order — the runtime
  *    layout. `complete`'s contribution is the node's `input()` return type.
@@ -26,8 +28,11 @@ interface RegistryPort {
   name: string;
   /** The port's ADDS — the named fields this port merges onto the record. */
   adds: string;
-  /** Author-declared reset default (a fresh record per emission). */
-  reset?: boolean;
+  /** INTERNAL: this port's output is knowable without its input, so it's emitted
+   * as a pre-declared const of type `adds` rather than `In & adds`. Set by the
+   * compiler for the `any` boundary and source nodes' built-in lifecycle ports —
+   * never an author choice (the record always merges). */
+  standalone?: boolean;
 }
 
 interface RegistryEntry {
@@ -53,7 +58,6 @@ interface FlowNode {
   /** Disabled — receives and delivers nothing. */
   d?: boolean;
   wires?: string[][];
-  outputContextModes?: Record<number, string>;
   errorPort?: boolean;
   completePort?: boolean;
   statusPort?: boolean;
@@ -77,7 +81,11 @@ interface CompiledFlow {
   uncheckedTypes: string[];
 }
 
-const ERROR_ADDS = "{ error: { name: string; message: string } }";
+// The built-in error/status port additions. ERROR_ADDS mirrors the SDK
+// `ErrorInfo` ({ name, message, stack? }); STATUS_ADDS's loose `fill?`/`shape?`
+// is a sound widening of the SDK's constrained unions (readers accept more).
+const ERROR_ADDS =
+  "{ error: { name: string; message: string; stack?: string } }";
 const STATUS_ADDS =
   "{ status: { fill?: string; shape?: string; text?: string } | string }";
 
@@ -98,28 +106,44 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       ports: (n.wires ?? []).map((_, i) => ({
         name: `out${i}`,
         adds: "any",
-        reset: true, // pre-declared `any` — nothing is verified through it
+        standalone: true, // pre-declared `any` — nothing is verified through it
       })),
     };
   };
 
-  interface ResolvedPort extends RegistryPort {
-    instanceReset?: boolean;
-  }
-  const portAt = (n: FlowNode, idx: number): ResolvedPort => {
+  const portAt = (n: FlowNode, idx: number): RegistryPort => {
     const def = defFor(n);
     if (idx < def.ports.length) {
       const p = def.ports[idx];
-      const mode = n.outputContextModes?.[idx];
-      const reset = mode !== undefined ? mode === "reset" : (p.reset ?? false);
-      return { ...p, reset, instanceReset: reset && !p.reset };
+      // A data port typed `unknown` is an UNTYPED output (no declared shape) —
+      // treat it as `any` so it's an unchecked boundary, not a strict `unknown`
+      // that would falsely red every typed downstream reader.
+      return {
+        ...p,
+        adds: p.adds === "unknown" ? "any" : p.adds,
+        standalone: p.standalone ?? false,
+      };
     }
+    // Built-in lifecycle ports MERGE onto the processed record at runtime
+    // (#emitLifecycle: error = record + {error}, complete = record + returned
+    // fields, status = record + {status}) — so they carry the node's input just
+    // like a data port. Only a SOURCE node (no input record to carry) emits them
+    // adds-only (output-independent). `complete`'s adds is `input()`'s return;
+    // when void it's `unknown`, so the merge `In & unknown` = In forwards the
+    // record unchanged (a source with no return falls back to `any`, unchecked).
+    const src = Boolean(def.source);
     const builtinSlots: (RegistryPort | null)[] = [
-      n.errorPort ? { name: "error", adds: ERROR_ADDS, reset: true } : null,
+      n.errorPort ? { name: "error", adds: ERROR_ADDS, standalone: src } : null,
       n.completePort
-        ? { name: "complete", adds: def.complete ?? "unknown", reset: true }
+        ? {
+            name: "complete",
+            adds: def.complete ?? (src ? "any" : "unknown"),
+            standalone: src,
+          }
         : null,
-      n.statusPort ? { name: "status", adds: STATUS_ADDS, reset: true } : null,
+      n.statusPort
+        ? { name: "status", adds: STATUS_ADDS, standalone: src }
+        : null,
     ];
     const builtins = builtinSlots.filter((b): b is RegistryPort => b !== null);
     const b = builtins[idx - def.ports.length];
@@ -129,6 +153,28 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       );
     }
     return b;
+  };
+
+  // The built-in lifecycle ports this node ENABLES and WIRES — in the fixed
+  // error → complete → status order, each occupying the slot after the data
+  // ports. Only these need a merge-function emission (a non-source node's
+  // built-in output carries the record, like a data port).
+  const wiredBuiltinsOf = (n: FlowNode): string[] => {
+    const def = registry[n.type];
+    if (!def || def.source) return [];
+    const names: string[] = [];
+    let slot = def.ports.length;
+    for (const [on, name] of [
+      [n.errorPort, "error"],
+      [n.completePort, "complete"],
+      [n.statusPort, "status"],
+    ] as const) {
+      if (on) {
+        if ((n.wires?.[slot]?.length ?? 0) > 0) names.push(name);
+        slot++;
+      }
+    }
+    return names;
   };
 
   interface Edge {
@@ -161,7 +207,9 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
 
   const isPass1Edge = (e: Edge): boolean => {
     const s = byId.get(e.src)!;
-    return Boolean(defFor(s).source) || Boolean(portAt(s, e.srcPort).reset);
+    return (
+      Boolean(defFor(s).source) || Boolean(portAt(s, e.srcPort).standalone)
+    );
   };
 
   // back-edge detection (DFS grey-edge); pass-1 edges can't create inference cycles
@@ -213,17 +261,31 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     push("");
   }
 
-  // (1) declared functions — known registry types (+ `__reset` variants for
-  //     ports an INSTANCE flips to reset via outputContextModes)
-  const instanceResetCombos = new Set<string>();
+  // The built-in lifecycle ports a non-source type needs FUNCTION decls for —
+  // any instance that enables + wires one. Their output MERGES the record just
+  // like a data port (see portAt), so they're emitted as `In & adds` functions.
+  const builtinAdds = (def: RegistryEntry, name: string): string =>
+    name === "error"
+      ? ERROR_ADDS
+      : name === "status"
+        ? STATUS_ADDS
+        : (def.complete ?? "unknown");
+  const builtinsByType = new Map<string, Set<string>>();
   for (const n of nodes) {
-    const def = registry[n.type];
-    if (!def || def.source) continue;
-    def.ports.forEach((p, i) => {
-      if (portAt(n, i).instanceReset)
-        instanceResetCombos.add(`${n.type}:${p.name}`);
-    });
+    const names = wiredBuiltinsOf(n);
+    if (!names.length) continue;
+    const set = builtinsByType.get(n.type) ?? new Set<string>();
+    for (const name of names) set.add(name);
+    builtinsByType.set(n.type, set);
   }
+
+  // (1) declared functions — known registry types
+  const mergeDecl = (fn: string, name: string, reads: string, adds: string) =>
+    // LAST-WRITER-WINS: the runtime merge `{ ...incoming, ...additions }`
+    // OVERWRITES colliding keys, so the type drops the overwritten keys from In
+    // before intersecting — a plain `In & Adds` would collapse a re-added key to
+    // `In[k] & Adds[k]` (e.g. `never`).
+    `declare function n_${fn}_${ident(name)}<In extends ${reads}>(m: In): Omit<In, keyof (${adds})> & ${adds};`;
   for (const t of [...new Set(nodes.map((n) => n.type))]) {
     const def = registry[t];
     const fn = ident(t);
@@ -243,21 +305,24 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       }
       continue;
     }
+    if (def.source) continue; // source ports are pre-declared consts (pass 1)
     if (def.ports.length === 0) {
+      // a sink still gets a callable so its incoming wires stay checked
       push(`declare function n_${fn}(m: ${def.reads}): void; // sink`);
-    } else if (!def.source) {
+    } else {
       for (const p of def.ports) {
         push(
-          p.reset
-            ? `declare function n_${fn}_${ident(p.name)}(m: ${def.reads}): ${p.adds}; // RESET port`
-            : `declare function n_${fn}_${ident(p.name)}<In extends ${def.reads}>(m: In): In & ${p.adds};`,
+          p.standalone
+            ? `declare function n_${fn}_${ident(p.name)}(m: ${def.reads}): ${p.adds}; // output-independent port`
+            : mergeDecl(fn, p.name, def.reads, p.adds),
         );
-        if (instanceResetCombos.has(`${t}:${p.name}`)) {
-          push(
-            `declare function n_${fn}_${ident(p.name)}__reset(m: ${def.reads}): ${p.adds}; // flow-author context-mode override`,
-          );
-        }
       }
+    }
+    // built-in lifecycle ports (merge onto the record, like data ports)
+    for (const name of builtinsByType.get(t) ?? []) {
+      push(
+        `${mergeDecl(fn, name, def.reads, builtinAdds(def, name))} // built-in ${name} port`,
+      );
     }
   }
   push("");
@@ -267,7 +332,7 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     (n.wires ?? []).forEach((targets, pi) => {
       if (!targets.length) return;
       const p = portAt(n, pi);
-      if (defFor(n).source || p.reset) {
+      if (defFor(n).source || p.standalone) {
         push(
           `declare const m_${ident(n.id)}_${ident(p.name)}: ${p.adds}; // "${n.name ?? n.id}"`,
         );
@@ -334,36 +399,73 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       }
       continue;
     }
-    if (def.ports.length === 0) {
-      if (IN) push(`n_${fn}(${IN});`, inWires(n));
-      continue;
-    }
-    // per-PORT emission with INSTANCE-resolved modes
-    const resolved = def.ports.map((_, i) => portAt(n, i));
-    const fnOf = (p: ResolvedPort): string =>
-      `n_${fn}_${ident(p.name)}${p.instanceReset ? "__reset" : ""}`;
-    const normal = resolved.filter((p) => !p.reset);
-    for (const p of normal) {
-      push(
-        `const m_${ident(id)}_${ident(p.name)} = ${fnOf(p)}(${IN});`,
-        inWires(n),
-      );
-    }
-    if (normal.length === 0 && IN) {
-      deferred.push({
-        text: `${fnOf(resolved[0])}(${IN}); // input check (reset-only node)`,
-        wires: inWires(n),
-      });
+    const builtins = wiredBuiltinsOf(n);
+    const inEdges = incoming.get(n.id)!.filter((e) => !e.back);
+    const fanIn = inEdges.length > 1;
+    const dataPorts = def.ports
+      .map((_, i) => portAt(n, i))
+      .filter((p) => !p.standalone);
+
+    if (fanIn) {
+      // FAN-IN join: Node-RED delivers each incoming message independently (it
+      // never merges them), so on any firing the node's input is EXACTLY ONE
+      // source's record — the type is the UNION of the sources. Routing that union
+      // through the port FUNCTION (`n_x(fanIn(a,b))`) would type-check it against
+      // `reads` on a SINGLE line: a mismatch there can't be pinned to one wire and
+      // is redundant with the per-incoming checks below, so it would leak out as a
+      // spurious unattributed diagnostic. Instead each output const is DECLARED
+      // with its merge type computed directly off the input union (no reads-check
+      // on this line — `Omit<union, keyof Adds> & Adds` keeps only the fields
+      // COMMON to all sources, the sound downstream shape), and every incoming
+      // wire is checked on its OWN line so a mismatch attributes to exactly it.
+      const inRefs = inEdges.map(portRef);
+      if (pinned.has(n.id)) inRefs.push(`pin_${ident(n.id)}`);
+      const inUnion = inRefs.map((r) => `typeof ${r}`).join(" | ");
+      const mergeType = (adds: string): string =>
+        `Omit<${inUnion}, keyof (${adds})> & (${adds})`;
+      for (const p of dataPorts) {
+        push(
+          `declare const m_${ident(id)}_${ident(p.name)}: ${mergeType(p.adds)}; // fan-in output`,
+        );
+      }
+      for (const name of builtins) {
+        push(
+          `declare const m_${ident(id)}_${ident(name)}: ${mergeType(builtinAdds(def, name))}; // fan-in built-in ${name}`,
+        );
+      }
+      // one independently-attributable compatibility check per incoming wire
+      for (const e of inEdges) {
+        push(
+          `((x: ${def.reads}): void => void x)(${portRef(e)}); // fan-in wire`,
+          [wireRef(e)],
+        );
+      }
+    } else {
+      const bodyWires = inWires(n);
+      if (def.ports.length === 0 && builtins.length === 0) {
+        if (IN) push(`n_${fn}(${IN});`, bodyWires);
+      } else {
+        // per-PORT emission — data ports plus wired built-in lifecycle ports. Every
+        // port merges the node's input record (`Omit<In, keyof Adds> & Adds`).
+        const fnOf = (name: string): string => `n_${fn}_${ident(name)}`;
+        for (const p of dataPorts) {
+          push(
+            `const m_${ident(id)}_${ident(p.name)} = ${fnOf(p.name)}(${IN});`,
+            bodyWires,
+          );
+        }
+        for (const name of builtins) {
+          push(
+            `const m_${ident(id)}_${ident(name)} = ${fnOf(name)}(${IN});`,
+            bodyWires,
+          );
+        }
+      }
     }
   }
   for (const e of backEdges) {
     const v = byId.get(e.dst)!;
-    deferred.push({
-      text: `null! as ${defFor(v).reads} satisfies ${defFor(v).reads}; // placeholder`,
-      wires: [],
-    });
-    // the back-edge wire must satisfy the join's loop invariant
-    deferred.pop();
+    // the back-edge wire must satisfy the join's loop invariant (its declared reads)
     deferred.push({
       text: `((x: ${defFor(v).reads}): void => void x)(${portRef(e)}); // back-edge: loop invariant`,
       wires: [wireRef(e)],

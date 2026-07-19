@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  checkWire,
-  checkWires,
-  fetchStatus,
-} from "@/sdk/lib/client/wire-check/transport";
+import { checkWire, fetchStatus } from "@/sdk/lib/client/wire-check/transport";
 import type { WireCheckRequest } from "@/sdk/lib/client/wire-check/plan";
 
 // The transport talks to the type-check plugin's admin routes through the
@@ -108,44 +104,5 @@ describe("wire-check transport — checkWire", () => {
       throw new Error("boom");
     });
     await expect(checkWire(request)).resolves.toBeNull();
-  });
-});
-
-describe("wire-check transport — checkWires", () => {
-  it("POSTs a wires batch and returns the results array", async () => {
-    const results = [
-      { id: "a", ok: true, checked: true },
-      { id: "b", ok: false, checked: true, message: "mismatch" },
-    ];
-    const spy = stubAjax((s) => s.success({ results }));
-    await expect(checkWires([request])).resolves.toEqual(results);
-    expect(spy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        url: "nrg/type-check/batch",
-        method: "POST",
-        data: JSON.stringify({ wires: [request] }),
-      }),
-    );
-  });
-
-  it("returns null when results is missing or not an array", async () => {
-    stubAjax((s) => s.success({}));
-    await expect(checkWires([request])).resolves.toBeNull();
-    stubAjax((s) => s.success({ results: "nope" }));
-    await expect(checkWires([request])).resolves.toBeNull();
-  });
-
-  it("returns null when any entry is malformed", async () => {
-    stubAjax((s) =>
-      s.success({
-        results: [{ id: "a", ok: true, checked: true }, { id: "b" }],
-      }),
-    );
-    await expect(checkWires([request])).resolves.toBeNull();
-  });
-
-  it("returns null when the route errors", async () => {
-    stubAjax((s) => s.error());
-    await expect(checkWires([request])).resolves.toBeNull();
   });
 });

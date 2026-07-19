@@ -67,7 +67,7 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
     if (!built) return;
     const flow: FlowNode[] = [];
     RED.nodes.eachNode((n) => flow.push({ ...n }));
-    latest = checkFlowConfig(flow, built.registry, built.declarations);
+    latest = checkFlowConfig(flow, built.registry, built.declarations, srcDir);
     for (const line of formatReport(latest)) RED.log.info(line);
     // Push the finished report to the editor (retained: a freshly-opened
     // editor immediately receives the latest verdict) — ./report on the client
@@ -91,6 +91,10 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
   });
 
   // ── admin routes (same base the shipped editor client probes) ──────────────
+  // NOTE: under the default `nrg dev` settings there is no adminAuth, so
+  // `needsPermission` is a pass-through — these routes are effectively open on
+  // the loopback dev bind. That's fine for the design-time dev feature; a
+  // hardened/remote Node-RED that ships this plugin should enable adminAuth.
   const read = RED.auth.needsPermission("flows.read");
 
   RED.httpAdmin.get(
@@ -114,14 +118,24 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
   );
 
   // Per-wire probes from the editor: answer from the latest deploy report.
-  // An unknown wire (not yet deployed) fails OPEN with a reason.
+  // The `checked` field is REQUIRED by the client contract — its interactive
+  // reject only fires on `{ ok:false, checked:true }`; an unknown (not-yet-
+  // deployed) wire fails OPEN with `checked:false` + a reason, so a freshly-drawn
+  // wire is "deploy to check", never destructively removed.
   const wireVerdict = (
     id: string,
-  ): { ok: boolean; message?: string; reason?: string } => {
+  ): { ok: boolean; checked: boolean; message?: string; reason?: string } => {
     const hit = latest?.wires.find((w) => w.id === id);
-    if (!hit)
-      return { ok: true, reason: "unchecked — deploy to type-check this wire" };
-    return hit.ok ? { ok: true } : { ok: false, message: hit.message };
+    if (!hit) {
+      return {
+        ok: true,
+        checked: false,
+        reason: "unchecked — deploy to type-check this wire",
+      };
+    }
+    return hit.ok
+      ? { ok: true, checked: true }
+      : { ok: false, checked: true, message: hit.message };
   };
 
   const parseBody = (
@@ -148,19 +162,6 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
     parseBody,
     (req: { body?: { id?: string } }, res: { json(v: unknown): void }) => {
       res.json(wireVerdict(req.body?.id ?? ""));
-    },
-  );
-
-  RED.httpAdmin.post(
-    "/nrg/type-check/batch",
-    read,
-    parseBody,
-    (
-      req: { body?: { wires?: { id?: string }[] } },
-      res: { json(v: unknown): void },
-    ) => {
-      const wires = Array.isArray(req.body?.wires) ? req.body.wires : [];
-      res.json({ results: wires.map((w) => wireVerdict(w.id ?? "")) });
     },
   );
 }

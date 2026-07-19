@@ -19,8 +19,7 @@ interface BuiltRegistry {
  *  - output port `T` → that port's ADDS (`In & Adds`),
  *  - `input()`'s return type → the builtin complete port's contribution,
  *  - no input port → a source node (outputs knowable without an input).
- * Author context-mode DEFAULTS are runtime schema values (not types) and are
- * not extracted; the flow's `outputContextModes` governs per instance.
+ * The message model is always merge — a port's output is `In & Adds`.
  */
 function buildRegistry(srcDir: string): BuiltRegistry {
   type Role = { text: string; resolved?: string } | undefined;
@@ -30,6 +29,16 @@ function buildRegistry(srcDir: string): BuiltRegistry {
   const infos = [
     ...extractNodeTypesFromSrc(path.resolve(srcDir), undefined, localTypes),
   ];
+  // An output port typed `Port<any>`/`Port<unknown>` is an UNTYPED port (the
+  // author declared no shape) — an unchecked boundary, not a strict `unknown`
+  // that would falsely red every typed downstream. Normalize both to `any` so
+  // they absorb like a core node. (The complete-port void fallback keeps its own
+  // deliberate `unknown` in compile.ts — that means "forward the record", not
+  // "untyped output".)
+  const addsOf = (role: Role): string => {
+    const t = roleText(role);
+    return t === undefined || t === "unknown" ? "any" : t;
+  };
   const registry: Registry = {};
   for (const info of infos) {
     if (info.kind !== "io") continue;
@@ -38,12 +47,9 @@ function buildRegistry(srcDir: string): BuiltRegistry {
       source: reads === undefined,
       reads: reads ?? "object",
       ports: (info.outputs ?? []).map(
-        (
-          p: { name?: string; role?: { text: string; resolved?: string } },
-          i: number,
-        ) => ({
+        (p: { name?: string; role?: Role }, i: number) => ({
           name: p.name ?? `out${i}`,
-          adds: roleText(p.role) ?? "any",
+          adds: addsOf(p.role),
         }),
       ),
       complete: roleText(info.complete),

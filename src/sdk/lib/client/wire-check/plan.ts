@@ -17,7 +17,6 @@ interface NodeLike {
   statusPort?: boolean;
   validateInputTypes?: boolean;
   validateOutputTypes?: Record<number, boolean>;
-  outputContextModes?: Record<number, "merge" | "reset" | "passthrough">;
   _def?: { set?: { module?: string } };
 }
 
@@ -39,11 +38,7 @@ type ResolvedPort =
 //    duplicated rather than imported across the plane boundary) --
 
 type SourcePortInput =
-  | {
-      kind: "base";
-      index: number;
-      mode?: "merge" | "reset" | "passthrough";
-    }
+  | { kind: "base"; index: number }
   | { kind: "complete" }
   | { kind: "error" }
   | { kind: "status" };
@@ -141,11 +136,7 @@ function buildRequest(
 
   const sourcePort: SourcePortInput =
     port.kind === "base"
-      ? {
-          kind: "base",
-          index: port.index,
-          mode: link.source.outputContextModes?.[port.index],
-        }
+      ? { kind: "base", index: port.index }
       : { kind: port.kind };
 
   return {
@@ -172,36 +163,6 @@ function uncheckableMessage(result: WireCheckResult): string {
   return `Type Validation for wire ${result.id} couldn't be done because ${result.reason ?? "the wire could not be resolved"}`;
 }
 
-/**
- * Fold a batch of results (deploy sweep) into one summary: incompatible wires
- * (errors) and unchecked wires (warnings). Returns null when everything that ran
- * passed and nothing was skipped, so the caller can stay quiet.
- */
-function summarize(results: WireCheckResult[]): {
-  level: "error" | "warning";
-  text: string;
-} | null {
-  const failures = results.filter((r) => r.checked && !r.ok);
-  const unchecked = results.filter((r) => !r.checked && r.reason);
-  if (!failures.length && !unchecked.length) return null;
-
-  const lines: string[] = [];
-  if (failures.length) {
-    lines.push(
-      `${failures.length} wire${failures.length > 1 ? "s" : ""} failed type validation:`,
-      ...failures.map((r) => `• ${r.id}: ${r.message ?? "type mismatch"}`),
-    );
-  }
-  if (unchecked.length) {
-    if (lines.length) lines.push("");
-    lines.push(...unchecked.map((r) => `• ${uncheckableMessage(r)}`));
-  }
-  return {
-    level: failures.length ? "error" : "warning",
-    text: lines.join("\n"),
-  };
-}
-
 export {
   enabledBuiltins,
   baseOutputCount,
@@ -212,7 +173,6 @@ export {
   buildRequest,
   rejectMessage,
   uncheckableMessage,
-  summarize,
 };
 export type {
   NodeLike,
