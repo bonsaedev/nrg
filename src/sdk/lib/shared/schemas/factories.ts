@@ -169,47 +169,6 @@ function NrgString(options?: NrgStringOptions): TString {
 }
 
 /**
- * Declares the `outputContextModes` config map: how each output port builds its
- * outgoing message RECORD, keyed by port index.
- * - `merge` (default): `{ ...incoming, ...additions }` — the message is the
- *   flow's shared accumulating record; this port's named fields are merged on
- *   and everything upstream flows through untouched.
- * - `reset`: `{ ...additions }` — a fresh record (a new logical signal).
- * Declaring this exposes an editable Mode column in the editor for ports that get
- * a default; otherwise every port resolves to `merge` and the column is hidden.
- * A legacy `passthrough` value (flows saved before the rename) resolves to `merge`.
- *
- * @example
- * ```ts
- * // port 0 is configurable (seeded to `reset`); every other port is `merge`
- * outputContextModes: SchemaType.OutputContextModes({
- *   default: { 0: "reset" },
- * }),
- * ```
- */
-function OutputContextModes(
-  options?: NrgSchemaOptions & {
-    default?: Record<number, "merge" | "reset" | "passthrough">;
-  },
-) {
-  return BaseType.Record(
-    BaseType.Number(),
-    BaseType.Union([
-      BaseType.Literal("merge"),
-      BaseType.Literal("reset"),
-      // legacy value from flows saved before the merge rename; resolves to merge
-      BaseType.Literal("passthrough"),
-    ]),
-    {
-      description:
-        "Per-port output mode, keyed by output port index: `merge` (default — the outgoing record is the incoming record plus this send's fields) or `reset` (a fresh record).",
-      default: {},
-      ...options,
-    },
-  );
-}
-
-/**
  * Normalizes an author-supplied default for an input/output data-validation
  * schema field. The field stores a JSON-Schema STRING (Monaco-editable by the
  * flow author), but the node author may seed it either with a raw string OR —
@@ -304,8 +263,8 @@ function NrgUnsafe<T = unknown>(options?: object): TUnsafe<UnsafeBrand<T>> {
 
 /**
  * Extended TypeBox type builder with NRG-specific schema types.
- * Includes all standard TypeBox types plus {@link NodeRef}, {@link TypedInput}
- * and {@link OutputContextModes}.
+ * Includes all standard TypeBox types plus {@link NodeRef} and
+ * {@link TypedInput}.
  *
  * For ports or config fields that carry non-data values (functions, class
  * instances, Buffers, streams, connections), use `Unsafe<T>()` to get the
@@ -323,7 +282,6 @@ const NRG_SCHEMA_TYPES_FACTORIES = {
   Unsafe: NrgUnsafe,
   NodeRef,
   TypedInput,
-  OutputContextModes,
   OutputSchemas,
   InputSchema,
 };
@@ -373,9 +331,9 @@ function markNonValidatable<T extends TSchema>(schema: T): T {
     }
   }
 
-  // Record schemas (SchemaType.Record, OutputContextModes) put
-  // their value schema under patternProperties / additionalProperties, not
-  // properties — recurse so a non-JSON Record value is marked too.
+  // Record schemas (SchemaType.Record) put their value schema under
+  // patternProperties / additionalProperties, not properties — recurse so a
+  // non-JSON Record value is marked too.
   if (schema.patternProperties) {
     for (const prop of Object.values(schema.patternProperties)) {
       markNonValidatable(prop as TSchema);

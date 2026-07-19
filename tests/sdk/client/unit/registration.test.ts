@@ -366,7 +366,7 @@ describe("registerType — builtin ports", () => {
   });
 });
 
-describe("registerType — output ports (context modes)", () => {
+describe("registerType — output ports (labels & descriptions)", () => {
   let spy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {

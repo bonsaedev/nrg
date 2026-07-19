@@ -2,12 +2,11 @@ import { SchemaType, type TObject, type TSchema } from "../../shared/schemas";
 
 /**
  * The built-in config every IONode carries for free: a `name`, the three
- * lifecycle port toggles, the per-port context-mode map, and the
- * data-validation controls. These render in the editor's Ports Settings
- * section on **every** IONode — a node does NOT have to declare them to get the
- * controls. Declaring one in the node's own `configSchema` only **overrides its
- * default here** (e.g. `errorPort` defaulting to `true`, or a `reset` context
- * mode); it is not what makes the control appear.
+ * lifecycle port toggles, and the data-validation controls. These render in the
+ * editor's Ports Settings section on **every** IONode — a node does NOT have to
+ * declare them to get the controls. Declaring one in the node's own
+ * `configSchema` only **overrides its default here** (e.g. `errorPort`
+ * defaulting to `true`); it is not what makes the control appear.
  *
  * Kept as a raw properties map (not a `defineSchema` object) so it can be spread
  * *under* an author schema's properties — see {@link mergeConfigDefaults}. Every
@@ -27,7 +26,6 @@ const CONFIG_DEFAULTS: Record<string, TSchema> = {
     default: false,
     description: "Enable a dedicated output port for status updates.",
   }),
-  outputContextModes: SchemaType.OutputContextModes(),
   // Data validation is a built-in control on every IONode: the Validate Data
   // toggles and the schema editors always render. A node author declaring these
   // only seeds a default schema / default on-state; it is not what surfaces the

@@ -385,7 +385,6 @@ describe("help-generator", () => {
           completePort: { type: "boolean" },
           statusPort: { type: "boolean" },
           validateInput: { type: "boolean" },
-          outputContextModes: { type: "object" },
           inputSchema: { type: "string" },
           outputSchemas: { type: "object" },
           connection: { "x-nrg-node-type": "salesforce-connection" },
@@ -404,7 +403,6 @@ describe("help-generator", () => {
         "completePort",
         "statusPort",
         "validateInput",
-        "outputContextModes",
         "inputSchema",
         "outputSchemas",
       ]) {

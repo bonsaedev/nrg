@@ -93,13 +93,7 @@ describe("extractNodeDefinitions", () => {
     expect(written).toEqual({ nodeTypes: [], definitions: {} });
   });
 
-  const FRAMEWORK_KEYS = [
-    "name",
-    "errorPort",
-    "completePort",
-    "statusPort",
-    "outputContextModes",
-  ];
+  const FRAMEWORK_KEYS = ["name", "errorPort", "completePort", "statusPort"];
 
   it("injects the framework config fields into an IONode that declares none of them", async () => {
     // An IONode is detected by the numeric `outputs` getter. This node declares

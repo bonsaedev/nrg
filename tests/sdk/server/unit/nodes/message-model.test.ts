@@ -75,35 +75,6 @@ describe("message model — the outgoing record", () => {
     expect(node.sent(0)[0]).toMatchObject({ _msgid: "m-1" });
   });
 
-  it("reset starts a fresh record — only the additions + _meta (still keeps _msgid)", async () => {
-    const { node } = await createNode(ConstNode, {
-      config: { outputContextModes: { 0: "reset" } },
-    });
-    await node.receive({ topic: "t", carried: "x", _msgid: "m-2" });
-
-    expect(node.sent(0)[0]).toEqual({
-      result: "R",
-      _meta: { source: src(0, "out") },
-      _msgid: "m-2",
-    });
-  });
-
-  it("merge is the fallback when no per-port mode is configured", async () => {
-    const { node } = await createNode(ConstNode, { config: {} });
-    await node.receive({ topic: "t" });
-
-    expect(node.sent(0)[0]).toMatchObject({ topic: "t", result: "R" });
-  });
-
-  it("a legacy 'passthrough' mode saved in an old flow resolves to merge", async () => {
-    const { node } = await createNode(ConstNode, {
-      config: { outputContextModes: { 0: "passthrough" } },
-    });
-    await node.receive({ topic: "t" });
-
-    expect(node.sent(0)[0]).toMatchObject({ topic: "t", result: "R" });
-  });
-
   it("rejects a scalar or array send — additions are NAMED fields", async () => {
     // A TYPED port already rejects this at compile time; the runtime guard is
     // for JS authors and untyped (Port<unknown>) ports — like ConstNode's.

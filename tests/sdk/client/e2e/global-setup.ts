@@ -61,16 +61,6 @@ export const FIXTURE_FLOW: Record<string, unknown>[] = [
     wires: [[], [], []],
   },
   {
-    id: "n4",
-    type: "ctx-modes-node",
-    z: "tab1",
-    name: "",
-    outputs: 3,
-    x: 250,
-    y: 460,
-    wires: [[], [], []],
-  },
-  {
     id: "n5",
     type: "output-schema-node",
     z: "tab1",

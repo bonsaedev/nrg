@@ -74,31 +74,14 @@ interface NodePortsDescriptor {
 }
 
 /**
- * How an output port builds its outgoing message RECORD from this send's named
- * additions:
- * - `"merge"` (default): `{ ...incoming, ...additions }` — the message is the
- *   flow's shared, accumulating record; this node contributes its fields and
- *   everything upstream flows on untouched. A re-entered node overwrites its OWN
- *   fields, so the record is bounded by the distinct nodes on a path, never by
- *   loop iterations.
- * - `"reset"`: `{ ...additions }` — a fresh record. For emissions that begin a
- *   new logical signal (a source firing, a per-item dispatch, a loop lap that
- *   should start clean).
- * A legacy `"passthrough"` value saved in an old flow resolves to `"merge"`.
- */
-export type ContextMode = "merge" | "reset";
-
-/**
  * Base class for nodes that process messages. Provides input/output handling,
  * schema validation, status updates, and emit port management.
  *
  * THE MESSAGE IS THE FLOW'S SHARED, ACCUMULATING RECORD. `send(port, additions)`
  * takes an OBJECT of named fields and MERGES it onto the incoming record
  * (`{ ...incoming, ...additions }`), so a field produced by an early node is
- * readable by a late node — nothing is silently lost across hops. A port's
- * {@link ContextMode} (`merge` default / `reset` = fresh record) resolves per
- * output port from the flow author's `outputContextModes[port]`, falling back
- * to the node author's declared default. Framework metadata never pollutes the
+ * readable by a late node — nothing is silently lost across hops. Framework
+ * metadata never pollutes the
  * data surface: provenance rides `msg[Meta].source` (symbol accessor over the
  * `_meta` root carrier) and the off-the-wire channels ride `msg[Channels]`.
  * Built-in lifecycle ports follow the SAME merge rule — an error frame is the
@@ -614,34 +597,19 @@ abstract class IONode<
   }
 
   /**
-   * Resolves the context mode for a base-output port from the flow author's
-   * per-port config (`config.outputContextModes[port]`, which the editor lets the
-   * flow author set on any port), falling back to `"merge"`. Lenient read: only
-   * an explicit `"reset"` resets — any other stored value (including the legacy
-   * `"passthrough"` from old flows) is `"merge"`.
+   * Builds the outgoing message RECORD by MERGING this send's named additions onto
+   * the flow's shared, accumulating record — `{ ...incoming, ...additions }` — so
+   * everything upstream flows on untouched. The spread of the incoming message
+   * drops the non-enumerable `[Channels]`/`[Meta]` accessors (reinstalled at the
+   * next delivery) and this node's `_meta` replaces the previous producer's — THIS
+   * node is the source of the outgoing record. Stamps the `_meta` provenance
+   * carrier and preserves the incoming `_msgid` (see {@link #withMsgid}) so the
+   * lineage id never forks mid-flow. `additions` must be a PLAIN OBJECT of named
+   * fields (or nullish = forward the record unchanged) — a scalar or array is an
+   * authoring bug, rejected loudly. A fresh object is built per call so multi-port
+   * sends never share a reference.
    */
-  #resolveContextMode(port: number): ContextMode {
-    return this.config.outputContextModes?.[port] === "reset"
-      ? "reset"
-      : "merge";
-  }
-
-  /**
-   * Builds the outgoing message RECORD from this send's named additions:
-   * - `merge` (default): `{ ...incoming, ...additions }` — the message is the
-   *   flow's shared accumulating record; everything upstream flows on untouched.
-   *   The spread of the incoming message drops the non-enumerable `[Channels]`/
-   *   `[Meta]` accessors (they are reinstalled at the next delivery) and this
-   *   node's `_meta` replaces the previous producer's — THIS node is the source
-   *   of the outgoing record.
-   * - `reset`: `{ ...additions }` — a fresh record.
-   * Both stamp the `_meta` provenance carrier and preserve the incoming `_msgid`
-   * (see {@link #withMsgid}) so the lineage id never forks mid-flow. `additions`
-   * must be a PLAIN OBJECT of named fields (or nullish = forward the record
-   * unchanged) — a scalar or array is an authoring bug, rejected loudly.
-   * A fresh object is built per call so multi-port sends never share a reference.
-   */
-  #wrapOutgoing(value: unknown, mode: ContextMode, port: number): unknown {
+  #wrapOutgoing(value: unknown, port: number): unknown {
     if (value != null && (typeof value !== "object" || Array.isArray(value))) {
       throw new NrgError(
         `send() takes an OBJECT of named fields to merge onto the message record; got ${
@@ -651,9 +619,6 @@ abstract class IONode<
     }
     const additions = (value ?? {}) as Record<string, unknown>;
     const meta = { source: this.#outputSource(port) };
-    if (mode === "reset") {
-      return this.#withMsgid({ ...additions, [META_KEY]: meta });
-    }
     // THIS invocation's input record (per-call, concurrency-safe). A send made
     // entirely outside an input() call (e.g. a timer set up in created()) has
     // no scheduling input — the record starts from the additions alone.
@@ -702,7 +667,7 @@ abstract class IONode<
    * Preserve Node-RED's message-lineage id: a node's output inherits the
    * `_msgid` of the message it is processing (Node-RED assigns a fresh one only
    * when absent — see `Node.prototype.send`). Copying it onto every outgoing
-   * message — in every context mode and on every port — stops the id forking at
+   * message — on every port — stops the id forking at
    * each hop, which would otherwise break the message-flow debugger, Catch/
    * Complete grouping, and any `_msgid`-based correlation. Reads the current
    * invocation's input; a send outside any input() call (e.g. a source node)
@@ -854,11 +819,7 @@ abstract class IONode<
     // returned above) — it validates the ADDITIONS this send contributes. A
     // nullish value skips validation: `send(port)` forwards the record unchanged.
     if (msg != null) this.#validatePort(msg, idx);
-    this.#sendToPort(
-      port,
-      this.#wrapOutgoing(msg, this.#resolveContextMode(idx), idx),
-      channels,
-    );
+    this.#sendToPort(port, this.#wrapOutgoing(msg, idx), channels);
   }
 
   #sendToPort(

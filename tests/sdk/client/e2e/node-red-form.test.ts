@@ -353,25 +353,6 @@ describe.each(BROWSERS)(
       await editor.clickCancel();
     });
 
-    test("renders an always-editable Context Mode column for every port", async () => {
-      await editor.editNode("n4");
-      const tray = editor.page.locator(".red-ui-tray").last();
-      const table = tray.locator(".nrg-outputs");
-      // 3 base output ports. Context mode is a framework control that is always
-      // configurable — every port's dropdown is editable, regardless of defaults.
-      expect(await table.locator("tbody tr").count()).toBe(3);
-      const selects = table.locator("select.nrg-outputs-context");
-      expect(await selects.nth(0).isDisabled()).toBe(false);
-      expect(await selects.nth(1).isDisabled()).toBe(false);
-      expect(await selects.nth(2).isDisabled()).toBe(false);
-      // capture the Outputs table for the docs context-modes screenshot
-      if (name === "chromium") {
-        await editor.page.waitForTimeout(300);
-        await table.screenshot({ path: "docs/public/context-modes.png" });
-      }
-      await editor.clickCancel();
-    });
-
     test("edited values persist on the node model after Done", async () => {
       await editor.editNode("n1");
       await editor.field("Name").fill("persisted-name");

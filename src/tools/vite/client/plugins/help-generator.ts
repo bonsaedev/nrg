@@ -128,8 +128,6 @@ const NRG_SYSTEM_FIELDS = new Set([
   "validateOutput",
   "validateOutputs",
   "validateOutputTypes",
-  "outputContextMode",
-  "outputContextModes",
   // Flow-author data-validation schema overrides (per IONodeConfig) — system
   // fields, not user Properties. Previously omitted, so they leaked into the
   // generated help table.

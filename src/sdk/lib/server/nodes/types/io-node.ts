@@ -40,11 +40,6 @@ type IONodeConfig<TConfig = any> = NodeConfig<TConfig> & {
      * base-output port index (editor wire check).
      */
     validateOutputTypes?: Record<number, boolean>;
-    /** Per-port context modes, keyed by base-output port index. `"merge"`
-     * (default — the outgoing record is `{ ...incoming, ...additions }`) or
-     * `"reset"` (a fresh record). A legacy `"passthrough"` value saved in an
-     * old flow resolves to `"merge"`. */
-    outputContextModes?: Record<number, "merge" | "reset" | "passthrough">;
     /** Flow-author input data-validation schema (JSON Schema string), applied
      * when `validateInput` is on. */
     inputSchema?: string;
