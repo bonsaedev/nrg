@@ -64,9 +64,6 @@ const {
 
 :deep(.nrg-subsection) {
   margin-bottom: 10px;
-  /* Scroll the table horizontally when it can't fit the editor's default width,
-     instead of forcing the tray wider. */
-  overflow-x: auto;
 }
 
 :deep(.nrg-subsection-title) {
@@ -78,18 +75,27 @@ const {
   margin: 6px 0 4px;
 }
 
+/* The scroll box around each table. `contain: inline-size` sizes it WITHOUT
+   looking at the (wide, single-line) table inside, so the table never widens the
+   edit tray — the tray opens at its default width and this box scrolls
+   horizontally to reach the full descriptions. */
+:deep(.nrg-table-scroll) {
+  width: 100%;
+  contain: inline-size;
+  overflow-x: auto;
+  margin-top: 6px;
+}
+
 :deep(.nrg-outputs),
 :deep(.nrg-lifecycle),
 :deep(.nrg-input) {
-  /* All three tables share one full-width fixed layout. Every column has an
-     explicit width, so the table's max-content is BOUNDED — otherwise the
-     widthless Description column would report its full text and Node-RED would
-     size the edit tray to it. The minimum keeps controls from squeezing; if the
-     editor is narrower, the .nrg-subsection wrapper scrolls. */
-  width: 100%;
-  min-width: 360px;
-  table-layout: fixed;
-  margin-top: 6px;
+  /* Auto layout: each column sizes to its own content (labels, toggles, the
+     single-line descriptions). `width: max-content` lets the table grow past the
+     scroll box so long descriptions scroll horizontally; `min-width: 100%` keeps
+     it filling the box when the content is narrow. */
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--red-ui-secondary-border-color, #d9d9d9);
@@ -138,31 +144,22 @@ const {
   white-space: nowrap;
 }
 
-/* Fixed Label column — long labels truncate with an ellipsis instead of
-   widening the table. */
+/* Label column fits its content (the node/port label), on a single line. */
 :deep(.nrg-cell-label) {
-  width: 84px;
-  max-width: 84px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Fixed control column, wide enough to keep the "Validate Data" / "Data Schema"
-   headers on one line. */
+/* Control columns (Validate Data / Data Schema / Validate Types / Enable) fit
+   their header + control, on a single line. */
 :deep(.nrg-cell-flag) {
-  width: 100px;
   white-space: nowrap;
 }
 
-/* Description column — a FIXED width (not "remaining"), so the fixed-layout table
-   has a bounded max-content and Node-RED opens the tray at its default size.
-   Left-aligned, muted, and wraps within the column. */
+/* Description column — a single UNWRAPPED line so rows never grow tall. The text
+   may run wider than the tray; the .nrg-table-scroll box scrolls to reach it. */
 :deep(.nrg-cell-desc) {
-  width: 200px;
   text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   color: var(--red-ui-text-color-disabled, #999);
   font-size: 11px;
 }

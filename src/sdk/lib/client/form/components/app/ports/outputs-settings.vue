@@ -4,94 +4,96 @@
     <div class="nrg-subsection-title">
       {{ resolveLabel("portSettings.outputsTable.section", "Outputs") }}
     </div>
-    <table class="nrg-outputs">
-      <thead>
-        <tr>
-          <th class="nrg-cell-label">
-            {{ resolveLabel("portSettings.outputsTable.label", "Label") }}
-          </th>
-          <th v-if="hasOutputValidation" class="nrg-cell-flag">
-            {{
-              resolveLabel(
-                "portSettings.outputsTable.validate",
-                "Validate Data",
-              )
-            }}
-          </th>
-          <th v-if="hasOutputSchemas" class="nrg-cell-flag">
-            {{
-              resolveLabel("portSettings.outputsTable.schema", "Data Schema")
-            }}
-          </th>
-          <th
-            v-if="typeCheckEnabled && supportsOutputTypeValidation"
-            class="nrg-cell-flag"
-          >
-            {{
-              resolveLabel(
-                "portSettings.outputsTable.validateTypes",
-                "Validate Types",
-              )
-            }}
-          </th>
-          <th class="nrg-cell-desc">
-            {{
-              resolveLabel(
-                "portSettings.outputsTable.description",
-                "Description",
-              )
-            }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="port in outputRows" :key="port.index">
-          <td class="nrg-cell-label">{{ port.label }}</td>
-          <td v-if="hasOutputValidation" class="nrg-cell-flag">
-            <NodeRedToggle
-              :model-value="validateOutputFor(port.index)"
-              :aria-label="`${resolveLabel('portSettings.outputsTable.validate', 'Validate Data')} — ${port.label}`"
-              @update:model-value="
-                (val: boolean) => setValidateOutput(port.index, val)
-              "
-            />
-          </td>
-          <td v-if="hasOutputSchemas" class="nrg-cell-flag">
-            <button
-              type="button"
-              class="red-ui-button red-ui-button-small nrg-schema-btn"
-              :class="{
-                'nrg-schema-btn-error':
-                  !!errors[`node.outputSchemas.${port.index}`],
-              }"
-              :title="errors[`node.outputSchemas.${port.index}`] || undefined"
-              :disabled="!validateOutputFor(port.index)"
-              :aria-label="`${resolveLabel('portSettings.outputsTable.schema', 'Data Schema')} — ${port.label}`"
-              @click="openOutputSchemaEditor(port.index)"
+    <div class="nrg-table-scroll">
+      <table class="nrg-outputs">
+        <thead>
+          <tr>
+            <th class="nrg-cell-label">
+              {{ resolveLabel("portSettings.outputsTable.label", "Label") }}
+            </th>
+            <th v-if="hasOutputValidation" class="nrg-cell-flag">
+              {{
+                resolveLabel(
+                  "portSettings.outputsTable.validate",
+                  "Validate Data",
+                )
+              }}
+            </th>
+            <th v-if="hasOutputSchemas" class="nrg-cell-flag">
+              {{
+                resolveLabel("portSettings.outputsTable.schema", "Data Schema")
+              }}
+            </th>
+            <th
+              v-if="typeCheckEnabled && supportsOutputTypeValidation"
+              class="nrg-cell-flag"
             >
-              <span class="nrg-schema-glyph" aria-hidden="true">
-                <svg viewBox="0 0 256 220">
-                  <use href="#nrg-json-schema-logo" />
-                </svg>
-              </span>
-            </button>
-          </td>
-          <td
-            v-if="typeCheckEnabled && supportsOutputTypeValidation"
-            class="nrg-cell-flag"
-          >
-            <NodeRedToggle
-              :model-value="validateOutputTypesFor(port.index)"
-              :aria-label="`${resolveLabel('portSettings.outputsTable.validateTypes', 'Validate Types')} — ${port.label}`"
-              @update:model-value="
-                (val: boolean) => setValidateOutputTypes(port.index, val)
-              "
-            />
-          </td>
-          <td class="nrg-cell-desc">{{ port.description }}</td>
-        </tr>
-      </tbody>
-    </table>
+              {{
+                resolveLabel(
+                  "portSettings.outputsTable.validateTypes",
+                  "Validate Types",
+                )
+              }}
+            </th>
+            <th class="nrg-cell-desc">
+              {{
+                resolveLabel(
+                  "portSettings.outputsTable.description",
+                  "Description",
+                )
+              }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="port in outputRows" :key="port.index">
+            <td class="nrg-cell-label">{{ port.label }}</td>
+            <td v-if="hasOutputValidation" class="nrg-cell-flag">
+              <NodeRedToggle
+                :model-value="validateOutputFor(port.index)"
+                :aria-label="`${resolveLabel('portSettings.outputsTable.validate', 'Validate Data')} — ${port.label}`"
+                @update:model-value="
+                  (val: boolean) => setValidateOutput(port.index, val)
+                "
+              />
+            </td>
+            <td v-if="hasOutputSchemas" class="nrg-cell-flag">
+              <button
+                type="button"
+                class="red-ui-button red-ui-button-small nrg-schema-btn"
+                :class="{
+                  'nrg-schema-btn-error':
+                    !!errors[`node.outputSchemas.${port.index}`],
+                }"
+                :title="errors[`node.outputSchemas.${port.index}`] || undefined"
+                :disabled="!validateOutputFor(port.index)"
+                :aria-label="`${resolveLabel('portSettings.outputsTable.schema', 'Data Schema')} — ${port.label}`"
+                @click="openOutputSchemaEditor(port.index)"
+              >
+                <span class="nrg-schema-glyph" aria-hidden="true">
+                  <svg viewBox="0 0 256 220">
+                    <use href="#nrg-json-schema-logo" />
+                  </svg>
+                </span>
+              </button>
+            </td>
+            <td
+              v-if="typeCheckEnabled && supportsOutputTypeValidation"
+              class="nrg-cell-flag"
+            >
+              <NodeRedToggle
+                :model-value="validateOutputTypesFor(port.index)"
+                :aria-label="`${resolveLabel('portSettings.outputsTable.validateTypes', 'Validate Types')} — ${port.label}`"
+                @update:model-value="
+                  (val: boolean) => setValidateOutputTypes(port.index, val)
+                "
+              />
+            </td>
+            <td class="nrg-cell-desc">{{ port.description }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <ul class="nrg-help-list">
       <li>
         <strong>{{
