@@ -179,7 +179,18 @@ export class NodeRedEditor {
     await this.dismissNotifications();
     const tray = this.page.locator(".red-ui-tray").last();
     await tray.waitFor({ state: "visible", timeout: 10_000 });
-    await this.page.waitForTimeout(250);
+    // Full-form shot: the ports-settings tables keep their DESCRIPTIONS on one
+    // line and scroll horizontally inside the fixed-width tray, so the text runs
+    // off the right edge of a screenshot. For the capture, let those cells WRAP
+    // and drop the horizontal scroll so nothing is clipped; the vertical-fit
+    // logic below then grows the shot to the (now taller) full form.
+    await this.page.addStyleTag({
+      content: `
+        .nrg-table-scroll { overflow-x: visible !important; }
+        .nrg-cell-desc { white-space: normal !important; }
+      `,
+    });
+    await this.page.waitForTimeout(300);
 
     const measure = (): Promise<number> =>
       tray.evaluate((el) => {

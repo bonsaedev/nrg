@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, test, expect, beforeAll, afterAll, afterEach } from "vitest";
 import {
   chromium,
@@ -345,10 +346,12 @@ describe.each(BROWSERS)(
       );
       // the Outputs table renders one row for the single base output port
       expect(await tray.locator(".nrg-outputs tbody tr").count()).toBe(1);
-      // capture the basic node form once for the docs
+      // capture the basic node form once for the docs — captureForm grows the
+      // viewport and wraps the port-table descriptions so the WHOLE form (the
+      // Lifecycle Output Ports rows included) is in-frame, not clipped at the fold.
       if (name === "chromium") {
-        await editor.page.waitForTimeout(300);
-        await tray.screenshot({ path: "docs/public/editor-form.png" });
+        const shot = await editor.captureForm("editor-form");
+        fs.copyFileSync(shot, "docs/public/editor-form.png");
       }
       await editor.clickCancel();
     });
