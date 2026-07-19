@@ -1004,6 +1004,21 @@ describe("wire-check semantics (TDD)", () => {
     ).toBeUndefined();
   });
 
+  it("warns (green) when a TYPED source feeds an UNTYPED reader (boundary, other direction)", () => {
+    // src (typed { a }) -> debug (core, not in the registry). The typed output
+    // enters an unchecked node — type-checking stops there — so it warns, both
+    // directions of the typed↔untyped boundary are flagged.
+    const report = checkFlowConfig(
+      [tab, n("s", "src", [["d"]]), n("d", "debug", [])],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("s:0:d"));
+    expect(p?.ok).toBe(true);
+    expect(p?.warn).toMatch(/core\/non-nrg node \(debug\)/);
+    expect(p?.warn).toMatch(/type-checking stops here/);
+    expect(report.uncheckedTypes).toContain("debug");
+  });
+
   // ── clearing a field with `undefined` (the supported "remove" convention) ──
   // The record only ever grows or overwrites, so a node "clears" a field by
   // re-adding it as `undefined` (Port<{ field: undefined }>). Downstream readers

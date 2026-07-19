@@ -334,24 +334,38 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     }
     return label;
   };
-  // An UNTYPED-SOURCE → TYPED-READER caveat: the source port emits `any` (a
-  // core/non-nrg node, or an nrg `Port<any>` output) but the target is a real nrg
-  // node that declares a reads contract. The wire passes ONLY because `any`
-  // satisfies everything, so that contract is never actually verified — surface it
-  // as a non-fatal warning so the silent boundary is visible. (Junctions are
-  // spliced out, so `e.src`/`e.dst` are the real endpoints even across one.)
+  // A TYPED ↔ UNTYPED BOUNDARY caveat: a wire where one end is a typed nrg node
+  // and the other is untyped (a core/non-nrg node, or an nrg `Port<any>` output).
+  // The wire passes, but type-checking can't cross it — flag it (non-fatal) so the
+  // silent boundary is visible, in BOTH directions:
+  //   • untyped SOURCE → typed READER — the reader's declared contract is never
+  //     verified (`any` satisfies it); it could be handed the wrong shape.
+  //   • typed SOURCE → untyped READER — the typed message enters an unchecked node
+  //     (its contract can't be established, and anything past it is `any`).
+  // (Junctions are spliced out, so `e.src`/`e.dst` are the real endpoints.)
   const boundaryWarning = (e: Edge): string | undefined => {
     const src = byId.get(e.src)!;
     const dst = byId.get(e.dst)!;
-    if (portAt(src, e.srcPort).adds !== "any") return; // source emits a real type
-    const dstDef = registry[dst.type];
-    if (!dstDef || dstDef.reads === "any") return; // target has no contract to verify
     const srcName = src.name ?? src.id;
     const dstName = dst.name ?? dst.id;
-    const srcKind = registry[src.type]
-      ? "an untyped output"
-      : `a core/non-nrg node (${src.type})`;
-    return `'${srcName}' is ${srcKind} — the message it sends can't be checked against what '${dstName}' reads (${dstDef.reads}).`;
+    const srcUntyped = portAt(src, e.srcPort).adds === "any";
+    const dstDef = registry[dst.type];
+    const dstUntyped = !dstDef || dstDef.reads === "any";
+    if (srcUntyped && !dstUntyped) {
+      // untyped source → typed reader
+      const srcKind = registry[src.type]
+        ? "an untyped output"
+        : `a core/non-nrg node (${src.type})`;
+      return `'${srcName}' is ${srcKind} — the message it sends can't be checked against what '${dstName}' reads (${dstDef!.reads}).`;
+    }
+    if (!srcUntyped && dstUntyped) {
+      // typed source → untyped reader
+      const dstKind = registry[dst.type]
+        ? "reads an untyped input"
+        : `is a core/non-nrg node (${dst.type})`;
+      return `'${dstName}' ${dstKind} — '${srcName}''s typed output isn't checked into it, and type-checking stops here.`;
+    }
+    return; // both typed (checked) or both untyped (no contract) — no boundary
   };
 
   const paths: WirePath[] = [];
