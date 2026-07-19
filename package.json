@@ -39,6 +39,7 @@
     "dist/toolkit"
   ],
   "exports": {
+    "./type-check-plugin/package.json": "./type-check-plugin/package.json",
     "./server": {
       "types": "./dist/toolkit/types/server.d.ts",
       "require": "./dist/toolkit/lib/server/index.cjs",

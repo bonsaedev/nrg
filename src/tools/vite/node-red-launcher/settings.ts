@@ -14,9 +14,9 @@ import type { GenerateRuntimeSettingsOptions, RuntimeSettings } from "./types";
  * Preference order:
  *  1. a separately-installed `@bonsae/node-red-type-check-plugin` (a consumer
  *     that opted into a standalone/pinned plugin), else
- *  2. the plugin nrg SHIPS in its own dist (`type-check-plugin/` beside the
- *     package manifest) — present in every current nrg install, so the dev
- *     wire check is on by default.
+ *  2. the plugin nrg SHIPS in its own dist (`type-check-plugin/`, resolved via
+ *     nrg's `./type-check-plugin/package.json` export) — present in every current
+ *     nrg install, so the dev wire check is on by default.
  * Returns null only when neither resolves, and the feature simply stays off.
  */
 function resolveTypeCheckPluginDir(): string | null {
@@ -30,11 +30,10 @@ function resolveTypeCheckPluginDir(): string | null {
     // fall through to the nrg-shipped plugin
   }
   try {
-    const nrgManifest = req.resolve("@bonsae/nrg/package.json");
-    const shipped = path.join(path.dirname(nrgManifest), "type-check-plugin");
-    if (fs.existsSync(path.join(shipped, "package.json"))) {
-      return shipped.split(path.sep).join("/");
-    }
+    return path
+      .dirname(req.resolve("@bonsae/nrg/type-check-plugin/package.json"))
+      .split(path.sep)
+      .join("/");
   } catch {
     // nrg itself not resolvable (tests, exotic layouts) — feature off
   }
@@ -167,6 +166,11 @@ async function generateRuntimeSettings(
   const userDirLiteral = JSON.stringify(userDir);
   const outDirLiteral = JSON.stringify(normalizedOutDir);
   const pluginDir = resolveTypeCheckPluginDir();
+  if (!pluginDir) {
+    logger.warn(
+      "Wire type-check plugin not found — flow type-checking is OFF. Ensure @bonsae/nrg is installed (it ships the plugin in its dist).",
+    );
+  }
   const pluginDirLiteral = pluginDir ? JSON.stringify(pluginDir) : null;
 
   const finalRuntimeSettingsFile = compiledRuntimeSettingsFilepath
