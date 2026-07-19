@@ -19,3 +19,4 @@ tests/fixtures/*/dist*/
 
 # internal design docs — kept locally, never committed
 *_DESIGN.md
+.poc-wiring
