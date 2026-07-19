@@ -944,4 +944,63 @@ describe("wire-check semantics (TDD)", () => {
     expect(p?.ok).toBe(false);
     expect(p?.label).toBe("s[o] -> j -> r");
   });
+
+  // ── untyped-source → typed-reader WARNING (non-fatal boundary) ────────────
+  it("warns (but stays green) when a core node feeds a typed reader", () => {
+    // `inj` is a core node (not in the registry) → emits `any`. `wantA` reads
+    // { a: number }. The wire passes only because `any` satisfies it, so the
+    // reader's contract is unverified — flag it, don't red it.
+    const report = checkFlowConfig(
+      [tab, n("inj", "inject", [["r"]]), n("r", "wantA", [])],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("inj:0:r"));
+    expect(p?.ok).toBe(true);
+    expect(p?.warn).toMatch(/core\/non-nrg node \(inject\)/);
+    expect(p?.warn).toMatch(/'r' reads \(\{ a: number \}\)/); // reader by name + its contract
+    // and the caveat rides the per-wire verdict too (for the editor)
+    expect(report.wires.find((w) => w.id === "inj:0:r")?.warn).toBeDefined();
+    expect(report.ok).toBe(true);
+  });
+
+  it("warns THROUGH a junction (real source and reader are the endpoints)", () => {
+    const report = checkFlowConfig(
+      [
+        tab,
+        n("inj", "inject", [["j"]]),
+        n("j", "junction", [["r"]]),
+        n("r", "wantA", []),
+      ],
+      producesA,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("j:0:r"));
+    expect(p?.ok).toBe(true);
+    expect(p?.warn).toMatch(/inject/);
+    // both raw hops carry the caveat so either can surface it in the editor
+    expect(report.wires.find((w) => w.id === "inj:0:j")?.warn).toBeDefined();
+    expect(report.wires.find((w) => w.id === "j:0:r")?.warn).toBeDefined();
+  });
+
+  it("does NOT warn when a core node feeds a reader with no contract (reads any)", () => {
+    const reg: Registry = {
+      loose: { reads: "any", ports: [] }, // reads anything — nothing to verify
+    };
+    const report = checkFlowConfig(
+      [tab, n("inj", "inject", [["r"]]), n("r", "loose", [])],
+      reg,
+    );
+    const p = report.paths.find((p) => p.wireIds.includes("inj:0:r"));
+    expect(p?.ok).toBe(true);
+    expect(p?.warn).toBeUndefined();
+  });
+
+  it("does NOT warn on a typed-source → typed-reader wire (fully checked)", () => {
+    const report = checkFlowConfig(
+      [tab, n("s", "src", [["r"]]), n("r", "wantA", [])],
+      producesA,
+    );
+    expect(
+      report.paths.find((p) => p.wireIds.includes("s:0:r"))?.warn,
+    ).toBeUndefined();
+  });
 });

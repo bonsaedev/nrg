@@ -80,6 +80,11 @@ interface WirePath {
   id: string;
   label: string;
   wireIds: string[];
+  /** A NON-fatal caveat about an otherwise-valid connection — set when an
+   * untyped source (a core/non-nrg node, or an nrg `Port<any>` output) feeds a
+   * TYPED nrg reader: the wire passes only because `any` satisfies everything, so
+   * the reader's contract goes UNVERIFIED. The connection stays green. */
+  warn?: string;
 }
 
 interface CompiledFlow {
@@ -329,9 +334,29 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
     }
     return label;
   };
+  // An UNTYPED-SOURCE → TYPED-READER caveat: the source port emits `any` (a
+  // core/non-nrg node, or an nrg `Port<any>` output) but the target is a real nrg
+  // node that declares a reads contract. The wire passes ONLY because `any`
+  // satisfies everything, so that contract is never actually verified — surface it
+  // as a non-fatal warning so the silent boundary is visible. (Junctions are
+  // spliced out, so `e.src`/`e.dst` are the real endpoints even across one.)
+  const boundaryWarning = (e: Edge): string | undefined => {
+    const src = byId.get(e.src)!;
+    const dst = byId.get(e.dst)!;
+    if (portAt(src, e.srcPort).adds !== "any") return; // source emits a real type
+    const dstDef = registry[dst.type];
+    if (!dstDef || dstDef.reads === "any") return; // target has no contract to verify
+    const srcName = src.name ?? src.id;
+    const dstName = dst.name ?? dst.id;
+    const srcKind = registry[src.type]
+      ? "an untyped output"
+      : `a core/non-nrg node (${src.type})`;
+    return `'${srcName}' is ${srcKind} — the message it sends can't be checked against what '${dstName}' reads (${dstDef.reads}).`;
+  };
+
   const paths: WirePath[] = [];
   const pathSeen = new Set<string>();
-  const addPath = (via: WireRef[]): void => {
+  const addPath = (via: WireRef[], warn?: string): void => {
     if (!via.length) return;
     const wireIds = via.map((v) => v.id);
     const key = wireIds.join("|");
@@ -341,9 +366,10 @@ function compileFlow(flow: FlowNode[], registry: Registry): CompiledFlow {
       id: wireIds[wireIds.length - 1],
       label: pathLabelFor(via),
       wireIds,
+      ...(warn ? { warn } : {}),
     });
   };
-  for (const e of edges) addPath(viaOf(e));
+  for (const e of edges) addPath(viaOf(e), boundaryWarning(e));
   for (const w of deadWiresById.values()) addPath([w]);
 
   const incoming = new Map<string, Edge[]>(nodes.map((n) => [n.id, []]));

@@ -124,7 +124,13 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
   // wire is "deploy to check", never destructively removed.
   const wireVerdict = (
     id: string,
-  ): { ok: boolean; checked: boolean; message?: string; reason?: string } => {
+  ): {
+    ok: boolean;
+    checked: boolean;
+    message?: string;
+    warn?: string;
+    reason?: string;
+  } => {
     const hit = latest?.wires.find((w) => w.id === id);
     if (!hit) {
       return {
@@ -133,8 +139,10 @@ function nrgTypeCheckPlugin(RED: NodeRedRuntime): void {
         reason: "unchecked — deploy to type-check this wire",
       };
     }
+    // A warn (untyped source → typed reader) rides ON a passing wire — surface it
+    // even when ok, so the editor can flag the unverified boundary non-fatally.
     return hit.ok
-      ? { ok: true, checked: true }
+      ? { ok: true, checked: true, ...(hit.warn ? { warn: hit.warn } : {}) }
       : { ok: false, checked: true, message: hit.message };
   };
 

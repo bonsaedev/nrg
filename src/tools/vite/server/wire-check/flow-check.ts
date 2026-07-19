@@ -5,6 +5,8 @@ import { checkProgram } from "./checker";
 interface WireVerdict extends WireRef {
   ok: boolean;
   message?: string;
+  /** Non-fatal caveat (untyped source → typed reader); the wire stays green. */
+  warn?: string;
 }
 
 /** A node-to-node connection verdict — junctions spliced back in as waypoints.
@@ -89,10 +91,20 @@ function checkFlowConfig(
       }
     }
 
+    // An untyped-source → typed-reader caveat rides the PATH; map it onto each raw
+    // wire the path traverses so a per-wire probe (the editor) can surface it too.
+    const warnByWireId = new Map<string, string>();
+    for (const p of paths) {
+      if (!p.warn) continue;
+      for (const id of p.wireIds)
+        if (!warnByWireId.has(id)) warnByWireId.set(id, p.warn);
+    }
+
     const verdicts: WireVerdict[] = wires.map((w) => ({
       ...w,
       ok: !failed.has(w.id),
       ...(failed.has(w.id) ? { message: failed.get(w.id) } : {}),
+      ...(warnByWireId.has(w.id) ? { warn: warnByWireId.get(w.id) } : {}),
     }));
     // Path verdicts (what the human report prints): a connection is red iff ANY
     // raw wire it traverses failed — whole-path red — and it reports the first
@@ -140,13 +152,22 @@ function checkFlowConfig(
 function formatReport(report: FlowCheckReport): string[] {
   const lines: string[] = [];
   const failed = report.paths.filter((p) => !p.ok);
+  const warned = report.paths.filter((p) => p.ok && p.warn);
   if (report.uncheckedTypes.length) {
     lines.push(
       `wire-check: unchecked boundary (core/non-nrg): ${report.uncheckedTypes.join(", ")}`,
     );
   }
+  // green connections — a warned one (untyped source → typed reader) is still a
+  // pass, flagged ⚠ with the caveat so the silent boundary is visible.
   for (const p of report.paths) {
-    if (p.ok) lines.push(`wire-check: ✔ ${p.label}`);
+    if (!p.ok) continue;
+    if (p.warn) {
+      lines.push(`wire-check: ⚠ ${p.label}`);
+      lines.push(`wire-check:     ${p.warn}`);
+    } else {
+      lines.push(`wire-check: ✔ ${p.label}`);
+    }
   }
   for (const p of failed) {
     lines.push(`wire-check: ✖ ${p.label}`);
@@ -155,10 +176,11 @@ function formatReport(report: FlowCheckReport): string[] {
   for (const u of report.unattributed) {
     lines.push(`wire-check: ⚠ internal (not a wire fault): ${u}`);
   }
+  const suffix = warned.length ? ` (${warned.length} unchecked boundary)` : "";
   lines.push(
     failed.length === 0
-      ? `wire-check: GREEN — ${report.paths.length} connection(s) type-check`
-      : `wire-check: RED — ${failed.length} of ${report.paths.length} connection(s) failed`,
+      ? `wire-check: GREEN — ${report.paths.length} connection(s) type-check${suffix}`
+      : `wire-check: RED — ${failed.length} of ${report.paths.length} connection(s) failed${suffix}`,
   );
   return lines;
 }
