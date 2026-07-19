@@ -68,8 +68,8 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
     nodeTypes.push(type);
 
     // Every IONode carries the built-in IONode config (name + lifecycle port
-    // toggles + per-port return-property / context-mode + data validation)
-    // whether or not it declares those fields — so the editor's Ports Settings
+    // toggles + per-port data validation) whether or not it declares those
+    // fields — so the editor's Ports Settings
     // section renders on all of them, and declaring a field only overrides its
     // default. Config nodes have no ports, so they're left as-is (detected by the
     // absence of the IONode `outputs` getter, which config nodes don't define).

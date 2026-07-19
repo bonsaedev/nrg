@@ -14,8 +14,6 @@ const defaultOf = (
 
 describe("mergeConfigDefaults", () => {
   // Every built-in field an IONode carries, whether or not it declares them.
-  // (The flat-record message model retired `outputReturnProperties` and
-  // `inputRoot` — the record has no envelope to re-key or re-root.)
   const IO_NODE_KEYS = [
     "name",
     "errorPort",
