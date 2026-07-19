@@ -123,8 +123,13 @@ function usePortsSettings() {
   }
 
   function recalculateOutputs() {
-    const baseOutputs = localNode._def?.outputs ?? 0;
-    let count = baseOutputs;
+    // Base = the node's STATIC output ports (topology). NOT `_def.outputs`: that
+    // already bakes in every default-ON lifecycle port (see
+    // computeBuiltinPortOutputs), so adding the enabled ports to it double-counts
+    // a default-on port (e.g. job-runner's `completePort: true`) and spawns a
+    // phantom base port on every toggle. `features.outputPorts` is exactly the
+    // base count, excluding lifecycle ports.
+    let count = features.outputPorts.length;
     if (localNode.errorPort) count++;
     if (localNode.completePort) count++;
     if (localNode.statusPort) count++;

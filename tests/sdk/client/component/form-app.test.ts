@@ -32,11 +32,15 @@ function renderApp(options: {
   schema: any;
   features?: NodeFeatures;
   form?: any;
+  defOutputs?: number;
 }) {
   const { node } = createNode({ configs: options.configs ?? {} });
   node.credentials = { ...options.credentials };
   node._def = {
-    outputs: 1,
+    // The registered top-level `outputs` = base ports + default-ON lifecycle
+    // ports (see computeBuiltinPortOutputs). Overridable so a test can model a
+    // node whose default-on port inflates it past the base.
+    outputs: options.defOutputs ?? 1,
     defaults: options.defaults,
     credentials: options.credentialDefs,
   };
@@ -121,6 +125,8 @@ describe("app shell — built-in port toggles", () => {
         errorPort: { type: "boolean" },
         completePort: { type: "boolean" },
       }),
+      // One base output port — the recalc counts lifecycle ports ON TOP of this.
+      features: { hasInput: false, outputPorts: [{ index: 0, label: "out" }] },
     });
     // Lifecycle rows label the port by its short name; the toggle keeps the
     // full "<name> Port" accessible name.
@@ -158,6 +164,8 @@ describe("app shell — built-in port toggles", () => {
     const { node, component } = renderApp({
       configs: { name: "x", statusPort: false },
       schema: nameSchema({ statusPort: { type: "boolean" } }),
+      // One base output port — the status port counts on top of it.
+      features: { hasInput: false, outputPorts: [{ index: 0, label: "out" }] },
     });
 
     toggleFor(component.container, "Status Port")
@@ -166,6 +174,53 @@ describe("app shell — built-in port toggles", () => {
     await vi.waitFor(() => {
       expect(node.statusPort).toBe(true);
       expect(node.outputs).toBe(2);
+    });
+  });
+
+  test("recalculates from the base port count, not _def.outputs (default-on lifecycle port)", async () => {
+    // A job-runner-style node: one base output ("Item") PLUS completePort ON by
+    // default. Registration bakes the default-on port into `_def.outputs` (= 2).
+    // Toggling ANY lifecycle port must recalc from the BASE (1) — not
+    // `_def.outputs` — otherwise a phantom base port ("Output 1") appears in the
+    // Outputs table and as an unlabeled port on the canvas.
+    const { node, component } = renderApp({
+      configs: {
+        name: "x",
+        errorPort: false,
+        completePort: true,
+        statusPort: false,
+      },
+      schema: nameSchema({
+        errorPort: { type: "boolean" },
+        completePort: { type: "boolean" },
+        statusPort: { type: "boolean" },
+      }),
+      features: { hasInput: false, outputPorts: [{ index: 0, label: "Item" }] },
+      defOutputs: 2, // base 1 + default-on completePort
+    });
+    const rowCount = () =>
+      component.container.querySelectorAll(".nrg-outputs tbody tr").length;
+
+    // Only the base "Item" row, though completePort is on and `_def.outputs` is 2.
+    expect(rowCount()).toBe(1);
+
+    // Enabling error: total = base(1) + error + complete = 3; still one base row.
+    toggleFor(component.container, "Error Port")
+      .querySelector("input")!
+      .click();
+    await vi.waitFor(() => {
+      expect(node.outputs).toBe(3);
+      expect(rowCount()).toBe(1);
+    });
+
+    // Disabling the default-on complete port: total = base(1) + error = 2; still
+    // one base row (the exact case the user hit).
+    toggleFor(component.container, "Complete Port")
+      .querySelector("input")!
+      .click();
+    await vi.waitFor(() => {
+      expect(node.outputs).toBe(2);
+      expect(rowCount()).toBe(1);
     });
   });
 });
