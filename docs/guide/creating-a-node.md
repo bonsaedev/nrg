@@ -8,7 +8,7 @@ See also:
 - [The editor form](./editor-form) — the generated edit dialog, custom Vue forms, client-side files, and built-in form components.
 - [Registration, config nodes, extending](./config-nodes) — registering the module, config nodes, and extending a published node.
 - [Validation & inference](./schemas) — `defineSchema`, type inference, and input/output data validation.
-- [The message model](./message-model) — the output envelope, context modes, the input root, and source nodes.
+- [The message model](./message-model) — the accumulating record, merging, provenance, and source nodes.
 
 ## Define the Node
 
@@ -226,7 +226,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(port, additions)` | Merge an object of named fields onto the record and emit it from a user-defined output port, addressed by name or index (`{ ...incoming, ...additions }` plus provenance on `msg[Meta]`); whether the incoming record is carried is the port's context mode (default `merge`) — see [Context modes](./message-model#context-modes). Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
+| `this.send(port, additions)` | Merge an object of named fields onto the record and emit it from a user-defined output port, addressed by name or index (`{ ...incoming, ...additions }` plus provenance on `msg[Meta]`); the incoming record is always carried forward. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -331,7 +331,7 @@ These built-in port messages are **typed**. `@bonsae/nrg/server` exports `ErrorP
 
 #### Framework config fields {#framework-config-fields}
 
-The framework knows a set of config fields by name and **injects them into every IONode's config schema by the build**: `name`, the three lifecycle-port toggles, `outputContextModes`, and the data-validation fields (`inputSchema`, `outputSchemas`, and their `validate` toggles). Their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, context mode `merge`, no validation schema), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
+The framework knows a set of config fields by name and **injects them into every IONode's config schema by the build**: `name`, the three lifecycle-port toggles, and the data-validation fields (`inputSchema`, `outputSchemas`, and their `validate` toggles). Their editor controls render on every node whether or not you declare them. Each has a **framework default** (ports off, no validation schema), and the **flow author chooses per instance** whether to use it. You never build these form fields yourself.
 
 As a node **author you declare one of these only to change its default** — add the property to your config schema and set your value on the builder's `default`. That value becomes the seeded default in the editor (which the flow author can still change); declaring does **not** change whether the control appears — it always does.
 
@@ -343,7 +343,6 @@ That includes the two data-validation rows below. `inputSchema` and `outputSchem
 | `errorPort` | `SchemaType.Boolean` | The built-in [error port](#lifecycle-output-ports) (default: off) |
 | `completePort` | `SchemaType.Boolean` | The built-in [complete port](#lifecycle-output-ports) (default: off) |
 | `statusPort` | `SchemaType.Boolean` | The built-in [status port](#lifecycle-output-ports) (default: off) |
-| `outputContextModes` | `SchemaType.OutputContextModes` | Per-port `merge` / `reset` of the outgoing record (default: `merge`) |
 | `inputSchema` | `SchemaType.InputSchema` | A flow-author-editable input data-validation schema (default: none) |
 | `outputSchemas` | `SchemaType.OutputSchemas` | Flow-author-editable per-port output data-validation schemas (default: none) |
 
@@ -361,14 +360,6 @@ export const ConfigsSchema = defineSchema(
     errorPort: SchemaType.Boolean({ default: true }),
     completePort: SchemaType.Boolean({ default: true }),
     statusPort: SchemaType.Boolean({ default: false }),
-
-    // Seed output port 0's dropdown to `reset` instead of `merge`. (Every
-    // port's Context Mode dropdown is always editable by the flow author; `default`
-    // only changes which value a port starts on — ports you leave out start on
-    // `merge`.)
-    outputContextModes: SchemaType.OutputContextModes({
-      default: { 0: "reset" },
-    }),
 
     // Ship a default input validation schema the flow author can override.
     inputSchema: SchemaType.InputSchema({

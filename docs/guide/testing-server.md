@@ -100,8 +100,8 @@ Every node returned by `createNode` has these helpers:
 | `node.close(removed?)` | Trigger the `closed()` lifecycle hook                                                                                                                                                           |
 | `node.reset()`         | Clear all captured sent messages, statuses, and logs                                                                                                                                            |
 | `node.sent()`          | Every emission is an array with one slot per output port, so `sent()[i][0]` is port 0 of emission `i`. To read a single port directly, use `sent(port)` (by index) or `sent(name)` (by port name). |
-| `node.sent(port)`      | The per-port message for a specific output port (numeric index) — one level out of the positional array, still wrapped under the return key (`output`)                                          |
-| `node.sent(name)`      | The per-port message for a named output port — resolved from the node's typed `Port<T>` names — still wrapped under the return key (`output`). Built-in `"error"`/`"complete"`/`"status"` ports resolve by name too. |
+| `node.sent(port)`      | The merged outgoing record for a specific output port (numeric index) — one level out of the positional array                                          |
+| `node.sent(name)`      | The merged outgoing record for a named output port — resolved from the node's typed `Port<T>` names. Built-in `"error"`/`"complete"`/`"status"` ports resolve by name too. |
 | `node.statuses()`      | All `status()` calls                                                                                                                                                                            |
 | `node.logged(level?)`  | Log messages, optionally filtered by level (`"info"`, `"warn"`, `"error"`)                                                                                                                       |
 | `node.warned()`        | Warning messages                                                                                                                                                                                |
@@ -113,7 +113,13 @@ Every node returned by `createNode` has these helpers:
 ```typescript
 import { describe, it, expect } from "vitest";
 import { createNode } from "@bonsae/nrg/test/server/unit";
-import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+import {
+  IONode,
+  Meta,
+  type Input,
+  type Outputs,
+  type Port,
+} from "@bonsae/nrg/server";
 import MyNode from "../../../src/server/nodes/my-node";
 import Splitter from "../../../src/server/nodes/splitter";
 import Router from "../../../src/server/nodes/router";
@@ -137,21 +143,16 @@ describe("my-node", () => {
     const { node } = await createNode(MyNode);
     await node.receive({ payload: "hello" });
 
-    // send() wraps the result under the return key (`output`) and stamps the
-    // producing node (id/type/name/port) via `msg[Meta].source`; the default merge
-    // context mode keeps the incoming msg under `input`, not at the root.
-    expect(node.sent(0)).toEqual([
-      {
-        output: { uppercased: "HELLO" },
-        source: {
-          id: expect.any(String),
-          type: expect.any(String),
-          name: expect.any(String),
-          port: 0,
-        },
-        input: { payload: "hello" },
-      },
-    ]);
+    // send() MERGES the returned fields onto the incoming record — no `output`
+    // wrapper and no `input` frame: the record IS the message (fields carried
+    // forward + this send's additions). Provenance stays off the data keys, read
+    // through the `msg[Meta].source` accessor.
+    const [frame] = node.sent(0);
+    expect(frame).toMatchObject({
+      payload: "hello", // carried forward from the incoming record
+      uppercased: "HELLO", // this send's addition
+    });
+    expect(frame[Meta].source).toMatchObject({ port: 0 });
     expect(node.statuses()[0]).toEqual({ fill: "green", text: "ok" });
   });
 
@@ -644,7 +645,7 @@ A handle to one node in the flow. Harness methods never collide with your node's
 ::: tip Reading output
 Each emission IS the record: the incoming fields carried forward plus the send's named additions at the top level, with provenance on the `msg[Meta]` accessor (the `_meta` carrier) — there is no `output` wrapper. So assertions read fields directly: `(await node.read()).doubled`.
 
-Whether the incoming record's fields are carried forward depends on the [context mode](./message-model#context-modes): the default `merge` accumulates (`{ ...incoming, ...additions }`), `reset` starts a fresh record from the additions alone.
+The incoming record's fields are always carried forward and merged with the send's additions (`{ ...incoming, ...additions }`).
 :::
 
 ### Examples

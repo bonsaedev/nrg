@@ -127,11 +127,10 @@ export default class MyNode extends IONode<Config> {
 
 Default values from the schema are used by the editor to initialize new node instances.
 
-The value you pass to `this.send()` is wrapped into a consistent envelope
-(`{ output, source, input }`), the return key is configurable per port, and the
-flow author chooses how much of the incoming message continues. All of that —
-the output envelope, custom return keys, and context modes — lives in
-[The Message Model](./message-model).
+The value you pass to `this.send()` is merged onto the flow's accumulating
+record (`{ ...incoming, ...additions }`), with provenance stamped on `msg[Meta]`;
+the incoming record is always carried forward. All of that — the record model,
+merging, and provenance — lives in [The Message Model](./message-model).
 
 
 ## Credentials Schema

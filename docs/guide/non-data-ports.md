@@ -125,7 +125,7 @@ client type-resolver understand:
 | `SchemaType.NodeRef<Cfg>("cfg-type")` | yes | `string` (node id) | a config-node reference |
 | `SchemaType.TypedInput()` | yes | `{ value, type }` | a Node-RED TypedInput |
 | `SchemaType.Unsafe<T>()` | no | **`T`** | a non-data value you want typed (function, instance, `Buffer`, stream, connection) |
-| `SchemaType.Any()` | no | `any` | a truly untyped passthrough |
+| `SchemaType.Any()` | no | `any` | a truly untyped value that flows through unchecked |
 | `SchemaType.Unknown()` | no | `unknown` | force the consumer to narrow before use |
 | `SchemaType.Unsafe<T>({ …json… })` | yes | `T` | a custom/branded static type **with** real validation |
 
@@ -136,8 +136,8 @@ for it rather than `SchemaType.Function`/`Constructor` too: those emit a non-JSO
 `defineSchema` (which strips it via `markNonValidatable`), whereas `Unsafe<T>()`
 is already an empty schema with nothing for AJV to choke on.
 
-Node-RED passes `output` to a **single** downstream wire by reference, so these
+Node-RED passes the message to a **single** downstream wire by reference, so these
 non-data values reach the next node intact on one connection. On a fan-out
 (multiple wires) Node-RED deep-clones the message — a value that can't survive a
 clone, like a live socket or stream, should ride the [private channel](./message-channels)
-instead. See [The Message Model](./message-model#the-output-envelope).
+instead. See [The Message Model](./message-model#sends-merge-named-fields).

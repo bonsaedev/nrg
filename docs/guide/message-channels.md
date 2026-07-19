@@ -151,10 +151,9 @@ response object downstream — its own source even flags it as a *"Temporary fix
 remove this http-node-specific fix somehow."* Everything else is on its own.
 
 And anything on `msg` is **visible in the debug panel and editable by any function node** —
-so a secret leaks and a live handle can be tampered with. What actually continues
-downstream isn't your call either: the **flow author** picks `merge`/`reset`
-per wire (see [context modes](./message-model#context-modes)), so a `reset` drops the fields
-you left for a later node.
+so a secret leaks and a live handle can be tampered with. A downstream node (or a
+core `change`/`set` node) can also overwrite or delete what you left on the record
+for a later node.
 
 ### Not in flow/global context
 
@@ -229,8 +228,7 @@ firing sets off (logging, metrics, joining fan-out results).
 
 It's **read-only**: the framework owns the key, so `send(..., { protected: {
 transactionId } })` or `delete msg[Channels].protected.transactionId` throws. Unlike
-the wire `_msgid` (which a flow author could overwrite or an
-[input root](./message-model#input-root) rebase could drop), `transactionId` stays
+the wire `_msgid` (which a flow author could overwrite), `transactionId` stays
 put off the wire.
 
 ## Writing and reading channels

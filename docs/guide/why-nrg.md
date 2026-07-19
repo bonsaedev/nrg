@@ -37,14 +37,14 @@ TRADITIONAL  --  decided by the node's author, in code
                             |
                             +-- forget this, and the flow stops (no error)
 
-NRG  --  decided by the flow author, on the wire
+NRG  --  the framework carries the record for you
 
-   msg --> [ node ] --> result --> next node
+   msg --> [ node ] --> additions --> next node
                             |
-                            +-- merge | reset         (chosen per wire)
+                            +-- record always carried forward (merged)
 ```
 
-In classic Node-RED every node must actively call `send(msg)` to pass the message on; if the node's code forgets that call (or takes a path that skips it), the flow stops silently with no error — and whoever built the flow can't fix it from the outside. NRG flips this: the node contributes just its named fields, the framework carries the accumulated record for you, and the **flow author** decides per output whether it continues — accumulate (`merge`) or a clean slate (`reset`). See [context modes](./message-model#context-modes).
+In classic Node-RED every node must actively call `send(msg)` to pass the message on; if the node's code forgets that call (or takes a path that skips it), the flow stops silently with no error — and whoever built the flow can't fix it from the outside. NRG flips this: the node contributes just its named fields, and the framework always carries the accumulated record forward for you (`{ ...incoming, ...additions }`) — nothing a node contributes is silently lost. See [The Message Model](./message-model).
 
 > Throughout these docs, the **flow author** is whoever wires nodes together on the Node-RED canvas — as opposed to you, the **node author**, who writes the node package. Many of NRG's controls exist so the node author sets a sensible default while the flow author keeps the final say per node instance.
 

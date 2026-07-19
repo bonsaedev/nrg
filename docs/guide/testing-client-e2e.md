@@ -328,7 +328,7 @@ describe("my-form component", () => {
 ```
 
 ::: info Translations
-Component tests use key-passthrough mocks — the setup file installs a `$i18n` mock and `RED._` that return the translation key as-is. This lets you verify the correct keys are used, but not that translations resolve to the right text. To test that translations are properly loaded and rendered, use [Browser E2E Testing](#client-e2e-testing) where Node-RED loads the real locale files.
+Component tests use mocks that echo the key as-is — the setup file installs a `$i18n` mock and `RED._` that return the translation key unchanged. This lets you verify the correct keys are used, but not that translations resolve to the right text. To test that translations are properly loaded and rendered, use [Browser E2E Testing](#client-e2e-testing) where Node-RED loads the real locale files.
 :::
 
 ## Client E2E Testing

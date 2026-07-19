@@ -60,38 +60,6 @@ Declare only what you actually read. The wire check then guarantees a node
 *somewhere upstream* produced each field — wiring your node where a required
 field doesn't exist is a type error on that wire, before deploy.
 
-## Context modes {#context-modes}
-
-How each output port builds its outgoing record is the port's **context mode**,
-resolved per port from config:
-
-- **merge** (default) — `{ ...incoming, ...additions }`. The record accumulates.
-  A re-entered node overwrites its *own* fields, so the record is bounded by the
-  distinct nodes on a path — never by loop iterations.
-- **reset** — `{ ...additions }`. A fresh record, for emissions that begin a new
-  logical signal: a source firing, a per-item dispatch, a loop lap that should
-  start clean. A reset port's output is exactly its declared `T` regardless of
-  what came in — which also *re-anchors the types* after an untyped upstream
-  (e.g. a core `inject`).
-
-The flow author can pick a mode for **any** port in the editor's Outputs table;
-declaring `outputContextModes` only seeds a port's starting value:
-
-```typescript
-const ConfigsSchema = defineSchema(
-  {
-    name: SchemaType.String({ default: "" }),
-    // port 0's dropdown starts on `reset`; every other port starts on `merge`.
-    outputContextModes: SchemaType.OutputContextModes({
-      default: { 0: "reset" },
-    }),
-  },
-  { $id: "my-node:configs" },
-);
-```
-
-A legacy `passthrough` value stored in an old flow resolves to `merge`.
-
 ## Provenance: `msg[Meta]`
 
 The framework stamps every emission with its producer — node id, type, name,
@@ -115,7 +83,7 @@ properties; that carrier is framework-internal, exactly like `_msgid`.)
 ## Lineage: `_msgid`
 
 Every message carries Node-RED's `_msgid` lineage id. nrg **preserves it across
-every hop and mode** (a source node mints a fresh one via
+every hop** (a source node mints a fresh one via
 `RED.util.generateId()`), so the message-flow debugger, Catch/Complete grouping,
 and any `_msgid`-based correlation keep working. `_msgid` is framework-managed —
 it's deliberately not on your `Input` type, and you never set it by hand.
@@ -175,7 +143,7 @@ arguments) and type-checks it:
   the wire that needs it.
 
 Core (non-nrg) nodes are an *unchecked boundary* (`any`) — reported, never
-hidden — and a `reset` port after such a boundary restores full checking, since
-its output type doesn't depend on what came in. Feedback loops are supported:
-the checker anchors a loop's join at its declared reads (the loop invariant) and
-verifies every lap re-satisfies it.
+hidden — so a core node upstream leaves the rest of that chain unchecked; a flow
+is fully checked when it starts from a typed nrg source node. Feedback loops are
+supported: the checker anchors a loop's join at its declared reads (the loop
+invariant) and verifies every lap re-satisfies it.
