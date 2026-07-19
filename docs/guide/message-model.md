@@ -144,21 +144,36 @@ enable and use them.
 ## The wire check {#the-wire-check}
 
 Because outputs merge onto their inputs, the accumulated record's type composes
-across the whole flow — and nrg verifies it. In `nrg dev`, every deploy
-compiles the flow graph into a TypeScript program (one call per node, wires as
-arguments) and type-checks it:
+across the whole flow — and nrg verifies it. The check is **deploy-only**: on
+every deploy in `nrg dev` the plugin compiles the *whole* flow graph into one
+TypeScript program (one call per node, wires as arguments) and type-checks it.
+There is **no per-wire live check and no per-node toggle** — a wire's validity
+depends on the *entire upstream accumulation*, not on its two endpoints, so only a
+whole-flow compile can judge it. It runs automatically wherever the dev plugin is
+present; it **fails open** (a checker problem never blocks authoring).
 
-- per-wire `✔` / `✖` verdicts print in the dev terminal,
-- failing wires paint **red (dashed)** in the editor canvas, with one
-  notification listing them,
-- the exact tsc message says which field is missing or mismatched, at exactly
-  the wire that needs it.
+Every deploy prints per-connection `✔` / `⚠` / `✖` verdicts in the dev terminal
+and paints the editor canvas:
 
-Core (non-nrg) nodes are an *unchecked boundary* (`any`) — reported, never
-hidden — so a core node upstream leaves the rest of that chain unchecked; a flow
-is fully checked when it starts from a typed nrg source node. Feedback loops are
-supported: the checker anchors a loop's join at its declared reads (the loop
-invariant) and verifies every lap re-satisfies it.
+- **Red (dashed)** — a real type **mismatch**: the source can't satisfy what the
+  target reads. The exact tsc message says which field is missing or mismatched,
+  at exactly the connection that needs it. (A mismatch reds the whole connection,
+  junctions included.)
+- **Yellow (dashed)** — an **unchecked boundary**: the connection is valid but
+  can't be type-checked. This happens when a wire touches a **core/non-nrg node**
+  (it has no types, so its wires are flagged in *both* directions — into it, out of
+  it, even core→core), or when an untyped output (`Port<any>`/`Port<unknown>`)
+  feeds a typed reader whose contract then goes unverified.
+- **Green** — fully checked: both ends are typed nrg nodes and the types compose.
+
+One deliberate exception to yellow: a wire **into** an nrg node that declares
+`Port<any>` / `Port<unknown>` **input** stays green — such a node has explicitly
+opted to accept anything, so it's a passthrough, not a boundary.
+
+A core node upstream therefore leaves the rest of that chain unchecked (yellow),
+and a flow is fully green when it runs entirely between typed nrg nodes. Feedback
+loops are supported: the checker anchors a loop's join at its declared reads (the
+loop invariant) and verifies every lap re-satisfies it.
 
 ## Reading a flow: the three exits
 
