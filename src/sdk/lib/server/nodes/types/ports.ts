@@ -53,10 +53,11 @@ type IsPortRecord<TOutput> = [keyof TOutput] extends [never]
     : false;
 
 /** The built-in lifecycle port names — RESERVED. A node emits to them via
- * `this.error()` / `this.status()` and the auto-emitted complete port, never
- * `send("error", …)` (the runtime throws on that). Excluded from the addressable
- * named-port keys so a data port that happens to share one of these names can't be
- * `send()`-targeted at the type level (which would type-check but throw). */
+ * `throw` (error), `this.status()` (status), and the auto-emitted complete port
+ * (input()'s return), never `send("error", …)` (the runtime throws on that).
+ * Excluded from the addressable named-port keys so a data port that happens to
+ * share one of these names can't be `send()`-targeted at the type level (which
+ * would type-check but throw). */
 type BuiltinPortName = "error" | "complete" | "status";
 
 /**
@@ -339,9 +340,10 @@ type CarriedRecord<TInput> = [TInput] extends [never]
  * Message emitted on the built-in ERROR port — the same MERGE rule as every
  * port: the frame is the PROCESSED RECORD plus the `error` block
  * (`name`/`message`/`stack` layered over the author's extra fields — the
- * enumerable own properties of a thrown `Error` subclass, or the record passed
- * to `this.error(message, msg)`). A downstream handler reads `msg.error` AND
- * the record that failed, side by side. Provenance rides `msg[Meta].source`;
+ * enumerable own properties of a thrown `Error` subclass). The error port is
+ * emitted by `throw` only (the terminal failure that carries the record);
+ * `this.error()` is log-only. A downstream handler reads `msg.error` AND the
+ * record that failed, side by side. Provenance rides `msg[Meta].source`;
  * Node-RED's `_msgid` rides the root at runtime but is deliberately NOT typed
  * (framework-internal, hidden from authors — see {@link MessageMeta}).
  */

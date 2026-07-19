@@ -86,6 +86,10 @@ interface IIONode<
   // off-the-wire channels alongside the wire fields.
   input(msg: TInput): unknown;
   status(status: IONodeStatus): void;
+  // LOG-ONLY diagnostic — narrows the base `error(message, msg?)` to a single
+  // arg. It does NOT emit the error port (that is `throw`) or route to Node-RED
+  // catch; the node is still holding the signal.
+  error(message: string): void;
   updateWires(wires: string[][]): void;
   // `receive` drives the handler with a raw WIRE message — the channels are installed
   // by the framework, so callers pass {@link OmitMessageChannels}`<TInput>`, not the

@@ -28,7 +28,6 @@ import type {
   OmitMessageChannels,
   NodeSource,
   MessageSource,
-  ErrorInfo,
   StatusPortOutput,
 } from "./types/ports";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -37,12 +36,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 interface InputInvocation {
   inputMsg: unknown;
   send: (msg: any) => void;
-  /**
-   * Set by `this.error(message, msg)` once it has emitted to the error port, so
-   * the input handler's catch does not ALSO auto-emit if the same invocation
-   * then throws — one failure must produce exactly one error-port message.
-   */
-  errorEmitted?: boolean;
 }
 
 /** The clone-safe root carrier for the framework metadata (`{ source }`).
@@ -236,9 +229,9 @@ abstract class IONode<
           return;
         }
 
-        // Own the invocation store here so the catch below can see whether
-        // `this.error(msg)` already emitted to the error port (the ALS run()
-        // scope has exited by the time the catch runs).
+        // Own the invocation store here so the post-`await` auto-emits (complete
+        // on return, error on throw) can re-enter it — the ALS run() scope has
+        // exited by the time they run (see the complete/error emits below).
         const store: InputInvocation = { inputMsg: msg, send };
 
         try {
@@ -292,52 +285,49 @@ abstract class IONode<
           // port, an unknown named port) is a developer bug, not runtime data:
           // surface it loudly via done(err), never swallow it to the error port.
           if (!(error instanceof NrgError) && this.config.errorPort) {
-            // The node handles the error itself via its error port, so it is the
-            // SOLE handler: emit the clean error message (unless this.error()
-            // already did for this invocation), log it once, and complete
-            // WITHOUT reporting to Node-RED's Catch/done-error mechanism. Routing
-            // there too would report the error twice (done(err) internally calls
-            // node.error(err, msg)) AND stamp `msg.error` on the shared incoming
-            // message — surfacing a second, differently-shaped error under our
-            // `input` frame.
-            if (!store.errorEmitted) {
-              const errorData: Record<string, unknown> =
-                error && typeof error === "object"
-                  ? { ...(error as Record<string, unknown>) }
-                  : {};
-              // Drop undefined-valued own props (e.g. an unset optional field on
-              // a custom Error subclass) — they carry no information, JSON already
-              // omits them, and they only clutter the error object in the debug
-              // panel.
-              for (const k of Object.keys(errorData)) {
-                if (errorData[k] === undefined) delete errorData[k];
-              }
-              // A thrown error's own enumerable properties are spread INTO the
-              // `error` block first, so authors can throw a custom `Error`
-              // subclass carrying extra data (e.g. `this.code = …`). `name`,
-              // `message`, and `stack` are then layered on to preserve the full
-              // Error structure — they are NON-enumerable on an Error, so the
-              // spread above drops them; `name`/`message` stay authoritative and
-              // `stack` (when present) carries the trace. Same MERGE rule as
-              // every port: the frame is the PROCESSED RECORD plus `error`, so a
-              // handler keeps the full context that failed.
-              const stack = error instanceof Error ? error.stack : undefined;
-              // Bind to THIS invocation's store — this runs after the `await`, so
-              // the run() scope has exited and a nested node's synchronous delivery
-              // may have left another invocation's store ambient (see the complete
-              // auto-emit above and #deliver).
-              IONode.#invocation.run(store, () =>
-                this.#emitLifecycle("error", store.inputMsg, {
-                  error: {
-                    ...errorData,
-                    name: (error as { name?: string })?.name ?? "Error",
-                    message: errorMsg,
-                    ...(stack ? { stack } : {}),
-                  },
-                }),
-              );
-              this.node.error(errorMsg); // log only — no msg, so no Catch routing
+            // A THROW is the terminal failure: the node's error port is the SOLE
+            // handler — emit the frame, log once, and complete WITHOUT reporting to
+            // Node-RED's Catch/done-error mechanism. Routing there too would report
+            // the error twice (done(err) internally calls node.error(err, msg)) AND
+            // stamp `msg.error` on the shared incoming message — a second,
+            // differently-shaped error under our `input` frame. (`this.error()` is
+            // log-only and never emits the port, so there is nothing to de-dupe.)
+            const errorData: Record<string, unknown> =
+              error && typeof error === "object"
+                ? { ...(error as Record<string, unknown>) }
+                : {};
+            // Drop undefined-valued own props (e.g. an unset optional field on
+            // a custom Error subclass) — they carry no information, JSON already
+            // omits them, and they only clutter the error object in the debug
+            // panel.
+            for (const k of Object.keys(errorData)) {
+              if (errorData[k] === undefined) delete errorData[k];
             }
+            // A thrown error's own enumerable properties are spread INTO the
+            // `error` block first, so authors can throw a custom `Error`
+            // subclass carrying extra data (e.g. `this.code = …`). `name`,
+            // `message`, and `stack` are then layered on to preserve the full
+            // Error structure — they are NON-enumerable on an Error, so the
+            // spread above drops them; `name`/`message` stay authoritative and
+            // `stack` (when present) carries the trace. Same MERGE rule as
+            // every port: the frame is the PROCESSED RECORD plus `error`, so a
+            // handler keeps the full context that failed.
+            const stack = error instanceof Error ? error.stack : undefined;
+            // Bind to THIS invocation's store — this runs after the `await`, so
+            // the run() scope has exited and a nested node's synchronous delivery
+            // may have left another invocation's store ambient (see the complete
+            // auto-emit above and #deliver).
+            IONode.#invocation.run(store, () =>
+              this.#emitLifecycle("error", store.inputMsg, {
+                error: {
+                  ...errorData,
+                  name: (error as { name?: string })?.name ?? "Error",
+                  message: errorMsg,
+                  ...(stack ? { stack } : {}),
+                },
+              }),
+            );
+            this.node.error(errorMsg); // log only — no msg, so no Catch routing
             done();
           } else {
             // The node does NOT handle the error (no error port), or it is a
@@ -743,8 +733,9 @@ abstract class IONode<
    *
    * Built-in ports (`"error"`, `"complete"`, `"status"`) are managed by the
    * framework and cannot be sent to directly. Use `this.status()` for status,
-   * throw an error or call `this.error()` for the error port, and the complete
-   * port is sent automatically on successful input processing.
+   * `throw` for the error port (it carries the record and aborts), and the
+   * complete port is sent automatically on successful input processing.
+   * (`this.error()` is log-only — it does not emit the error port.)
    *
    * The optional `channels` argument writes off-the-wire data to the message's
    * channel store (keyed by its `_msgid`): `protected` targets the package-shared
@@ -794,7 +785,7 @@ abstract class IONode<
             (this.#baseOutputs > 0
               ? ` Send to a base output port (0..${this.#baseOutputs - 1}),`
               : ` Send to a base output port,`) +
-            ` or use this.status() / this.error().`,
+            ` throw for the error port, or use this.status().`,
         );
       }
     }
@@ -917,31 +908,17 @@ abstract class IONode<
     } satisfies StatusPortOutput);
   }
 
-  public override error(message: string, msg?: any) {
-    if (msg && this.config.errorPort) {
-      // The node handles the error via its error port, so it is the sole
-      // handler: emit to the port and log the message, but do NOT pass `msg` to
-      // Node-RED's error mechanism — that would route the same error to Catch
-      // nodes too and stamp `msg.error` on the shared message. Same MERGE rule
-      // as the auto-emit path: the frame is the passed record plus `error`.
-      this.#emitLifecycle("error", msg, {
-        error: {
-          // `name` keeps the error-port payload consistent with the auto-emit
-          // from a thrown error.
-          name: "Error",
-          message,
-        } satisfies ErrorInfo,
-      });
-      super.error(message); // log only — no msg, so no Catch routing/mutation
-      // Dedupe: if this call also throws, the input handler's catch must not
-      // emit a second error-port message for the same failure.
-      const store = IONode.#invocation.getStore();
-      if (store) store.errorEmitted = true;
-    } else {
-      // No error port (or no msg) — standard Node-RED behavior: routes to Catch
-      // when a msg is given, otherwise just logs.
-      super.error(message, msg);
-    }
+  /**
+   * Log an error-level diagnostic. LOG ONLY — it does NOT emit the error port
+   * and does NOT route to Node-RED `catch`. Those are for TERMINAL failure, which
+   * is `throw` (it aborts input() and carries the accumulated record onto the
+   * error port). An EXPECTED failure that is a real outcome should be a typed data
+   * port (`this.send("rejected", …)`), which carries the signal like any wire.
+   * `this.error` is purely observability — the node is still holding the signal
+   * and will forward it via `send`/`return`. See the lifecycle/failure model.
+   */
+  public override error(message: string): void {
+    super.error(message); // no msg → logs only, no Catch routing, no port
   }
 
   public updateWires(wires: string[][]) {

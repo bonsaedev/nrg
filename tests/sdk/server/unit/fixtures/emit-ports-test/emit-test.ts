@@ -59,13 +59,14 @@ class EmitTest extends IONode<Config, never, EmitTestInput, EmitTestOutputs> {
       throw "boom";
     }
     if (payload === "explicit-error") {
-      this.error("Explicit error", msg);
+      // this.error is LOG ONLY — it must NOT emit the error port.
+      this.error("Explicit error");
       return;
     }
     if (payload === "error-then-throw") {
-      // A node that logs/routes the error via error(msg) AND then throws must
-      // still produce exactly ONE error-port message (not two).
-      this.error("Logged then threw", msg);
+      // this.error only logs; the subsequent throw is the terminal failure that
+      // emits the error port — so exactly ONE error-port message results.
+      this.error("Logged then threw");
       throw new Error("Logged then threw");
     }
     if (payload === "status") {

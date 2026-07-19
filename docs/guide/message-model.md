@@ -159,3 +159,68 @@ hidden — so a core node upstream leaves the rest of that chain unchecked; a fl
 is fully checked when it starts from a typed nrg source node. Feedback loops are
 supported: the checker anchors a loop's join at its declared reads (the loop
 invariant) and verifies every lap re-satisfies it.
+
+## Reading a flow: the three exits
+
+> **Reading a wire = reading the accumulated record at that point** — every field
+> guaranteed by the nodes upstream of it. Because outputs merge onto inputs, the
+> type **grows** as you follow a wire downstream.
+
+A node has three ways to *advance* the signal (each carries the accumulated
+record), plus logging, which does not ride a wire at all:
+
+| Outcome | Use | On a wire? |
+|---|---|---|
+| Forward / route the message | `send("out", …)` | yes — `{ …record, …adds }` |
+| Terminal success + result | `return { … }` → **complete** | yes — `{ …record, …returned }` |
+| Terminal / unexpected failure | `throw` → **error** | yes — `{ …record, error }` |
+| Expected, per-item failure | a **data port**, e.g. `send("rejected", …)` | yes — typed data |
+| Diagnostics / observability | `this.warn(…)` / `this.error(…)` → **log** | no |
+
+**Growth + error context.** Follow the out-rail and the type accumulates; each
+error wire carries the record *as it entered that node* plus `error`:
+
+```
+[orders-in] ─ out ▸ {orderId}
+[load]      ─ out ▸ {orderId, order}            ─ error ▸ {orderId, error}         ▶ [on-load-fail]
+[charge]    ─ out ▸ {orderId, order, chargeId}  ─ error ▸ {orderId, order, error}  ▶ [on-charge-fail]
+[fulfill]   ─ out ▸ {orderId, order, chargeId, shipmentId} ▶ [done]
+```
+
+`load` threw *before* adding `order`, so its error wire is `{orderId, error}`;
+`charge` got further, so its error wire also carries `order`. A handler reads the
+real failed context, not just a message string.
+
+**Shared handlers read only the common fields.** Wire several error ports into one
+handler and Node-RED delivers one message per firing — so the wire's type is what
+*all* sources share:
+
+```
+[load]  ─ error ▸ {orderId, error}        ┐
+[charge]─ error ▸ {orderId, order, error} ┴▶ [notify]   reads {orderId, error}  (not order)
+```
+
+**Expected failures are data, not errors.** Model a real failure *outcome* as a
+typed data port; reserve `throw`/error for the unexpected. A batch node's three
+exits each mean exactly one thing:
+
+```
+[process] ─ error ▸ {items, error} ▶ [page-oncall]              (throw: whole firing died — at most once)
+          └ rejected ▸ {items, index, reason} ▶ [dead-letter]   (data port: one item — fires N times)
+          └ complete ▸ {items, results} ▶ [report]              (return: after every item settles)
+```
+
+**Recovery loops work because error carries the signal.** An error handler has the
+full failed record, so it can clear the error (set the field to `undefined`) and
+send it back:
+
+```
+        ┌──────────── back-edge (backoff's one output) ──────────────┐
+        │  {orderId, order, error: undefined}   (charge reads {order} ✓)
+        ▼                                                            │
+[charge] ─ out ▸ {orderId, order, chargeId} ▶ [fulfill]             │
+   └──── error ▸ {orderId, order, error} ▶ [backoff] ───────────────┘
+```
+
+The checker verifies the back-edge against `charge`'s declared reads (the loop
+invariant), so a recovery loop is type-checked like any other path.

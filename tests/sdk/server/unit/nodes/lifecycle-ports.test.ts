@@ -132,7 +132,7 @@ describe("lifecycle ports", () => {
   });
 
   describe("error port", () => {
-    it("sends exactly one message to error port on explicit error() call", async () => {
+    it("this.error() is LOG ONLY — it does not emit the error port", async () => {
       const { node } = await createNode(EmitTest, {
         config: {
           errorPort: true,
@@ -143,16 +143,12 @@ describe("lifecycle ports", () => {
 
       await node.receive({ payload: "explicit-error" });
 
-      const errorSends = node.sent("error");
-      expect(errorSends).toHaveLength(1);
-      expect(errorSends[0].error.message).toBe("Explicit error");
-      // The error payload carries `name` (Catch-node compatible).
-      expect(errorSends[0].error.name).toBe("Error");
-      // The data port received nothing.
+      // this.error only logs — nothing on the error port, nothing on the data port.
+      expect(node.sent("error")).toHaveLength(0);
       expect(node.sent(0)).toHaveLength(0);
     });
 
-    it("emits exactly one error-port message (with name) when error(msg) is called AND the call throws", async () => {
+    it("a throw after a this.error() log emits exactly one error-port message (from the throw)", async () => {
       const { node } = await createNode(EmitTest, {
         config: { errorPort: true, completePort: false, statusPort: false },
       });
@@ -162,7 +158,7 @@ describe("lifecycle ports", () => {
       await node.receive({ payload: "error-then-throw" });
 
       const errorSends = node.sent("error");
-      // Deduped: error(msg) emitted, so the input-handler catch did NOT re-emit.
+      // this.error only logged; the THROW is what emits — exactly one message.
       expect(errorSends).toHaveLength(1);
       expect(errorSends[0].error.name).toBe("Error");
       expect(errorSends[0].error.message).toBe("Logged then threw");
@@ -285,7 +281,7 @@ describe("lifecycle ports", () => {
         },
       });
 
-      await node.receive({ payload: "explicit-error" });
+      await node.receive({ payload: "error" }); // throw → emits the error port
 
       const errorSend = node.sent("error")[0];
       // provenance rides `_meta.source`, with the built-in port's slot + name.
