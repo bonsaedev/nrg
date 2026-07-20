@@ -40,8 +40,10 @@ function getDefaultsFromSchema(
 
 /**
  * Derives a Node-RED `credentials` map from a credentials schema: `password`
- * for fields with `format: "password"`, `text` otherwise (warning on the
- * latter, since a `text` credential is returned to the editor in cleartext).
+ * for fields with `format: "password"`, `text` otherwise. A `text` credential
+ * is returned to the editor in cleartext; the build — not this runtime helper —
+ * warns on those (see the server build's node-defs extractor), so loading a
+ * package at runtime stays quiet.
  */
 function getCredentialsFromSchema(
   schema: TObject | null | undefined,
@@ -56,19 +58,13 @@ function getCredentialsFromSchema(
   for (const [key, value] of Object.entries(schema.properties)) {
     const property = value as NrgSchemaOptions;
     const isPassword = property.format === "password";
-    if (!isPassword) {
-      // A credential without format:"password" is registered as a `text`
-      // credential, which Node-RED returns to the editor in cleartext. Warn so
-      // an author who meant it to be secret adds the password format (rather
-      // than silently defaulting to password, which would break legitimately
-      // visible credential fields like a public client id).
-      console.warn(
-        `[nrg] credential "${key}" has no format:"password" — it is stored as a visible (cleartext-in-editor) credential. Add { format: "password" } to mask it.`,
-      );
-    }
     result[key] = {
       // NOTE: required is always false because it is controlled by the JSON Schema and AJV validation instead of using node-red client core
       required: false,
+      // A credential without format:"password" becomes a `text` credential,
+      // which Node-RED returns to the editor in cleartext. The build warns on
+      // these (see node-defs-extractor); we don't silently force password here,
+      // which would break legitimately visible fields like a public client id.
       type: isPassword ? "password" : "text",
       value: property.default ?? undefined,
     };

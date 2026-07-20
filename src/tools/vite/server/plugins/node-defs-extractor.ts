@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import { nodeDefsPath } from "../../utils";
+import { logger } from "../../logger";
 import {
   getDefaultsFromSchema,
   getCredentialsFromSchema,
@@ -86,6 +87,19 @@ async function extractNodeDefinitions(outDir: string): Promise<void> {
     // so there are no `validateInputTypes`/`validateOutputTypes` defaults.)
     const defaults = getDefaultsFromSchema(configSchema);
     const credentials = getCredentialsFromSchema(credentialsSchema);
+
+    // Build-time advisory: a credential without format:"password" is stored as a
+    // `text` credential, which Node-RED shows in the editor in cleartext. Surface
+    // it here — once per build, with the node type — rather than at runtime on
+    // every node registration. Not an error: some credentials (a public client
+    // id) are legitimately visible.
+    for (const [key, cred] of Object.entries(credentials ?? {})) {
+      if (cred.type === "text") {
+        logger.warn(
+          `credential "${key}" on "${type}" has no format:"password" — it is stored as a visible (cleartext-in-editor) credential. Add { format: "password" } to mask it.`,
+        );
+      }
+    }
 
     definitions[type] = {
       type,
