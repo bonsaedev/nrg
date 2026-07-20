@@ -92,7 +92,8 @@ interface INode<TConfig = any, TCredentials = any, TSettings = any> {
   on(event: string, callback: (...args: any[]) => void): void;
   log(msg: any): void;
   warn(message: string): void;
-  error(message: string, msg?: any): void;
+  /** Log-only diagnostic — routes to no port and no Catch node. */
+  error(message: string): void;
 
   created?(): void | Promise<void>;
   closed?(removed?: boolean): void | Promise<void>;

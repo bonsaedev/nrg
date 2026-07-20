@@ -264,18 +264,6 @@ describe("Node", () => {
       instance.warn("warning");
       expect(node.warn).toHaveBeenCalledWith("warning");
     });
-
-    it("should delegate error to node.error", () => {
-      const RED = createRED();
-      init(RED);
-      const node = createNodeRedNode();
-      const instance = new ConcreteNode(RED, node, {}, {});
-
-      instance.error("error msg", { payload: "data" });
-      expect(node.error).toHaveBeenCalledWith("error msg", {
-        payload: "data",
-      });
-    });
   });
 
   describe("credentials", () => {

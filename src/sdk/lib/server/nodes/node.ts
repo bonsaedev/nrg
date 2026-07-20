@@ -253,8 +253,12 @@ abstract class Node<
     this.node.warn(message);
   }
 
-  public error(message: string, msg?: any) {
-    this.node.error(message, msg);
+  // Log-only diagnostic — it does NOT route to Node-RED's Catch mechanism and
+  // emits nothing on any port. (An IONode's terminal failure is a `throw` → its
+  // error port; an expected failure is a typed data port. `this.error` is purely
+  // observability.) Single-arg to match the IONode override and the failure model.
+  public error(message: string) {
+    this.node.error(message);
   }
 
   public get id(): string {
