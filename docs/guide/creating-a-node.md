@@ -14,7 +14,7 @@ See also:
 
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
-> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup. The `ConfigsSchema` / `SettingsSchema` imported below are what declare the fields this class reads (`config.prefix`, `settings.apiEndpoint`); see [Config Schemas](./schemas) for how to write them.
+> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup. The `ConfigsSchema` / `SettingsSchema` imported below are what declare the fields this class reads (`config.prefix`, `settings.apiEndpoint`); see [Config schemas & fields](./form-fields) for how to write them.
 
 ```typescript
 import {
@@ -98,9 +98,9 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 | `TOutput` is `{ a: Port<A>; b: Port<B> }` | N named output ports |
 | `TOutput` is `never` | 0 output ports (sink node) |
 
-At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports and can type-check wires between nodes (see [Extending a published node](./config-nodes#extending-a-published-node)). Schemas are **not** required for any of this.
+At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports. Wires between nodes can then be type-checked at deploy by the installable `@bonsae/node-red-type-check-plugin` (see [Extending a published node](./config-nodes#extending-a-published-node)). Schemas are **not** required for any of this.
 
-Wire type-checking runs once at deploy (on `flows:started`) over the whole compiled flow and paints failing wires red — there is no per-node toggle or live per-draw check. (This is separate from **Validate Data**, the runtime data validation discussed below.)
+Install `@bonsae/node-red-type-check-plugin` for deploy-time wire type-checking: on `flows:started` it compiles the whole flow and paints failing wires red (warning wires yellow-dashed). It is not part of the nrg toolkit and does not run unless the plugin is installed. There is no per-node toggle or live per-draw check. (This is separate from **Validate Data**, the runtime data validation discussed below.)
 
 <p align="center">
   <img alt="Port topology on the Node-RED canvas — source (Input=never) has no input port, trigger (Input=any) has one, route (named Port record) has two outputs, sink (Output=never) has no output" src="/port-topology-canvas.png" width="540"/>
@@ -187,8 +187,8 @@ export default class Router extends IONode<Config, any, RouterInput, RouterOutpu
 You can also send by numeric index — port order follows the `Outputs` record's key order:
 
 ```typescript
-this.send(0, msg); // same as this.send("success", msg)
-this.send(1, msg); // same as this.send("failure", msg)
+this.send(0, { ok: true, id }); // same as this.send("success", { ok: true, id })
+this.send(1, { reason }); // same as this.send("failure", { reason })
 ```
 
 Whichever form you use, the first argument is always the port — its name or its
@@ -329,7 +329,7 @@ Port 3: Complete     (if completePort enabled)
 Port 4: Status       (if statusPort enabled)
 ```
 
-These built-in port messages are **typed**. Each frame is the accumulated record merged with its lifecycle block: an error frame is `{ ...record, error }`, a complete frame `{ ...record, ...returnFields }`, and a status frame `{ ...record, status }`. There is no `input` sub-frame and no root `source` key — provenance is read via `msg[Meta].source`. The corresponding types (`ErrorPortOutput<TInput, TError>`, `CompletePortOutput<TInput, TReturn>`, and `StatusPortOutput`) are server-owned and not part of the public import surface. The deploy-time wire check (a whole-flow compile) type-checks and paints wires coming off a built-in port too.
+These built-in port messages are **typed**. Each frame is the accumulated record merged with its lifecycle block: an error frame is `{ ...record, error }`, a complete frame `{ ...record, ...returnFields }`, and a status frame `{ ...record, status }`. There is no `input` sub-frame and no root `source` key — provenance is read via `msg[Meta].source`. The corresponding types (`ErrorPortOutput<TInput, TError>`, `CompletePortOutput<TInput, TReturn>`, and `StatusPortOutput`) are server-owned and not part of the public import surface. When the `@bonsae/node-red-type-check-plugin` is installed, its deploy-time wire check (a whole-flow compile) also type-checks and paints wires coming off a built-in port.
 
 #### Framework config fields {#framework-config-fields}
 
@@ -505,7 +505,7 @@ const ConfigsSchema = defineSchema(
 
 type Config = Infer<typeof ConfigsSchema>;
 type HttpClientInput = Input<Port<Record<string, unknown>>>; // one input port
-type HttpClientOutputs = Outputs<{ out: Port<unknown> }>; // one (untyped) output port
+type HttpClientOutputs = Outputs<{ out: Port<{ response: unknown }> }>; // one output port
 
 export default class HttpClient extends IONode<Config, any, HttpClientInput, HttpClientOutputs> {
   static override readonly type = "http-client";
@@ -515,7 +515,7 @@ export default class HttpClient extends IONode<Config, any, HttpClientInput, Htt
     this.status({ fill: "green", shape: "dot", text: "requesting..." });
     const response = await fetch(this.config.url);
     this.status({ fill: "green", shape: "dot", text: "done" });
-    this.send("out", await response.json());
+    this.send("out", { response: await response.json() });
   }
 }
 ```

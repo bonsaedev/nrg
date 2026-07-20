@@ -486,6 +486,7 @@ const editor = new NodeRedEditor(page, port, {
 | --------------------------------- | --------------------------------------------------------------------------------------------- |
 | `editor.open()`                   | Navigate to Node-RED and wait for the editor to load                                          |
 | `editor.editNode(nodeId)`         | Open the edit dialog for a node                                                               |
+| `editor.openConfigForm(type, id)` | Open a config node's edit form directly (via `RED.editor.editConfig`) — config nodes have no canvas presence |
 | `editor.clickDone()`              | Click the Done button and wait for the tray to close                                          |
 | `editor.clickCancel()`            | Click the Cancel button and wait for the tray to close                                        |
 | `editor.clickConfigDone()`        | Close the config-node tray stacked above the node tray                                        |
@@ -500,6 +501,8 @@ const editor = new NodeRedEditor(page, port, {
 | `editor.getNodeStatus(nodeId)`    | The status text under the node (`""` when none)                                               |
 | `editor.deployFlow(flow)`         | Deploy a flow via the REST API and reload the page                                            |
 | `editor.screenshot(name)`         | Take a full-page screenshot, returns the file path                                            |
+| `editor.captureForm(name)`        | Screenshot the topmost open edit form, growing/cropping the viewport to fit — returns the file path |
+| `editor.captureForms(shots)`      | Open + screenshot each `FormShot` (`{ name, node?, config?: { type, id } }`) in turn, closing the tray between them — returns the paths |
 | `editor.closeAllTrays()`          | Best-effort close of every open tray — keeps a failed test from leaking state                 |
 | `editor.expectNoPageErrors()`     | Assert no uncaught JavaScript errors occurred, then clear the list — call it from `afterEach` |
 | `editor.tray`                     | Locator for the tray body wrapper                                                             |
@@ -530,7 +533,7 @@ const name = editor.field("Name");
 | `field.fill(value)`    | Set the input value                                                 |
 | `field.clear()`        | Clear the input value                                               |
 | `field.getValue()`     | Get the current input value                                         |
-| `field.getInputType()` | Get the input `type` attribute (`"text"`, `"number"`, `"password"`) |
+| `field.getInputType()` | Get the input `type` attribute (e.g. `"text"`/`"number"`/`"password"`), or `null` if unset |
 
 **Boolean fields** (toggle, checkbox):
 

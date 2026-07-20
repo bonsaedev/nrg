@@ -191,7 +191,7 @@ one the flow author types in the editor) **and** (b) the port's _Validate Data_ 
 on. The `inputSchema` / `outputSchemas` config fields exist on every IONode
 automatically, so you never have to "expose" them.
 
-**The port _types_ are compile-time only.** `TInput`/`TOutput` (and `Port<T>`) are
+**The port _types_ are compile-time only.** `Input`/`Outputs` (and `Port<T>`) are
 erased at build. They drive the editor's port topology and wire type-checks, and
 they type your handler while you author, but they do **not** exist at runtime and
 do **not** convert data. So if your node needs a value in a specific runtime shape,

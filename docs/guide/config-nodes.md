@@ -15,7 +15,7 @@ export default defineModule({
 });
 ```
 
-`defineModule` creates a typed module manifest that NRG uses to register your nodes with Node-RED. Use it instead of exporting a plain object — it provides type checking on the `nodes` array and will support additional fields (like `plugins`) in future releases.
+`defineModule` creates a typed module manifest that NRG uses to register your nodes with Node-RED. Use it instead of exporting a plain object — it provides type checking on the `nodes` array and may support additional fields in future releases.
 
 ## Config Nodes
 
@@ -59,4 +59,4 @@ export default class AuthedHttpClient extends HttpClient {
 
 The generated `index.d.ts` (produced via API Extractor from the built barrel) exposes each node as an inheritable, type-only class declaration with its port types intact, alongside the `{ nodes: [...] }` module default — so a consumer can import and extend a node class with its schema and port types carried over. Config nodes have no wireable ports, so they simply contribute an inheritable class declaration and nothing to wiring. See [the generated `index.d.ts`](./project-structure#dist) for the full type surface.
 
-Because each installed package's node port types are available to the compiler, the deploy-only [wire check](./message-model#the-wire-check) — run once on `flows:started` across the whole flow — validates wires between nodes from _different_ packages, pushing per-connection verdicts to the editor so it paints failing wires red.
+Because each installed package's node port types are available to the compiler, the deploy-only [wire check](./message-model#the-wire-check) — run on every deploy in `nrg dev` across the whole flow — validates wires between nodes from _different_ packages, pushing per-connection verdicts to the editor so it paints failing wires red.

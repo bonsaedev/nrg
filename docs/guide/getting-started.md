@@ -135,7 +135,7 @@ export default defineModule({
 
 This entry imports `./nodes/my-node`, which imports its schema from `src/shared/schemas/` — so create at least one schema + node before you build, or the unresolved import fails. Follow [Creating a Node](./creating-a-node) for that minimal schema + class, then continue below.
 
-### 5. Configure ESLint
+### 5. Configure ESLint and Prettier
 
 `nrg` is a complete, drop-in flat config — the recommended JS/TS/Vue rules, NRG's plane boundaries, and a Prettier reset, all included. Your entire `eslint.config.js` is one line of config:
 
@@ -156,7 +156,22 @@ export default [
 ];
 ```
 
-Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). One thing `nrg` checks: your editor (client) code must use `import type` when it pulls from `server/` or schema files — a plain `import` would drag your node's server-side runtime into the browser bundle. The companion `@bonsae/nrg/schema-server-imports-type-only` rule applies the same type-only requirement to schema files that reference your `server/` folder.
+Then add a `lint` script (see [package.json scripts](#_6-add-package-json-scripts) below). One thing `nrg` checks: your editor (client) code must use `import type` when it pulls from `server/` or schema files — a plain `import` would drag your node's server-side runtime into the browser bundle. The companion `@bonsae/nrg/schema-server-imports-type-only` rule (part of the `nrg` config, active as soon as you `export default nrg`) applies the same type-only requirement to schema files that reference your `server/` folder.
+
+For formatting, `@bonsae/nrg/prettier` ships the matching Prettier config. Re-export it from `prettier.config.mjs` so your formatting matches the framework's conventions:
+
+```js
+// prettier.config.mjs
+export { default } from "@bonsae/nrg/prettier";
+```
+
+It's a plain options object, so you can spread it and override any option:
+
+```js
+import nrg from "@bonsae/nrg/prettier";
+
+export default { ...nrg, printWidth: 100 };
+```
 
 ### 6. Add package.json scripts
 

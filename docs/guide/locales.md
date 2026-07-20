@@ -158,7 +158,7 @@ For local development or when using a linked package, use the local path instead
     },
     "input": {
       "$ref": "#/$defs/port",
-      "description": "The single input port: its display label (shown on the canvas and in the Port column of the auto-generated Input table) and description."
+      "description": "The single input port: its display label (shown on the canvas + as the help-doc heading) and description."
     },
     "outputs": {
       "oneOf": [
@@ -171,7 +171,7 @@ For local development or when using a linked package, use the local path instead
           "items": { "$ref": "#/$defs/port" }
         }
       ],
-      "description": "Output ports. Use an object keyed by port name for named outputs (the common case), or an array in tuple order for positional/dynamic outputs. Each entry gives the port's display label and description."
+      "description": "Output ports. Use an object keyed by port name for named outputs (the common case: the key is the port name from the node's Output type), or an array in tuple order for positional/dynamic outputs. Each entry gives the port's display label and description."
     },
     "errors": {
       "$ref": "#/$defs/labelMap",
@@ -197,7 +197,7 @@ For local development or when using a linked package, use the local path instead
       "properties": {
         "label": {
           "type": "string",
-          "description": "The field's display label, shown next to its input in the editor form and in the Property column of the auto-generated help docs. In the editor form it falls back to the schema title, then a spaced, Title-cased version of the property name, when unset; in the help-docs Label column it is simply blank when unset (the raw key always appears in the separate Property column)."
+          "description": "The field's display label, shown next to its input in the editor form and in the Property column of the auto-generated help docs. Falls back to the schema title, then the property key, when unset."
         },
         "description": {
           "type": "string",
@@ -313,12 +313,12 @@ In Vue form components, use `$i18n()` to resolve labels:
 <template>
   <NodeRedInput
     v-model="node.url"
-    :label="$i18n('configs.url')"
+    :label="$i18n('configs.url.label')"
   />
 </template>
 ```
 
-`$i18n('configs.url')` resolves to `node._('my-node.configs.url')` — the node's own translation helper — returning the translated text for `configs.url` in the active language, or the key itself when no translation exists.
+`$i18n('configs.url.label')` resolves to `node._('my-node.configs.url.label')` — the node's own translation helper — returning the translated text for `configs.url.label` in the active language, or the key itself when no translation exists. Since config/credential entries are `{ label, description }` objects, address the subpath directly: `$i18n('configs.url.label')` for the field label and `$i18n('configs.url.description')` for its help note.
 
 ## Supported Languages
 

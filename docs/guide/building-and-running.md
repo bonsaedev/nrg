@@ -20,6 +20,16 @@ In dev mode your code imports `@bonsae/nrg` directly, so everything runs locally
 
 Every change — server or client — triggers a full Node-RED restart, **not** hot module replacement (HMR). Vite handles the restart; you refresh the browser to load the rebuilt editor and client forms. If you have a node's edit panel open when a restart happens, any unsaved changes in that panel are cleared — but your deployed flows themselves are kept.
 
+### Flow type-checking
+
+`nrg dev` can also give you flow type-checking, supplied by the standalone **`@bonsae/node-red-type-check-plugin`** (a server engine plus an editor canvas painter). Install it as a dev dependency and the launcher resolves it from your project's dependencies and loads it into Node-RED automatically. If it isn't installed, the launcher logs a warning and the check simply stays off.
+
+```bash
+npm install --save-dev @bonsae/node-red-type-check-plugin
+```
+
+The check runs at **deploy time** — there is no per-node toggle. When you deploy, wires that fail the check paint **red** and non-fatal warnings appear as **yellow-dashed** wires on the canvas.
+
 ### Node-RED Settings
 
 To customize the Node-RED runtime, create a `node-red.settings.ts` at the project root:

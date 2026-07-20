@@ -106,7 +106,10 @@ Client **E2E** tests start a real Node-RED instance with your nodes installed an
 import { defineNode } from "@bonsae/nrg/client";
 
 const def = defineNode({
-  /* ... */
+  type: "my-node",
+  label() {
+    return this.name;
+  },
 });
 expect(def.label!.call({ name: "My Node" } as any)).toBe("My Node");
 ```

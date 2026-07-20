@@ -8,7 +8,7 @@ the runtime uses. It's an advanced capability; a first node rarely needs it.
 
 NRG uses [AJV](https://ajv.js.org/) for schema validation, which supports JSON Schema's `if`/`then` conditional keywords. This lets you create dependent validation rules — where a field's constraints change based on another field's value. Validation errors are shown inline in the auto-generated form.
 
-TypeBox natively supports `if`, `then`, `else`, and `allOf` — pass them in the `defineSchema` options alongside `$id`. For a single condition, use `if`/`then` directly. For multiple conditions, use `allOf` with an array of `if`/`then` objects.
+TypeBox natively supports `if`, `then`, `else`, and `allOf` — pass them in the `defineSchema` options object (the same options where you may optionally set a stable `$id`). For a single condition, use `if`/`then` directly. For multiple conditions, use `allOf` with an array of `if`/`then` objects.
 
 You can also use [ajv-errors](https://github.com/ajv-validator/ajv-errors) `errorMessage` to provide custom, user-friendly error messages instead of the default AJV output.
 

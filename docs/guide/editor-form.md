@@ -21,8 +21,8 @@ Each help line links to the relevant docs.
 ::: tip What's always there
 Two different mechanisms are at play:
 
-- **Ports come from your types.** `TInput` / `TOutput` draw the ports on the
-  canvas and the rows in the Outputs table.
+- **Ports come from your types.** Your node's `Input` and `Outputs` / `Port`
+  types draw the ports on the canvas and the rows in the Outputs table.
 - **The framework injects its config fields into every IONode.** The build
   spreads `name`, the three lifecycle-port toggles (`errorPort`, `completePort`,
   `statusPort`), and
@@ -51,7 +51,7 @@ NRG auto-generates everything needed for the Node-RED editor from your schema. Y
 If your node has a `configSchema` and `credentialsSchema`, NRG automatically generates a form using `<NodeRedJsonSchemaForm>`, wires up defaults and credential fields, and registers the node in the editor. You only need client files when you want to customize behavior beyond what the schema provides.
 :::
 
-To add per-field help in the generated form, give the field a `description` in the [label file](./locales). Each config and credential field entry can be a bare string (the label) or a `{ label, description }` object; the `description` renders as a muted, per-locale help note beneath the field (above its validation error). This is the supported way to document a generated field — set it per locale in the labels JSON:
+To add per-field help in the generated form, give the field a `description` in the [label file](./locales). Each config and credential field entry is a `{ label, description }` object — `label` is the field's display label (falling back to the schema title, then the property key, when unset) and `description` is the per-locale help note rendered as a muted note beneath the input (above its validation error). This is the supported way to document a generated field — set it per locale in the labels JSON:
 
 ```json
 {
