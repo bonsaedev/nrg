@@ -67,15 +67,16 @@ class NodeRedLauncher implements INodeRedLauncher {
       this.bufferedLogs.push({ line, source });
       return;
     }
-    this.emit(line, source);
+    this.emit(line);
   }
 
-  private emit(line: string, source: LogSource): void {
-    if (source === "stderr") {
-      this.logger.error(line);
-    } else {
-      this.log(line);
-    }
+  private emit(line: string): void {
+    // Relay both streams the SAME way. Node-RED already tags its own levels in
+    // the line (`- [info]` / `- [warn]` / `- [error]`), and raw stderr — Node
+    // process warnings like the punycode deprecation — must not be re-stamped as
+    // an nrg `error`; that read as a spurious error outside Node-RED's own format.
+    // A genuine crash is surfaced separately by watchForUnexpectedExit().
+    this.log(line);
   }
 
   private async killProcess(): Promise<void> {
@@ -217,11 +218,11 @@ class NodeRedLauncher implements INodeRedLauncher {
 
   flushLogs(): void {
     // Called after the links banner is printed: drain everything Node-RED has
-    // said so far (in order, preserving stderr routing), then switch to live so
-    // later lines stream straight through beneath the banner.
+    // said so far (in order), then switch to live so later lines stream straight
+    // through beneath the banner.
     this.live = true;
-    for (const { line, source } of this.bufferedLogs) {
-      this.emit(line, source);
+    for (const { line } of this.bufferedLogs) {
+      this.emit(line);
     }
     this.bufferedLogs = [];
   }

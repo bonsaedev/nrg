@@ -48,9 +48,9 @@ function createMockChild(pid: number | undefined = 12345) {
 }
 
 describe("NodeRedLauncher", () => {
-  // The logger writes errors/warnings to console.error/console.warn now (it no
-  // longer wraps clack), so we observe the launcher's logging through those.
-  let errorSpy: ReturnType<typeof vi.spyOn>;
+  // The launcher's OWN warnings go to console.warn (it no longer wraps clack), so
+  // we observe them through warnSpy. console.error is suppressed but not asserted
+  // — Node-RED child output (both streams) is relayed as plain log lines now.
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -61,7 +61,7 @@ describe("NodeRedLauncher", () => {
     vi.mocked(nodeRedProcess.start).mockReset();
     vi.mocked(nodeRedProcess.stop).mockReset();
     vi.mocked(nodeRedProcess.kill).mockReset();
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -310,19 +310,6 @@ describe("NodeRedLauncher", () => {
       );
     });
 
-    it("routes stderr lines to logger.error when live", async () => {
-      mockHappyStart();
-      const launcher = new NodeRedLauncher("dist", {});
-
-      await launcher.start();
-      launcher.flushLogs(); // go live
-      lastOnLine()("something broke", "stderr", true);
-
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("something broke"),
-      );
-    });
-
     it("filters 'Server now running at' lines", async () => {
       mockHappyStart();
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -536,9 +523,11 @@ describe("NodeRedLauncher", () => {
       lastOnLine()("line 2", "stderr", false);
 
       launcher.flushLogs();
-      // stdout drains to console.log; stderr keeps its routing to logger.error
-      expect(consoleSpy).toHaveBeenCalledTimes(1);
-      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("line 2"));
+      // both streams drain to the same log stream, in order, then the buffer empties
+      expect(consoleSpy).toHaveBeenCalledTimes(2);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("line 2"),
+      );
 
       consoleSpy.mockClear();
       launcher.flushLogs();
