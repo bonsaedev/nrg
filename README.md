@@ -24,28 +24,7 @@ Scaffold a new project with everything wired up:
 pnpm create @bonsae/nrg
 ```
 
-A node is a **config schema** (drives the editor form + validation) and a **class** (the logic). Here's a small `greeting` node — a few typed fields and one output:
-
-**src/shared/schemas/greeting.ts**
-
-```typescript
-import { SchemaType, defineSchema } from "@bonsae/nrg/schema";
-
-export const ConfigsSchema = defineSchema(
-  {
-    greeting: SchemaType.String({ default: "Hello", description: "The greeting word placed before the name.", "x-nrg-form": { icon: "comment" } }),
-    style: SchemaType.Union(
-      [SchemaType.Literal("plain"), SchemaType.Literal("excited"), SchemaType.Literal("friendly")],
-      { default: "plain", description: "Tone of the greeting.", "x-nrg-form": { icon: "paint-brush" } },
-    ),
-    repeat: SchemaType.Number({ default: 1, description: "How many times to repeat the greeting.", "x-nrg-form": { icon: "repeat" } }),
-    note: SchemaType.Optional(
-      SchemaType.String({ default: "", description: "Optional note shown under the node.", "x-nrg-form": { icon: "pencil" } }),
-    ),
-  },
-  { $id: "GreetingConfigsSchema" },
-);
-```
+A node is a **class** (the logic) and a **config schema** (drives the editor form + validation). Here's a small `greeting` node — one typed input, one output, and a few config fields:
 
 **src/server/nodes/greeting.ts**
 
@@ -68,6 +47,29 @@ export default class Greeting extends IONode<Config, never, GreetingInput, Greet
     this.send("greeting", { text });
   }
 }
+```
+
+The class is pure typed logic — `config`, the input `msg`, and the `send` payload are all statically typed. Those config types are inferred from a schema, and that same schema is the single source of truth for the fields' defaults, validation, and the editor form:
+
+**src/shared/schemas/greeting.ts**
+
+```typescript
+import { SchemaType, defineSchema } from "@bonsae/nrg/schema";
+
+export const ConfigsSchema = defineSchema(
+  {
+    greeting: SchemaType.String({ default: "Hello", description: "The greeting word placed before the name.", "x-nrg-form": { icon: "comment" } }),
+    style: SchemaType.Union(
+      [SchemaType.Literal("plain"), SchemaType.Literal("excited"), SchemaType.Literal("friendly")],
+      { default: "plain", description: "Tone of the greeting.", "x-nrg-form": { icon: "paint-brush" } },
+    ),
+    repeat: SchemaType.Number({ default: 1, description: "How many times to repeat the greeting.", "x-nrg-form": { icon: "repeat" } }),
+    note: SchemaType.Optional(
+      SchemaType.String({ default: "", description: "Optional note shown under the node.", "x-nrg-form": { icon: "pencil" } }),
+    ),
+  },
+  { $id: "GreetingConfigsSchema" },
+);
 ```
 
 You wrote **no editor HTML, no jQuery, no `oneditprepare`** — nrg generates the entire edit dialog from the schema and types above: the `style` union becomes a dropdown, strings and numbers become validated inputs, every non-`Optional` field is marked required with a `*` (so `greeting`, `style`, and `repeat` get one; `note`, wrapped in `Optional`, doesn't), and the input/output ports and lifecycle wiring come for free.
