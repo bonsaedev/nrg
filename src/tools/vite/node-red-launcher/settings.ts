@@ -11,10 +11,10 @@ import type { GenerateRuntimeSettingsOptions, RuntimeSettings } from "./types";
 /**
  * The wire type-check plugin dir to auto-load into Node-RED's `nodesDir` so
  * `nrg dev` gives the author flow type-checking with no manual settings. The
- * wire check ships as the installable `@bonsae/node-red-type-check-plugin`
+ * wire check ships as the standalone `@bonsae/node-red-type-check-plugin`
  * (server + editor painter) — resolved from the consumer's install. Returns null
- * when it isn't installed, and the feature simply stays off (install the plugin
- * to turn it on). nrg depends on it, so it's present by default.
+ * when it isn't installed, and the feature simply stays off. Install the plugin
+ * to turn it on; the launcher picks it up automatically from your dependencies.
  */
 function resolveTypeCheckPluginDir(): string | null {
   const req = createRequire(path.join(process.cwd(), "package.json"));
@@ -157,7 +157,7 @@ async function generateRuntimeSettings(
   const pluginDir = resolveTypeCheckPluginDir();
   if (!pluginDir) {
     logger.warn(
-      "Wire type-check plugin not found — flow type-checking is OFF. Ensure @bonsae/nrg is installed (it ships the plugin in its dist).",
+      "Wire type-check plugin not found — flow type-checking is OFF. Install @bonsae/node-red-type-check-plugin to turn it on.",
     );
   }
   const pluginDirLiteral = pluginDir ? JSON.stringify(pluginDir) : null;
