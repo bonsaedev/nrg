@@ -110,6 +110,14 @@ A reader whose input is `Port<any>` / `Port<unknown>` is a deliberate accept-all
 passthrough — a wire **into** it never warns, whatever the source.
 :::
 
+::: warning "Adds nothing" is `Port<{}>`, not `Port<any>` — and not `never`
+A node that only observes and forwards declares its output **`Port<{}>`** (adds
+nothing): it stays **green**, forwarding the record unchanged with everything
+downstream still fully checked. `Port<any>` means "adds _something_ unknown" and
+yellows here, and `never` removes the output port entirely (a sink). See
+[port topology](./creating-a-node).
+:::
+
 ## Branches
 
 ### Fan-out — one output, many wires

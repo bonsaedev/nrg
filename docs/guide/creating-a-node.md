@@ -90,6 +90,8 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 
 **A port exists unless its generic is `never`.** So `any` makes one untyped port; `never` is the single way to say "no port here". (`any` and `never` are the only bare keywords the generics accept — `unknown`, `void`, and `undefined` don't satisfy the constraint. Use `Port<unknown>` for an untyped-but-present payload.)
 
+**A present port can still add nothing.** An output port's `Port<T>` names the fields it _adds_ to the message. `Port<{}>` is a real, wireable port that adds **nothing** — a passthrough: the record flows through unchanged and everything downstream stays fully typed. That is different from `never`, which removes the port entirely. So an observe-and-forward node uses `Port<{}>` (the wire keeps going); a dead end uses `never` (no wire at all). Don't reach for `Port<any>` to mean "adds nothing" — that means "adds _something_ unknown", which the [wire check](./wire-check-advanced) reports as a yellow, unverifiable boundary. And avoid `Port<Record<string, never>>`: its `keyof` is `string`, so it would drop the whole record instead of forwarding it.
+
 | Generic | Ports |
 | --- | --- |
 | `TInput` is a real type or `any` | 1 input port |
