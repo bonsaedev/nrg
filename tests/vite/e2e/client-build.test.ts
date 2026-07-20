@@ -268,7 +268,7 @@ describe("client build", () => {
       ),
     );
     // config-server has user labels but no configs.name — framework should inject it
-    expect(labels["config-server"].configs.name).toBe("Name");
+    expect(labels["config-server"].configs.name.label).toBe("Name");
     expect(labels["config-server"].portSettings.inputsTable.validate).toBe(
       "Validate Data",
     );
@@ -296,17 +296,17 @@ describe("client build", () => {
       ),
     );
     // test-node has its own configs.name — should not be overwritten
-    expect(labels["test-node"].configs.name).toBe("Name");
+    expect(labels["test-node"].configs.name.label).toBe("Name");
     // test-node user labels should be preserved
-    expect(labels["test-node"].configs.timeout).toBe("Timeout");
-    expect(labels["test-node"].configs.enabled).toBe("Enabled");
+    expect(labels["test-node"].configs.timeout.label).toBe("Timeout");
+    expect(labels["test-node"].configs.enabled.label).toBe("Enabled");
   });
 
   it("should inject translated framework labels for other languages", () => {
     const dePath = path.join(outDir, "locales", "de", "index.json");
     if (!fs.existsSync(dePath)) return;
     const labels = JSON.parse(fs.readFileSync(dePath, "utf-8"));
-    expect(labels["config-server"].configs.name).toBe("Name");
+    expect(labels["config-server"].configs.name.label).toBe("Name");
     expect(labels["config-server"].portSettings.inputsTable.validate).toBe(
       "Daten validieren",
     );
