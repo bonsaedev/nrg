@@ -9,7 +9,9 @@ describe("example-node (server-unit smoke)", () => {
   it("echoes its input through the packed createNode helper", async () => {
     const { node } = await createNode(ExampleNode);
     await node.receive({ value: 42 });
-    const out = node.sent(0)[0].output as { value?: number };
+    // The record model merges additions at the root — `send("out", { value })`
+    // yields a flat record, not an `{ output }` envelope.
+    const out = node.sent(0)[0] as { value?: number };
     expect(out.value).toBe(42);
   });
 });
