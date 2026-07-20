@@ -50,6 +50,75 @@ function extract(source: string): NodeTypeInfo[] {
   return extractNodeTypes(program, dir);
 }
 
+/**
+ * Extract from a node source that also depends on EXTRA files in the same case
+ * dir (relative path → contents) — e.g. a sibling `.d.ts` that stands in for an
+ * installed package's declaration file, so the transitive-external-type
+ * resolution can be exercised without a real `node_modules` dependency. The
+ * whole case dir is used as `srcDir`, so a relative import stays "local".
+ */
+function extractWithFiles(
+  source: string,
+  extra: Record<string, string>,
+): NodeTypeInfo[] {
+  const dir = path.join(TMP, `case-${counter++}`);
+  fs.mkdirSync(path.join(dir, "nodes"), { recursive: true });
+  const nodeFile = path.join(dir, "nodes", "the-node.ts");
+  fs.writeFileSync(nodeFile, source);
+  for (const [rel, contents] of Object.entries(extra)) {
+    const p = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, contents);
+  }
+  const program = ts.createProgram({
+    rootNames: [nodeFile],
+    options: {
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      strict: true,
+      skipLibCheck: true,
+      noEmit: true,
+      baseUrl: REPO,
+      paths: {
+        "@bonsae/nrg/server": ["src/sdk/lib/server/index.ts"],
+        "@bonsae/nrg/schema": ["src/sdk/lib/shared/schemas/index.ts"],
+      },
+    },
+  });
+  return extractNodeTypes(program, dir);
+}
+
+/**
+ * Type-check a rendered `resolved` type in isolation — the way the wire-check's
+ * synthetic program would — and return any "Cannot find name/namespace/module"
+ * diagnostics. Rooted in the repo so `import("node:…")` / lib globals resolve.
+ * A clean render yields an empty array (the whole point of `resolved`).
+ */
+function cannotFindInResolved(resolved: string): string[] {
+  const dir = path.join(TMP, `probe-${counter++}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, "probe.ts");
+  const code = `type __Probe = ${resolved};\nconst x: __Probe = null as never;\nexport { x };\n`;
+  fs.writeFileSync(file, code);
+  const program = ts.createProgram({
+    rootNames: [file],
+    options: {
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      strict: true,
+      skipLibCheck: true,
+      noEmit: true,
+      baseUrl: REPO,
+    },
+  });
+  return program
+    .getSemanticDiagnostics(program.getSourceFile(file))
+    .map((d) => ts.flattenDiagnosticMessageText(d.messageText, " "))
+    .filter((m) => /Cannot find (name|namespace|module)/.test(m));
+}
+
 function field(info: NodeTypeInfo, role: keyof NodeTypeInfo, name: string) {
   const r = info[role] as {
     fields: { name: string; type: string; optional: boolean }[];
@@ -434,5 +503,128 @@ describe("extractNodeTypes — class resolution edge cases (deep)", () => {
       export default class N extends IONode<{ a: string }> {}
     `);
     expect(nodes).toHaveLength(0);
+  });
+});
+
+// The wire-check compiles each port's `resolved` type into a synthetic tsc
+// program; a bare, unresolvable name there surfaces as a "Cannot find
+// name/namespace" INTERNAL diagnostic (log noise + a coverage gap — the check
+// fails open). A DERIVED port type (`Awaited<ReturnType<…>>`) expands to types
+// the author never imported directly — transitive package internals and node
+// builtins — so those must be made self-contained (referenced by their own
+// specifier, or inlined) rather than rendered bare.
+describe("extractNodeTypes — transitive external types are self-contained (resolved)", () => {
+  it("keeps a DIRECTLY-imported external type as its author import specifier", () => {
+    const [node] = extract(`
+      import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+      import type { Readable } from "node:stream";
+      type Out = Outputs<{ result: Port<{ s: Readable; label: string }> }>;
+      export default class N extends IONode<{ x: 1 }, never, Input<Port<{ p: 1 }>>, Out> {
+        static readonly type = "direct-import";
+      }
+    `);
+    const resolved =
+      node.outputs?.[0].role.resolved ?? node.outputs?.[0].role.text;
+    expect(resolved).toContain('import("node:stream").');
+    expect(resolved).not.toMatch(/\bs: Readable\b/); // never a bare name
+    expect(cannotFindInResolved(resolved!)).toEqual([]);
+  });
+
+  it("resolves a DERIVED type that transitively references a node builtin (not bare)", () => {
+    // `DerivedStream = Awaited<ReturnType<…>>` reaches `node:stream`'s `Readable`
+    // WITHOUT the author importing it on the port declaration path — the exact
+    // salesforce-bulk shape (`Awaited<ReturnType<Bulk2Api["query"]>>`). Before the
+    // fix this rendered a bare `Readable` → a "Cannot find name" internal fault.
+    const [node] = extract(`
+      import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+      import type { Readable } from "node:stream";
+      declare function open(): Promise<Readable>;
+      type DerivedStream = Awaited<ReturnType<typeof open>>;
+      type Out = Outputs<{ result: Port<{ stream: DerivedStream; ok: boolean }> }>;
+      export default class N extends IONode<{ x: 1 }, never, Input<Port<{ p: 1 }>>, Out> {
+        static readonly type = "derived-node-builtin";
+      }
+    `);
+    const resolved = node.outputs?.[0].role.resolved;
+    expect(resolved).toBeDefined();
+    // resolved through node:stream's own specifier — NOT a bare `Readable`
+    expect(resolved).toContain('import("node:stream").');
+    expect(resolved).not.toMatch(/\bstream: Readable\b/);
+    expect(cannotFindInResolved(resolved!)).toEqual([]);
+  });
+
+  it("resolves a builtin reached via a DERIVED input read (msg the node consumes)", () => {
+    // The salesforce-bulk INPUT case: `BulkIngestInput = Parameters<…>[0]["input"]`
+    // widens to `… | Readable`. The input goes through the wire-input renderer, so
+    // cover that path too — a bare `Readable` there is just as much noise.
+    const [node] = extract(`
+      import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+      import type { Readable } from "node:stream";
+      declare function sink(arg: { data: string | Readable }): void;
+      type DerivedInput = Parameters<typeof sink>[0];
+      type In = Input<Port<DerivedInput>>;
+      type Out = Outputs<{ result: Port<{ ok: boolean }> }>;
+      export default class N extends IONode<{ x: 1 }, never, In, Out> {
+        static readonly type = "derived-input";
+      }
+    `);
+    const resolved = node.input?.resolved;
+    expect(resolved).toBeDefined();
+    expect(resolved).toContain('import("node:stream").');
+    expect(resolved).not.toMatch(/\bdata: string \| Readable\b/);
+    expect(cannotFindInResolved(resolved!)).toEqual([]);
+  });
+
+  it("INLINES a non-exported transitive type reached through a derived alias (never bare)", () => {
+    // A sibling `.d.ts` (external-module declaration file) stands in for a
+    // package: an EXPORTED member and a NON-exported local, both reached ONLY
+    // through the derived `Awaited<ReturnType<…>>` (never imported by name on the
+    // port path). Neither may leak as a bare name — the exported one resolvable,
+    // the non-exported one INLINED structurally. Mirrors jsforce's exported
+    // `Field` vs its internal `ChildRelationship`/`RecordTypeInfo`.
+    const [node] = extractWithFiles(
+      `
+      import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+      import type { Api } from "../pkg";
+      type Result = Awaited<ReturnType<Api["fetch"]>>;
+      type Out = Outputs<{ result: Port<{ data: Result }> }>;
+      export default class N extends IONode<{ x: 1 }, never, Input<Port<{ p: 1 }>>, Out> {
+        static readonly type = "derived-pkg";
+      }
+      `,
+      {
+        "pkg.d.ts": `
+          export interface ExportedRow { id: string; kind: number }
+          interface InternalDetail { flag: boolean; note: string }
+          export interface Api {
+            fetch(): Promise<{ row: ExportedRow; detail: InternalDetail }>;
+          }
+        `,
+      },
+    );
+    const resolved =
+      node.outputs?.[0].role.resolved ?? node.outputs?.[0].role.text;
+    expect(resolved).toBeDefined();
+    // The non-exported local is inlined structurally — never a bare name.
+    expect(resolved).not.toMatch(/\bInternalDetail\b/);
+    expect(resolved).toContain("flag: boolean");
+    // The whole render type-checks: no unresolvable bare name anywhere.
+    expect(cannotFindInResolved(resolved!)).toEqual([]);
+  });
+
+  it("leaves a true GLOBAL lib type bare (it resolves for the consumer)", () => {
+    const [node] = extract(`
+      import { IONode, type Input, type Outputs, type Port } from "@bonsae/nrg/server";
+      type Out = Outputs<{ result: Port<{ when: Date; tags: Set<string> }> }>;
+      export default class N extends IONode<{ x: 1 }, never, Input<Port<{ p: 1 }>>, Out> {
+        static readonly type = "global-lib";
+      }
+    `);
+    const resolved =
+      node.outputs?.[0].role.resolved ?? node.outputs?.[0].role.text;
+    // Date/Set are real globals — kept bare, and still fully resolvable.
+    expect(resolved).toContain("Date");
+    expect(resolved).toContain("Set<string>");
+    expect(cannotFindInResolved(resolved!)).toEqual([]);
   });
 });

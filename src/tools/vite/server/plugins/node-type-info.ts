@@ -419,6 +419,151 @@ function isLocalNamedSymbol(
   return !!file && !file.isDeclarationFile;
 }
 
+/** Node's core module names — a `@types/node` declaration file basename that
+ * matches one of these is reachable through the `node:` protocol specifier. */
+const NODE_CORE_MODULES = new Set([
+  "assert",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "domain",
+  "events",
+  "fs",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "module",
+  "net",
+  "os",
+  "path",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "repl",
+  "stream",
+  "string_decoder",
+  "timers",
+  "tls",
+  "trace_events",
+  "tty",
+  "url",
+  "util",
+  "v8",
+  "vm",
+  "wasi",
+  "worker_threads",
+  "zlib",
+]);
+
+/**
+ * The `node:` module specifier a `@types/node` declaration file belongs to
+ * (`.../@types/node/stream.d.ts` → `node:stream`, `.../stream/promises.d.ts` →
+ * `node:stream/promises`), or undefined when it isn't a node builtin decl file.
+ * Node's stream/fs/etc. types render bare from `checker.typeToString` yet a bare
+ * `Readable`/`Stream` doesn't resolve — so they must be referenced through the
+ * builtin's own specifier.
+ */
+function nodeBuiltinModuleSpecifier(fileName: string): string | undefined {
+  const m = fileName
+    .replace(/\\/g, "/")
+    .match(/\/@types\/node(?:@[^/]*)?\/((?:[\w-]+\/)?[\w-]+)\.d\.ts$/);
+  if (!m) return undefined;
+  const rel = m[1];
+  const base = rel.split("/")[0];
+  return NODE_CORE_MODULES.has(base) ? `node:${rel}` : undefined;
+}
+
+/**
+ * The module specifier for a symbol whose declaration lives in an external
+ * package (`node_modules`) — derived from the declaration file path
+ * (`.../node_modules/jsforce/lib/api/bulk2.d.ts` → `jsforce/lib/api/bulk2`,
+ * `.../node_modules/@scope/pkg/index.d.ts` → `@scope/pkg`). Used to reference a
+ * type the author did NOT import directly (a transitive/derived type) through a
+ * specifier a consumer can resolve. Undefined when the file isn't under a
+ * `node_modules` (a lib global or the author's own source).
+ */
+function packageModuleSpecifier(fileName: string): string | undefined {
+  const norm = fileName.replace(/\\/g, "/");
+  const at = norm.lastIndexOf("/node_modules/");
+  if (at === -1) return undefined;
+  const rest = norm
+    .slice(at + "/node_modules/".length)
+    .replace(/\.d\.ts$/, "")
+    .replace(/\/index$/, "");
+  // Strip a pnpm virtual-store segment (`.pnpm/jsforce@3.10.14_…/node_modules/`)
+  // so the specifier is the plain package path, not the on-disk mangled one.
+  if (rest.startsWith(".pnpm/"))
+    return packageModuleSpecifier(norm.slice(at + 1));
+  return rest || undefined;
+}
+
+/**
+ * True when a symbol is declared inside an EXTERNAL MODULE `.d.ts` (a file with
+ * top-level `import`/`export`) — as opposed to a global/ambient lib file. A
+ * non-exported such local (jsforce's internal `ChildRelationship`) can't be
+ * referenced by any specifier, so it's inlined structurally rather than rendered
+ * as a bare (unresolvable) name.
+ */
+function isExternalModuleDeclaration(sym: ts.Symbol): boolean {
+  const file = sym.declarations?.[0]?.getSourceFile();
+  return !!file && file.isDeclarationFile && ts.isExternalModule(file);
+}
+
+/**
+ * Resolve a named type the author did NOT import directly to a self-contained
+ * `import("<specifier>").Qualified.Name`, so a transitive/derived port type
+ * (`Awaited<ReturnType<Api["query"]>>` expanding to a package's internal aliases)
+ * type-checks in the synthetic wire-check program instead of leaking a bare,
+ * unresolvable name. Returns undefined when the symbol can't be referenced by a
+ * specifier — a node/lib global (rendered bare) or a non-exported external local
+ * (inlined) — so the caller falls back to its existing behavior.
+ */
+function externalImportReference(sym: ts.Symbol): string | undefined {
+  const decl = sym.declarations?.[0];
+  const file = decl?.getSourceFile();
+  if (!file || !file.isDeclarationFile) return undefined; // author source
+
+  // The enclosing namespaces inside the module (`Foo.Bar.Name`).
+  const parts = [sym.getName()];
+  let parent = (sym as ts.Symbol & { parent?: ts.Symbol }).parent;
+  while (
+    parent &&
+    parent.getFlags() &
+      (ts.SymbolFlags.NamespaceModule | ts.SymbolFlags.ValueModule) &&
+    /^[A-Za-z_$][\w$]*$/.test(parent.getName())
+  ) {
+    parts.unshift(parent.getName());
+    parent = (parent as ts.Symbol & { parent?: ts.Symbol }).parent;
+  }
+  const qualified = parts.join(".");
+
+  const nodeSpec = nodeBuiltinModuleSpecifier(file.fileName);
+  if (nodeSpec) return `import(${JSON.stringify(nodeSpec)}).${qualified}`;
+
+  // Only an EXPORTED member of an external package can be referenced by name
+  // through its specifier; a non-exported local is inlined by the caller.
+  const exported =
+    !!decl &&
+    (ts.getCombinedModifierFlags(decl as ts.Declaration) &
+      ts.ModifierFlags.Export) !==
+      0;
+  if (!exported) return undefined;
+  const pkgSpec = packageModuleSpecifier(file.fileName);
+  if (pkgSpec) return `import(${JSON.stringify(pkgSpec)}).${qualified}`;
+
+  return undefined;
+}
+
 /** Whether `type` transitively references `sym` (i.e. the type is recursive). */
 function referencesSymbol(
   checker: ts.TypeChecker,
@@ -650,12 +795,27 @@ function renderStructure(
       );
     }
     if (isNamedTypeSymbol(sym) && !isLocalNamedSymbol(sym, imports)) {
-      // Global / lib type (Array, Date, Record, Intl.Collator, ReadableStream…)
-      // — a namespace-qualified name (with args) resolves for the consumer.
-      return withArgs(qualifiedGlobalName(sym));
+      // A named type the author did NOT import directly — reached transitively by
+      // a DERIVED port type (e.g. `Awaited<ReturnType<Api["query"]>>` expanding to
+      // a package's internal aliases). Reference it through ITS OWN specifier so
+      // the synthetic wire-check program resolves it, instead of leaking a bare,
+      // unresolvable name (`Parsable`, `SaveError`, `Stream`…). Covers node
+      // builtins (`import("node:stream").Readable`) and exported package members
+      // (`import("jsforce/lib/api/bulk2").IngestJobV2Results`).
+      const ref = externalImportReference(sym);
+      if (ref) return withArgs(ref);
+      // Not referenceable by a specifier. A non-exported EXTERNAL-module local
+      // (jsforce's internal `ChildRelationship`) has no import path, so inline it
+      // structurally (fall through) — it's finite external data, like a local
+      // type. A true GLOBAL/lib type (Array, Date, Intl.Collator, ReadableStream)
+      // stays a bare namespace-qualified name that resolves for the consumer.
+      if (!isExternalModuleDeclaration(sym)) {
+        return withArgs(qualifiedGlobalName(sym));
+      }
     }
-    // Local named type — inline it structurally (recursive/enum ones were
-    // already turned into declarations by renderResolvable).
+    // Local named type (or a non-exported external-module local) — inline it
+    // structurally (recursive/enum ones were already turned into declarations by
+    // renderResolvable).
   }
 
   if (seen.has(type)) return "unknown";
@@ -1247,7 +1407,9 @@ function extractNodeTypesFromSrc(
 function writeNodeTypesJson(infos: NodeTypeInfo[], outDir: string): void {
   const byType: Record<string, NodeTypeInfo> = {};
   for (const info of infos) {
-    const { sourceFile: _sourceFile, ...rest } = info;
+    // Serialize everything except the (unserializable) ts.SourceFile handle.
+    const rest = { ...info };
+    delete (rest as { sourceFile?: unknown }).sourceFile;
     byType[info.type] = rest;
   }
   const outPath = nodeTypesPath(outDir);
