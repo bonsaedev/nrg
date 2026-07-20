@@ -121,6 +121,42 @@ firing — off the wire, immutable (any attempt to overwrite or delete it throws
 and independent of the wire `_msgid` a flow author could otherwise change. See
 [Message Channels](./message-channels#transactionid) for the channel it rides on.
 
+## Source nodes emit errors as ports {#source-nodes-emit-errors-as-ports}
+
+A source node emits its normal data on its own — and it emits **failures** the
+same way: as a message on the built-in **error** port. A transformer reaches that
+port by `throw`, which aborts `input()`, but a source node has no `input()` to
+throw from, and a `throw` in a detached async callback (a subscription, a stream,
+a timer) can't reach the port at all — it becomes an `uncaughtException`. So a
+source node puts the failure on the wire **explicitly**:
+
+```typescript
+override async created() {
+  this.stream = subscribe(this.config.topic);
+
+  this.stream.on("message", (data) => {
+    this.send("out", { payload: data });   // events as a data port
+    this.status({ fill: "green", shape: "dot", text: "streaming" });
+  });
+
+  this.stream.on("error", (err) => {
+    // failures as the built-in error port — same wire a transformer's `throw`
+    // would reach, emitted from an async callback where `throw` can't.
+    this.send("error", { error: { kind: "stream", message: err.message } });
+    this.status({ fill: "red", shape: "ring", text: "stream error" });
+  });
+}
+```
+
+The `error` payload is an `Error` or an object with at least `{ message }`; nrg
+normalizes it to the same `{ name, message, stack? }` block the `throw` path
+produces, so downstream the two are indistinguishable. And it's **async-safe**:
+if the flow author left the error port disabled, `send("error")` warns and
+no-ops rather than throwing — so the callback above never crashes the process,
+which is exactly the failure mode the error port exists to replace. (Only the
+error port is `send`-able among the built-ins — complete comes from returning
+`input()`, status from `this.status()`.)
+
 ## Built-in port shapes
 
 The optional error / complete / status ports follow the **same merge rule** as
@@ -128,10 +164,13 @@ data ports — a lifecycle wire keeps the full context:
 
 - **error** — the processed record plus an `error` block
   (`{ …record, error: { name, message, stack? } }`). A handler reads `msg.error`
-  *and* the record that failed, side by side. An enabled error port is the
-  **sole** error handler — the error travels its wire and does *not* also fire
-  Node-RED `catch` nodes (those are the fallback only for a node with no error
-  port).
+  *and* the record that failed, side by side. A transformer reaches this port by
+  `throw`; a **source node** (no `input()` to throw from) emits it explicitly with
+  `this.send("error", { error })` from its async callback — the two paths are
+  interchangeable on the wire (see [Source nodes emit errors as ports](#source-nodes-emit-errors-as-ports)).
+  An enabled error port is the **sole** error handler — the error travels its wire
+  and does *not* also fire Node-RED `catch` nodes (those are the fallback only for
+  a node with no error port).
 - **complete** — the processed record plus `input()`'s **returned fields**
   (`return { count }` → `msg.count` on the complete wire). The return value must
   be a plain object — or `void`, which contributes nothing: arrival on the wire
@@ -188,7 +227,7 @@ record), plus logging, which does not ride a wire at all:
 |---|---|---|
 | Forward / route the message | `send("out", …)` | yes — `{ …record, …adds }` |
 | Terminal success + result | `return { … }` → **complete** | yes — `{ …record, …returned }` |
-| Terminal / unexpected failure | `throw` → **error** | yes — `{ …record, error }` |
+| Terminal / unexpected failure | `throw` (or `send("error", { error })` from a source node) → **error** | yes — `{ …record, error }` |
 | Expected, per-item failure | a **data port**, e.g. `send("rejected", …)` | yes — typed data |
 | Diagnostics / observability | `this.warn(…)` / `this.error(…)` → **log** | no |
 

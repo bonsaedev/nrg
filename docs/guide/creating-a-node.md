@@ -315,7 +315,7 @@ When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `errorPort` | A thrown/uncaught error in `input()` (the terminal failure). `this.error()` is log-only and never emits this port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg[Meta].source`. |
+| `errorPort` | A thrown/uncaught error in `input()` (the terminal failure), **or** an explicit `this.send("error", { error })` — the path a **source node** uses to report a failure from an async callback ([see below](#emitting-the-error-port-from-a-source-node)). `this.error()` is log-only and never emits this port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg[Meta].source`. |
 | `completePort` | `input()` finishes successfully | The processed record merged with `input()`'s returned fields — `{ ...record, ...returnValue }` (a `void`/`undefined` return contributes nothing — arrival on the wire is itself the signal) ([see below](#returning-a-custom-completion-message)). Provenance is read via `msg[Meta].source`. |
 | `statusPort` | Every `this.status()` call | The processed record merged with a `status` block — `{ ...record, status: { fill, shape, text } }`. The record fields are carried only when a record is in scope; they may be absent for a `status()` fired outside `input()` (e.g. a source node). Provenance is read via `msg[Meta].source`. |
 
@@ -450,6 +450,43 @@ properties and keep it serializable (the block is flattened to plain data, so it
 survives `cloneMessage` and `JSON`). Discriminate on `error.name` (realm-safe)
 rather than `instanceof`. Requires `errorPort` enabled.
 
+#### Emitting the error port from a source node {#emitting-the-error-port-from-a-source-node}
+
+`throw` is the terminal-failure convenience for a **transformer** — it aborts
+`input()` and carries the record onto the error port. A **source node** has no
+`input()` to throw from: it emits on its own from an async callback (a
+subscription, a stream, a timer set up in `created()`), and a `throw` in a
+detached callback can't reach the port — it becomes an `uncaughtException`. So a
+source node puts a failure on the error wire **explicitly**, with
+`this.send("error", { error })`:
+
+```typescript
+override async created() {
+  this.stream = subscribe(this.config.topic);
+  this.stream.on("error", (err) => {
+    // Emit the built-in error port from an async callback. The payload's `error`
+    // is an `Error` (or a plain object with at least `{ message }`); nrg
+    // normalizes it to the same { name, message, stack? } block the `throw` path
+    // produces, so send and throw are interchangeable on the wire.
+    this.send("error", { error: err });
+    this.status({ fill: "red", shape: "ring", text: "stream error" });
+  });
+}
+```
+
+The `error` payload must be an `Error` **or** an object carrying at least a
+`message` — the same `ErrorInfo` shape a downstream handler reads; any other
+record fields you pass are merged onto the frame alongside `error`, exactly like a
+data send. Because the error port is the sole error handler, this frame does
+**not** also fire Node-RED `catch` nodes.
+
+`send("error")` is **async-safe**: when the flow author has left the error port
+disabled it **warns and no-ops** — it never throws — so a source node's callback
+can call it unconditionally without risking an `uncaughtException` from the very
+place the error port exists to tame. (`send("complete")` / `send("status")` stay
+reserved — the complete port is emitted by returning from `input()` and the status
+port by `this.status()`; calling either throws a loud framework error.)
+
 #### Example: node with error and status ports
 
 ```typescript
@@ -486,5 +523,5 @@ export default class HttpClient extends IONode<Config, any, HttpClientInput, Htt
 If the user enables both `errorPort` and `statusPort`, the node gets 3 outputs: data (port 0), error (port 1), and status (port 2). If they leave both off, the node has a single output as usual.
 
 ::: tip Error port replaces Catch; complete/status run alongside
-The **complete** and **status** ports work _alongside_ Node-RED's built-in `complete` and `status` nodes — enabling a port doesn't disable the implicit behavior, both fire. The **error** port is different: when it is enabled it becomes the **sole** error handler, so a thrown error travels its wire and does **not** also trigger Node-RED `catch` nodes — routing to both would report the same error twice and stamp a second, differently-shaped error onto the message. (`this.error("…")` is log-only and never travels the port.) Node-RED's `catch` mechanism is the fallback **only when a node has no error port**. (A framework misuse — e.g. `send("error", …)` to a reserved built-in port — is a developer bug, not runtime data, so it always surfaces loudly regardless of the error port.)
+The **complete** and **status** ports work _alongside_ Node-RED's built-in `complete` and `status` nodes — enabling a port doesn't disable the implicit behavior, both fire. The **error** port is different: when it is enabled it becomes the **sole** error handler, so a thrown error travels its wire and does **not** also trigger Node-RED `catch` nodes — routing to both would report the same error twice and stamp a second, differently-shaped error onto the message. (`this.error("…")` is log-only and never travels the port.) Node-RED's `catch` mechanism is the fallback **only when a node has no error port**. (The error port is the one built-in you *may* `send` to explicitly — the path a source node uses; `send("complete")` / `send("status")` stay reserved and throw a loud framework error, because those ports are emitted by returning from `input()` and by `this.status()`.)
 :::
