@@ -743,16 +743,25 @@ abstract class IONode<
    * `msg[Channels]` and never rides the serialized message. A single object (not
    * positional args) so new channels stay additive.
    */
-  public send<P extends OutputPortNames<TOutput> | number>(
+  public send<P extends OutputPortNames<TOutput> | "error" | number>(
     port: P,
     // optional: `send(port)` forwards the record unchanged (merge of nothing)
-    msg?: P extends keyof TOutput
-      ? PortValue<TOutput[P]>
-      : P extends number
-        ? // a numeric index into a NAMED record isn't a `keyof`, so type it as the
-          // sound union of every port's value (record key order isn't recoverable)
-          PortValue<TOutput[keyof TOutput]>
-        : unknown,
+    msg?: P extends "error"
+      ? // The error port carries an `error` block (an Error, or an object with at
+        // least a `message` — matching the ErrorInfo shape a downstream handler
+        // reads) plus any record fields to merge. Emitting it explicitly is how a
+        // SOURCE node (no input() to throw from) reports a failure on the wire;
+        // `throw` remains the convenience for a transformer's terminal failure.
+        {
+          error: Error | (Record<string, unknown> & { message: string });
+        } & Record<string, unknown>
+      : P extends keyof TOutput
+        ? PortValue<TOutput[P]>
+        : P extends number
+          ? // a numeric index into a NAMED record isn't a `keyof`, so type it as the
+            // sound union of every port's value (record key order isn't recoverable)
+            PortValue<TOutput[keyof TOutput]>
+          : unknown,
     // The channels arg is typed against the addressed port's declared ChannelShape
     // (WriteChannels) — same lookup as `msg`, so `send` gives intellisense for the
     // declared keys and enforces a required one, while arbitrary keys stay allowed.
@@ -762,10 +771,50 @@ abstract class IONode<
         ? WriteChannels<TOutput[keyof TOutput]>
         : { protected?: object; private?: object },
   ) {
-    if (port === "error" || port === "complete" || port === "status") {
+    // The complete port is emitted by returning from input(); the status port by
+    // this.status(). The error port, by contrast, IS send-able — throw is the
+    // transformer's terminal convenience, but a source node (no input()) emits it
+    // explicitly with send("error", { error }).
+    if (port === "complete" || port === "status") {
       throw new NrgError(
-        `send("${port}") is not allowed. Built-in ports are managed by the framework.`,
+        `send("${port}") is not allowed — the complete port is emitted by returning from input(), and the status port by this.status().`,
       );
+    }
+    if (port === "error") {
+      // Warn + no-op when the error port isn't enabled — NEVER throw. A source
+      // node emits this from an async callback where a throw would become an
+      // uncaughtException (the crash class the error port exists to avoid).
+      const errorIdx = this.config.errorPort
+        ? this.#getBuiltinPortIndex("error")
+        : null;
+      if (errorIdx === null) {
+        this.warn(
+          `send("error") ignored — this node's error port is not enabled.`,
+        );
+        return;
+      }
+      // Normalize the error block to the ErrorInfo contract a handler reads
+      // (`name` + `message` [+ `stack`]) — the same shape the throw path emits —
+      // so send("error") and throw are interchangeable downstream. Handles an
+      // Error instance (name/message/stack are non-enumerable, so layered
+      // explicitly) as well as a plain `{ message, … }` object.
+      const payload = (msg ?? {}) as Record<string, unknown>;
+      const rawErr = payload.error;
+      const errBlock =
+        rawErr instanceof Error
+          ? {
+              ...rawErr,
+              name: rawErr.name,
+              message: rawErr.message,
+              ...(rawErr.stack ? { stack: rawErr.stack } : {}),
+            }
+          : { name: "Error", ...(rawErr as Record<string, unknown>) };
+      this.#sendToPort(
+        "error",
+        this.#wrapOutgoing({ ...payload, error: errBlock }, errorIdx),
+        channels,
+      );
+      return;
     }
     // A numeric port addresses a base output port. Reject a negative/non-integer
     // index, and one that would land in a framework-managed built-in port slot

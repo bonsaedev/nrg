@@ -94,16 +94,22 @@ interface IIONode<
   // Emit a value on one output port, addressed by NAME (a named `Port` record) or
   // by numeric index (a dynamic `Port<T>[]`). The `channels` object populates the
   // message's off-the-wire channels for this signal (`protected`/`private`); they
-  // never ride the serialized msg. Built-in error/complete/status ports are
-  // framework-managed — not `send`-able.
-  send<P extends OutputPortNames<TOutput> | number>(
+  // never ride the serialized msg. The complete/status ports are framework-managed
+  // (return a value / this.status()) — not `send`-able; the ERROR port IS: `throw`
+  // is the transformer convenience, `send("error", { error })` lets a source node
+  // (no input()) emit it explicitly.
+  send<P extends OutputPortNames<TOutput> | "error" | number>(
     port: P,
     // optional: `send(port)` forwards the record unchanged (merge of nothing)
-    msg?: P extends keyof TOutput
-      ? PortValue<TOutput[P]>
-      : P extends number
-        ? PortValue<TOutput[keyof TOutput]>
-        : unknown,
+    msg?: P extends "error"
+      ? {
+          error: Error | (Record<string, unknown> & { message: string });
+        } & Record<string, unknown>
+      : P extends keyof TOutput
+        ? PortValue<TOutput[P]>
+        : P extends number
+          ? PortValue<TOutput[keyof TOutput]>
+          : unknown,
     channels?: P extends keyof TOutput
       ? WriteChannels<TOutput[P]>
       : P extends number

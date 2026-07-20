@@ -386,7 +386,7 @@ describe("lifecycle ports", () => {
   });
 
   describe("send", () => {
-    it.each(["error", "complete", "status"] as const)(
+    it.each(["complete", "status"] as const)(
       "throws when called with built-in port '%s'",
       async (port) => {
         const { node } = await createNode(guardNodes[port], {
