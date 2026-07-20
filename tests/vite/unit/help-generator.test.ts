@@ -718,7 +718,7 @@ describe("help-generator", () => {
         labelsDir,
       });
 
-      expect(plugin.name).toBe("vite-plugin-node-red:client:help-generator");
+      expect(plugin.name).toBe("vite-plugin-nrg:client:help-generator");
       expect(plugin.apply).toBe("build");
       expect(plugin.enforce).toBe("post");
       expect(plugin.closeBundle).toBeTypeOf("function");

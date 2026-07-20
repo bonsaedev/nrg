@@ -5,7 +5,7 @@ describe("cjsWrapper", () => {
   const plugin = cjsWrapper();
 
   it("has correct name and no enforce property", () => {
-    expect(plugin.name).toBe("vite-plugin-node-red:server:cjs-wrapper");
+    expect(plugin.name).toBe("vite-plugin-nrg:server:cjs-wrapper");
     expect((plugin as any).enforce).toBeUndefined();
   });
 
@@ -71,7 +71,7 @@ describe("esmWrapper", () => {
   const plugin = esmWrapper();
 
   it("has correct name and no enforce property", () => {
-    expect(plugin.name).toBe("vite-plugin-node-red:server:esm-wrapper");
+    expect(plugin.name).toBe("vite-plugin-nrg:server:esm-wrapper");
     expect((plugin as any).enforce).toBeUndefined();
   });
 

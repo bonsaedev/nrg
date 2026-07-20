@@ -8,7 +8,7 @@ function staticCopy(options: {
   const { targets } = options;
 
   return {
-    name: "vite-plugin-node-red:client:static-copy",
+    name: "vite-plugin-nrg:client:static-copy",
     apply: "build",
     enforce: "post",
 

@@ -534,7 +534,7 @@ function helpGenerator(options: HelpGeneratorOptions): Plugin {
   const { outDir, localesOutDir, docsDir, labelsDir, srcDir } = options;
 
   return {
-    name: "vite-plugin-node-red:client:help-generator",
+    name: "vite-plugin-nrg:client:help-generator",
     apply: "build",
     enforce: "post",
 

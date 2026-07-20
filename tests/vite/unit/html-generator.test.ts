@@ -20,7 +20,7 @@ describe("html-generator", () => {
   describe("plugin metadata", () => {
     it("has correct name", () => {
       const plugin = getPlugin({ packageName: "my-package" });
-      expect(plugin.name).toBe("vite-plugin-node-red:client:html-generator");
+      expect(plugin.name).toBe("vite-plugin-nrg:client:html-generator");
     });
 
     it("applies to build", () => {

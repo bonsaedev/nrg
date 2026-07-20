@@ -98,7 +98,7 @@ function nrg(options: NrgPluginOptions = {}): Plugin[] {
       // runs: the dev server builds to .nrg and imports @bonsae/nrg, while a
       // production build writes ./dist and rewrites to @bonsae/nrg-runtime.
       // config() always runs before buildStart/configureServer.
-      name: "vite-plugin-node-red:resolve-mode",
+      name: "vite-plugin-nrg:resolve-mode",
       config(_config, env) {
         buildContext.isDev = resolveIsDev(env);
         buildContext.outDir = buildContext.isDev

@@ -116,12 +116,11 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       }
 
       const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
-      // Initial start settles the "Starting Node-RED" spinner silently — the
-      // links banner that follows is the ready signal, so "Ready" is redundant.
-      // A rebuild keeps its timing line.
-      logger.stopSpinner(
-        phase === "initial" ? undefined : `Node-RED ready · ${elapsed}s`,
-      );
+      // Settle the spinner with a timing line for BOTH the initial build and a
+      // rebuild. Clack's spinner.stop() ALWAYS paints a final frame, so the old
+      // no-message stop on the initial phase left a bare, reasonless glyph (◇)
+      // on screen — always give it a message instead.
+      logger.stopSpinner(`Node-RED ready · ${elapsed}s`);
       logger.flushWarnings(verbose);
     } catch (error) {
       // Surface the underlying cause — the Rollup/esbuild error with its file,
@@ -175,7 +174,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
   };
 
   return {
-    name: "vite-plugin-node-red:server",
+    name: "vite-plugin-nrg:server",
     apply: "serve",
 
     config() {

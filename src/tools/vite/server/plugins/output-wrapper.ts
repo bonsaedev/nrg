@@ -24,7 +24,7 @@ const NRG_SERVER_SPECIFIER = "@bonsae/nrg/server";
 function cjsWrapper(): Plugin {
   const serverSpecifier = NRG_SERVER_SPECIFIER;
   return {
-    name: "vite-plugin-node-red:server:cjs-wrapper",
+    name: "vite-plugin-nrg:server:cjs-wrapper",
     renderChunk(code, chunk, outputOptions) {
       if (!chunk.isEntry || outputOptions.format !== "cjs") return null;
       const footer =
@@ -66,7 +66,7 @@ function cjsWrapper(): Plugin {
 function esmWrapper(): Plugin {
   const serverSpecifier = NRG_SERVER_SPECIFIER;
   return {
-    name: "vite-plugin-node-red:server:esm-wrapper",
+    name: "vite-plugin-nrg:server:esm-wrapper",
     renderChunk(code, chunk, outputOptions) {
       if (!chunk.isEntry || outputOptions.format !== "es") return null;
 

@@ -15,7 +15,7 @@ function buildPlugin(options: BuildPluginOptions): Plugin {
   } = options;
 
   return {
-    name: "vite-plugin-node-red:build",
+    name: "vite-plugin-nrg:build",
     apply: "build",
 
     async buildStart() {

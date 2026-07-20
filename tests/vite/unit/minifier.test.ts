@@ -9,7 +9,7 @@ describe("minifier", () => {
   describe("plugin metadata", () => {
     it("has correct name", () => {
       const plugin = getPlugin();
-      expect(plugin.name).toBe("vite-plugin-node-red:client:minifier");
+      expect(plugin.name).toBe("vite-plugin-nrg:client:minifier");
     });
 
     it("applies to build", () => {

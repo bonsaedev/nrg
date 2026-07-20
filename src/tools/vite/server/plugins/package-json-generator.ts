@@ -102,7 +102,7 @@ function packageJsonGenerator(options: {
 
   const trackedDependencies = new Set<string>();
   return {
-    name: "vite-plugin-node-red:server:package-json-generator",
+    name: "vite-plugin-nrg:server:package-json-generator",
     enforce: "pre",
 
     buildStart() {

@@ -126,7 +126,7 @@ function nodeDefinitionsInliner(
   }
 
   const setup: Plugin = {
-    name: "vite-plugin-node-red:client:node-definitions-inliner",
+    name: "vite-plugin-nrg:client:node-definitions-inliner",
     enforce: "pre",
 
     // Read the node definitions the server build extracted (from executing the
@@ -216,7 +216,7 @@ function nodeDefinitionsInliner(
   };
 
   const wrap: Plugin = {
-    name: "vite-plugin-node-red:client:node-schema-wrap",
+    name: "vite-plugin-nrg:client:node-schema-wrap",
     // `post` so this runs AFTER vite:esbuild strips TypeScript — `this.parse`
     // (acorn) can only parse plain JS. The client is always built via Rollup
     // (`viteBuild`), never a dev server, so injecting imports this late is safe:

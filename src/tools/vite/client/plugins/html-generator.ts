@@ -10,7 +10,7 @@ function htmlGenerator(options: {
   const { packageName, licensePath } = options;
 
   return {
-    name: "vite-plugin-node-red:client:html-generator",
+    name: "vite-plugin-nrg:client:html-generator",
     apply: "build",
     enforce: "post",
 

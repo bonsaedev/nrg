@@ -34,7 +34,7 @@ class NodeRedLauncher implements INodeRedLauncher {
     this.outDir = outDir;
     this.options = options;
     this.logger = new Logger({
-      name: "vite-plugin-node-red",
+      name: "vite-plugin-nrg",
       prefix: "node-red",
     });
   }

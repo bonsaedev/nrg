@@ -3,7 +3,7 @@ import { transform } from "esbuild";
 
 function minifier(): Plugin {
   return {
-    name: "vite-plugin-node-red:client:minifier",
+    name: "vite-plugin-nrg:client:minifier",
     apply: "build",
 
     async generateBundle(_options, bundle) {

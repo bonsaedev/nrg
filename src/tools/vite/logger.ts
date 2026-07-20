@@ -270,8 +270,8 @@ export class Logger {
 
   stopSpinner(message?: string): void {
     if (this.spinnerActive) {
-      // No message → settle the spinner on its current text (clack renders the
-      // final frame) so a caller can stop it without printing an extra line.
+      // Clack's spinner.stop() ALWAYS paints a final frame; with no message it
+      // leaves a bare, textless glyph (◇), so callers should pass a message.
       if (message !== undefined) {
         this.spinner.stop(this.format(message));
       } else {
@@ -297,6 +297,6 @@ export class Logger {
 }
 
 // NOTE: global logger is still used by other vite messages
-const logger = new Logger({ name: "vite-plugin-node-red" });
+const logger = new Logger({ name: "vite-plugin-nrg" });
 
 export { logger };

@@ -143,7 +143,7 @@ describe("packageJsonGenerator plugin", () => {
   it("has correct name and enforce property", () => {
     const plugin = packageJsonGenerator({ outDir: tmpDir });
     expect(plugin.name).toBe(
-      "vite-plugin-node-red:server:package-json-generator",
+      "vite-plugin-nrg:server:package-json-generator",
     );
     expect(plugin.enforce).toBe("pre");
   });

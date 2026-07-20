@@ -22,7 +22,7 @@ import type { PortTopology } from "./node-type-info";
  */
 function portTopologyInjector(topology: Map<string, PortTopology>): Plugin {
   return {
-    name: "vite-plugin-node-red:server:port-topology-injector",
+    name: "vite-plugin-nrg:server:port-topology-injector",
     enforce: "post",
 
     transform(code, id) {

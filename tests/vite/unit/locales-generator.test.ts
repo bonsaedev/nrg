@@ -33,7 +33,7 @@ describe("locales-generator", () => {
       const base = createTmpDir();
       const { outDir, docsDir, labelsDir } = setupDirs(base);
       const plugin = localesGenerator({ outDir, docsDir, labelsDir });
-      expect(plugin.name).toBe("vite-plugin-node-red:client:locales-generator");
+      expect(plugin.name).toBe("vite-plugin-nrg:client:locales-generator");
     });
 
     it("applies to build", () => {

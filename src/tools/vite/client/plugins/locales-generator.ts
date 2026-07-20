@@ -604,7 +604,7 @@ function localesGenerator(options: {
   };
 
   return {
-    name: "vite-plugin-node-red:client:locales-generator",
+    name: "vite-plugin-nrg:client:locales-generator",
     apply: "build",
     enforce: "post",
 

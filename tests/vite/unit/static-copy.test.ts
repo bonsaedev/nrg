@@ -21,7 +21,7 @@ describe("static-copy", () => {
   describe("plugin metadata", () => {
     it("has correct name", () => {
       const plugin = staticCopy({ targets: [] });
-      expect(plugin.name).toBe("vite-plugin-node-red:client:static-copy");
+      expect(plugin.name).toBe("vite-plugin-nrg:client:static-copy");
     });
 
     it("applies to build", () => {
