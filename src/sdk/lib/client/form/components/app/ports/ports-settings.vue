@@ -89,12 +89,12 @@ const {
 :deep(.nrg-outputs),
 :deep(.nrg-lifecycle),
 :deep(.nrg-input) {
-  /* Auto layout: each column sizes to its own content (labels, toggles, the
-     single-line descriptions). `width: max-content` lets the table grow past the
-     scroll box so long descriptions scroll horizontally; `min-width: 100%` keeps
-     it filling the box when the content is narrow. */
-  width: max-content;
-  min-width: 100%;
+  /* Fill the scroll box. The Label + control columns shrink-wrap to their content
+     (see the per-column `width: 1%` rules) and the Description column takes the
+     slack (`width: 100%`), so widening the tray grows Description — not the flag
+     columns. A long single-line description still exceeds the box (its nowrap
+     min-content beats `width: 100%`) and .nrg-table-scroll scrolls to reach it. */
+  width: 100%;
   table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
@@ -144,22 +144,30 @@ const {
   white-space: nowrap;
 }
 
-/* Label column fits its content (the node/port label), on a single line. */
+/* Label column fits its content (the node/port label), on a single line.
+   `width: 1%` + nowrap shrink-wraps it so it never absorbs the tray's extra
+   width — that goes to Description instead. */
 :deep(.nrg-cell-label) {
   white-space: nowrap;
+  width: 1%;
 }
 
 /* Control columns (Validate Data / Data Schema / Enable) fit their header +
-   control, on a single line. */
+   control, on a single line. `width: 1%` + nowrap pins them to content so they
+   don't stretch as the tray widens. */
 :deep(.nrg-cell-flag) {
   white-space: nowrap;
+  width: 1%;
 }
 
-/* Description column — a single UNWRAPPED line so rows never grow tall. The text
-   may run wider than the tray; the .nrg-table-scroll box scrolls to reach it. */
+/* Description column — a single UNWRAPPED line so rows never grow tall. It's the
+   flexible column: `width: 100%` makes it absorb the tray's extra width, so
+   widening the tray grows Description (not Label / the flag columns). When the
+   text runs wider than the tray, the .nrg-table-scroll box scrolls to reach it. */
 :deep(.nrg-cell-desc) {
   text-align: left;
   white-space: nowrap;
+  width: 100%;
   color: var(--red-ui-text-color-disabled, #999);
   font-size: 11px;
 }
