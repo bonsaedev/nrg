@@ -26,11 +26,12 @@ function initAssetsRoutes(router: NodeRedExpressApp): void {
 
   const _require = createRequire(path.join(__dirname, "package.json"));
   // One vue route, not two. Every client — the consumer bundle and nrg's own
-  // editor client — rewrites `vue` imports to `/nrg/assets/vue.esm-browser.prod.js`
-  // (client build.ts + build/index.ts), so that is the only URL ever requested.
-  // The build ENVIRONMENT picks the file *contents* served at it — the dev build
-  // (unminified, with warnings) in development, the optimized prod build
-  // otherwise — not the URL.
+  // editor client — rewrites `vue` imports to `/nrg/assets/vue.js` (client
+  // build.ts + build/index.ts), so that is the only URL ever requested. The URL
+  // is deliberately build-NEUTRAL: the ENVIRONMENT picks the file *contents*
+  // served at it — the dev build (unminified, with warnings) in development, the
+  // optimized prod build otherwise — so the URL never claims to be one or the
+  // other (it isn't called `.prod.js` while a dev server serves the dev build).
   const vueFile =
     process.env.NODE_ENV !== "production"
       ? _require.resolve("vue/dist/vue.esm-browser.js")
@@ -40,7 +41,7 @@ function initAssetsRoutes(router: NodeRedExpressApp): void {
     `/nrg/assets/${CLIENT_ASSET}`,
     serveFile(path.join(resourcesDir, CLIENT_ASSET)),
   );
-  router.get("/nrg/assets/vue.esm-browser.prod.js", serveFile(vueFile));
+  router.get("/nrg/assets/vue.js", serveFile(vueFile));
 }
 
 export { initAssetsRoutes, serveFile };

@@ -21,7 +21,7 @@ describe("initRoutes", () => {
       expect.any(Function),
     );
     expect(RED.httpAdmin.get).toHaveBeenCalledWith(
-      "/nrg/assets/vue.esm-browser.prod.js",
+      "/nrg/assets/vue.js",
       expect.any(Function),
     );
   });

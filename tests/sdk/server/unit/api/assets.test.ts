@@ -80,7 +80,7 @@ describe("initAssetsRoutes", () => {
       expect.any(Function),
     );
     expect(router.get).toHaveBeenCalledWith(
-      "/nrg/assets/vue.esm-browser.prod.js",
+      "/nrg/assets/vue.js",
       expect.any(Function),
     );
   });
@@ -112,7 +112,7 @@ describe("initAssetsRoutes", () => {
     initAssetsRoutes(router);
 
     const handler = router.get.mock.calls.find(
-      (c: unknown[]) => c[0] === "/nrg/assets/vue.esm-browser.prod.js",
+      (c: unknown[]) => c[0] === "/nrg/assets/vue.js",
     )![1] as Function;
 
     const res = createMockRes();
@@ -145,7 +145,7 @@ describe("initAssetsRoutes", () => {
     initAssetsRoutes(router);
 
     const handler = router.get.mock.calls.find(
-      (c: unknown[]) => c[0] === "/nrg/assets/vue.esm-browser.prod.js",
+      (c: unknown[]) => c[0] === "/nrg/assets/vue.js",
     )![1] as Function;
 
     const res = createMockRes();

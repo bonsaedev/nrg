@@ -575,7 +575,7 @@ async function buildClientAsset(): Promise<string> {
       },
       rollupOptions: {
         external: ["vue"],
-        output: { paths: { vue: "/nrg/assets/vue.esm-browser.prod.js" } },
+        output: { paths: { vue: "/nrg/assets/vue.js" } },
       },
     },
   });

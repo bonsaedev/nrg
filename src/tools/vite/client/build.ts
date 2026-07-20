@@ -231,7 +231,7 @@ async function build(
           assetFileNames: "resources/[name].[hash].[ext]",
           globals,
           paths: {
-            vue: "/nrg/assets/vue.esm-browser.prod.js",
+            vue: "/nrg/assets/vue.js",
             "@bonsae/nrg/client": `/nrg/assets/${resolveClientAsset()}`,
           },
           sourcemapPathTransform: (relativeSourcePath) => {
