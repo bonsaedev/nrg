@@ -71,32 +71,27 @@
         </tbody>
       </table>
     </div>
-    <ul class="nrg-help-list">
-      <li>
-        <strong>{{
-          resolveLabel("portSettings.outputsTable.validate", "Validate Data")
-        }}</strong>
-        —
-        {{
-          resolveLabel(
-            "portSettings.outputsTable.help.validate",
-            "Check the sent value against this port's schema before it is emitted.",
-          )
-        }}
-        <a
-          class="nrg-help-link"
-          :href="docsUrl('/guide/schemas#output-schema')"
-          target="_blank"
-          rel="noopener noreferrer"
-          >{{
-            resolveLabel(
-              "portSettings.outputsTable.help.learnMore",
-              "Learn more",
-            )
-          }}</a
-        >
-      </li>
-    </ul>
+    <div class="nrg-help">
+      <strong>{{
+        resolveLabel("portSettings.outputsTable.validate", "Validate Data")
+      }}</strong>
+      —
+      {{
+        resolveLabel(
+          "portSettings.outputsTable.help.validate",
+          "Check the sent value against this port's schema before it is emitted.",
+        )
+      }}
+      <a
+        class="nrg-help-link"
+        :href="docsUrl('/guide/schemas#output-schema')"
+        target="_blank"
+        rel="noopener noreferrer"
+        >{{
+          resolveLabel("portSettings.outputsTable.help.learnMore", "Learn more")
+        }}</a
+      >
+    </div>
   </div>
 </template>
 

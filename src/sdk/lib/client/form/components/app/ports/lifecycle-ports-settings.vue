@@ -9,26 +9,6 @@
         )
       }}
     </div>
-    <div class="nrg-help">
-      {{
-        resolveLabel(
-          "portSettings.lifecyclePortsTable.help",
-          "Optional extra output ports that fire on error, on completion, and on every status change.",
-        )
-      }}
-      <a
-        class="nrg-help-link"
-        :href="docsUrl('/guide/creating-a-node#lifecycle-output-ports')"
-        target="_blank"
-        rel="noopener noreferrer"
-        >{{
-          resolveLabel(
-            "portSettings.lifecyclePortsTable.learnMore",
-            "Learn more",
-          )
-        }}</a
-      >
-    </div>
     <div class="nrg-table-scroll">
       <table class="nrg-lifecycle">
         <thead>
@@ -152,6 +132,26 @@
         </tbody>
       </table>
     </div>
+    <div class="nrg-help">
+      {{
+        resolveLabel(
+          "portSettings.lifecyclePortsTable.help",
+          "Optional extra output ports that fire on error, on completion, and on every status change.",
+        )
+      }}
+      <a
+        class="nrg-help-link"
+        :href="docsUrl('/guide/creating-a-node#lifecycle-output-ports')"
+        target="_blank"
+        rel="noopener noreferrer"
+        >{{
+          resolveLabel(
+            "portSettings.lifecyclePortsTable.learnMore",
+            "Learn more",
+          )
+        }}</a
+      >
+    </div>
   </div>
 </template>
 
@@ -170,14 +170,8 @@ const {
 </script>
 
 <style scoped>
-/* The lifecycle table shares the .nrg-table-scroll box and the
-   .nrg-cell-label / .nrg-cell-flag / .nrg-cell-desc chrome with the Input and
-   Outputs tables (see ports-settings.vue) — auto layout, single-line
-   descriptions, horizontal scroll. */
-.nrg-help {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--red-ui-text-color-disabled, #999);
-  margin: 2px 0 6px;
-}
+/* The lifecycle table shares the .nrg-table-scroll box, the .nrg-cell-* chrome,
+   and the .nrg-help text below it with the Input and Outputs tables — all styled
+   in ports-settings.vue (auto layout, single-line descriptions, horizontal
+   scroll). */
 </style>

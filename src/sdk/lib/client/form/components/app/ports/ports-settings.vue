@@ -27,18 +27,13 @@ const {
 </script>
 
 <style scoped>
-/* Per-column explanations below the input/outputs tables (replaces the old
-   per-row Description column — one dash item per column that takes user input). */
-:deep(.nrg-help-list) {
-  margin: 4px 0 6px;
-  padding-left: 16px;
+/* Plain help text below each Port Settings table (Input / Outputs / Lifecycle) —
+   describes the column(s) that take input. Not a list, so there's no marker. */
+:deep(.nrg-help) {
+  margin: 6px 0 2px;
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--red-ui-text-color-disabled, #999);
-}
-
-:deep(.nrg-help-list li) {
-  margin: 1px 0;
 }
 
 .nrg-section {
