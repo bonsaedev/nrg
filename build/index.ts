@@ -412,35 +412,10 @@ function buildVitePlugin(clientAsset: string) {
   }
   console.log("✓ Built vite plugin → dist/toolkit/vite/");
 
-  // The nrg wire-check Node-RED PLUGIN, shipped inside dist so `nrg dev`
-  // auto-loads it (the launcher adds this dir to Node-RED's nodesDir) — flow
-  // type-checking in the dev loop with zero extra installs. CJS because
-  // Node-RED `require`s the entry and calls `module.exports(RED)`; `typescript`
-  // stays external (resolved from the consumer's install at runtime).
-  esbuildBundle("src/tools/vite/server/wire-check/plugin-entry.ts", {
-    format: "cjs",
-    outfile: "dist/toolkit/type-check-plugin/plugin-impl.js",
-  });
-  // Node-RED CALLS module.exports(RED) on the manifest entry — unwrap the
-  // esbuild-CJS default export with a hand-written shim.
-  writeFileSync(
-    path.join(DIST, "type-check-plugin/wire-checker.js"),
-    'module.exports = require("./plugin-impl.js").default;\n',
-  );
-  writeFileSync(
-    path.join(DIST, "type-check-plugin/package.json"),
-    JSON.stringify(
-      {
-        name: "@bonsae/nrg-type-check-plugin",
-        version: "0.0.0",
-        private: true,
-        "node-red": { plugins: { "nrg-type-check": "wire-checker.js" } },
-      },
-      null,
-      2,
-    ) + "\n",
-  );
-  console.log("✓ Built wire-check plugin → dist/toolkit/type-check-plugin/");
+  // The wire check ships as a separate installable Node-RED plugin,
+  // @bonsae/node-red-type-check-plugin (server + editor painter), which the dev
+  // launcher auto-loads from the consumer's install — it is no longer bundled
+  // into the toolkit.
 }
 
 function buildEslintConfig() {

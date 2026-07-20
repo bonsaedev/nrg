@@ -10,14 +10,11 @@ import type { GenerateRuntimeSettingsOptions, RuntimeSettings } from "./types";
 
 /**
  * The wire type-check plugin dir to auto-load into Node-RED's `nodesDir` so
- * `nrg dev` gives the author flow type-checking with no manual settings.
- * Preference order:
- *  1. a separately-installed `@bonsae/node-red-type-check-plugin` (a consumer
- *     that opted into a standalone/pinned plugin), else
- *  2. the plugin nrg SHIPS in its own dist (`type-check-plugin/`, resolved via
- *     nrg's `./type-check-plugin/package.json` export) — present in every current
- *     nrg install, so the dev wire check is on by default.
- * Returns null only when neither resolves, and the feature simply stays off.
+ * `nrg dev` gives the author flow type-checking with no manual settings. The
+ * wire check ships as the installable `@bonsae/node-red-type-check-plugin`
+ * (server + editor painter) — resolved from the consumer's install. Returns null
+ * when it isn't installed, and the feature simply stays off (install the plugin
+ * to turn it on). nrg depends on it, so it's present by default.
  */
 function resolveTypeCheckPluginDir(): string | null {
   const req = createRequire(path.join(process.cwd(), "package.json"));
@@ -27,15 +24,7 @@ function resolveTypeCheckPluginDir(): string | null {
     );
     return path.dirname(manifest).split(path.sep).join("/");
   } catch {
-    // fall through to the nrg-shipped plugin
-  }
-  try {
-    return path
-      .dirname(req.resolve("@bonsae/nrg/type-check-plugin/package.json"))
-      .split(path.sep)
-      .join("/");
-  } catch {
-    // nrg itself not resolvable (tests, exotic layouts) — feature off
+    // not installed — the wire check stays off
   }
   return null;
 }
