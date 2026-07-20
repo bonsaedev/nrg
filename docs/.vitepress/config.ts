@@ -43,6 +43,13 @@ export default defineConfig({
         ],
       },
       {
+        text: "Wire Type-Checking",
+        items: [
+          { text: "The Wire Check", link: "/guide/wire-check" },
+          { text: "Reading the Verdicts", link: "/guide/wire-check-advanced" },
+        ],
+      },
+      {
         text: "Authoring a Node",
         items: [
           { text: "The Node Class", link: "/guide/creating-a-node" },
