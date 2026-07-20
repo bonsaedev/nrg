@@ -9,7 +9,6 @@ import {
   resolveNodeRed,
 } from "@/tools/vite/node-red-launcher/entry-point";
 import { NodeRedStartError } from "@/tools/vite/errors";
-import { Logger } from "@/tools/vite/logger";
 
 vi.mock("child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("child_process")>();
@@ -19,23 +18,8 @@ vi.mock("child_process", async (importOriginal) => {
   };
 });
 
-vi.mock("@clack/prompts", () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
-  log: {
-    step: vi.fn(),
-    success: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    message: vi.fn(),
-  },
-}));
-
 describe("node-red-launcher/entry-point", () => {
   let tmpDir: string;
-  let logger: Logger;
 
   beforeEach(() => {
     tmpDir = fs.realpathSync(
@@ -43,7 +27,6 @@ describe("node-red-launcher/entry-point", () => {
     );
     vi.spyOn(process, "cwd").mockReturnValue(tmpDir);
     vi.mocked(exec).mockReset();
-    logger = new Logger({ name: "test", prefix: "node-red" });
   });
 
   afterEach(() => {
@@ -157,7 +140,7 @@ describe("node-red-launcher/entry-point", () => {
     it("uses local node_modules when no version specified", async () => {
       const expectedPath = installFakeNodeRed();
 
-      const result = await resolveNodeRed({ logger });
+      const result = await resolveNodeRed({});
 
       expect(result).toBe(expectedPath);
       expect(exec).not.toHaveBeenCalled();
@@ -168,7 +151,6 @@ describe("node-red-launcher/entry-point", () => {
 
       const result = await resolveNodeRed({
         version: "latest",
-        logger,
       });
 
       expect(result).toBe(expectedPath);
@@ -182,7 +164,6 @@ describe("node-red-launcher/entry-point", () => {
 
       const result = await resolveNodeRed({
         version: "5.0.0-beta.6",
-        logger,
       });
 
       expect(result).toBe(npxEntry);
@@ -197,7 +178,7 @@ describe("node-red-launcher/entry-point", () => {
       const npxEntry = "/tmp/npx-node-red/red.js";
       mockNpxResolution(npxEntry);
 
-      const result = await resolveNodeRed({ logger });
+      const result = await resolveNodeRed({});
 
       expect(result).toBe(npxEntry);
       expect(exec).toHaveBeenCalled();
@@ -210,7 +191,6 @@ describe("node-red-launcher/entry-point", () => {
       await resolveNodeRed({
         version: "5.0.0",
         npxTimeoutMs: 42,
-        logger,
       });
 
       expect(exec).toHaveBeenCalledWith(
@@ -224,7 +204,7 @@ describe("node-red-launcher/entry-point", () => {
       const npxEntry = "/tmp/npx-node-red/red.js";
       mockNpxResolution(npxEntry);
 
-      await resolveNodeRed({ version: "5.0.0", logger });
+      await resolveNodeRed({ version: "5.0.0" });
 
       const command = vi.mocked(exec).mock.calls[0][0] as string;
       expect(command).toMatch(/node "[^"]*nrg-resolve-node-red-[^"]*\.cjs"$/);
@@ -232,7 +212,7 @@ describe("node-red-launcher/entry-point", () => {
 
     it("rejects versions containing shell metacharacters", async () => {
       await expect(
-        resolveNodeRed({ version: "5.0.0; rm -rf /", logger }),
+        resolveNodeRed({ version: "5.0.0; rm -rf /" }),
       ).rejects.toThrow(NodeRedStartError);
 
       expect(exec).not.toHaveBeenCalled();
@@ -248,25 +228,25 @@ describe("node-red-launcher/entry-point", () => {
         return undefined as any;
       }) as any);
 
-      await expect(
-        resolveNodeRed({ version: "5.0.0", logger }),
-      ).rejects.toThrow("npx failed");
+      await expect(resolveNodeRed({ version: "5.0.0" })).rejects.toThrow(
+        "npx failed",
+      );
     });
 
     it("throws NodeRedStartError when npx resolves empty entry", async () => {
       mockNpxOutput("");
 
-      await expect(
-        resolveNodeRed({ version: "5.0.0", logger }),
-      ).rejects.toThrow(NodeRedStartError);
+      await expect(resolveNodeRed({ version: "5.0.0" })).rejects.toThrow(
+        NodeRedStartError,
+      );
     });
 
     it("throws NodeRedStartError when npx resolved path does not exist", async () => {
       mockNpxOutput("/nonexistent/red.js");
 
-      await expect(
-        resolveNodeRed({ version: "5.0.0", logger }),
-      ).rejects.toThrow(NodeRedStartError);
+      await expect(resolveNodeRed({ version: "5.0.0" })).rejects.toThrow(
+        NodeRedStartError,
+      );
     });
 
     it("cleans up resolver script even when npx fails", async () => {
@@ -274,7 +254,7 @@ describe("node-red-launcher/entry-point", () => {
       const unlinkSpy = vi.spyOn(fs, "unlinkSync");
 
       try {
-        await resolveNodeRed({ version: "5.0.0", logger });
+        await resolveNodeRed({ version: "5.0.0" });
       } catch {
         // expected
       }

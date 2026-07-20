@@ -19,20 +19,6 @@ vi.mock("child_process", async (importOriginal) => {
 vi.mock("tree-kill", () => ({ default: vi.fn() }));
 vi.mock("detect-port", () => ({ default: vi.fn() }));
 
-vi.mock("@clack/prompts", () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
-  log: {
-    step: vi.fn(),
-    success: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    message: vi.fn(),
-  },
-}));
-
 function createMockProcess(pid: number = 12345) {
   const proc = new EventEmitter() as any;
   proc.pid = pid;
@@ -361,7 +347,6 @@ describe("node-red-launcher/process", () => {
 
       const port = await nodeRedProcess.resolvePort({
         startPort: 1880,
-        logger,
       });
 
       expect(port).toBe(1880);
@@ -379,7 +364,6 @@ describe("node-red-launcher/process", () => {
 
       const port = await nodeRedProcess.resolvePort({
         startPort: 1880,
-        logger,
       });
 
       expect(port).toBe(1880);
@@ -411,7 +395,6 @@ describe("node-red-launcher/process", () => {
 
       const port = await nodeRedProcess.resolvePort({
         startPort: 1880,
-        logger,
       });
 
       expect(port).toBe(1881);
@@ -439,7 +422,6 @@ describe("node-red-launcher/process", () => {
 
       const port = await nodeRedProcess.resolvePort({
         startPort: 1880,
-        logger,
       });
 
       expect(port).toBe(1881);

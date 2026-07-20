@@ -1,11 +1,22 @@
-import * as clackLogger from "@clack/prompts";
 import type { Logger as ViteLogger } from "vite";
 import type { LoggerOptions } from "./types";
 
+// ANSI color is opt-out via NO_COLOR (https://no-color.org): set it to any
+// non-empty value and every style below becomes a no-op, so piped / CI logs are
+// plain text. The words are the only thing colored — no glyphs, gutter, or
+// spinner (this used to wrap @clack/prompts, whose TUI rendered as junk when
+// stdout wasn't a TTY and whose spinner swallowed real errors).
+const useColor = !process.env.NO_COLOR;
+const style =
+  (code: string) =>
+  (s: string): string =>
+    useColor ? `\x1b[${code}m${s}\x1b[0m` : s;
 const color = {
-  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
-  cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
-  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  dim: style("2"),
+  cyan: style("36"),
+  yellow: style("33"),
+  red: style("31"),
+  green: style("32"),
 };
 
 // eslint-disable-next-line no-control-regex -- intentionally strips ANSI SGR codes
@@ -70,12 +81,6 @@ function warningSignature(message: string): string {
 export class Logger {
   private readonly name: string;
   private readonly prefix?: string;
-  private readonly spinner = clackLogger.spinner();
-  // Tracks whether `spinner` is mid-run so `error()` can end it with the error
-  // glyph instead of leaving it dangling: a running clack spinner traps
-  // `unhandledRejection`/`uncaughtException` and prints its own generic
-  // "Something went wrong" over the real failure.
-  private spinnerActive = false;
 
   // Build-warning preprocessing state: warnings routed in via viteWarnLogger()
   // are classified and deduped here, then flushed collapsed (or in full when
@@ -91,32 +96,62 @@ export class Logger {
     return this.prefix ? `[${this.prefix}] ${message}` : message;
   }
 
-  intro(message?: string): void {
-    clackLogger.intro(message ?? this.name);
-  }
+  // ── level output — normal-logger wording; only the level word is colored ─────
 
-  outro(message: string): void {
-    clackLogger.outro(this.format(message));
-  }
-
-  step(message: string): void {
-    clackLogger.log.step(this.format(message));
-  }
-
-  success(message: string): void {
-    clackLogger.log.success(this.format(message));
+  info(message: string): void {
+    console.log(`${color.cyan("info")}  ${this.format(message)}`);
   }
 
   warn(message: string): void {
-    clackLogger.log.warn(this.format(message));
+    console.warn(`${color.yellow("warn")}  ${this.format(message)}`);
   }
 
-  /**
-   * A single collapsed line for the non-actionable build warnings (kept inside
-   * the clack gutter, dim so it reads as an aside rather than a problem).
-   */
+  error(message: string, cause?: Error): void {
+    console.error(`${color.red("error")}  ${this.format(message)}`);
+    // The underlying cause (a Rollup/esbuild error with its code frame) prints
+    // as-is so the stack + frame survive.
+    if (cause) console.error(cause);
+  }
+
+  // A good outcome is still an ordinary info line, just green.
+  success(message: string): void {
+    console.log(`${color.green("info")}  ${this.format(message)}`);
+  }
+
+  // A step in a multi-phase task reads as a plain info line.
+  step(message: string): void {
+    this.info(message);
+  }
+
+  // `message` is a raw pass-through line with no level word (used to relay
+  // content verbatim, e.g. a URL banner line).
+  message(message: string): void {
+    console.log(this.format(message));
+  }
+
+  raw(message: string): void {
+    const tag = this.prefix ? `${color.dim(`[${this.prefix}]`)} ` : "";
+    console.log(`${tag}${message}`);
+  }
+
+  /** A single collapsed line for the non-actionable build warnings. */
   warnSummary(message: string): void {
-    console.log(`│  ${color.yellow("⚠")} ${color.dim(message)}`);
+    this.warn(message);
+  }
+
+  /** A file-change notice in the dev loop (e.g. `changed  server/foo.ts`). */
+  changed(event: string, file: string): void {
+    console.log(`${event}  ${color.dim(file)}`);
+  }
+
+  startGroup(title?: string): void {
+    console.log("");
+    if (title) console.log(color.dim(title));
+  }
+
+  endGroup(message?: string): void {
+    if (message) console.log(color.dim(message));
+    console.log("");
   }
 
   // ── Build-warning preprocessing ──────────────────────────────────────────
@@ -201,93 +236,6 @@ export class Logger {
       hasErrorLogged: () => false,
       hasWarned: false,
     };
-  }
-
-  /** A file-change notice in the dev loop (e.g. `Changed  server/foo.ts`). */
-  changed(event: string, file: string): void {
-    console.log(`│`);
-    console.log(`◇  ${event}  ${color.dim(file)}`);
-  }
-
-  error(message: string, cause?: Error): void {
-    const text = this.format(message);
-    // If a spinner is running, end it *as* the error (glyph + deregistered
-    // traps) rather than printing a separate line and abandoning the spinner —
-    // that abandonment is what surfaces the useless "Something went wrong".
-    if (this.spinnerActive) {
-      this.spinner.error(text);
-      this.spinnerActive = false;
-    } else {
-      clackLogger.log.error(text);
-    }
-    if (cause) {
-      console.error(cause);
-    }
-  }
-
-  info(message: string): void {
-    clackLogger.log.info(this.format(message));
-  }
-
-  message(message: string): void {
-    clackLogger.log.message(this.format(message));
-  }
-
-  raw(message: string): void {
-    const prefix = this.prefix ? color.dim(`[${this.prefix}]`) : "";
-    console.log(`│  ${prefix} ${message}`);
-  }
-
-  startGroup(title?: string): void {
-    if (title) {
-      console.log(`│`);
-      console.log(`├─ ${color.cyan(title)}`);
-    }
-    console.log(`│`);
-  }
-
-  endGroup(message?: string): void {
-    console.log(`│`);
-    console.log(`└─ ${message ?? "Done"}`);
-    console.log();
-  }
-
-  // clack animates the spinner frame-by-frame, which is great in a real terminal
-  // but spews one line per frame when stdout is piped/redirected (CI, `> log`).
-  // Only spin when interactive; otherwise print a single static line.
-  private get interactive(): boolean {
-    return Boolean(process.stdout.isTTY);
-  }
-
-  startSpinner(message: string): void {
-    if (this.interactive) {
-      this.spinner.start(this.format(message));
-      this.spinnerActive = true;
-    } else {
-      console.log(`◒  ${this.format(message)}`);
-    }
-  }
-
-  stopSpinner(message?: string): void {
-    if (this.spinnerActive) {
-      // Clack's spinner.stop() ALWAYS paints a final frame; with no message it
-      // leaves a bare, textless glyph (◇), so callers should pass a message.
-      if (message !== undefined) {
-        this.spinner.stop(this.format(message));
-      } else {
-        this.spinner.stop();
-      }
-      this.spinnerActive = false;
-    } else if (message !== undefined) {
-      console.log(`◇  ${this.format(message)}`);
-    }
-  }
-
-  /** Update the running spinner's text (interactive only; no-op otherwise). */
-  updateSpinner(message: string): void {
-    if (this.interactive && this.spinnerActive) {
-      this.spinner.message(this.format(message));
-    }
   }
 
   child(prefix: string): Logger {

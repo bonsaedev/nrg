@@ -27,7 +27,7 @@ function resolveNodeRedFromLocalNodeModules(): string | null {
 }
 
 async function resolveNodeRed(options: ResolveNodeRedOptions): Promise<string> {
-  const { version, npxTimeoutMs = 300_000, logger } = options;
+  const { version, npxTimeoutMs = 300_000 } = options;
 
   // the version is interpolated into a shell command — reject anything
   // outside npm version/range/tag syntax so typos fail fast and clearly
@@ -39,23 +39,14 @@ async function resolveNodeRed(options: ResolveNodeRedOptions): Promise<string> {
 
   const nodeRedCommand = getNodeRedCommand(version);
 
-  logger.updateSpinner(`Resolving ${nodeRedCommand} entry point...`);
-
   const hasExplicitVersion = version !== undefined && version !== "latest";
 
   if (!hasExplicitVersion) {
     const localEntry = resolveNodeRedFromLocalNodeModules();
     if (localEntry) {
-      logger.updateSpinner(`Resolved from local node_modules: ${localEntry}`);
       return localEntry;
     }
   }
-
-  logger.updateSpinner(
-    hasExplicitVersion
-      ? `Using configured version (${version}), downloading via npx...`
-      : `Not found locally, downloading via npx (this may take a while)...`,
-  );
 
   // unique per call: two launchers in one process may resolve concurrently,
   // and one's cleanup must not unlink a script the other still needs
@@ -110,7 +101,6 @@ for (const d of dirs) {
       );
     }
 
-    logger.updateSpinner(`Resolved via npx: ${entryPoint}`);
     return entryPoint;
   } finally {
     try {

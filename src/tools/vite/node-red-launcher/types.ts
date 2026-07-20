@@ -7,7 +7,6 @@ interface ResolveNodeRedOptions {
   version?: string;
   /** Timeout for the npx resolution command. @default 300000 */
   npxTimeoutMs?: number;
-  logger: Logger;
 }
 
 interface GenerateRuntimeSettingsOptions {
@@ -26,7 +25,6 @@ interface RuntimeSettings {
 interface ResolvePortOptions {
   /** Port to start from; advances upward past occupied ports (never random). */
   startPort: number;
-  logger: Logger;
 }
 
 interface WaitForPortReleaseOptions {

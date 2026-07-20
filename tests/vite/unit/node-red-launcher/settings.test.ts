@@ -12,20 +12,6 @@ import { Logger } from "@/tools/vite/logger";
 
 vi.mock("esbuild", () => ({ build: vi.fn() }));
 
-vi.mock("@clack/prompts", () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
-  log: {
-    step: vi.fn(),
-    success: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    message: vi.fn(),
-  },
-}));
-
 describe("node-red-launcher/settings", () => {
   let tmpDir: string;
   let logger: Logger;

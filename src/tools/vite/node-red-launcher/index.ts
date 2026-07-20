@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { retry } from "../async-utils";
 import { NodeRedStartError } from "../errors";
-import { Logger, logger as globalLogger } from "../logger";
+import { Logger } from "../logger";
 import { getNodeRedCommand, resolveNodeRed } from "./entry-point";
 import { generateRuntimeSettings } from "./settings";
 import * as nodeRedProcess from "./process";
@@ -132,20 +132,13 @@ class NodeRedLauncher implements INodeRedLauncher {
       // First run starts at the preferred port; a busy port auto-advances,
       // abandoned orphans of ours are reaped — never a random port.
       const startPort = this.port ?? this.preferredPort;
-      // Pass the GLOBAL logger (whose spinner is the active "Starting Node-RED"
-      // line) so the port search updates that spinner in place; this.logger has
-      // its own inactive spinner, so its updateSpinner would be a no-op.
-      this.port = await nodeRedProcess.resolvePort({
-        startPort,
-        logger: globalLogger,
-      });
+      this.port = await nodeRedProcess.resolvePort({ startPort });
 
       // resolution can shell out to npx (slow), so cache it across restarts;
       // re-validate in case the resolved file was removed mid-session
       if (!this.nodeRedEntryPoint || !fs.existsSync(this.nodeRedEntryPoint)) {
         this.nodeRedEntryPoint = await resolveNodeRed({
           version: this.options.runtime?.version,
-          logger: this.logger,
         });
       }
       const nodeRedEntryPoint = this.nodeRedEntryPoint;

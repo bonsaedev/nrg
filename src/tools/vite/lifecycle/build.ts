@@ -20,23 +20,18 @@ function buildPlugin(options: BuildPluginOptions): Plugin {
 
     async buildStart() {
       try {
-        logger.intro();
-
-        logger.startSpinner("Cleaning");
         cleanDir(buildContext.outDir);
-        logger.stopSpinner("Cleaned");
+        logger.info("Cleaned output");
 
-        logger.startSpinner("Building");
         await buildServer(serverBuildOptions, buildContext);
         await buildClient(clientBuildOptions, buildContext);
-        logger.stopSpinner("Built");
+        logger.info("Built");
 
         if (extraFilesCopyTargets.length) {
-          logger.startSpinner("Copying extra files");
           copyFiles(extraFilesCopyTargets, buildContext.outDir);
-          logger.stopSpinner("Copied extra files");
+          logger.info("Copied extra files");
         }
-        logger.success("Success");
+        logger.success("Build complete");
         process.exit(0);
       } catch (error) {
         if (error instanceof BuildError) {

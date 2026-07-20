@@ -177,7 +177,6 @@
     }
   },
   "dependencies": {
-    "@clack/prompts": "^1.0.1",
     "@eslint/js": "^9.27.0",
     "@microsoft/api-extractor": "^7.58.11",
     "@sinclair/typebox": "^0.34.33",

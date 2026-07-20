@@ -19,7 +19,7 @@ import { build as buildClient } from "../client";
 
 // While the build loads the freshly-built bundle it can emit raw console.warn
 // (e.g. nrg's credential-format advisory) and Node process warnings (e.g. the
-// punycode deprecation). Those would clobber the active spinner's line, so route
+// punycode deprecation). Those would interleave with the build output, so route
 // them into the collector to be flushed cleanly once the build settles.
 async function withWarningCapture<T>(run: () => Promise<T>): Promise<T> {
   const originalWarn = console.warn;
@@ -54,9 +54,9 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
   let server: ViteDevServer;
   let watcher: FSWatcher | null = null;
 
-  // Quiet: the granular Cleaned/Built/Copied steps are hidden — the caller wraps
-  // the whole start in a single spinner. Warnings are collected (not printed) and
-  // flushed once the build settles.
+  // Quiet: the granular Cleaned/Built/Copied steps are hidden — the caller logs
+  // one Building… line and the ready line. Warnings are collected (not printed)
+  // and flushed once the build settles.
   const build = async (clean: boolean = false) => {
     logger.resetWarnings();
     if (clean) {
@@ -83,22 +83,18 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
     isStarting = true;
     pendingStart = false;
 
-    // One spinner spans the whole (re)build + launch. The granular Cleaned/Built/
-    // Copied steps stay hidden; only this line and the flushed warnings show.
+    // One line announces the whole (re)build + launch. The granular Cleaned/
+    // Built/Copied steps stay hidden; only this line and the flushed warnings show.
     const startedAt = Date.now();
-    logger.startSpinner(
+    logger.info(
       phase === "initial"
         ? "Building…"
         : "Restarting Node-RED (editor reconnects automatically)",
     );
-    // Let clack paint the first frame before the build blocks the event loop,
-    // so "Building…" is visible during the (CPU-bound, non-animating) build.
-    await new Promise((resolve) => setImmediate(resolve));
 
     try {
       await nodeRedLauncher.stop();
       await build(clean);
-      if (phase === "initial") logger.updateSpinner("Starting Node-RED");
       // The wire-check plugin (auto-loaded into Node-RED via nodesDir) extracts
       // this package's node types from the server source dir; the Node-RED
       // child process inherits our env, so this is the srcDir handoff.
@@ -116,11 +112,7 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
       }
 
       const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
-      // Settle the spinner with a timing line for BOTH the initial build and a
-      // rebuild. Clack's spinner.stop() ALWAYS paints a final frame, so the old
-      // no-message stop on the initial phase left a bare, reasonless glyph (◇)
-      // on screen — always give it a message instead.
-      logger.stopSpinner(`Node-RED ready · ${elapsed}s`);
+      logger.info(`Node-RED ready · ${elapsed}s`);
       logger.flushWarnings(verbose);
     } catch (error) {
       // Surface the underlying cause — the Rollup/esbuild error with its file,
@@ -249,7 +241,6 @@ function serverPlugin(options: ServerPluginOptions): Plugin {
     async configureServer(viteServer) {
       server = viteServer;
 
-      logger.intro();
       await start(true, "initial");
       initialStartDone = true;
 

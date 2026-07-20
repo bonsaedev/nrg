@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { EventEmitter } from "events";
-import * as clack from "@clack/prompts";
 import { NodeRedLauncher } from "@/tools/vite/node-red-launcher";
 import { NodeRedStartError } from "@/tools/vite/errors";
 import { resolveNodeRed } from "@/tools/vite/node-red-launcher/entry-point";
@@ -37,20 +36,6 @@ vi.mock("@/tools/vite/node-red-launcher/process", () => ({
   waitForPortRelease: vi.fn(),
 }));
 
-vi.mock("@clack/prompts", () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
-  log: {
-    step: vi.fn(),
-    success: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    message: vi.fn(),
-  },
-}));
-
 function createMockChild(pid: number | undefined = 12345) {
   const child = new EventEmitter() as any;
   child.pid = pid;
@@ -63,6 +48,11 @@ function createMockChild(pid: number | undefined = 12345) {
 }
 
 describe("NodeRedLauncher", () => {
+  // The logger writes errors/warnings to console.error/console.warn now (it no
+  // longer wraps clack), so we observe the launcher's logging through those.
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.mocked(resolveNodeRed).mockReset();
     vi.mocked(generateRuntimeSettings).mockReset();
@@ -71,8 +61,8 @@ describe("NodeRedLauncher", () => {
     vi.mocked(nodeRedProcess.start).mockReset();
     vi.mocked(nodeRedProcess.stop).mockReset();
     vi.mocked(nodeRedProcess.kill).mockReset();
-    vi.mocked(clack.log.error).mockReset();
-    vi.mocked(clack.log.warn).mockReset();
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -328,7 +318,7 @@ describe("NodeRedLauncher", () => {
       launcher.flushLogs(); // go live
       lastOnLine()("something broke", "stderr", true);
 
-      expect(clack.log.error).toHaveBeenCalledWith(
+      expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining("something broke"),
       );
     });
@@ -471,7 +461,7 @@ describe("NodeRedLauncher", () => {
 
       child.emit("exit", 1, null);
 
-      expect(clack.log.warn).toHaveBeenCalledWith(
+      expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("exited unexpectedly (code 1)"),
       );
       expect(launcher.pid).toBeNull();
@@ -487,7 +477,7 @@ describe("NodeRedLauncher", () => {
 
       child.emit("exit", null, "SIGKILL");
 
-      expect(clack.log.warn).toHaveBeenCalledWith(
+      expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("exited unexpectedly (SIGKILL)"),
       );
     });
@@ -503,7 +493,7 @@ describe("NodeRedLauncher", () => {
       await launcher.start();
       await launcher.stop();
 
-      expect(clack.log.warn).not.toHaveBeenCalledWith(
+      expect(warnSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("exited unexpectedly"),
       );
     });
@@ -520,7 +510,7 @@ describe("NodeRedLauncher", () => {
       });
       await launcher.start();
 
-      expect(clack.log.warn).not.toHaveBeenCalledWith(
+      expect(warnSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("exited unexpectedly"),
       );
     });
@@ -548,9 +538,7 @@ describe("NodeRedLauncher", () => {
       launcher.flushLogs();
       // stdout drains to console.log; stderr keeps its routing to logger.error
       expect(consoleSpy).toHaveBeenCalledTimes(1);
-      expect(clack.log.error).toHaveBeenCalledWith(
-        expect.stringContaining("line 2"),
-      );
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("line 2"));
 
       consoleSpy.mockClear();
       launcher.flushLogs();

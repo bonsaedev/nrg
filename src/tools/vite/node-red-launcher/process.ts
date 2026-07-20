@@ -222,7 +222,7 @@ const MAX_PORT_ADVANCE = 100;
  * alone and we advance past it. Never randomizes and never kills a live server.
  */
 async function resolvePort(options: ResolvePortOptions): Promise<number> {
-  const { startPort, logger } = options;
+  const { startPort } = options;
 
   for (let port = startPort; port < startPort + MAX_PORT_ADVANCE; port++) {
     const holders = await listListeners(port);
@@ -231,10 +231,8 @@ async function resolvePort(options: ResolvePortOptions): Promise<number> {
     let reaped = false;
     for (const pid of holders) {
       if ((await isNrgNodeRed(pid)) && (await isOrphaned(pid))) {
-        // Fold into the active "Starting Node-RED" spinner rather than printing a
-        // standalone line per reaped pid — the search is startup noise, and the
-        // final chosen port is reported once by the server URLs.
-        logger.updateSpinner(`Starting Node-RED · reclaiming port ${port}…`);
+        // Reclaim an orphaned nrg Node-RED holding the port; the chosen port is
+        // reported once by the server URLs, so the search stays quiet.
         signalTree(pid, "SIGKILL");
         reaped = true;
       }
@@ -247,11 +245,6 @@ async function resolvePort(options: ResolvePortOptions): Promise<number> {
     }
 
     // Held by something live/foreign — advance rather than fight or kill it.
-    // Update the spinner in place instead of emitting one line per busy port
-    // (which clobbered the spinner and flooded the terminal).
-    logger.updateSpinner(
-      `Starting Node-RED · port ${port} in use, trying ${port + 1}…`,
-    );
   }
 
   throw new NodeRedStartError(
