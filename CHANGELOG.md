@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.42.1](https://github.com/bonsaedev/nrg/compare/v0.42.0...v0.42.1) (2026-07-21)
+
+### Bug Fixes
+
+* **proxy:** resolve Array(NodeRef) config fields ([e62d8b4](https://github.com/bonsaedev/nrg/commit/e62d8b44d27e6b90aacc1dde53f19349ed602e3d))
+
 ## [0.42.0](https://github.com/bonsaedev/nrg/compare/v0.41.1...v0.42.0) (2026-07-21)
 
 ### Features
