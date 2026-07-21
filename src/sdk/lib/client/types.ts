@@ -9,10 +9,21 @@ import type {
 import type { JsonSchemaObjectExtensions } from "../shared/schema-options";
 import type {
   NodeRedNode,
-  NodeDefaults,
-  NodeCredentials,
-  TypedInput,
+  NodeRedNodeDefaults,
+  NodeRedNodeCredentials,
 } from "./node-red";
+
+/**
+ * nrg's client-side representation of a TypedInput field value: the raw value
+ * string plus its type selector, unified into one object. (Node-RED itself stores
+ * these as two node properties — `<prop>` and `<prop>Type`; nrg presents them as a
+ * single `{ value, type }` pair — the shape `Infer` resolves a `TypedInput<T>`
+ * schema field to in the editor.)
+ */
+interface TypedInput {
+  value: string;
+  type: string;
+}
 
 interface NodeStateCredentials {
   [key: string]: any;
@@ -97,8 +108,8 @@ interface JsonSchemaObject extends SchemaObject {
  * rest.
  */
 interface RuntimeNodeDefinition extends NodeDefinition {
-  defaults?: NodeDefaults;
-  credentials?: NodeCredentials;
+  defaults?: NodeRedNodeDefaults;
+  credentials?: NodeRedNodeCredentials;
   /**
    * Names of the base output ports (from the node's named `Port<T>` Output
    * generic), in declaration order; absent for single/positional outputs.
@@ -183,6 +194,7 @@ type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
 
 export type {
   NodeState,
+  TypedInput,
   NodeButtonDefinition,
   NodeFormDefinition,
   NodeDefinition,

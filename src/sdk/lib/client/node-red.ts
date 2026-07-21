@@ -1,7 +1,9 @@
-// The Node-RED editor API types — the client-plane twin of `server/node-red.ts`
+// The Node-RED editor node types — the client-plane twin of `server/node-red.ts`
 // — which the nrg client abstractions in `./types` build on. These describe the
 // raw shapes Node-RED's editor exposes (node instances, `_def` definitions,
-// defaults/credentials records, TypedInput fields), untouched by nrg semantics.
+// defaults/credentials records), untouched by nrg semantics. The editor `RED`
+// global, the `NodeRED` namespace, and the jQuery widgets are declared ambiently
+// in `./shims/globals.d.ts`.
 
 import type { App } from "vue";
 
@@ -10,6 +12,25 @@ interface NodeRedNodeButtonDefinition {
   onclick: () => void;
   enabled?: () => boolean;
   visible?: () => boolean;
+}
+
+interface NodeRedNodeDefaults {
+  [key: string]: {
+    value: any;
+    type?: string;
+    label?: string;
+    required?: boolean;
+    validate?: (this: NodeRedNode, value: any, opt: any) => any;
+  };
+}
+
+interface NodeRedNodeCredentials {
+  [key: string]: {
+    value?: string;
+    type?: "password" | "text";
+    label?: string;
+    required?: boolean;
+  };
 }
 
 interface NodeRedNode {
@@ -23,19 +44,8 @@ interface NodeRedNode {
   z: string;
   credentials: Record<string, any>;
   _def: {
-    defaults: Record<
-      string,
-      { value: string; type?: string; label?: string; required?: boolean }
-    >;
-    credentials: Record<
-      string,
-      {
-        value: string;
-        type?: "password" | "text";
-        label?: string;
-        required?: boolean;
-      }
-    >;
+    defaults: NodeRedNodeDefaults;
+    credentials: NodeRedNodeCredentials;
     category: string;
     color?: string;
     icon?: string;
@@ -72,35 +82,9 @@ interface NodeRedNode {
   [key: string]: any;
 }
 
-interface NodeDefaults {
-  [key: string]: {
-    value: any;
-    type?: string;
-    label?: string;
-    required?: boolean;
-    validate?: (this: NodeRedNode, value: any, opt: any) => any;
-  };
-}
-
-interface NodeCredentials {
-  [key: string]: {
-    value?: string;
-    type?: "password" | "text";
-    label?: string;
-    required?: boolean;
-  };
-}
-
-/** Client-side representation of a TypedInput field: the raw value string and its type selector. */
-interface TypedInput {
-  value: string;
-  type: string;
-}
-
 export type {
   NodeRedNode,
   NodeRedNodeButtonDefinition,
-  NodeDefaults,
-  NodeCredentials,
-  TypedInput,
+  NodeRedNodeDefaults,
+  NodeRedNodeCredentials,
 };

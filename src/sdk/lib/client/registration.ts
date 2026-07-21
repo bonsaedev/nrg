@@ -19,7 +19,7 @@ import type {
   RuntimeNodeDefinition,
   NodeFeatures,
 } from "./types";
-import type { NodeDefaults, NodeRedNode } from "./node-red";
+import type { NodeRedNodeDefaults, NodeRedNode } from "./node-red";
 
 function updateConfigNodeUsers(node: NodeRedNode): void {
   Object.keys(node._def.defaults ?? {}).forEach((prop) => {
@@ -72,7 +72,7 @@ function syncConfigInputs(
 }
 
 function computeBuiltinPortOutputs(
-  defaults: NodeDefaults,
+  defaults: NodeRedNodeDefaults,
   baseOutputs: number,
 ): { hasBuiltinPorts: boolean; baseOutputs: number; initialOutputs: number } {
   const hasBuiltinPorts =

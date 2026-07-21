@@ -6,10 +6,7 @@ export type {
   NodeDefinition,
   NodeButtonDefinition,
   NodeFormDefinition,
+  TypedInput,
   Infer,
 } from "./types";
-export type {
-  NodeRedNode,
-  NodeRedNodeButtonDefinition,
-  TypedInput,
-} from "./node-red";
+export type { NodeRedNode, NodeRedNodeButtonDefinition } from "./node-red";

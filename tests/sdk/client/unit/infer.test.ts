@@ -1,8 +1,7 @@
 import { describe, it, expectTypeOf } from "vitest";
 import { Type, Kind, type TObject, type TProperties } from "@sinclair/typebox";
 import type { TNodeRef, TTypedInput } from "@/sdk/lib/shared/schemas/types";
-import type { Infer } from "@/sdk/lib/client/types";
-import type { TypedInput } from "@/sdk/lib/client/node-red";
+import type { Infer, TypedInput } from "@/sdk/lib/client/types";
 
 function nodeRef<T>(): TNodeRef<T> {
   return { [Kind]: "NodeRef", type: "string", format: "node-id" } as any;

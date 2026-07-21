@@ -2,7 +2,7 @@
 // type re-exports of the runtime module (./index.ts). The published client.d.ts
 // is generated from THIS curated module rather than the raw ./types, so the
 // editor-runtime internals that describe the inliner's serialized output
-// (NodeState, JsonSchemaObject, RuntimeNodeDefinition, NodeDefaults, …) stay
+// (NodeState, JsonSchemaObject, RuntimeNodeDefinition, NodeRedNodeDefaults, …) stay
 // out of the public surface. The hand-written defineNode/registerType/
 // registerTypes declarations appended at build time reference NodeDefinition,
 // NodeRedNode and Infer, so those must remain exported here. `useFormNode` is
@@ -13,12 +13,9 @@ export type {
   NodeDefinition,
   NodeButtonDefinition,
   NodeFormDefinition,
+  TypedInput,
   Infer,
 } from "./types";
-export type {
-  NodeRedNode,
-  NodeRedNodeButtonDefinition,
-  TypedInput,
-} from "./node-red";
+export type { NodeRedNode, NodeRedNodeButtonDefinition } from "./node-red";
 
 export { useFormNode } from "./form/composables/use-form-node";
