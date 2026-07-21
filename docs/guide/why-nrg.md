@@ -210,6 +210,8 @@ export default class MyNode extends IONode<
 }
 ```
 
+Those same `Port<T>` generics extend type safety **across** nodes. On deploy, the installable [wire check](./wire-check) compiles the whole flow and paints any connection whose source doesn't add what the target reads **red** — before a message ever flows. See [Wire Type-Checking](./wire-check).
+
 ## ESM-First Build
 
 ### Traditional

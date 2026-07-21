@@ -98,7 +98,10 @@ class MyNode extends IONode<TConfig, TCredentials, TInput, TOutput, TSettings> {
 | `TInput` is `never` | 0 input ports (source node) |
 | `TOutput` is a single type or `any` | 1 output port |
 | `TOutput` is `{ a: Port<A>; b: Port<B> }` | N named output ports |
+| `TOutput` is `Port<T>[]` (an array) | N **dynamic** ports, each of shape `T`, by index |
 | `TOutput` is `never` | 0 output ports (sink node) |
+
+**Dynamic ports.** For a variable number of same-shaped outputs, declare an **array**: `Outputs<Port<T>[]>` is **N ports, each of shape `T`**, addressed by index — `this.send(i, value)` (and `node.sent(i)` in tests). The port _count_ is author-supplied — a custom Vue form sets `node.outputs` — while the type gives every port the same `T`. Reach for the named-record form when the ports have distinct shapes; the array form when they are uniform and their number varies.
 
 At build time NRG reads these generics and stamps the node's real port count and names, so the editor draws the right ports. Wires between nodes can then be type-checked at deploy by the installable `@bonsae/node-red-type-check-plugin` (see [Extending a published node](./config-nodes#extending-a-published-node)). Schemas are **not** required for any of this.
 

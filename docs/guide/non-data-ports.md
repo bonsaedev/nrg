@@ -142,6 +142,12 @@ client type-resolver understand:
 
 ### Choosing the right builder
 
+`Unsafe<T>` has **two overloads**, so it appears twice below. Called **empty** —
+`Unsafe<T>()` — it is an empty schema that validates **nothing** (the non-data
+case above): AJV passes any runtime value through. Called **with a JSON Schema** —
+`Unsafe<T>({ …json… })` — it **validates** against that schema while still typing
+the field as `T` (for a branded or custom static type you _do_ want checked).
+
 | Builder | Validates | Static type | Use when |
 | --- | --- | --- | --- |
 | `SchemaType.Object({ … })` | yes | inferred | plain data |

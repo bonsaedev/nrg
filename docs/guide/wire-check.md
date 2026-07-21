@@ -55,3 +55,11 @@ npm install --save-dev @bonsae/node-red-type-check-plugin
 
 Without it, `nrg dev` runs exactly as before — the check is simply off. It never
 runs in a production Node-RED; it's an authoring-time safety net.
+
+::: tip Resolved from your own project
+The dev launcher resolves the plugin from your project's `node_modules` — it is
+**not** bundled with the `@bonsae/nrg` toolkit — so install it in the package
+whose nodes you're building, and keep it on the version paired with your nrg
+release. If it isn't installed, the launcher logs that it was skipped and carries
+on; the check simply fails open, never blocking a deploy.
+:::
