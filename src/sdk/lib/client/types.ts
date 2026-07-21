@@ -1,4 +1,4 @@
-import type { Component, App } from "vue";
+import type { Component } from "vue";
 import type { TSchema, Static } from "@sinclair/typebox";
 import type { SchemaObject } from "ajv";
 import type {
@@ -7,6 +7,12 @@ import type {
   UnsafeBrand,
 } from "../shared/schemas/types";
 import type { JsonSchemaObjectExtensions } from "../shared/schema-options";
+import type {
+  NodeRedNode,
+  NodeDefaults,
+  NodeCredentials,
+  TypedInput,
+} from "./node-red";
 
 interface NodeStateCredentials {
   [key: string]: any;
@@ -26,73 +32,6 @@ interface NodeButtonDefinition {
 
 interface NodeFormDefinition {
   component?: Component;
-}
-
-interface NodeRedNodeButtonDefinition {
-  toggle: string;
-  onclick: () => void;
-  enabled?: () => boolean;
-  visible?: () => boolean;
-}
-
-interface NodeRedNode {
-  id: string;
-  type: string;
-  name: string;
-  category: string;
-  x: string;
-  y: string;
-  g: string;
-  z: string;
-  credentials: Record<string, any>;
-  _def: {
-    defaults: Record<
-      string,
-      { value: string; type?: string; label?: string; required?: boolean }
-    >;
-    credentials: Record<
-      string,
-      {
-        value: string;
-        type?: "password" | "text";
-        label?: string;
-        required?: boolean;
-      }
-    >;
-    category: string;
-    color?: string;
-    icon?: string;
-    label?: ((this: NodeRedNode) => string) | string;
-    inputs?: number;
-    outputs?: number;
-    paletteLabel?: ((this: NodeRedNode) => string) | string;
-    labelStyle?: ((this: NodeRedNode) => string) | string;
-    inputLabels?: ((this: NodeRedNode, index: number) => string) | string;
-    outputLabels?: ((this: NodeRedNode, index: number) => string) | string;
-    align?: "left" | "right";
-    button?: NodeRedNodeButtonDefinition;
-  };
-  _newState?: NodeRedNode;
-  _app?: App | null;
-  _: (str: string) => string;
-
-  // -- framework-managed config props --
-  /** dynamic port count (base outputs + enabled built-in ports) */
-  outputs?: number;
-  /** injected when the node has an inputSchema */
-  validateInput?: boolean;
-  /** built-in port toggles, present when declared in the configSchema */
-  errorPort?: boolean;
-  completePort?: boolean;
-  statusPort?: boolean;
-  /**
-   * Per-port output data-validation settings, indexed by base-output port — a
-   * framework config field merged into every IONode's config schema; read at
-   * runtime by IONode.
-   */
-  validateOutputs?: Record<number, boolean>;
-
-  [key: string]: any;
 }
 
 interface NodeDefinition {
@@ -170,25 +109,6 @@ interface RuntimeNodeDefinition extends NodeDefinition {
   credentialsSchema?: JsonSchemaObject;
 }
 
-interface NodeDefaults {
-  [key: string]: {
-    value: any;
-    type?: string;
-    label?: string;
-    required?: boolean;
-    validate?: (this: NodeRedNode, value: any, opt: any) => any;
-  };
-}
-
-interface NodeCredentials {
-  [key: string]: {
-    value?: string;
-    type?: "password" | "text";
-    label?: string;
-    required?: boolean;
-  };
-}
-
 interface NodeFeatures {
   /** Whether the node has an input port (from its types). Gates the Input
    * subsection — data validation is a framework control that always renders
@@ -202,12 +122,6 @@ interface NodeFeatures {
 }
 
 // -- Client-side type inference --
-
-/** Client-side representation of a TypedInput field: the raw value string and its type selector. */
-interface TypedInput {
-  value: string;
-  type: string;
-}
 
 /**
  * Maps a schema's static type to the raw values the editor form holds.
@@ -268,8 +182,6 @@ type Infer<T extends TSchema | Record<string, TSchema>> = T extends TSchema
     };
 
 export type {
-  NodeRedNode,
-  NodeRedNodeButtonDefinition,
   NodeState,
   NodeButtonDefinition,
   NodeFormDefinition,
@@ -277,10 +189,7 @@ export type {
   JsonPropertySchema,
   JsonSchemaObject,
   RuntimeNodeDefinition,
-  NodeDefaults,
-  NodeCredentials,
   NodeFeatures,
-  TypedInput,
   EditorStatic,
   Infer,
 };

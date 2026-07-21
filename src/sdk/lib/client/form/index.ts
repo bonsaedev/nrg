@@ -12,7 +12,8 @@ import NodeRedTray from "./components/lib/node-red-tray.vue";
 import NodeRedInputLabel from "./components/lib/inputs/node-red-input-label.vue";
 import NodeRedToggle from "./components/lib/inputs/node-red-toggle.vue";
 import NodeRedJsonSchemaForm from "./components/lib/node-red-json-schema-form.vue";
-import type { NodeFormDefinition, NodeFeatures, NodeRedNode } from "../types";
+import type { NodeFormDefinition, NodeFeatures } from "../types";
+import type { NodeRedNode } from "../node-red";
 
 function createNodeRedVueApp(
   node: NodeRedNode,

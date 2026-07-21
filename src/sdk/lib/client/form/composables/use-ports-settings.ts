@@ -1,6 +1,7 @@
 import { type JSONSchemaType } from "ajv";
 import { computed, inject } from "vue";
-import type { NodeFeatures, NodeRedNode } from "../../types";
+import type { NodeFeatures } from "../../types";
+import type { NodeRedNode } from "../../node-red";
 import {
   outputRows as computeOutputRows,
   acceptsInputSchema as computeAcceptsInputSchema,

@@ -10,13 +10,15 @@
 // already-public types (no editor-runtime internals), so dts-bundle-generator
 // emits its real signature from source — no hand-maintained declaration to drift.
 export type {
-  NodeRedNode,
-  NodeRedNodeButtonDefinition,
   NodeDefinition,
   NodeButtonDefinition,
   NodeFormDefinition,
-  TypedInput,
   Infer,
 } from "./types";
+export type {
+  NodeRedNode,
+  NodeRedNodeButtonDefinition,
+  TypedInput,
+} from "./node-red";
 
 export { useFormNode } from "./form/composables/use-form-node";

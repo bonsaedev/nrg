@@ -18,9 +18,8 @@ import type {
   NodeDefinition,
   RuntimeNodeDefinition,
   NodeFeatures,
-  NodeDefaults,
-  NodeRedNode,
 } from "./types";
+import type { NodeDefaults, NodeRedNode } from "./node-red";
 
 function updateConfigNodeUsers(node: NodeRedNode): void {
   Object.keys(node._def.defaults ?? {}).forEach((prop) => {

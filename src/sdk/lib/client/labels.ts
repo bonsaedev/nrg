@@ -1,4 +1,4 @@
-import type { NodeRedNode } from "./types";
+import type { NodeRedNode } from "./node-red";
 
 function resolveI18n(node: NodeRedNode, ...keys: string[]): string | undefined {
   for (const key of keys) {

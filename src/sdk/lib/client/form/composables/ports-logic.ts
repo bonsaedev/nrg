@@ -1,6 +1,7 @@
 import type { JSONSchemaType } from "ajv";
 import { validateSchemaString } from "../../validation";
-import type { NodeFeatures, NodeRedNode } from "../../types";
+import type { NodeFeatures } from "../../types";
+import type { NodeRedNode } from "../../node-red";
 
 /**
  * Base output ports to render in the Outputs table. The base count is the total

@@ -1,6 +1,7 @@
 import { inject } from "vue";
 import type { TSchema, Static } from "../../../shared/schemas";
-import type { EditorStatic, NodeRedNode } from "../../types";
+import type { EditorStatic } from "../../types";
+import type { NodeRedNode } from "../../node-red";
 
 interface FormNode<
   TConfig extends TSchema = TSchema,

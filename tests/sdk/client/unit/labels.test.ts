@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { NodeRedNode } from "@/sdk/lib/client/types";
+import type { NodeRedNode } from "@/sdk/lib/client/node-red";
 import {
   resolveI18n,
   createDefaultLabel,

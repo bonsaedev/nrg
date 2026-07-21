@@ -1,5 +1,6 @@
 import { isEqual } from "es-toolkit";
-import type { NodeState, NodeRedNode } from "./types";
+import type { NodeState } from "./types";
+import type { NodeRedNode } from "./node-red";
 
 function getNodeState(node: NodeRedNode): NodeState {
   const state: NodeState = {

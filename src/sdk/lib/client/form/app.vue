@@ -24,7 +24,8 @@ import { defineComponent, shallowRef } from "vue";
 import { debounce } from "es-toolkit";
 import { validateForm } from "../validation";
 import { computeSchemaStringErrors } from "./composables/ports-logic";
-import type { NodeFeatures, NodeRedNode } from "../types";
+import type { NodeFeatures } from "../types";
+import type { NodeRedNode } from "../node-red";
 // Framework-internal: the built-in schema fields' editor tray. Registered
 // locally (NOT globally) — only this form uses it.
 import JsonSchemaEditorInputTray from "./components/app/json-schema-editor-input-tray.vue";
