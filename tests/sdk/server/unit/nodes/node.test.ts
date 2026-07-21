@@ -4,7 +4,6 @@ import { registerType } from "@/sdk/lib/server/registration";
 import { init } from "@/sdk/lib/server/init";
 import { defineSchema, SchemaType } from "@/sdk/lib/shared/schemas";
 import { createRED, createNodeRedNode } from "@mocks/red";
-import { NRG_SETUP_CLOSE_HANDLER } from "@/sdk/lib/server/symbols";
 
 class ConcreteNode extends Node {
   static override readonly type = "test-node";
@@ -161,13 +160,11 @@ describe("Node", () => {
       const instance = new ConcreteNode(RED, node, {}, {});
       const fn = vi.fn();
 
-      // Wire up close handler via the template method
-      instance[NRG_SETUP_CLOSE_HANDLER]();
-
       instance.setTimeout(fn, 1000);
       instance.setInterval(fn, 1000);
 
       const done = vi.fn();
+      // The node self-wires its own `close` event in the constructor; emitting drives it.
       await node.emit("close", false, done);
       vi.advanceTimersByTime(2000);
       expect(fn).not.toHaveBeenCalled();
@@ -195,11 +192,11 @@ describe("Node", () => {
       const instance = new LeakyLog(RED, node, {}, {});
       const fn = vi.fn();
 
-      instance[NRG_SETUP_CLOSE_HANDLER]();
       instance.setTimeout(fn, 1000);
       instance.setInterval(fn, 1000);
 
       const done = vi.fn();
+      // The node self-wires its own `close` event in the constructor; emitting drives it.
       await node.emit("close", false, done);
 
       // close completed cleanly (done called with no error) despite the throwing

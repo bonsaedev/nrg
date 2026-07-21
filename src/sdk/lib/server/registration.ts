@@ -1,10 +1,6 @@
 import type { NodeConstructor } from "./nodes";
-import {
-  NRG_NODE,
-  NRG_SETUP_CLOSE_HANDLER,
-  NRG_SETUP_INPUT_HANDLER,
-} from "./symbols";
-import type { RED, NodeRedNode } from "./red";
+import { NRG_NODE } from "./symbols";
+import type { RED, NodeRedNode } from "./node-red";
 import { init } from "./init";
 import { NrgError } from "../shared/errors";
 import {
@@ -45,6 +41,9 @@ async function registerType(RED: RED, NodeClass: NodeConstructor) {
     NodeClass.type,
     function (this: NodeRedNode, config: Record<string, unknown>) {
       RED.nodes.createNode(this, config);
+      // Constructing the node is all the registrar does: the node self-schedules
+      // `created()` and self-wires its own Node-RED `close`/`input` events (see
+      // Node/IONode constructors), so nothing here reaches into it.
       const node = new NodeClass(RED, this, config, this.credentials);
       // NOTE: save node instance inside node-red's node so that the proxy can resolve it lazily.
       // Non-writable to prevent accidental clobbering by other code in the process.
@@ -54,33 +53,6 @@ async function registerType(RED: RED, NodeClass: NodeConstructor) {
         configurable: false,
         enumerable: false,
       });
-
-      // NOTE: created promise must be here because we only want it to start after the whole object creation chain has been completed: child -> IONode -> Node -> IONode -> child -> done
-      const createdPromise = Promise.resolve(node.created?.()).catch(
-        (error: unknown) => {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          this.error("Error during created hook: " + message);
-          throw error;
-        },
-      );
-      // Surface a failed created() as an error status, not just a log. A node
-      // with inputs also reports the failure per-input via done(), but an
-      // input-less node has no handler awaiting createdPromise, so without
-      // this its created() rejection would be logged once and otherwise
-      // silently swallowed while the node stays registered.
-      createdPromise.catch(() => {
-        this.status({ fill: "red", shape: "ring", text: "created() failed" });
-      });
-
-      node[NRG_SETUP_CLOSE_HANDLER]();
-      // Only IONode wires an input handler; a plain Node/ConfigNode has none.
-      if (
-        NRG_SETUP_INPUT_HANDLER in node &&
-        typeof node[NRG_SETUP_INPUT_HANDLER] === "function"
-      ) {
-        node[NRG_SETUP_INPUT_HANDLER](createdPromise);
-      }
     },
     {
       credentials: NodeClass.credentialsSchema
@@ -125,7 +97,7 @@ type RegistrationFunction = ((RED: RED) => Promise<void>) & {
 function registerTypes(nodes: NodeConstructor[]): RegistrationFunction {
   const fn: RegistrationFunction = Object.assign(
     async function (RED: RED) {
-      init(RED); // globals (validator + channel store) + HTTP asset routes
+      init(RED); // globals (validator) + HTTP asset routes
       try {
         RED.log.info("Registering node types in series");
         for (const NodeClass of nodes) {

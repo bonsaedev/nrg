@@ -4,10 +4,6 @@ import { IONode } from "@/sdk/lib/server/nodes/io-node";
 import { init } from "@/sdk/lib/server/init";
 import { createRED, createNodeRedNode } from "@mocks/red";
 import { createNode } from "@/sdk/test/server/unit";
-import {
-  NRG_SETUP_CLOSE_HANDLER,
-  NRG_SETUP_INPUT_HANDLER,
-} from "@/sdk/lib/server/symbols";
 import SingleOutput from "../fixtures/io-node-test/single-output";
 import MultiOutput from "../fixtures/io-node-test/multi-output";
 import NamedOutput from "../fixtures/io-node-test/named-output";
@@ -165,11 +161,8 @@ describe("IONode", () => {
       const node = createNodeRedNode();
       const instance = new TestIONode(RED, node, {}, {});
 
-      // Wire up event handlers
-      const createdPromise = Promise.resolve();
-      instance[NRG_SETUP_CLOSE_HANDLER]();
-      instance[NRG_SETUP_INPUT_HANDLER](createdPromise);
-
+      // The node self-wires its own `input` event in the constructor, so emitting
+      // on the Node-RED node drives the handler.
       const send = vi.fn();
       const done = vi.fn();
       await node.emit("input", { payload: "test" }, send, done);
@@ -245,14 +238,12 @@ describe("IONode", () => {
       const instance = new TestIONode(RED, node, {}, {});
 
       instance.send(0, { note: "test" });
-      // A topology-less node reports `inputs === 0` (the framework's default), so
-      // it's treated as a source/trigger: the send mints a `_msgid` (to key the
-      // frozen `transactionId`) instead of leaving it for Node-RED to assign.
+      // A send outside any input() call has no invocation store, so no `_msgid` is
+      // inherited or stamped — Node-RED assigns one on delivery, as usual.
       expect(node.send).toHaveBeenCalledWith([
         {
           note: "test",
           _meta: { source: src(0) },
-          _msgid: expect.any(String),
         },
       ]);
     });

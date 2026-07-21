@@ -10,11 +10,9 @@ import type {
 import type {
   OutputPortNames,
   PortValue,
-  WriteChannels,
   Port,
   OutputSpec,
   InputSpec,
-  OmitMessageChannels,
 } from "./ports";
 
 type IONodeContextScope = NodeContextScope;
@@ -75,8 +73,8 @@ interface IIONode<
 
   // A returned value (when not `undefined`) rides the complete port under
   // `output`; `void`/no return keeps the plain completion signal. `TInput` is the
-  // wrapped message type (`Input<…>`), so the parameter already carries the
-  // off-the-wire channels alongside the wire fields.
+  // wrapped message type (`Input<…>`) — the wire fields; to read provenance the node
+  // declares `_meta` on its port.
   input(msg: TInput): unknown;
   status(status: IONodeStatus): void;
   // LOG-ONLY diagnostic — narrows the base `error(message, msg?)` to a single
@@ -84,20 +82,16 @@ interface IIONode<
   // catch; the node is still holding the signal.
   error(message: string): void;
   updateWires(wires: string[][]): void;
-  // `receive` drives the handler with a raw WIRE message — the channels are installed
-  // by the framework, so callers pass {@link OmitMessageChannels}`<TInput>`, not the
-  // wrapped type.
-  receive(msg: OmitMessageChannels<TInput>): void;
+  // `receive` drives the handler with a raw WIRE message — the node's `TInput`.
+  receive(msg: TInput): void;
 
   readonly baseOutputs: number;
   readonly totalOutputs: number;
   // Emit a value on one output port, addressed by NAME (a named `Port` record) or
-  // by numeric index (a dynamic `Port<T>[]`). The `channels` object populates the
-  // message's off-the-wire channels for this signal (`protected`/`private`); they
-  // never ride the serialized msg. The complete/status ports are framework-managed
-  // (return a value / this.status()) — not `send`-able; the ERROR port IS: `throw`
-  // is the transformer convenience, `send("error", { error })` lets a source node
-  // (no input()) emit it explicitly.
+  // by numeric index (a dynamic `Port<T>[]`). The complete/status ports are
+  // framework-managed (return a value / this.status()) — not `send`-able; the ERROR
+  // port IS: `throw` is the transformer convenience, `send("error", { error })` lets
+  // a source node (no input()) emit it explicitly.
   send<P extends OutputPortNames<TOutput> | "error" | number>(
     port: P,
     // optional: `send(port)` forwards the record unchanged (merge of nothing)
@@ -110,11 +104,6 @@ interface IIONode<
         : P extends number
           ? PortValue<TOutput[keyof TOutput]>
           : unknown,
-    channels?: P extends keyof TOutput
-      ? WriteChannels<TOutput[P]>
-      : P extends number
-        ? WriteChannels<TOutput[keyof TOutput]>
-        : { protected?: object; private?: object },
   ): void;
 }
 

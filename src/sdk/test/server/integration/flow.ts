@@ -11,7 +11,6 @@ import type {
   CompletePortOutput,
   StatusPortOutput,
   OutputPortNames,
-  PortChannels,
   InputSpec,
   OutputSpec,
 } from "@/sdk/test/server/unit";
@@ -38,11 +37,6 @@ type NodeIn<N> = N extends { readonly ["~nrgPortMaps"]?: { input: infer I } }
 /** One frame off any output port — the element type `read()`/`sent()` yield when
  * the port isn't named (a bare `read()` reads across ports). */
 type AnyFrame<N> = PortTuple<NodeOut<N>, NodeIn<N>>[number];
-
-/** The channel shape declared on a named port — guarded so a resolved-but-conditional
- * `NodeOut<N>` is indexable (`P extends OutputPortNames<NodeOut<N>>` alone doesn't
- * prove `P` keys the conditional type). */
-type PortChannelsOf<O, P> = P extends keyof O ? PortChannels<O[P]> : object;
 
 interface NodeContext {
   node: NodeContextStore;
@@ -196,11 +190,7 @@ class NodeRef<N = unknown> {
   sent(port: "status"): StatusPortOutput[];
   sent<P extends OutputPortNames<NodeOut<N>>>(
     port: P,
-  ): WrappedPort<
-    PortMessage<NodeOut<N>, P>,
-    NodeIn<N>,
-    PortChannelsOf<NodeOut<N>, P>
-  >[];
+  ): WrappedPort<PortMessage<NodeOut<N>, P>, NodeIn<N>>[];
   sent(port: number): AnyFrame<N>[];
   sent(port?: number | string): unknown[] {
     const idx = typeof port === "string" ? this.#resolvePort(port) : port;
@@ -245,13 +235,7 @@ class NodeRef<N = unknown> {
   read<P extends OutputPortNames<NodeOut<N>>>(
     port: P,
     opts?: ReadOptions,
-  ): Promise<
-    WrappedPort<
-      PortMessage<NodeOut<N>, P>,
-      NodeIn<N>,
-      PortChannelsOf<NodeOut<N>, P>
-    >
-  >;
+  ): Promise<WrappedPort<PortMessage<NodeOut<N>, P>, NodeIn<N>>>;
   read(port: number, opts?: ReadOptions): Promise<AnyFrame<N>>;
   async read(
     port?: number | string | ReadOptions,

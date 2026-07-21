@@ -1,5 +1,5 @@
 import type { Schema } from "../../shared/schemas";
-import type { RED, NodeRedNode } from "../red";
+import type { RED, NodeRedNode } from "../node-red";
 import { Node } from "./node";
 import { NrgError } from "../../shared/errors";
 import type {
@@ -11,21 +11,13 @@ import type {
   IONodeCredentials,
 } from "./types";
 import { setupContext } from "./context";
-import {
-  NRG_SETUP_INPUT_HANDLER,
-  NRG_PORTS,
-  NRG_PROTECTED_CHANNEL,
-} from "../symbols";
-import { channelProxy, packageChannel } from "../channels-store";
-import { Channels, Meta } from "./types/ports";
+import { NRG_PORTS } from "../symbols";
 import type {
   OutputPortNames,
   PortValue,
-  WriteChannels,
   Port,
   OutputSpec,
   InputSpec,
-  OmitMessageChannels,
   NodeSource,
   MessageSource,
   StatusPortOutput,
@@ -38,24 +30,17 @@ interface InputInvocation {
   send: (msg: any) => void;
 }
 
-/** The clone-safe root carrier for the framework metadata (`{ source }`).
- * Underscore-prefixed like `_msgid`: framework-owned, kept off every typed
- * surface, and an ENUMERABLE root key because Node-RED's fan-out clone
- * (messages 2..N) drops symbol properties — the `msg[Meta]` accessor installed
- * at delivery reads it back. Authors never touch it. */
+/** The clone-safe root carrier for the framework provenance (`{ source }`).
+ * Underscore-prefixed like `_msgid`: framework-owned. An ENUMERABLE root key, so it
+ * survives Node-RED's fan-out clone (messages 2..N) — a downstream node reads
+ * `msg._meta.source` directly, no accessor. The framework stamps it on every `send`;
+ * a node that wants to read it declares `_meta: MessageMetadata` on its input port. */
 const META_KEY = "_meta";
 
 /** Node-RED's message-lineage id. A node's output inherits its input's value —
  * Node-RED mints a fresh one ONLY when absent — so the framework must carry it
  * forward on every outgoing message rather than let it be regenerated per hop. */
 const MSGID_KEY = "_msgid";
-
-/** Read-only correlation id a SOURCE/trigger node (no input port) stamps on the
- * `protected` channel when it emits: the id of the message it originated. Every
- * downstream node reads it via `msg[Channels].protected.transactionId` to correlate
- * all work back to that trigger firing. Frozen in the channel store, so no node can
- * overwrite or delete it. */
-const TRANSACTION_ID_KEY = "transactionId";
 
 /** The build-injected port topology (see `port-topology-injector`). Framework-
  * owned: the injector stamps it under `NRG_PORTS`, non-writable — never set from
@@ -74,20 +59,18 @@ interface NodePortsDescriptor {
  * takes an OBJECT of named fields and MERGES it onto the incoming record
  * (`{ ...incoming, ...additions }`), so a field produced by an early node is
  * readable by a late node — nothing is silently lost across hops. Framework
- * metadata never pollutes the
- * data surface: provenance rides `msg[Meta].source` (symbol accessor over the
- * `_meta` root carrier) and the off-the-wire channels ride `msg[Channels]`.
- * Built-in lifecycle ports follow the SAME merge rule — an error frame is the
- * processed record plus `error`, a complete frame is the record plus `input()`'s
- * returned fields — so lifecycle wires keep the full context too.
+ * provenance rides the `_meta` root key (`msg._meta.source`) — a node reads it only
+ * if it declares `_meta` on its port. Built-in lifecycle ports follow
+ * the SAME merge rule — an error frame is the processed record plus `error`, a
+ * complete frame is the record plus `input()`'s returned fields — so lifecycle wires
+ * keep the full context too.
  *
  * The `input()` parameter is the node's `TInput` — an {@link Input}`<Port<…>>`: the
- * wire type plus the off-the-wire channels (`msg[Channels]`). ALWAYS annotate the
- * parameter with this alias — TypeScript does not infer an overridden method's
- * parameter from the base, so an un-annotated `input(msg)` is `any`. Annotating with the
- * bare wire type instead discards the channels. `_msgid` is deliberately not
- * on the parameter — it's the framework's internal channel key, not an author-facing
- * field.
+ * wire type. ALWAYS annotate the parameter with this alias — TypeScript does not
+ * infer an overridden method's parameter from the base, so an un-annotated
+ * `input(msg)` is `any`. To read the producing node, declare `_meta: MessageMetadata`
+ * on the port and read `msg._meta.source`. `_msgid` is deliberately not on the
+ * parameter — it's framework-internal, not an author-facing field.
  *
  * @example
  * ```ts
@@ -99,15 +82,14 @@ interface NodePortsDescriptor {
  *   static readonly color = "#ffffff" as const;
  *
  *   async input(msg: MyNodeInput) {          // always annotate with your Input alias
- *     const conn = msg[Channels].private.conn; // off-wire, package-scoped
  *     // merges { result } onto the incoming record (merge default — upstream
- *     // fields flow through), and stashes data on the channels off the wire:
- *     this.send("out", { result: msg.payload.toUpperCase() }, { protected: { traceId }, private: { res } });
+ *     // fields flow through):
+ *     this.send("out", { result: msg.payload.toUpperCase() });
  *   }
  * }
  * ```
  *
- * @see {@link Input} — the wire port plus the off-the-wire channels.
+ * @see {@link Input} — the wire port carrying the message type.
  *
  * @typeParam TConfig - config shape (position 1)
  * @typeParam TCredentials - credentials shape (position 2)
@@ -139,9 +121,14 @@ abstract class IONode<
    */
   public static readonly color: `#${string}`;
 
-  // Build-injected port topology; framework-owned, stamped under `NRG_PORTS` by
-  // the port-topology injector (non-writable). `declare` — the value comes only
-  // from the injector, so no field initializer is emitted to race it.
+  /**
+   * Build-injected port topology; framework-owned, stamped under `NRG_PORTS` by the
+   * port-topology injector (non-writable). `declare` — the value comes only from the
+   * injector, so no field initializer is emitted to race it. `@internal` strips it
+   * from the published `.d.ts` (the runtime symbol stays for the injector↔runtime
+   * handshake; a consumer never sees it in their node types).
+   * @internal
+   */
   declare public static [NRG_PORTS]?: NodePortsDescriptor;
 
   // Port topology is TS-types-only: the build extracts a node's `Input`/`Output`
@@ -205,141 +192,149 @@ abstract class IONode<
       flow: setupContext(context.flow),
       global: setupContext(context.global),
     });
-  }
 
-  // Wires the `input` handler (IONode only). The base Node wires `close`
-  // separately (NRG_SETUP_CLOSE_HANDLER); the registrar invokes both.
-  [NRG_SETUP_INPUT_HANDLER](createdPromise: Promise<void>) {
+    // Self-wire the node's OWN Node-RED `input` event to a truly `#private` handler
+    // (the base Node self-wires `close`). Keeping it `#private` means no framework
+    // symbol is exposed for outside code to reach it.
     this.node.on(
       "input",
-      async (
+      (
         msg: unknown,
         send: (msg: unknown) => void,
         done: (err?: Error) => void,
-      ) => {
-        try {
-          await createdPromise;
-        } catch (initError) {
-          // Surface the real cause from created() instead of a generic message.
-          done(
-            initError instanceof Error
-              ? initError
-              : new Error(String(initError)),
-          );
-          return;
-        }
-
-        // Own the invocation store here so the post-`await` auto-emits (complete
-        // on return, error on throw) can re-enter it — the ALS run() scope has
-        // exited by the time they run (see the complete/error emits below).
-        const store: InputInvocation = { inputMsg: msg, send };
-
-        try {
-          this.node.log("Calling input");
-          const result = await this.#input(msg as TInput, store);
-
-          // Send to complete port if enabled. Same MERGE rule as every data
-          // port: the frame is the processed record plus `input()`'s returned
-          // FIELDS (`{ ...record, ...result }`) — the return value IS the
-          // complete-port record contribution, so it must be a plain object (or
-          // void: arrival on the complete wire is itself the completion signal).
-          // A non-object return is an authoring bug — loud NrgError.
-          if (this.config.completePort) {
-            if (
-              result !== undefined &&
-              (result === null ||
-                typeof result !== "object" ||
-                Array.isArray(result))
-            ) {
-              throw new NrgError(
-                `input()'s return value is the complete-port record contribution and must be a plain OBJECT of named fields (or void); got ${
-                  Array.isArray(result) ? "an array" : `a ${typeof result}`
-                }. Name the result — e.g. \`return { count }\`.`,
-              );
-            }
-            // Bind the auto-emit to THIS invocation's store. It runs after the
-            // `await` above, so the run() scope has already exited — and Node-RED
-            // may have delivered a nested node's message synchronously in the
-            // meantime, leaving a DIFFERENT invocation's store ambient. Re-entering
-            // this store makes #deliver route through this node's own send. (see
-            // #deliver / #emitLifecycle)
-            IONode.#invocation.run(store, () =>
-              this.#emitLifecycle(
-                "complete",
-                store.inputMsg,
-                (result as Record<string, unknown> | undefined) ?? {},
-              ),
-            );
-          }
-
-          done();
-          this.node.log("Input processed");
-        } catch (error) {
-          const errorMsg =
-            error instanceof Error
-              ? error.message
-              : "Unknown error during input handling";
-          const err = error instanceof Error ? error : new Error(errorMsg);
-
-          // A framework NrgError (API misuse — e.g. send() to a built-in
-          // port, an unknown named port) is a developer bug, not runtime data:
-          // surface it loudly via done(err), never swallow it to the error port.
-          if (!(error instanceof NrgError) && this.config.errorPort) {
-            // A THROW is the terminal failure: the node's error port is the SOLE
-            // handler — emit the frame, log once, and complete WITHOUT reporting to
-            // Node-RED's Catch/done-error mechanism. Routing there too would report
-            // the error twice (done(err) internally calls node.error(err, msg)) AND
-            // stamp `msg.error` on the shared incoming message — a second,
-            // differently-shaped error under our `input` frame. (`this.error()` is
-            // log-only and never emits the port, so there is nothing to de-dupe.)
-            const errorData: Record<string, unknown> =
-              error && typeof error === "object"
-                ? { ...(error as Record<string, unknown>) }
-                : {};
-            // Drop undefined-valued own props (e.g. an unset optional field on
-            // a custom Error subclass) — they carry no information, JSON already
-            // omits them, and they only clutter the error object in the debug
-            // panel.
-            for (const k of Object.keys(errorData)) {
-              if (errorData[k] === undefined) delete errorData[k];
-            }
-            // A thrown error's own enumerable properties are spread INTO the
-            // `error` block first, so authors can throw a custom `Error`
-            // subclass carrying extra data (e.g. `this.code = …`). `name`,
-            // `message`, and `stack` are then layered on to preserve the full
-            // Error structure — they are NON-enumerable on an Error, so the
-            // spread above drops them; `name`/`message` stay authoritative and
-            // `stack` (when present) carries the trace. Same MERGE rule as
-            // every port: the frame is the PROCESSED RECORD plus `error`, so a
-            // handler keeps the full context that failed.
-            const stack = error instanceof Error ? error.stack : undefined;
-            // Bind to THIS invocation's store — this runs after the `await`, so
-            // the run() scope has exited and a nested node's synchronous delivery
-            // may have left another invocation's store ambient (see the complete
-            // auto-emit above and #deliver).
-            IONode.#invocation.run(store, () =>
-              this.#emitLifecycle("error", store.inputMsg, {
-                error: {
-                  ...errorData,
-                  name: (error as { name?: string })?.name ?? "Error",
-                  message: errorMsg,
-                  ...(stack ? { stack } : {}),
-                },
-              }),
-            );
-            this.node.error(errorMsg); // log only — no msg, so no Catch routing
-            done();
-          } else {
-            // The node does NOT handle the error (no error port), or it is a
-            // framework misuse — fall back to Node-RED's Catch mechanism.
-            // `done(err)` reports to Catch and logs exactly once (internally it
-            // calls node.error(err, msg)); calling node.error too would
-            // double-report.
-            done(err);
-          }
-        }
-      },
+      ) => this.#inputHandler(msg, send, done),
     );
+  }
+
+  /**
+   * The `input` event handler body — `#private` and self-wired in the constructor.
+   * Awaits {@link Node.createdPromise} so the first input runs only after `created()`
+   * settles; the framework needs no external handle to it.
+   */
+  async #inputHandler(
+    msg: unknown,
+    send: (msg: unknown) => void,
+    done: (err?: Error) => void,
+  ): Promise<void> {
+    try {
+      await this.createdPromise;
+    } catch (initError) {
+      // Surface the real cause from created() instead of a generic message.
+      done(
+        initError instanceof Error ? initError : new Error(String(initError)),
+      );
+      return;
+    }
+
+    // Own the invocation store here so the post-`await` auto-emits (complete
+    // on return, error on throw) can re-enter it — the ALS run() scope has
+    // exited by the time they run (see the complete/error emits below).
+    const store: InputInvocation = { inputMsg: msg, send };
+
+    try {
+      this.node.log("Calling input");
+      const result = await this.#input(msg as TInput, store);
+
+      // Send to complete port if enabled. Same MERGE rule as every data
+      // port: the frame is the processed record plus `input()`'s returned
+      // FIELDS (`{ ...record, ...result }`) — the return value IS the
+      // complete-port record contribution, so it must be a plain object (or
+      // void: arrival on the complete wire is itself the completion signal).
+      // A non-object return is an authoring bug — loud NrgError.
+      if (this.config.completePort) {
+        if (
+          result !== undefined &&
+          (result === null ||
+            typeof result !== "object" ||
+            Array.isArray(result))
+        ) {
+          throw new NrgError(
+            `input()'s return value is the complete-port record contribution and must be a plain OBJECT of named fields (or void); got ${
+              Array.isArray(result) ? "an array" : `a ${typeof result}`
+            }. Name the result — e.g. \`return { count }\`.`,
+          );
+        }
+        // Bind the auto-emit to THIS invocation's store. It runs after the
+        // `await` above, so the run() scope has already exited — and Node-RED
+        // may have delivered a nested node's message synchronously in the
+        // meantime, leaving a DIFFERENT invocation's store ambient. Re-entering
+        // this store makes #deliver route through this node's own send. (see
+        // #deliver / #emitLifecycle)
+        IONode.#invocation.run(store, () =>
+          this.#emitLifecycle(
+            "complete",
+            store.inputMsg,
+            (result as Record<string, unknown> | undefined) ?? {},
+          ),
+        );
+      }
+
+      done();
+      this.node.log("Input processed");
+    } catch (error) {
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : "Unknown error during input handling";
+      const err = error instanceof Error ? error : new Error(errorMsg);
+
+      // A framework NrgError (API misuse — e.g. send() to a built-in
+      // port, an unknown named port) is a developer bug, not runtime data:
+      // surface it loudly via done(err), never swallow it to the error port.
+      if (!(error instanceof NrgError) && this.config.errorPort) {
+        // A THROW is the terminal failure: the node's error port is the SOLE
+        // handler — emit the frame, log once, and complete WITHOUT reporting to
+        // Node-RED's Catch/done-error mechanism. Routing there too would report
+        // the error twice (done(err) internally calls node.error(err, msg)) AND
+        // stamp `msg.error` on the shared incoming message — a second,
+        // differently-shaped error under our `input` frame. (`this.error()` is
+        // log-only and never emits the port, so there is nothing to de-dupe.)
+        const errorData: Record<string, unknown> =
+          error && typeof error === "object"
+            ? { ...(error as Record<string, unknown>) }
+            : {};
+        // Drop undefined-valued own props (e.g. an unset optional field on
+        // a custom Error subclass) — they carry no information, JSON already
+        // omits them, and they only clutter the error object in the debug
+        // panel.
+        for (const k of Object.keys(errorData)) {
+          if (errorData[k] === undefined) delete errorData[k];
+        }
+        // A thrown error's own enumerable properties are spread INTO the
+        // `error` block first, so authors can throw a custom `Error`
+        // subclass carrying extra data (e.g. `this.code = …`). `name`,
+        // `message`, and `stack` are then layered on to preserve the full
+        // Error structure — they are NON-enumerable on an Error, so the
+        // spread above drops them; `name`/`message` stay authoritative and
+        // `stack` (when present) carries the trace. Same MERGE rule as
+        // every port: the frame is the PROCESSED RECORD plus `error`, so a
+        // handler keeps the full context that failed.
+        const stack = error instanceof Error ? error.stack : undefined;
+        // Bind to THIS invocation's store — this runs after the `await`, so
+        // the run() scope has exited and a nested node's synchronous delivery
+        // may have left another invocation's store ambient (see the complete
+        // auto-emit above and #deliver).
+        IONode.#invocation.run(store, () =>
+          this.#emitLifecycle("error", store.inputMsg, {
+            error: {
+              ...errorData,
+              name: (error as { name?: string })?.name ?? "Error",
+              message: errorMsg,
+              ...(stack ? { stack } : {}),
+            },
+          }),
+        );
+        this.node.error(errorMsg); // log only — no msg, so no Catch routing
+        done();
+      } else {
+        // The node does NOT handle the error (no error port), or it is a
+        // framework misuse — fall back to Node-RED's Catch mechanism.
+        // `done(err)` reports to Catch and logs exactly once (internally it
+        // calls node.error(err, msg)); calling node.error too would
+        // double-report.
+        done(err);
+      }
+    }
   }
 
   public input(msg: TInput): unknown {
@@ -365,146 +360,14 @@ abstract class IONode<
         this.node.log("Input is valid");
       }
     }
-    // Expose the off-the-wire channels on THIS node's incoming message, scoped to
-    // its package for `private`. Set up per node (re-applied at each hop), so a
-    // downstream node from another package reads its own `private` partition —
-    // `msg` (already `TInput`) is mutated in place to carry the channel accessors.
-    // The channels key off `_msgid`, which the rebase preserves, so a rebased
-    // message still resolves the same partitions.
-    this.#setupChannels(msg);
-    this.#setupMeta(msg);
     // Scope this invocation's input msg + send so a concurrent input() call
     // can't clobber the context this one carries. All per-invocation state
-    // lives in the store — there is no shared instance field to race on.
+    // lives in the store — there is no shared instance field to race on. The
+    // framework provenance rides the incoming message's `_meta` root key (an
+    // enumerable field a node reads directly if it declares `_meta` on its port).
     return await IONode.#invocation.run(store, () =>
       Promise.resolve(this.input(msg)),
     );
-  }
-
-  /**
-   * Add the `[Channels]` accessor to the incoming message. SYMBOL-keyed, so it can
-   * never collide with an author's own message fields and is already invisible to
-   * JSON / `Object.keys` / the debug panel (the `enumerable: false` keeps it out of
-   * a symbol-aware clone too). Reading `msg[Channels]` yields `{ protected, private }`
-   * — proxies over the channel store keyed by the message's `_msgid`, `private`
-   * partitioned by this node's package. A core function node gets the bare message
-   * and has no accessor — the channels are structurally invisible to the flow author.
-   *
-   * Mutates `msg` in place (the caller already holds it as `TInput`). A non-object
-   * message (never produced by real Node-RED, which always delivers an object) is
-   * left untouched.
-   */
-  #setupChannels(msg: unknown): void {
-    if (msg == null || typeof msg !== "object") return;
-    const store = this.RED.channelStore;
-    const pkg = packageChannel(this.constructor);
-    Object.defineProperty(msg, Channels, {
-      configurable: true,
-      enumerable: false,
-      get() {
-        const msgid = (this as { _msgid: string })._msgid;
-        return {
-          protected: channelProxy(store, msgid, NRG_PROTECTED_CHANNEL),
-          private: channelProxy(store, msgid, pkg),
-        };
-      },
-    });
-  }
-
-  /**
-   * Install the read-only `[Meta]` accessor on the incoming message — the typed
-   * window onto the framework metadata beside the data (`msg[Meta].source` = the
-   * producing node + port). Installed at DELIVERY, like `[Channels]`, over the
-   * clone-safe `_meta` root carrier: Node-RED's fan-out clone (messages 2..N)
-   * drops symbol properties, so the metadata itself rides an enumerable root key
-   * `#wrapOutgoing` stamps. `msg[Meta]` is the STABLE author surface; the carrier
-   * is framework-internal. `source` is `undefined` when the upstream producer
-   * wasn't an nrg node (a core node, an inject, a bare test message).
-   */
-  #setupMeta(msg: unknown): void {
-    if (msg == null || typeof msg !== "object") return;
-    Object.defineProperty(msg, Meta, {
-      configurable: true,
-      enumerable: false,
-      get() {
-        return {
-          source: (this as { _meta?: { source?: MessageSource } })._meta
-            ?.source,
-        };
-      },
-    });
-  }
-
-  /**
-   * Merge the `protected`/`private` args into this message's channels. Keyed by the
-   * outgoing `_msgid`: an input-triggered send inherits it; a source send (no
-   * invocation) mints one and stamps it on the outgoing frames so a downstream
-   * node reads the same channel. Contributions are STICKY — they persist for the
-   * message's journey, so a middle node's plain `send()` keeps them alive.
-   */
-  #writeChannels(
-    protectedData: object | undefined,
-    privateData: object | undefined,
-    out: unknown[],
-    resolvedMsgid: string | undefined,
-  ): void {
-    if (!protectedData && !privateData) return;
-    // Use the msgid already resolved for this emission (see #resolveOutgoingMsgid)
-    // so the channel key matches the outgoing frames' `_msgid`. It's `undefined`
-    // only for a send with no context on a non-source node (e.g. a timer in a
-    // middle node's created()) — mint one here and stamp the frames, exactly as
-    // before, in Node-RED's own lineage-id format.
-    let msgid = resolvedMsgid;
-    if (!msgid) {
-      msgid = this.RED.util.generateId();
-      for (const m of out) {
-        if (m && typeof m === "object") {
-          const rec = m as Record<string, unknown>;
-          if (rec[MSGID_KEY] === undefined) rec[MSGID_KEY] = msgid;
-        }
-      }
-    }
-    const store = this.RED.channelStore;
-    if (protectedData) store.merge(msgid, NRG_PROTECTED_CHANNEL, protectedData);
-    if (privateData) {
-      store.merge(msgid, packageChannel(this.constructor), privateData);
-    }
-  }
-
-  /**
-   * Resolve the `_msgid` for this emission and ensure it's stamped on every
-   * outgoing frame. Preference order: the id of the input being processed
-   * (a normal hop, already stamped by {@link #withMsgid}); an id already present on
-   * a frame; otherwise — for a SOURCE/trigger node only — a freshly minted id
-   * (in Node-RED's lineage-id format) stamped on the frames so we can key the
-   * channel and freeze the {@link TRANSACTION_ID_KEY}. Returns `undefined` for a
-   * contextless send on a non-source node, leaving Node-RED to mint one on
-   * delivery (unchanged behavior).
-   */
-  #resolveOutgoingMsgid(out: unknown[]): string | undefined {
-    const inherited = (
-      IONode.#invocation.getStore()?.inputMsg as
-        | Record<string, unknown>
-        | undefined
-    )?.[MSGID_KEY];
-    if (typeof inherited === "string") return inherited;
-    for (const m of out) {
-      if (m && typeof m === "object") {
-        const id = (m as Record<string, unknown>)[MSGID_KEY];
-        if (typeof id === "string") return id;
-      }
-    }
-    if ((this.constructor as typeof IONode).inputs === 0) {
-      const minted = this.RED.util.generateId();
-      for (const m of out) {
-        if (m && typeof m === "object") {
-          const rec = m as Record<string, unknown>;
-          if (rec[MSGID_KEY] === undefined) rec[MSGID_KEY] = minted;
-        }
-      }
-      return minted;
-    }
-    return undefined;
   }
 
   #deliver(out: unknown) {
@@ -589,11 +452,9 @@ abstract class IONode<
   /**
    * Builds the outgoing message RECORD by MERGING this send's named additions onto
    * the flow's shared, accumulating record — `{ ...incoming, ...additions }` — so
-   * everything upstream flows on untouched. The spread of the incoming message
-   * drops the non-enumerable `[Channels]`/`[Meta]` accessors (reinstalled at the
-   * next delivery) and this node's `_meta` replaces the previous producer's — THIS
-   * node is the source of the outgoing record. Stamps the `_meta` provenance
-   * carrier and preserves the incoming `_msgid` (see {@link #withMsgid}) so the
+   * everything upstream flows on untouched. This node's `_meta` replaces the previous
+   * producer's — THIS node is the source of the outgoing record. Stamps the `_meta`
+   * provenance carrier and preserves the incoming `_msgid` (see {@link #withMsgid}) so the
    * lineage id never forks mid-flow. `additions` must be a PLAIN OBJECT of named
    * fields (or nullish = forward the record unchanged) — a scalar or array is an
    * authoring bug, rejected loudly. A fresh object is built per call so multi-port
@@ -736,12 +597,6 @@ abstract class IONode<
    * `throw` for the error port (it carries the record and aborts), and the
    * complete port is sent automatically on successful input processing.
    * (`this.error()` is log-only — it does not emit the error port.)
-   *
-   * The optional `channels` argument writes off-the-wire data to the message's
-   * channel store (keyed by its `_msgid`): `protected` targets the package-shared
-   * partition, `private` this package's own. It is reachable downstream via
-   * `msg[Channels]` and never rides the serialized message. A single object (not
-   * positional args) so new channels stay additive.
    */
   public send<P extends OutputPortNames<TOutput> | "error" | number>(
     port: P,
@@ -762,14 +617,6 @@ abstract class IONode<
             // sound union of every port's value (record key order isn't recoverable)
             PortValue<TOutput[keyof TOutput]>
           : unknown,
-    // The channels arg is typed against the addressed port's declared ChannelShape
-    // (WriteChannels) — same lookup as `msg`, so `send` gives intellisense for the
-    // declared keys and enforces a required one, while arbitrary keys stay allowed.
-    channels?: P extends keyof TOutput
-      ? WriteChannels<TOutput[P]>
-      : P extends number
-        ? WriteChannels<TOutput[keyof TOutput]>
-        : { protected?: object; private?: object },
   ) {
     // The complete port is emitted by returning from input(); the status port by
     // this.status(). The error port, by contrast, IS send-able — throw is the
@@ -812,7 +659,6 @@ abstract class IONode<
       this.#sendToPort(
         "error",
         this.#wrapOutgoing({ ...payload, error: errBlock }, errorIdx),
-        channels,
       );
       return;
     }
@@ -859,14 +705,10 @@ abstract class IONode<
     // returned above) — it validates the ADDITIONS this send contributes. A
     // nullish value skips validation: `send(port)` forwards the record unchanged.
     if (msg != null) this.#validatePort(msg, idx);
-    this.#sendToPort(port, this.#wrapOutgoing(msg, idx), channels);
+    this.#sendToPort(port, this.#wrapOutgoing(msg, idx));
   }
 
-  #sendToPort(
-    port: number | string,
-    msg: unknown,
-    channels?: { protected?: object; private?: object },
-  ) {
+  #sendToPort(port: number | string, msg: unknown) {
     let portIndex: number | null;
     if (typeof port === "number") {
       portIndex = port;
@@ -886,27 +728,6 @@ abstract class IONode<
       msg !== null && typeof msg === "object"
         ? this.#withMsgid(msg as Record<string, unknown>)
         : msg;
-    // Resolve the outgoing `_msgid` once (stamping frames as needed) so the
-    // transaction freeze and any channel writes key off the same id.
-    const msgid = this.#resolveOutgoingMsgid(out);
-    // A SOURCE/trigger node (no input port) originates a transaction: freeze its
-    // msgid on the protected channel as a read-only `transactionId`, so every
-    // downstream node — which inherits this `_msgid` — can correlate back to this
-    // trigger firing and can neither overwrite nor delete it.
-    if (msgid && (this.constructor as typeof IONode).inputs === 0) {
-      this.RED.channelStore.freeze(
-        msgid,
-        NRG_PROTECTED_CHANNEL,
-        TRANSACTION_ID_KEY,
-        msgid,
-      );
-    }
-    // Off-the-wire channel contributions (send's protected/private args), keyed by
-    // this message's _msgid. Internal built-in port emissions (status/error/
-    // complete) pass none, so this is a no-op there.
-    if (channels?.protected || channels?.private) {
-      this.#writeChannels(channels.protected, channels.private, out, msgid);
-    }
     // Deliver through the invocation-scoped path (concurrency-safe); falls back to
     // node.send outside an input() call (e.g. the built-in port auto-emits).
     this.#deliver(out);
@@ -974,7 +795,7 @@ abstract class IONode<
     this.node.updateWires(wires);
   }
 
-  public receive(msg: OmitMessageChannels<TInput>) {
+  public receive(msg: TInput) {
     this.node.receive(msg);
   }
 

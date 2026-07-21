@@ -1,33 +1,20 @@
 import { vi } from "vitest";
 import { createRED, createNodeRedNode } from "./mocks";
 import { ensurePortTopology } from "../port-topology";
-import { initValidator, initChannelStore } from "@/sdk/lib/server/init";
-import { channelProxy, packageChannel } from "@/sdk/lib/server/channels-store";
-import { Channels, Meta } from "@/sdk/lib/server/nodes/types/ports";
-import type { NodeRedNode } from "@/sdk/lib/server/red";
+import { initValidator } from "@/sdk/lib/server/init";
+import type { NodeRedNode } from "@/sdk/lib/server/node-red";
 import type { NodeConstructor as NodeClass } from "@/sdk/lib/server/nodes";
 import type { MockRED } from "./mocks";
-import {
-  NRG_SETUP_CLOSE_HANDLER,
-  NRG_SETUP_INPUT_HANDLER,
-  NRG_PROTECTED_CHANNEL,
-} from "@/sdk/lib/server/symbols";
 import type { NodeContextStore } from "@/sdk/lib/server/nodes/types/node";
 import type {
   ErrorPortOutput as CoreErrorPortOutput,
   CompletePortOutput as CoreCompletePortOutput,
   StatusPortOutput as CoreStatusPortOutput,
   PortValue,
-  PortChannels,
-  ChannelShape,
   Port,
   IsPortRecord,
   IsAny,
-  WithMessageChannels,
-  MessageChannels,
-  MessageMeta,
-  WithMeta,
-  MessageSource,
+  MessageMetadata,
 } from "@/sdk/lib/server/nodes/types/ports";
 
 interface CreateNodeOptions {
@@ -38,23 +25,14 @@ interface CreateNodeOptions {
 }
 
 // The node's WIRE input type — read from the node's OWN `receive(msg)` parameter,
-// which the base IONode types as `OmitMessageChannels<TInput>` straight from the CLASS
-// generic (already channels-/`_msgid`-free). Reading `input()`'s parameter instead
+// which the base IONode types as `TInput` straight from the CLASS generic. Reading
+// `input()`'s parameter instead
 // collapses to `unknown` for the idiomatic no-argument `input()` style (a zero-arg
 // method still satisfies `{ input(msg: infer I) }` with `I = unknown`), which would
 // make `receive()` silently accept any value — the same lossiness that keeps
 // `TOutput` off the node class, so we recover the wire from `receive` (typed from
 // the in-scope generic) exactly as `sent()` recovers `TOutput` from the shim.
 type ExtractInput<T> = T extends { receive(msg: infer M): any } ? M : any;
-// The node's INPUT channel shape — recovered from the FULL `input(msg)` parameter
-// (which carries the off-the-wire channels, unlike `receive`, whose param has them
-// stripped). Types `receive()`'s channel-seeding argument. Untyped for a source
-// (`never` input) — `receive` is uncallable there anyway.
-type ExtractInputChannels<T> = T extends { input(msg: infer M): any }
-  ? M extends { readonly [Channels]: infer C }
-    ? C
-    : MessageChannels
-  : MessageChannels;
 // `sent()` is typed from the node's declared `TOutput` — but `TOutput` can't be
 // recovered from a passed node class (the constrained `send(port, value)`
 // signature keeps it only inside conditional types like `OutputPortNames<TOutput>`,
@@ -82,18 +60,13 @@ type PortMessage<T, P extends string> =
  * it carries no incoming message) adds nothing — without the guard `Partial<never>`
  * would poison the intersection to `never`, making the frame unreadable.
  *
- * `& WithMessageChannels`: the harness exposes the off-the-wire channels on each emitted
- * frame — `private` in the PRODUCER's own package partition, so it reads back what
- * a SAME-package downstream node would see (a different package reads its own,
- * empty partition). A producer test asserts `sent(0)[0][Channels].protected.x` /
- * `sent(0)[0][Channels].private.x` (the data the node emitted via
- * `send(port, value, { protected, private })`). The `[Channels]` accessor is non-enumerable, so
- * `toEqual({ … })` still matches. They ride data-port frames only, never the
- * built-in error/complete/status frames.
+ * `& WithMetaField`: the runtime stamps the `_meta` provenance carrier on every
+ * emitted data-port frame, so a producer test can read `sent(0)[0]._meta.source`. It
+ * rides data-port frames only, never the built-in error/complete/status frames.
  */
-type WrappedPort<V, TInput, TChan extends ChannelShape = object> = V &
-  WithMessageChannels<TChan> &
-  WithMeta &
+type WithMetaField = { _meta: MessageMetadata };
+type WrappedPort<V, TInput> = V &
+  WithMetaField &
   ([TInput] extends [never]
     ? unknown
     : unknown extends TInput
@@ -117,23 +90,15 @@ type PortTuple<TOutput, TInput> =
     : [TOutput] extends [never]
       ? never[]
       : TOutput extends readonly Port<any>[]
-        ? // dynamic ports: N slots, each carrying the element `Port`'s value + channels
-          WrappedPort<
-            PortValue<TOutput[number]>,
-            TInput,
-            PortChannels<TOutput[number]>
-          >[]
+        ? // dynamic ports: N slots, each carrying the element `Port`'s value
+          WrappedPort<PortValue<TOutput[number]>, TInput>[]
         : IsPortRecord<TOutput> extends true
-          ? // named ports: one slot per port; each carries that port's value +
-            // channels. A single-key record collapses to a precise one-value union
+          ? // named ports: one slot per port; each carries that port's value. A
+            // single-key record collapses to a precise one-value union
             // (`sent()[i][0].output`); a multi-key record is the sound union of
             // its ports' values — use `sent(name)` for a precise single port.
-            WrappedPort<
-              PortValue<TOutput[keyof TOutput]>,
-              TInput,
-              PortChannels<TOutput[keyof TOutput]>
-            >[]
-          : [WrappedPort<TOutput, TInput, PortChannels<TOutput>>];
+            WrappedPort<PortValue<TOutput[keyof TOutput]>, TInput>[]
+          : [WrappedPort<TOutput, TInput>];
 
 // Built-in port output shapes come from the runtime (single source of truth) — the
 // mock only layers on the test-delivery semantics: real emissions also spread
@@ -173,22 +138,14 @@ function builtinPortIndex(node: any, name: string): number | undefined {
   return config.statusPort ? index : -1;
 }
 
-interface TestNodeHelpers<TInput = any, TChannels = MessageChannels> {
+interface TestNodeHelpers<TInput = any> {
   /** Drive the node's input handler with a Node-RED message. For an object
    * input the declared shape is required while arbitrary extra message
    * properties (`topic`, `_msgid`, correlation ids, …) are allowed — a real
    * Node-RED message always carries more than the validated input schema. A
-   * non-object input type passes through unchanged.
-   *
-   * `channels` seeds the off-the-wire channels an UPSTREAM node would have attached
-   * — the SAME shape as the producer side, `send(port, value, { protected, private })`
-   * — so the node reads them via `msg[Channels].protected` / `msg[Channels].private`.
-   * `private` is seeded in the node's OWN package partition (what it sees). Seed only
-   * `private` with `receive(msg, { private: { … } })`. Requires an `_msgid` (channels
-   * key off it). */
+   * non-object input type passes through unchanged. */
   receive(
     msg: TInput extends object ? TInput & Record<string, unknown> : TInput,
-    channels?: Partial<TChannels>,
   ): Promise<void>;
   close(removed?: boolean): Promise<void>;
   reset(): void;
@@ -209,23 +166,8 @@ interface TestNodeContext {
   global: NodeContextStore;
 }
 
-/**
- * Bridges a node's off-the-wire channels to the test, scoped like the node itself:
- * shared `protected`, and `private` in the node's own package partition. `seed`
- * writes incoming channels (from `receive`'s `channels` arg); `expose` installs the
- * non-enumerable `[Channels]` accessor on an emitted frame so a test can read what
- * the node sent. Both key off the message's `_msgid`.
- */
-interface ChannelBridge {
-  seed(
-    msg: { _msgid?: string },
-    channels?: { protected?: object; private?: object },
-  ): void;
-  expose(frame: unknown): void;
-}
-
 interface CreateNodeResult<T> {
-  node: T & TestNodeHelpers<ExtractInput<T>, ExtractInputChannels<T>>;
+  node: T & TestNodeHelpers<ExtractInput<T>>;
   RED: MockRED;
   /** The error thrown by `created()`, if any — `undefined` when it succeeded.
    * `createNode` never rejects on a failing `created()` (production constructs
@@ -258,17 +200,14 @@ function attachHelpers<T>(
   node: T,
   nodeRedNode: any,
   NodeClass: NodeClass,
-  channelBridge: ChannelBridge,
-): T & TestNodeHelpers<ExtractInput<T>, ExtractInputChannels<T>> {
+): T & TestNodeHelpers<ExtractInput<T>> {
   const sentMessages: any[] = [];
   const statusCalls: any[] = [];
 
   nodeRedNode.send.mockImplementation((msg: any) => {
-    // Expose the off-the-wire channels on each emitted frame — as a SAME-package
-    // downstream node would read them (`private` uses the producer's own package
-    // partition) — so a producer test asserts what it sent via
-    // `sent(0)[0].protected.x` / `sent(0)[0].private.x`.
-    (Array.isArray(msg) ? msg : [msg]).forEach(channelBridge.expose);
+    // The runtime already stamped the `_meta` provenance carrier on each frame — a
+    // plain enumerable key — so a producer test reads `sent(0)[0]._meta.source`
+    // directly, no install needed.
     sentMessages.push(msg);
   });
 
@@ -284,15 +223,7 @@ function attachHelpers<T>(
   const helpers: Omit<TestNodeHelpers, "context"> & {
     sent(port?: number | string): any[];
   } = {
-    async receive(
-      msg: any,
-      channels?: { protected?: object; private?: object },
-    ): Promise<void> {
-      // Seed the incoming message's off-the-wire channels (as an upstream node's
-      // send(msg, { protected, private }) would have) so the node reads them via
-      // `msg[Channels].protected` / `msg[Channels].private`.
-      if (channels?.protected || channels?.private)
-        channelBridge.seed(msg, channels);
+    async receive(msg: any): Promise<void> {
       const sendFn = vi.fn((outMsg: any) => {
         nodeRedNode.send(outMsg);
       });
@@ -423,55 +354,6 @@ async function createNode<T extends NodeClass>(
   // Just the globals — a unit test serves no HTTP, and the route/asset code uses
   // `__dirname`, invalid in the harness's ESM bundle.
   initValidator(RED);
-  initChannelStore(RED);
-
-  // Bridge the node's off-the-wire channels to the test, scoped to the node's own
-  // package for `private` (what the node reads/writes) and the shared partition
-  // for `protected`.
-  const channelStore = RED.channelStore;
-  const channelPartition = packageChannel(NodeClass);
-  const channelBridge: ChannelBridge = {
-    seed(msg, channels) {
-      const msgid = msg._msgid;
-      if (msgid == null) {
-        // Channels key off `_msgid`; seeding without one would silently go nowhere.
-        throw new Error(
-          "receive(): channels were provided but the message has no `_msgid` — " +
-            "channels are keyed by `_msgid`, so nothing would be seeded. Give the " +
-            "message an `_msgid` (e.g. receive({ _msgid: 'sig-1', ... }, { private: { … } })).",
-        );
-      }
-      if (channels?.protected)
-        channelStore.merge(msgid, NRG_PROTECTED_CHANNEL, channels.protected);
-      if (channels?.private)
-        channelStore.merge(msgid, channelPartition, channels.private);
-    },
-    expose(frame) {
-      if (frame == null || typeof frame !== "object") return;
-      // A frame with no `_msgid` gets an inert channel view (channelProxy handles the
-      // missing id) rather than keying the store by `undefined`.
-      const msgid = (frame as { _msgid?: string })._msgid;
-      Object.defineProperty(frame, Channels, {
-        configurable: true,
-        enumerable: false,
-        get: () => ({
-          protected: channelProxy(channelStore, msgid, NRG_PROTECTED_CHANNEL),
-          private: channelProxy(channelStore, msgid, channelPartition),
-        }),
-      });
-      // The `[Meta]` twin: a typed view over the frame's clone-safe root carrier
-      // (the `source` key the runtime stamps) — same as the delivery-time
-      // install.
-      Object.defineProperty(frame, Meta, {
-        configurable: true,
-        enumerable: false,
-        get: () => {
-          const meta = (frame as { _meta?: { source?: MessageSource } })._meta;
-          return { source: meta?.source };
-        },
-      });
-    },
-  };
 
   for (const [id, value] of Object.entries(configNodes)) {
     RED.registerNrgNode(id, value);
@@ -511,24 +393,17 @@ async function createNode<T extends NodeClass>(
     node,
     nodeRedNode,
     NodeClass,
-    channelBridge,
   );
 
-  // Wire up event handlers (same path as production). `created()` is awaited so
-  // a test can assert post-created state — but, like production, a rejection does
-  // NOT abort construction: the node is still returned and the failure is
-  // surfaced as the result's `error` (production defers it to the first input,
-  // where the wire handler surfaces it through `done(err)`).
-  const createdPromise = Promise.resolve(node.created?.());
-  node[NRG_SETUP_CLOSE_HANDLER]();
-  if (
-    NRG_SETUP_INPUT_HANDLER in node &&
-    typeof node[NRG_SETUP_INPUT_HANDLER] === "function"
-  ) {
-    node[NRG_SETUP_INPUT_HANDLER](createdPromise);
-  }
+  // The node self-schedules `created()` (a microtask) and self-wires its OWN
+  // Node-RED `close`/`input` events in its constructor — the same path production
+  // takes, so the harness wires nothing. It only OBSERVES `created()`'s outcome via
+  // the node's own `createdPromise`: a rejection does NOT abort construction (the
+  // node is still returned); it's surfaced as the result's `error`, and any
+  // status/send calls made during `created()` are captured because the helpers were
+  // attached above.
   let error: unknown;
-  await createdPromise.catch((err) => {
+  await node.createdPromise.catch((err) => {
     error = err;
   });
 
@@ -559,6 +434,5 @@ export type {
   InputSpec,
   OutputSpec,
   PortValue,
-  PortChannels,
   Port,
 } from "@/sdk/lib/server/nodes/types/ports";

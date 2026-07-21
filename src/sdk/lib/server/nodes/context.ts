@@ -1,4 +1,4 @@
-import type { NodeRedContextStore } from "../red";
+import type { NodeRedContextStore } from "../node-red";
 import type { NodeContextStore } from "./types";
 
 /** Per-key promise chains for the in-process `update` fallback, keyed by the

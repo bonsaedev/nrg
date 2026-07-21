@@ -1,18 +1,4 @@
 /**
- * Symbols for the internal per-kind Node-RED handler setup. Not exported from the
- * public API. These are symbols (rather than `#` private methods) for the ONE thing
- * `#` can't do here: be invoked across module boundaries — the registrar's static
- * context and the test harness both call them. `Symbol.for()` keeps them the same
- * across the server + test bundle split.
- *
- * The base `Node` sets up the `close` handler (every node kind); `IONode` adds the
- * `input` handler. They're split into two symbols so each takes only what it needs:
- * `close` needs nothing, `input` needs the post-construction `createdPromise`.
- */
-export const NRG_SETUP_CLOSE_HANDLER = Symbol.for("nrg.setupCloseHandler");
-export const NRG_SETUP_INPUT_HANDLER = Symbol.for("nrg.setupInputHandler");
-
-/**
  * Runtime NRG-node brand: stamped on the base `Node` class (`static [NRG_NODE] =
  * true`) and checked by `defineModule` at runtime. `Symbol.for()` — NOT a `unique
  * symbol` — so the guard reads it across the toolkit/runtime/test bundle split via

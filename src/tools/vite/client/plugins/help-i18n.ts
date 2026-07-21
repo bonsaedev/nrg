@@ -22,7 +22,7 @@ interface HelpTranslations {
   };
   notes: {
     /** Explains how a node's output fields land on the message record (merged at
-     * the root; provenance on msg[Meta].source), which the type sections don't
+     * the root; provenance on msg._meta.source), which the type sections don't
      * otherwise reveal. */
     outputRecord: string;
   };
@@ -53,7 +53,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "Output fields are merged onto the message record — a downstream node reads them at the root (e.g. <code>msg.payload</code>). The producing node is recorded on <code>msg[Meta].source</code>.",
+        "Output fields are merged onto the message record — a downstream node reads them at the root (e.g. <code>msg.payload</code>). The producing node is recorded on <code>msg._meta.source</code>.",
     },
   },
   de: {
@@ -80,7 +80,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "Ausgabefelder werden in den Nachrichten-Datensatz eingemischt — nachgelagerte Nodes lesen sie an der Wurzel (z. B. <code>msg.payload</code>). Der erzeugende Node wird in <code>msg[Meta].source</code> festgehalten.",
+        "Ausgabefelder werden in den Nachrichten-Datensatz eingemischt — nachgelagerte Nodes lesen sie an der Wurzel (z. B. <code>msg.payload</code>). Der erzeugende Node wird in <code>msg._meta.source</code> festgehalten.",
     },
   },
   "es-ES": {
@@ -107,7 +107,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "Los campos de salida se fusionan en el registro del mensaje: los nodos posteriores los leen en la raíz (p. ej. <code>msg.payload</code>). El nodo que los produce queda registrado en <code>msg[Meta].source</code>.",
+        "Los campos de salida se fusionan en el registro del mensaje: los nodos posteriores los leen en la raíz (p. ej. <code>msg.payload</code>). El nodo que los produce queda registrado en <code>msg._meta.source</code>.",
     },
   },
   fr: {
@@ -134,7 +134,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "Les champs de sortie sont fusionnés dans l'enregistrement du message — les nœuds en aval les lisent à la racine (par ex. <code>msg.payload</code>). Le nœud émetteur est indiqué dans <code>msg[Meta].source</code>.",
+        "Les champs de sortie sont fusionnés dans l'enregistrement du message — les nœuds en aval les lisent à la racine (par ex. <code>msg.payload</code>). Le nœud émetteur est indiqué dans <code>msg._meta.source</code>.",
     },
   },
   ko: {
@@ -161,7 +161,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "출력 필드는 메시지 레코드에 병합됩니다 — 다운스트림 노드는 루트에서 읽습니다(예: <code>msg.payload</code>). 생성한 노드는 <code>msg[Meta].source</code>에 기록됩니다.",
+        "출력 필드는 메시지 레코드에 병합됩니다 — 다운스트림 노드는 루트에서 읽습니다(예: <code>msg.payload</code>). 생성한 노드는 <code>msg._meta.source</code>에 기록됩니다.",
     },
   },
   "pt-BR": {
@@ -188,7 +188,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "Os campos de saída são mesclados no registro da mensagem — os nós posteriores os leem na raiz (por ex. <code>msg.payload</code>). O nó de origem fica registrado em <code>msg[Meta].source</code>.",
+        "Os campos de saída são mesclados no registro da mensagem — os nós posteriores os leem na raiz (por ex. <code>msg.payload</code>). O nó de origem fica registrado em <code>msg._meta.source</code>.",
     },
   },
   ru: {
@@ -215,7 +215,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "Поля вывода объединяются в запись сообщения — последующие узлы читают их в корне (например, <code>msg.payload</code>). Узел-источник фиксируется в <code>msg[Meta].source</code>.",
+        "Поля вывода объединяются в запись сообщения — последующие узлы читают их в корне (например, <code>msg.payload</code>). Узел-источник фиксируется в <code>msg._meta.source</code>.",
     },
   },
   ja: {
@@ -242,7 +242,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "出力フィールドはメッセージレコードにマージされます。下流のノードはルートで読み取ります（例: <code>msg.payload</code>）。生成元ノードは <code>msg[Meta].source</code> に記録されます。",
+        "出力フィールドはメッセージレコードにマージされます。下流のノードはルートで読み取ります（例: <code>msg.payload</code>）。生成元ノードは <code>msg._meta.source</code> に記録されます。",
     },
   },
   "zh-CN": {
@@ -269,7 +269,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "输出字段会合并到消息记录中——下游节点在根级读取它们（例如 <code>msg.payload</code>）。产生该消息的节点记录在 <code>msg[Meta].source</code> 中。",
+        "输出字段会合并到消息记录中——下游节点在根级读取它们（例如 <code>msg.payload</code>）。产生该消息的节点记录在 <code>msg._meta.source</code> 中。",
     },
   },
   "zh-TW": {
@@ -296,7 +296,7 @@ const translations: Record<string, HelpTranslations> = {
     },
     notes: {
       outputRecord:
-        "輸出欄位會合併到訊息記錄中——下游節點於根層級讀取（例如 <code>msg.payload</code>）。產生訊息的節點記錄在 <code>msg[Meta].source</code>。",
+        "輸出欄位會合併到訊息記錄中——下游節點於根層級讀取（例如 <code>msg.payload</code>）。產生訊息的節點記錄在 <code>msg._meta.source</code>。",
     },
   },
 };

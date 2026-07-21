@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "url";
-import { IONode, Meta } from "@/sdk/lib/server";
+import { IONode } from "@/sdk/lib/server";
 import { createNode } from "@/sdk/test/server/unit";
 
 // The nodes under test are TYPES-ONLY (no inputSchema/outputsSchema); their port
@@ -70,11 +70,11 @@ describe("createNode", () => {
 
     expect(node.sent()).toHaveLength(1);
     // The frame IS the flow's accumulating record: the sent fields sit at the
-    // TOP level (no `output` envelope), and the provenance rides the typed
-    // `[Meta]` accessor — not a root `source` key.
+    // TOP level (no `output` envelope), and the provenance rides the `_meta`
+    // root key.
     const frame = node.sent("out")[0];
     expect(frame.payload).toBe("hello world");
-    expect(frame[Meta].source).toMatchObject({
+    expect(frame._meta.source).toMatchObject({
       type: "test-io",
       port: 0,
       portName: "out",

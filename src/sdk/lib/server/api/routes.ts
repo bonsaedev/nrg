@@ -1,4 +1,4 @@
-import type { RED } from "../red";
+import type { RED } from "../node-red";
 import { initAssetsRoutes } from "./assets";
 
 let _initialized = false;

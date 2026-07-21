@@ -1,5 +1,5 @@
 import type { Schema } from "../../shared/schemas";
-import { type RED, type NodeRedNode } from "../red";
+import { type RED, type NodeRedNode } from "../node-red";
 import type {
   ConfigNodeContext,
   INode,
@@ -9,11 +9,7 @@ import type {
   NodeCredentials,
 } from "./types";
 import { setupConfigProxy } from "./proxy";
-import {
-  NRG_SETUP_CLOSE_HANDLER,
-  NRG_SETUP_INPUT_HANDLER,
-  NRG_NODE,
-} from "../symbols";
+import { NRG_NODE } from "../symbols";
 import { NrgError } from "../../shared/errors";
 
 /**
@@ -35,8 +31,10 @@ abstract class Node<
 > implements INode<TConfig, TCredentials, TSettings> {
   /**
    * Runtime NRG-node brand — inherited by every subclass (IONode/ConfigNode and
-   * factory-built classes) and checked by `defineModule` at runtime. See
-   * symbols.ts for why it's a `Symbol.for()` runtime key, not a compile-time brand.
+   * factory-built classes) and checked by `defineModule` at runtime (via a cast, so
+   * the type isn't needed). See symbols.ts for why it's a `Symbol.for()` runtime key,
+   * not a compile-time brand. `@internal` strips it from the published `.d.ts`.
+   * @internal
    */
   static readonly [NRG_NODE] = true;
 
@@ -112,6 +110,16 @@ abstract class Node<
   protected context!: ConfigNodeContext | IONodeContext;
   public readonly config!: NodeConfig<TConfig>;
 
+  /**
+   * Settles when the author's `created()` hook completes (rejects if it throws).
+   * Framework-internal — `@internal` strips it from the published `.d.ts`, so a
+   * consumer never sees it, but IONode's `input` handler awaits it (so the first
+   * message runs only after setup) and the test harness observes it. Scheduled as a
+   * microtask in the constructor.
+   * @internal
+   */
+  public readonly createdPromise!: Promise<void>;
+
   readonly #timers = new Set<NodeJS.Timeout>();
   readonly #intervals = new Set<NodeJS.Timeout>();
 
@@ -168,31 +176,83 @@ abstract class Node<
         );
       }
     }
+
+    // WHY `created()` runs from HERE (the constructor), not the registrar. It used to
+    // live in `registration.ts` with this note:
+    //
+    //   "created promise must be here because we only want it to start after the whole
+    //    object creation chain has been completed: child -> IONode -> Node -> IONode
+    //    -> child -> done"
+    //
+    // i.e. `created()` must NOT run mid-construction (a subclass's post-`super()` field
+    // initializers wouldn't exist yet). Scheduling it as a MICROTASK preserves that:
+    // `Promise.resolve().then(…)` fires only after the current synchronous stack
+    // unwinds — which is after the ENTIRE `new Child()` chain, every field init
+    // included. Verified: created() runs at the SAME point the old registrar called it
+    // (right after `new` returns) and sees every field set. The subtle-but-inert
+    // difference is that a multi-node deploy now batches all `created()` calls after
+    // that tick's constructions instead of interleaving each start with construction —
+    // invisible, since `created()` is async and never awaited. Don't "hoist" this back
+    // into the constructor body as a plain call: that's exactly the too-early run the
+    // note guards against.
+    //
+    // The promise is held so IONode's `input` handler can gate the first message on it.
+    // It stays REJECTED on failure (an awaiting input sees the error via `done(err)`);
+    // the separate `.catch` below surfaces a red status + one log line, and also
+    // handles the rejection for an input-less node that never awaits it.
+    this.createdPromise = Promise.resolve()
+      .then(() => this.#created())
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.node.error("Error during created hook: " + message);
+        throw error;
+      });
+    this.createdPromise.catch(() => {
+      this.node.status({
+        fill: "red",
+        shape: "ring",
+        text: "created() failed",
+      });
+    });
+
+    // The node subscribes to its OWN Node-RED `close` event and delegates to a truly
+    // `#private` handler. Self-wiring keeps the handler private (no framework symbol
+    // is exposed for outside code to reach it) — the `node.on(...)` call is the node
+    // wiring itself, not machinery on the author's surface. IONode adds `input`.
+    this.node.on("close", (removed: boolean, done: (err?: Error) => void) =>
+      this.#closeHandler(removed, done),
+    );
   }
 
-  // Wires the `close` handler, common to every node kind. IONode adds the `input`
-  // handler separately (NRG_SETUP_INPUT_HANDLER), so this setup carries none of the
-  // input-only `createdPromise`.
-  [NRG_SETUP_CLOSE_HANDLER]() {
-    this.node.on(
-      "close",
-      async (removed: boolean, done: (err?: Error) => void) => {
-        try {
-          this.node.log("Calling closed");
-          await this.#closed(removed);
-          this.node.log("Node was closed");
-          done();
-        } catch (error) {
-          if (error instanceof Error) {
-            this.node.error("Error while closing node: " + error.message);
-            done(error);
-          } else {
-            this.node.error("Unknown error occurred while closing node");
-            done(new Error("Unknown error occurred while closing node"));
-          }
-        }
-      },
-    );
+  /** The `close` event handler body — runs the author's `closed()` hook and clears
+   * timers. `#private` and self-wired in the constructor; the framework needs no
+   * external handle to it. */
+  async #closeHandler(
+    removed: boolean,
+    done: (err?: Error) => void,
+  ): Promise<void> {
+    try {
+      this.node.log("Calling closed");
+      await this.#closed(removed);
+      this.node.log("Node was closed");
+      done();
+    } catch (error) {
+      if (error instanceof Error) {
+        this.node.error("Error while closing node: " + error.message);
+        done(error);
+      } else {
+        this.node.error("Unknown error occurred while closing node");
+        done(new Error("Unknown error occurred while closing node"));
+      }
+    }
+  }
+
+  /** The framework `created` lifecycle — runs the author's `created()` hook. The
+   * twin of {@link #closed}: a `#private` seam between the framework's lifecycle and
+   * the author hook. Scheduled as a microtask in the constructor; its promise is held
+   * as {@link createdPromise}. */
+  async #created(): Promise<void> {
+    await this.created?.();
   }
 
   async #closed(removed?: boolean) {

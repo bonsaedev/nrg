@@ -1182,36 +1182,13 @@ function defaultExportClass(
   return referencedName ? classByName(referencedName) : undefined;
 }
 
-/** True when a type is one of the framework's symbol-keyed accessor CARRIERS the
- * `Input<>` gate intersects onto every input — the off-the-wire channels
- * ({@link WithMessageChannels}) or the message metadata (`WithMeta`). Their members
- * are keyed by nrg SYMBOLS, which can't be matched by string name through the
- * checker, so a carrier is identified by its nrg-internal alias name — a reliable
- * discriminant a consumer type would not collide with as an `&`-member of an
- * `Input<Port<…>>`. */
-const CARRIER_NAMES = new Set(["WithMessageChannels", "WithMeta"]);
-function isChannelCarrier(_checker: ts.TypeChecker, type: ts.Type): boolean {
-  const name = (type.aliasSymbol ?? type.getSymbol())?.getName();
-  return name !== undefined && CARRIER_NAMES.has(name);
-}
-
 /**
- * The pure WIRE type of a node's input, rendered with the off-the-wire channels
- * stripped. `Input<Port<Wire>>` resolves to `Wire & WithMessageChannels`, but a
- * CONNECTION carries — and `receive()` takes — only `Wire`; the channels must never
- * leak into the wiring registry or docs (an upstream port's plain value can't
- * satisfy `& WithMessageChannels`, which would make every real wire un-connectable).
- *
- * Handles every shape the `& WithMessageChannels` distributes into:
- *  - a UNION `Input<Port<A | B>>` → `(A & channels) | (B & channels)`: strip each arm,
- *    rejoin with `|`;
- *  - an INTERSECTION `Input<Port<A & B>>` → drop the channel member(s), render the
- *    rest SEPARATELY and rejoin with `&` (never flattening the channels back in as
- *    `protected`/`private` properties);
- *  - a plain object → rendered as-is.
- * Returns `undefined` when nothing but channels remains — an untyped
- * `Input<Port<unknown>>` resolves to just `WithMessageChannels` — so the caller renders
- * one untyped port.
+ * The WIRE type of a node's input, rendered for the wiring registry and docs.
+ * `Input<Port<Wire>>` resolves to `Wire` (a pure unwrap), so this simply renders the
+ * type — splitting a UNION `Input<Port<A | B>>` into `A | B` and an INTERSECTION
+ * `Input<Port<A & B>>` into its members rendered SEPARATELY and rejoined with `&`, so
+ * multi-part wires read cleanly. A node that reads the framework provenance declares
+ * `_meta` on its port; that is a normal field and renders as-is.
  */
 function renderWireInput(
   checker: ts.TypeChecker,
@@ -1242,12 +1219,9 @@ function renderWireInput(
     return arms.length === 1 ? arms[0] : join(arms, " | ");
   }
   if (type.isIntersection()) {
-    const kept = type.types.filter((t) => !isChannelCarrier(checker, t));
-    if (kept.length === 0) return undefined; // only channels → untyped wire
-    const parts = kept.map(roleOf);
+    const parts = type.types.map(roleOf);
     return parts.length === 1 ? parts[0] : join(parts, " & ");
   }
-  if (isChannelCarrier(checker, type)) return undefined;
   return roleOf(type);
 }
 
@@ -1281,11 +1255,10 @@ function assignRoleTypes(
       // `any`/`unknown` DO make an (untyped) input — renderRole returns undefined
       // for them, so fall back to a bare rendered role so `info.input` is set.
       if (isAbsentPort(checker, argType)) return;
-      // Show the WIRE type (what a connection carries / `receive()` takes), NOT the
-      // off-the-wire channels the `Input<>` gate intersects on — else the wiring
-      // registry input would be `Wire & MessageChannels` and no upstream port could
-      // connect to it. Handles union / intersection / plain wires; `undefined`
-      // means the wire is untyped (only channels remained) → one untyped port.
+      // Show the WIRE type (what a connection carries / `receive()` takes).
+      // `Input<Port<Wire>>` resolves to `Wire`, so this renders the declared wire —
+      // handling union / intersection / plain shapes. A node that reads provenance
+      // declares `_meta` on the port; it renders as a normal field.
       info.input = renderWireInput(checker, argType, at, imports, ctx) ?? {
         text: "unknown",
         fields: [],

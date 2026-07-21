@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 // a relative import would make esbuild bundle a second, non-identical copy.
 import { registerTypes } from "@bonsae/nrg/server";
 import type { NodeConstructor } from "@/sdk/lib/server/nodes";
-import type { NodeRedContextStore } from "@/sdk/lib/server/red";
+import type { NodeRedContextStore } from "@/sdk/lib/server/node-red";
 import { Recorder } from "./recorder";
 import { Flow } from "./flow";
 import { ensurePortTopologyAll } from "../port-topology";

@@ -1,5 +1,5 @@
 import type { Schema } from "../../../shared/schemas";
-import type { RED, NodeRedNode } from "../../red";
+import type { RED, NodeRedNode } from "../../node-red";
 
 type NodeContextScope = "node" | "flow" | "global";
 

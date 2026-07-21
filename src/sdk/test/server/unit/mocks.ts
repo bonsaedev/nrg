@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { RED, NodeRedNode } from "@/sdk/lib/server/red";
+import type { RED, NodeRedNode } from "@/sdk/lib/server/node-red";
 import type { INode } from "@/sdk/lib/server/nodes";
 
 interface MockRED extends RED {
@@ -163,9 +163,8 @@ function createRED(options: { settings?: Record<string, any> } = {}): MockRED {
       encodeObject: vi.fn(),
     },
     version: vi.fn(() => "0.0.0-test"),
-    // Both are populated by globals `init()` via non-enumerable getters.
+    // Populated by globals `init()` via a non-enumerable getter.
     validator: undefined as any,
-    channelStore: undefined as any,
     registerNode(id: string, nodeRedNode: Partial<NodeRedNode>) {
       nodes[id] = nodeRedNode;
     },

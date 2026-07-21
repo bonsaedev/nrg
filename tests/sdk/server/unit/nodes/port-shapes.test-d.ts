@@ -13,7 +13,7 @@ import type { IONode, Input, Outputs } from "@/sdk/lib/server";
 // `tsc -p tests/tsconfig.json`, never executed. Every lifecycle frame follows
 // the MERGE rule: the processed record's fields (typed optional) plus the
 // port's additions (`error` block / the returned fields / `status`). Provenance
-// rides `msg[Meta]` at runtime — never a typed root key.
+// rides the `_meta` root key at runtime — never a typed key on these output shapes.
 
 type In = { payload: string };
 
@@ -77,7 +77,7 @@ function errorProof(m: ErrorPortOutput<In, { code: string }>) {
   // @ts-expect-error — `_msgid` rides the message at runtime but is deliberately
   // NOT typed (framework-internal lineage/channel key, hidden from authors)
   m._msgid;
-  // @ts-expect-error — provenance rides msg[Meta] at runtime, never a typed root key
+  // @ts-expect-error — provenance rides the `_meta` root key, never a typed `source`
   m.source;
   return { name, message, stack, code, payload };
 }
@@ -99,16 +99,16 @@ function completeVoidProof(m: CompletePortOutput<In, void>) {
   return { payload };
 }
 
-// --- STATUS port: the `status` block (provenance rides msg[Meta] at runtime) --
+// --- STATUS port: the `status` block (provenance rides the `_meta` key) --------
 function statusRootProof(m: StatusPortOutput) {
   // @ts-expect-error — `_msgid` is deliberately not typed (hidden from authors)
   m._msgid;
-  // @ts-expect-error — provenance rides msg[Meta], never a typed root key
+  // @ts-expect-error — provenance rides the `_meta` root key, never a typed `source`
   m.source;
   return { status: m.status };
 }
 
-// --- MessageSource (`msg[Meta].source`): node identity + port -----------------
+// --- MessageSource (`msg._meta.source`): node identity + port ------------------
 function messageSourceProof(s: MessageSource) {
   const id: string = s.id;
   const type: string = s.type;

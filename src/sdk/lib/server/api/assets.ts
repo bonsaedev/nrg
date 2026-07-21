@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { createRequire } from "node:module";
-import type { NodeRedExpressApp, NodeRedRequestHandler } from "../red";
+import type { NodeRedExpressApp, NodeRedRequestHandler } from "../node-red";
 
 // The content-hashed editor client filename (e.g. "nrg.a1b2c3d4.js"), inlined at
 // build time by esbuild (build/index.ts injects __NRG_CLIENT_ASSET__ into the

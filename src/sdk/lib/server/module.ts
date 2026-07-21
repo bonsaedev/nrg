@@ -1,5 +1,5 @@
 import type { NodeConstructor } from "./nodes";
-import { NRG_NODE, NRG_MODULE_PRIVATE_CHANNEL } from "./symbols";
+import { NRG_NODE } from "./symbols";
 import { NrgError } from "../shared/errors";
 
 /** Defines the set of nodes exported by a Node-RED package. */
@@ -21,12 +21,8 @@ interface ModuleDefinition {
  * ```
  */
 function defineModule(definition: ModuleDefinition): ModuleDefinition {
-  // One identity per module (= one npm package): the partition key for every
-  // node's `private` channel, so a package's private data is invisible to nodes from
-  // other packages. Stamped on each node class; instances read it via their
-  // constructor. A fresh in-process symbol is enough — the channel store is
-  // per-runtime and in-memory, so it need not survive restarts.
-  const packagePrivateChannel = Symbol("nrg.package.private");
+  // Only nrg node classes are accepted — enforced by the private `NRG_NODE` symbol
+  // every nrg node class carries.
   for (const NodeClass of definition.nodes) {
     if (!(NodeClass as unknown as Record<symbol, unknown>)[NRG_NODE]) {
       const name = (NodeClass as { name?: string })?.name || String(NodeClass);
@@ -34,9 +30,6 @@ function defineModule(definition: ModuleDefinition): ModuleDefinition {
         `defineModule: "${name}" is not an nrg node class — extend IONode/ConfigNode.`,
       );
     }
-    (NodeClass as unknown as Record<symbol, unknown>)[
-      NRG_MODULE_PRIVATE_CHANNEL
-    ] = packagePrivateChannel;
   }
   return definition;
 }

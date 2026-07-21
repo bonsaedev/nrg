@@ -1,6 +1,6 @@
 import type { ResolvedStatic } from "../schemas/types";
 import type { Schema } from "../../shared/schemas";
-import type { RED, NodeRedNode } from "../red";
+import type { RED, NodeRedNode } from "../node-red";
 import { NrgError } from "../../shared/errors";
 import { NRG_NODE, NRG_CONFIG_NODE } from "../symbols";
 import TypedInput from "../typed-input";

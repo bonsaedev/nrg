@@ -1,4 +1,4 @@
-import type { RED, NodeRedNode } from "../red";
+import type { RED, NodeRedNode } from "../node-red";
 import { Node } from "./node";
 import { NRG_CONFIG_NODE } from "../symbols";
 import type {
@@ -37,9 +37,13 @@ abstract class ConfigNode<TConfig = any, TCredentials = any, TSettings = any>
   // T to be a config node. See ConfigNodeBrand in shared/schemas/types.
   declare public readonly __nrg_config_node: true;
 
-  // Runtime counterpart: a real property so runtime code (the config proxy's
-  // NodeRef resolution) can verify a referenced node is a config node — the only
-  // guard a JS author gets. See NRG_CONFIG_NODE in ./symbols.
+  /**
+   * Runtime counterpart: a real property so runtime code (the config proxy's NodeRef
+   * resolution) can verify a referenced node is a config node — the only guard a JS
+   * author gets. See NRG_CONFIG_NODE in ./symbols. `@internal` strips it from the
+   * published `.d.ts` (the runtime brand stays).
+   * @internal
+   */
   public readonly [NRG_CONFIG_NODE] = true;
 
   declare protected readonly context: ConfigNodeContext;

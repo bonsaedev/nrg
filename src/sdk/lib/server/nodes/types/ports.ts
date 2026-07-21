@@ -22,28 +22,12 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
  *   async input(msg: Input<Port<In>>) { this.send("rows", parse(msg.payload)); } // "rows" | "failed" checked
  * }
  */
-interface Port<TMessage, TChannels extends ChannelShape = object> {
+interface Port<TMessage> {
   readonly __nrg_port: TMessage;
-  /**
-   * Phantom brand for the port's off-the-wire {@link ChannelShape} — what a node
-   * WRITES on `send` (output ports) and READS via `msg[Channels]` (input ports).
-   * Declared ONCE on the port and enforced on both ends. Optional and defaulting to
-   * `object` (untyped), so a plain `Port<T>` stays valid and behaves exactly as before.
-   */
-  readonly __nrg_channels?: TChannels;
 }
 
 /** Unwrap a {@link Port} to its message type; pass a non-Port through unchanged. */
-type PortValue<P> = P extends Port<infer U, ChannelShape> ? U : P;
-
-/** Unwrap a {@link Port}'s off-the-wire {@link ChannelShape}; `object` (untyped) for a
- *  `Port<T>` that declares none. */
-type PortChannels<P> = P extends Port<unknown, infer C> ? C : object;
-
-/** The `send(port, value, channels)` channel argument derived from a port: both
- *  partitions optional, declared keys typed (so `send` gives intellisense and enforces
- *  a required key), arbitrary keys still allowed via the open bag. */
-type WriteChannels<TPort> = Partial<MessageChannels<PortChannels<TPort>>>;
+type PortValue<P> = P extends Port<infer U> ? U : P;
 
 /** True when every value of a record is a {@link Port} (→ named ports). */
 type IsPortRecord<TOutput> = [keyof TOutput] extends [never]
@@ -108,173 +92,51 @@ type OutputSpec = Record<string, Port<any>> | readonly Port<any>[];
 type Outputs<TPorts extends OutputSpec> = TPorts;
 
 /**
- * The single channel-accessor symbol. Import it to read or write a message's
- * off-the-wire channels — `msg[Channels].private` / `msg[Channels].protected`. A
- * SYMBOL key (not a string property), so it can NEVER collide with an author's own
- * message fields and is invisible to `JSON`, `Object.keys`, and the debug panel for
- * free. `Symbol.for` (the global registry) makes the key a consumer imports
- * identical to the one nrg installs the accessor under, across the toolkit/runtime
- * bundle split. Grouping the channels under ONE symbol keeps the message surface
- * tidy and leaves room to add further channels without new top-level keys.
- */
-const Channels: unique symbol = Symbol.for("nrg.channels");
-
-/**
- * The message-METADATA accessor symbol. Import it to read the framework metadata
- * riding beside a message's data — `msg[Meta].source` is the producing node + port
- * of THIS message, stamped by the framework on every `send` (a node author never
- * writes it). A SYMBOL key for the same reasons as {@link Channels}: it can never
- * collide with an author's data fields and stays off `JSON`/`Object.keys`.
- *
- * The accessor is INSTALLED AT DELIVERY over a clone-safe root carrier (today the
- * `source` root key the framework already stamps — a root key survives Node-RED's
- * fan-out clone, which drops symbol properties). `msg[Meta]` is the STABLE author
- * surface: the carrier can move without touching node code.
- */
-const Meta: unique symbol = Symbol.for("nrg.meta");
-
-/** A single off-the-wire channel: an open bag of string-keyed values, read (and
- * `delete`-d) through the `msg[Channels]` accessor and written on `send`. */
-type MessageChannel = Record<string, unknown>;
-
-/**
- * An optional TYPED shape for a message's channel partitions, passed as the second
- * argument to {@link Input} (e.g. `Input<Port<Wire>, { private: { conn?: Conn } }>`).
- * A declared partition is intersected with the open {@link MessageChannel} bag, so
- * the named keys are typed while arbitrary string keys stay reachable as `unknown`
- * and existing untyped code is unaffected. The shape is a hand-shared contract
- * between the node that WRITES it on `send` and the node that READS it: the channel
- * is off-the-wire (keyed by `_msgid`, never on a connection), so the type cannot
- * flow through a wire and must be declared on both ends. Omit it to keep the default
- * fully-untyped `Record<string, unknown>` on both partitions.
- */
-type ChannelShape = { protected?: object; private?: object };
-
-/**
- * What `msg[Channels]` returns — the off-the-wire channels present on every message
- * a node's `input()` receives, added by the runtime and NEVER part of the serialized
- * message, so a flow author's function node and the debug panel can't see them. Each
- * channel lives in nrg's per-runtime store keyed by `_msgid`, reached through the
- * {@link Channels} symbol.
- *  - `protected`: readable/writable by a node from ANY package.
- *  - `private`: scoped to the receiving node's OWN package; invisible to others.
- *
- * Read them from an ANNOTATED `input()` parameter — annotate with the node's own
- * `Input<Port<…>>` alias. (TypeScript does NOT infer an overridden method's
- * parameter type from the base class, so an un-annotated `input(msg)` is `any` and
- * loses all typing — always annotate.)
- *
- * @example
- * import { Channels } from "@bonsae/nrg/server";
- * type NInput = Input<Port<{ payload: string }>>;
- * class N extends IONode<Config, never, NInput, Out> {
- *   async input(msg: NInput) {
- *     const conn = msg[Channels].private.conn;   // package-scoped; `unknown` until narrowed
- *     this.send("out", { trace }, { private: { conn } });  // write the channels
- *     delete msg[Channels].private.conn;         // release (bookkeeping only)
- *   }
- * }
- */
-interface MessageChannels<TShape extends ChannelShape = object> {
-  protected: MessageChannel &
-    ("protected" extends keyof TShape ? TShape["protected"] : unknown);
-  private: MessageChannel &
-    ("private" extends keyof TShape ? TShape["private"] : unknown);
-}
-
-/**
- * Carries the symbol-keyed channel accessor. {@link Input} intersects this onto a
- * node's input wire type so `msg[Channels]` resolves to {@link MessageChannels}; the
- * wiring `.d.ts` generator strips it back off, so a connection carries only the plain
- * wire type. Hand-annotate with `Wire & WithMessageChannels` only when you are not
- * using the `Input<Port<Wire>>` gate (which adds it for you).
- */
-interface WithMessageChannels<TShape extends ChannelShape = object> {
-  readonly [Channels]: MessageChannels<TShape>;
-}
-
-/**
- * Framework-internal message metadata. `_msgid` is Node-RED's message-lineage id
- * and nrg's off-the-wire channel key. It is DELIBERATELY NOT part of
- * {@link Input} — a node author never sees `msg._msgid` in autocomplete and
- * can't read or overwrite it through the typed parameter, because doing so would
- * fork the message from its channels and break correlation. The framework reads it
- * internally (via a cast) to key the channel store, and the test harness's
- * `ExtractInput` strips it so `receive()` takes the bare wire message.
- * (It still exists at runtime — Node-RED always delivers it — so a determined
- * author can reach it with an explicit `(msg as { _msgid: string })`, an opt-in
- * that keeps it out of the everyday surface.)
+ * Framework-internal message metadata. `_msgid` is Node-RED's message-lineage id.
+ * It is DELIBERATELY NOT part of {@link Input} — a node author never sees
+ * `msg._msgid` in autocomplete and can't read or overwrite it through the typed
+ * parameter. The test harness's `ExtractInput` strips it so `receive()` takes the
+ * bare wire message. (It still exists at runtime — Node-RED always delivers it — so
+ * a determined author can reach it with an explicit `(msg as { _msgid: string })`.)
  */
 interface MessageMeta {
   _msgid: string;
 }
 
 /**
- * What `msg[Meta]` returns — the framework metadata beside the data. `source` is
- * the producing node + port of this message; `undefined` when the upstream
- * producer wasn't an nrg node (a core node, an inject, a test message).
- * Read-only: the framework stamps it on `send`; an author never writes it.
+ * The framework provenance the runtime stamps on the `_meta` root key of every
+ * message an nrg node dispatches: `source` is the producing node + port of THIS
+ * message. It rides an ENUMERABLE root key (`_meta`), so it survives Node-RED's
+ * fan-out clone — a downstream node reads `msg._meta.source` directly, no accessor.
+ * The framework writes it on every `send`; an author never writes it. To READ it, a
+ * node DECLARES `_meta` on its input `Port` (`Input<Port<{ …; _meta: MessageMetadata }>>`)
+ * — the wire check treats it like any field, so it type-checks green from an nrg
+ * upstream and red from a plain core node (which stamps no `_meta`).
  */
 interface MessageMetadata {
   readonly source?: MessageSource;
 }
 
 /**
- * The metadata-accessor carrier intersected into every {@link Input} — the `[Meta]`
- * twin of {@link WithMessageChannels}. Structural and additive: it adds only the
- * symbol-keyed accessor, so wire shapes, port topology, and the `InputSpec` bound
- * are unaffected.
+ * `Input<Port<TWire>>` — the input gate. A node's single input is a PORT carrying the
+ * on-the-wire type `TWire`; `Input<>` unwraps the {@link Port} into `TWire`. Authors
+ * declare it as `type SoqlInput = Input<Port<{ … }>>` and pass it as the node's
+ * `TInput` generic; the annotated `input(msg: SoqlInput)` parameter is then exactly
+ * `TWire`, so a node reads `msg.<wireField>` — all typed. To read the framework
+ * provenance, add `_meta: MessageMetadata` to the wire type and read `msg._meta.source`.
+ * `_msgid` ({@link MessageMeta}) stays framework-internal. ALWAYS annotate `input()`
+ * with this alias: TypeScript does not infer an overridden method's parameter from the
+ * base, so an un-annotated `input(msg)` is `any`.
  */
-interface WithMeta {
-  readonly [Meta]: MessageMetadata;
-}
+type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort>;
 
 /**
- * `Input<Port<TWire, TChannels>>` — the input gate. A node's single input is a PORT
- * carrying the on-the-wire type `TWire` and (optionally) a typed off-the-wire
- * {@link ChannelShape}; `Input<>` unwraps the {@link Port} into `TWire` plus the
- * off-the-wire channels ({@link MessageChannels}) typed by the port's `TChannels`.
- * Authors declare it as `type SoqlInput = Input<Port<{ … }>>` (or
- * `Input<Port<{ … }, { private: { conn?: Conn } }>>` to type the channels) and pass it
- * as the node's `TInput` generic; the annotated `input(msg: SoqlInput)` parameter is
- * then exactly `TWire` plus the channels, so a node reads `msg.<wireField>` and
- * `msg[Channels].private` / `msg[Channels].protected` — all typed. The channel shape
- * lives on the {@link Port} (NOT on `Input`), so it is symmetric with the output side
- * (`Outputs<{ p: Port<T, C> }>`), where the same `C` types what `send` may write. The
- * `TInput` generic is constrained `TInput extends InputSpec` (carries the channels),
- * so a bare (unwrapped) wire is rejected — the `Port<>` wrap is enforced; `never` (a
- * source node with no input) still satisfies it. `_msgid` ({@link MessageMeta}) stays
- * excluded. ALWAYS annotate `input()` with this alias: TypeScript does not infer an
- * overridden method's parameter from the base, so an un-annotated `input(msg)` is `any`.
+ * The constraint on a node's `TInput` generic. Any input shape (a wrapped {@link Input}
+ * or `never` for a source node) satisfies it — the {@link Port} wrap is the authoring
+ * convention rather than a type-enforced bound now that `Input<>` is a pure unwrap.
+ * Symmetric to {@link OutputSpec} on the output side.
  */
-type Input<TPort extends Port<unknown> = Port<unknown>> = PortValue<TPort> &
-  WithMessageChannels<PortChannels<TPort>> &
-  WithMeta;
-
-/**
- * The constraint on a node's `TInput` generic — "carries the {@link MessageChannels}
- * accessor". Kept STRUCTURAL (an inline carrier, not `WithMessageChannels<…>`) so a
- * node that declares a typed channel shape via {@link Input}'s second parameter still
- * satisfies it: a declared shape only NARROWS a partition, and structural assignability
- * accepts a narrower partition — whereas comparing the generic by type-argument is
- * invariant and would reject it. The old `Input<Port<unknown>>` reduced to
- * `WithMessageChannels<object>` (the wire is `unknown`), which is exactly this shape,
- * so the bound is unchanged for untyped inputs. `never` (a source node with no input)
- * satisfies it. Symmetric to {@link OutputSpec} on the output side.
- */
-type InputSpec = {
-  readonly [Channels]: { protected: MessageChannel; private: MessageChannel };
-};
-
-/**
- * Recover the pure WIRE type from a wrapped {@link Input} by stripping the channels —
- * used wherever the framework needs the on-the-wire shape (the `receive` message,
- * the `msg.input` provenance frame, port topology). `never` (a source) stays
- * `never` so its `receive` is uncallable.
- */
-type OmitMessageChannels<TInput> = [TInput] extends [never]
-  ? never
-  : Omit<TInput, keyof WithMessageChannels | keyof WithMeta>;
+type InputSpec = unknown;
 
 // --- Built-in port message types ---
 // Server-owned PLAIN types that model exactly what the IONode base class emits
@@ -297,12 +159,11 @@ interface NodeSource {
 
 /**
  * Provenance of a message: the producing node ({@link NodeSource}) plus the port
- * it was sent on. Read via `msg[Meta].source` (the `_meta` root key is the
- * clone-safe carrier — framework-internal, never on a typed surface). Every
- * frame carries a port index — a built-in lifecycle port occupies a real slot
- * in the node's TOTAL output layout (base ports first, then the enabled
- * error/complete/status in that order), and stamps that slot index with the
- * built-in name as `portName`.
+ * it was sent on. Read via `msg._meta.source` (the `_meta` root key is the
+ * clone-safe carrier the framework stamps). Every frame carries a port index — a
+ * built-in lifecycle port occupies a real slot in the node's TOTAL output layout
+ * (base ports first, then the enabled error/complete/status in that order), and
+ * stamps that slot index with the built-in name as `portName`.
  */
 interface MessageSource extends NodeSource {
   /** Output port index the message was sent on, within the node's total output
@@ -343,7 +204,7 @@ type CarriedRecord<TInput> = [TInput] extends [never]
  * enumerable own properties of a thrown `Error` subclass). The error port is
  * emitted by `throw` only (the terminal failure that carries the record);
  * `this.error()` is log-only. A downstream handler reads `msg.error` AND the
- * record that failed, side by side. Provenance rides `msg[Meta].source`;
+ * record that failed, side by side. Provenance rides the `_meta.source` root key;
  * Node-RED's `_msgid` rides the root at runtime but is deliberately NOT typed
  * (framework-internal, hidden from authors — see {@link MessageMeta}).
  */
@@ -359,7 +220,7 @@ type ErrorPortOutput<
  * port: the frame is the PROCESSED RECORD plus `input()`'s returned FIELDS
  * (`TReturn`, a plain object — the return value IS the complete-port record
  * contribution). A `void` return contributes nothing — arrival on the complete
- * wire is itself the signal. Provenance rides `msg[Meta].source`; Node-RED's
+ * wire is itself the signal. Provenance rides the `_meta.source` root key; Node-RED's
  * `_msgid` is at the root at runtime but deliberately NOT typed here
  * (framework-internal, hidden from authors — see {@link MessageMeta}).
  */
@@ -369,7 +230,7 @@ type CompletePortOutput<
 > = CarriedRecord<TInput> & ([TReturn] extends [void] ? unknown : TReturn);
 
 /** Message emitted on the built-in STATUS port — the processed record (when a
- * record was in scope) plus `status`. Provenance rides `msg[Meta].source`;
+ * record was in scope) plus `status`. Provenance rides the `_meta.source` root key;
  * `_msgid` is at the root at runtime but deliberately not typed here
  * (framework-internal, hidden from authors — see {@link MessageMeta}). */
 interface StatusPortOutput {
@@ -385,23 +246,15 @@ interface StatusPortOutput {
 export type {
   Port,
   PortValue,
-  PortChannels,
-  WriteChannels,
   IsAny,
   IsPortRecord,
   OutputPortNames,
   Outputs,
   OutputSpec,
-  MessageChannel,
-  ChannelShape,
-  MessageChannels,
-  WithMessageChannels,
   MessageMeta,
   MessageMetadata,
-  WithMeta,
   Input,
   InputSpec,
-  OmitMessageChannels,
   NodeSource,
   MessageSource,
   ErrorInfo,
@@ -409,5 +262,3 @@ export type {
   CompletePortOutput,
   StatusPortOutput,
 };
-
-export { Channels, Meta };

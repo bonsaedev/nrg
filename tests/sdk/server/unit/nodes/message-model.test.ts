@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { fileURLToPath } from "node:url";
 import { createNode } from "@/sdk/test/server/unit";
-import { IONode, Meta, type Input, type Port } from "@/sdk/lib/server";
+import { IONode, type Input, type Port } from "@/sdk/lib/server";
 import ConstNode from "../fixtures/message-model/const-node";
 import Echo from "../fixtures/message-model/echo";
 import Completer from "../fixtures/message-model/completer";
@@ -12,9 +12,8 @@ import Thrower from "../fixtures/message-model/thrower";
 // The message is the flow's shared record: `send(port, additions)` MERGES an
 // object of named fields onto the incoming record, so a field produced by an
 // early node is readable by a late node — nothing is silently lost across hops.
-// Framework metadata stays off the data surface: provenance rides the `_meta`
-// root carrier (read through the `msg[Meta]` symbol accessor), the lineage id
-// rides `_msgid`, and the off-the-wire channels live in the channel store.
+// Framework metadata stays off the typed data surface: provenance rides the `_meta`
+// root key (read as `msg._meta.source`) and the lineage id rides `_msgid`.
 
 // A data-port `source`: node identity + the port index and resolved port name.
 const src = (port: number, portName: string) => ({
@@ -57,14 +56,13 @@ describe("message model — the outgoing record", () => {
     });
   });
 
-  it("provenance is read through the msg[Meta] accessor, typed and off the data keys", async () => {
+  it("provenance is read off the _meta root key, typed", async () => {
     const { node } = await createNode(ConstNode);
     await node.receive({ topic: "t" });
 
     const frame = node.sent("out")[0];
-    expect(frame[Meta].source).toMatchObject({ port: 0, portName: "out" });
-    // the accessor never leaks into serialization; the carrier does (by design)
-    expect(JSON.stringify(frame)).not.toContain("nrg.meta");
+    expect(frame._meta.source).toMatchObject({ port: 0, portName: "out" });
+    // the provenance rides an enumerable root key (clone-safe, framework-owned):
     expect(Object.keys(frame)).toContain("_meta");
   });
 
@@ -118,7 +116,7 @@ describe("message model — accumulation across nodes", () => {
       seen: "V",
     });
     // _meta always names the IMMEDIATE producer — B, not A:
-    expect(frameB[Meta].source?.type).toBe("message-model-echo");
+    expect(frameB._meta.source?.type).toBe("message-model-echo");
   });
 
   it("same-name addition overwrites the carried field — enrichment, last writer wins", async () => {
