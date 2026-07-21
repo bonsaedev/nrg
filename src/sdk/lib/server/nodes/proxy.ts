@@ -38,10 +38,22 @@ function setupConfigProxy<T extends object>(
     const cached = proxyCache.get(obj);
     if (cached) return cached;
 
-    // The schema for a given property: an array's elements share `items`; an
-    // object's fields come from `properties[prop]`.
+    // The schema for a given property: an array's ELEMENTS share `items`; an
+    // object's fields come from `properties[prop]`. An array's `items` applies
+    // ONLY at a canonical numeric index — never to `length`, methods, or other
+    // props. Without this guard, reading `.filter`/`.map`/`.length` on an
+    // Array(NodeRef) field hits the NodeRef branch below (the value isn't a
+    // string) and resolves to `undefined`, so the array's own methods vanish.
+    const isArrayIndex = (prop: string): boolean => {
+      const n = Number(prop);
+      return Number.isInteger(n) && n >= 0 && String(n) === prop;
+    };
     const schemaForProp = (target: any, prop: string): any =>
-      Array.isArray(target) ? subSchema?.items : subSchema?.properties?.[prop];
+      Array.isArray(target)
+        ? isArrayIndex(prop)
+          ? subSchema?.items
+          : undefined
+        : subSchema?.properties?.[prop];
 
     const proxy = new Proxy(obj, {
       get(target: any, prop: string | symbol): any {

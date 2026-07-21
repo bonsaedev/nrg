@@ -626,4 +626,67 @@ describe("setupConfigProxy", () => {
       }).toThrow(NrgError);
     });
   });
+
+  describe("arrays of NodeRefs", () => {
+    const a = { id: "a", type: "remote-server" } as any;
+    const b = { id: "b", type: "remote-server" } as any;
+
+    function makeProxy(
+      ids: string[],
+      register: Record<string, any> = { a, b },
+    ) {
+      const RED = createRED();
+      for (const [id, inst] of Object.entries(register))
+        RED.registerNrgNode(id, inst);
+      const schema = defineSchema(
+        { servers: SchemaType.Array(SchemaType.NodeRef(RemoteServer.type)) },
+        { $id: `proxy.test:noderef-array:${ids.join("|") || "empty"}` },
+      );
+      const proxy = setupConfigProxy({
+        RED,
+        node: createNodeRedNode(),
+        config: { servers: ids },
+        schema,
+      }) as any;
+      return { proxy, RED };
+    }
+
+    it("resolves each element by index to its instance", () => {
+      const { proxy } = makeProxy(["a", "b"]);
+      expect(proxy.servers[0]).toBe(a);
+      expect(proxy.servers[1]).toBe(b);
+    });
+
+    it("keeps array methods and length working (not resolved as elements)", () => {
+      // Regression: previously `items` applied to EVERY array prop, so the
+      // NodeRef branch swallowed `.length`/`.map`/`.filter` into undefined.
+      const { proxy } = makeProxy(["a", "b"]);
+      expect(proxy.servers.length).toBe(2);
+      expect(typeof proxy.servers.map).toBe("function");
+      expect(typeof proxy.servers.filter).toBe("function");
+    });
+
+    it("map / filter callbacks receive the resolved instances", () => {
+      const { proxy } = makeProxy(["a", "b"]);
+      expect(proxy.servers.map((s: any) => s)).toEqual([a, b]);
+      expect(proxy.servers.filter(Boolean)).toEqual([a, b]);
+    });
+
+    it("iterates (for-of and spread) as resolved instances", () => {
+      const { proxy } = makeProxy(["a", "b"]);
+      const out: any[] = [];
+      for (const s of proxy.servers) out.push(s);
+      expect(out).toEqual([a, b]);
+      expect([...proxy.servers]).toEqual([a, b]);
+    });
+
+    it("falls back per element: dangling id → raw string, empty → undefined", () => {
+      const { proxy } = makeProxy(["a", "missing", ""], { a });
+      expect(proxy.servers[0]).toBe(a);
+      expect(proxy.servers[1]).toBe("missing"); // not registered → raw id
+      expect(proxy.servers[2]).toBeUndefined(); // empty → undefined
+      // so a consumer's instanceof/identity filter keeps only real instances
+      expect(proxy.servers.filter((s: any) => s === a)).toEqual([a]);
+    });
+  });
 });
