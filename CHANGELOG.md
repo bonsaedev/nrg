@@ -1,5 +1,85 @@
 # Changelog
 
+## [0.42.0](https://github.com/bonsaedev/nrg/compare/v0.41.1...v0.42.0) (2026-07-21)
+
+### Features
+
+* **client:** paint failing wires red from the plugin's deploy report ([ed1ac53](https://github.com/bonsaedev/nrg/commit/ed1ac535f85d54ef54318eadc5f88e2ef763b5cc))
+* **client:** ports settings redesign ([470cc40](https://github.com/bonsaedev/nrg/commit/470cc40cc64b7436283e9f9a59a442012fbc1863))
+* **client:** retire the Return Property + Input Root editor controls; mode is merge/reset ([702da37](https://github.com/bonsaedev/nrg/commit/702da37e88e7802d3ca3ca880976b3e678420aa3))
+* **client:** scroll the ports-settings tables instead of widening the tray ([044de66](https://github.com/bonsaedev/nrg/commit/044de66bdf94bf7d6c54372d01e44c92420cb619))
+* **form:** number fields honor schema min/max/step (integer → step 1) ([c3c41e4](https://github.com/bonsaedev/nrg/commit/c3c41e449c102713952512befd2f94f4e281049c))
+* **form:** translatable per-field help text from the label file ([d9bbc2a](https://github.com/bonsaedev/nrg/commit/d9bbc2ade7ba738ad587c7e96406fd85de35679e))
+* **io-node:** send("error", …) emits the error port ([440228d](https://github.com/bonsaedev/nrg/commit/440228dc705372fbbeb389987b94245638144960))
+* **io-node:** this.error is log-only; the error port is throw-only ([34b127c](https://github.com/bonsaedev/nrg/commit/34b127c24505954be5a8d1462be6d153d697a0d9))
+* **server:** add the msg[Meta] metadata accessor (typed provenance) ([2d9bcb1](https://github.com/bonsaedev/nrg/commit/2d9bcb12500c957b25471888e680fb7a4ea2d866))
+* **server:** the message is a flat accumulating record (merge semantics) ([a6497cb](https://github.com/bonsaedev/nrg/commit/a6497cbdd0e23ae4535d295418df2b000791d904))
+* **server:** type message channels via a shape on Port<T, Channels> ([6b0df3e](https://github.com/bonsaedev/nrg/commit/6b0df3e1157e75efcf9346a5977fe588f966433b))
+* **test:** type message channels in the unit harness (sent + receive) ([da00bee](https://github.com/bonsaedev/nrg/commit/da00bee31cc664581b08da70525c8d874d75b6a4))
+* **vite:** flow wire-check in the dev loop (graph compiled to a program, tsc-verified) ([c797aea](https://github.com/bonsaedev/nrg/commit/c797aeafe24f8573e09e802b9506964d5656c2bd))
+* **wire-check:** a core/non-nrg node's wires warn in BOTH directions ([3aad501](https://github.com/bonsaedev/nrg/commit/3aad5014f6a9b72b3098005d38b1ab7970a4bf19))
+* **wire-check:** make the editor wire check accumulation-aware ([5a4c7a1](https://github.com/bonsaedev/nrg/commit/5a4c7a1b218674165e68d9d9b13c90257e8737cd))
+* **wire-check:** paint warning wires yellow-dashed ([e1bd9c3](https://github.com/bonsaedev/nrg/commit/e1bd9c328cc28e717d498387b5349bc6da947448))
+* **wire-check:** report whole connections, splicing junctions back in ([402cc0e](https://github.com/bonsaedev/nrg/commit/402cc0ef18ae31d6fc9e96616159f32082f2f3eb))
+* **wire-check:** treat any/unknown-input nodes as accept-all (no boundary warn) ([286d378](https://github.com/bonsaedev/nrg/commit/286d378bbf3ed42f81a5fda0a1bdf9641478a1c1))
+* **wire-check:** treat junction nodes as transparent passthroughs ([e38945c](https://github.com/bonsaedev/nrg/commit/e38945c922c9adecf3aa5f4d3fbfe237b952d540))
+* **wire-check:** visible selected state for red error wires ([5c4b42b](https://github.com/bonsaedev/nrg/commit/5c4b42b3a70dd93d444f17ab256b2709e150d23d))
+* **wire-check:** warn on BOTH directions of the typed/untyped boundary ([ce6b696](https://github.com/bonsaedev/nrg/commit/ce6b696c6002ca4f86c0cd3031466490cad6b268))
+* **wire-check:** warn on untyped-source -> typed-reader connections ([4fe5660](https://github.com/bonsaedev/nrg/commit/4fe5660c0ba25ccfd0b0d479d8cd5bf34129c4bf))
+
+### Bug Fixes
+
+* **client:** let the Port Settings Description column absorb the tray width ([65f610d](https://github.com/bonsaedev/nrg/commit/65f610d748a9fac2143405725cd961d7a2251d96))
+* **client:** recalc output ports from the base count, not _def.outputs ([d32e172](https://github.com/bonsaedev/nrg/commit/d32e17232b1ba8a9b60092a067a3854f3a75b855))
+* **client:** unify Port Settings help as plain text below each table ([03451df](https://github.com/bonsaedev/nrg/commit/03451df60929755fbae8bbbba8d07e40397cc194))
+* correct the dev launcher's wire-check-plugin guidance ([97f9c8f](https://github.com/bonsaedev/nrg/commit/97f9c8f4d0e7f25e3b6e20f0fe0a82ecc8266796))
+* **e2e:** capture the FULL node form (lifecycle ports + wrapped descriptions) ([4e36035](https://github.com/bonsaedev/nrg/commit/4e360354df8918de00b4b2d4c3ba2109967c55c2))
+* **eslint:** pin tsconfigRootDir to the config directory ([d5acc35](https://github.com/bonsaedev/nrg/commit/d5acc354971e154aa67a90e2c04743ec5cf9c758))
+* **help-gen:** the output note describes the accumulating record, not the envelope ([230504c](https://github.com/bonsaedev/nrg/commit/230504c370548d0c64a1cdabc2778b9dd4d24597))
+* **node:** the base Node.error is single-arg log-only too ([7b279a5](https://github.com/bonsaedev/nrg/commit/7b279a5bad6d238501aa3dc1261c9eb53acebb54))
+* **schema:** drop the stale per-property label wording from labels.schema.json ([5811a6e](https://github.com/bonsaedev/nrg/commit/5811a6eeb6be9dc9ece99ac6d653a68be3811690))
+* **server:** name the built-in port on send() lifecycle frames ([7a35eb7](https://github.com/bonsaedev/nrg/commit/7a35eb763fe4b28ac45ac51c1a6137ac58139a93))
+* **server:** route lifecycle auto-emit through its own invocation store ([8b2ab5a](https://github.com/bonsaedev/nrg/commit/8b2ab5adfff1189391cb51f92548d449a10ed469))
+* **vite:** relay Node-RED child stderr as plain log lines, not error ([0ede312](https://github.com/bonsaedev/nrg/commit/0ede3121d5c45df08d2f94f91d7a6efd8c4b1755))
+* **vite:** resolve the shipped wire-check plugin in consumers ([87a839d](https://github.com/bonsaedev/nrg/commit/87a839db9281e601a78f80919eabc9153d1b8a6d))
+* **vite:** tidy the dev-server startup logs ([31f0253](https://github.com/bonsaedev/nrg/commit/31f02530ab9afde026787748b7edd125b65a6d05))
+* **vite:** warn about cleartext credentials at build time, not runtime ([9fd22b5](https://github.com/bonsaedev/nrg/commit/9fd22b59a41384e8f0e1ca875029c531561506c1))
+* **wire-check:** don't emit internal-error noise for an unfed node ([c4eec90](https://github.com/bonsaedev/nrg/commit/c4eec90486492e60b62ce6f2a103b04130087aa4))
+* **wire-check:** fail open on lifecycle-port wires past an unchecked boundary ([eea594b](https://github.com/bonsaedev/nrg/commit/eea594b81d7303a4dbf000d3d1fed9508f8fb3e5))
+* **wire-check:** resolve transitive external types in extracted port types ([e00c0a2](https://github.com/bonsaedev/nrg/commit/e00c0a24bf938d5b9d885c2a2424ea8deff9363d))
+
+### Refactors
+
+* **assets:** serve Vue at a build-neutral /nrg/assets/vue.js ([5af0a67](https://github.com/bonsaedev/nrg/commit/5af0a675c8588607bfc04372b9ebed232ebbc964))
+* **client:** rename node defaults/credentials types, relocate TypedInput ([48abb4c](https://github.com/bonsaedev/nrg/commit/48abb4c30656f038b8dc3f7f2a697612686044fe))
+* **client:** split the Node-RED editor types into a symmetric client/node-red module ([08ba1f4](https://github.com/bonsaedev/nrg/commit/08ba1f4995b34c3f525e8a27ad0107a5fac8a0b0))
+* drop stale mentions of the retired context-mode / return-property ([31afea7](https://github.com/bonsaedev/nrg/commit/31afea7aa0f27570a7b0f09eee3f0a307df9be36))
+* **server:** drop channels + the Meta symbol, self-wire node handlers, rename red to node-red ([465d3fb](https://github.com/bonsaedev/nrg/commit/465d3fb9532cef2d7419c3a869bf9da6732c4a37))
+* **server:** remove per-port ContextMode — merge is the only output mode ([1662c27](https://github.com/bonsaedev/nrg/commit/1662c271ddb192d7186c1705691a80ac70bd4f6c))
+* **types:** name Port's first generic TMessage for symmetry with TChannels ([42796b3](https://github.com/bonsaedev/nrg/commit/42796b3f382ca292276d23517b91ce7b6d02ae96))
+* **vite:** drop @clack/prompts for a plain, pipeline-friendly logger ([920ee8a](https://github.com/bonsaedev/nrg/commit/920ee8ad3cacca8fc3d3f67a12b901cdb13f9ae2))
+* **vite:** rebrand the vite plugin to vite-plugin-nrg + drop the stray spinner glyph ([59ec95e](https://github.com/bonsaedev/nrg/commit/59ec95e7c8295c05fe0ac1b499761a3bec0dd033))
+* **vite:** type the doc-role write in node-type-info, dropping a double cast ([a77ac5d](https://github.com/bonsaedev/nrg/commit/a77ac5d37cbb46b7d464bd7555f4d6e43f8cce0d))
+* **wire-check:** extract into @bonsae/node-red-type-check-plugin, out of the toolkit ([fde5f0f](https://github.com/bonsaedev/nrg/commit/fde5f0fcc4aa47c1070f34d07c5bbea0e07b21e7))
+* **wire-check:** remove the Validate Types toggle — deploy-only ([6d633a6](https://github.com/bonsaedev/nrg/commit/6d633a6835662e09634ca845c166d988751040ce))
+
+### Documentation
+
+* clarify Port<{}> (adds nothing) vs never (no port) vs Port<any> ([a300d9a](https://github.com/bonsaedev/nrg/commit/a300d9a1bb51d56ac094cc604b962a6e553c5145))
+* correct message-model drift found in the audit ([7d4be03](https://github.com/bonsaedev/nrg/commit/7d4be03e80261e316641a41807e40a2fca3de2fd))
+* **labels:** error port description says it fires on throw ([572de45](https://github.com/bonsaedev/nrg/commit/572de459b273b9e6e21b9d23af87cb82302e8d99))
+* **message-model:** document deploy-only wire check + red/yellow/green ([379e7bc](https://github.com/bonsaedev/nrg/commit/379e7bc1e1dc0544c83074a5c3cb3bac7b6993ed))
+* move wire-check after build & test, document dynamic ports + plugin resolution [skip ci] ([bac5492](https://github.com/bonsaedev/nrg/commit/bac54926af98e60af1f821b503e86255dbe4369e))
+* **readme:** lead the Quick Start with the node class, then the schema ([dc2c621](https://github.com/bonsaedev/nrg/commit/dc2c621fa3c9c9a6f7e6c587f3d8c143515544bb))
+* release-readiness review — fix drift across the guide [skip ci] ([def6f5c](https://github.com/bonsaedev/nrg/commit/def6f5c31cb669937554e75a5935bd6db685eca6))
+* remove the message-channels feature and retype provenance as msg._meta ([51b9d53](https://github.com/bonsaedev/nrg/commit/51b9d53579d82e9295108e6e4bd3860176b6f157))
+* review-pass accuracy fixes across the guide ([612b815](https://github.com/bonsaedev/nrg/commit/612b81543d9e93d44bba6c88e0cb78cb41f935af))
+* rewrite the guide for the accumulating-record message model ([22e4a0f](https://github.com/bonsaedev/nrg/commit/22e4a0fd692158eaa60c15f012106104f3f9c2a1))
+* source nodes emit the error port via send("error", { error }) [skip ci] ([01c90a3](https://github.com/bonsaedev/nrg/commit/01c90a32acf8ca99195c0bc6ad28aa0ad8014b52))
+* teach the accumulating-record message model ([cdf644f](https://github.com/bonsaedev/nrg/commit/cdf644f0dd99205ea9f8231532e120e9f37cafd7))
+* teach the typed Port<T, Channels> pattern in message-channels ([533299d](https://github.com/bonsaedev/nrg/commit/533299dc9f36d89b65b4db6c5c0966a82b6d03cb))
+* wire type-checking guide with editor screenshots ([bc5dc4c](https://github.com/bonsaedev/nrg/commit/bc5dc4c2bf7b719c8155865e92e87dbffdd22f73))
+
 ## [0.41.1](https://github.com/bonsaedev/nrg/compare/v0.41.0...v0.41.1) (2026-07-16)
 
 ### Refactors
