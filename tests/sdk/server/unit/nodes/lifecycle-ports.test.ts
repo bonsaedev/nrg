@@ -248,13 +248,11 @@ describe("lifecycle ports", () => {
         message: "boom",
       });
       expect(errorSends[0].error.stack).toEqual(expect.any(String));
-      // Provenance is stamped on `_meta.source`. NOTE: a `send("error")` frame
-      // carries `type` + `port` but NOT `portName: "error"` — unlike a THROWN
-      // error (which routes through #emitLifecycle and stamps the built-in name).
-      // send("error") wraps via #outputSource, which only names declared data
-      // ports. Documenting the current behavior, not endorsing the asymmetry.
+      // Provenance rides `_meta.source` with the built-in port's slot AND name —
+      // a `send("error")` frame names the "error" port just like a THROWN error
+      // (both are the error port; #outputSource resolves the built-in name).
       expect(errorSends[0]).toMatchObject({
-        _meta: { source: { type: "send-error-test" } },
+        _meta: { source: { type: "send-error-test", portName: "error" } },
       });
     });
 

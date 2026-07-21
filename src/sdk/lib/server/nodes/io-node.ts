@@ -554,7 +554,8 @@ abstract class IONode<
    * `_msgid` — never part of the typed result.
    */
   #outputSource(port: number): MessageSource {
-    const portName = this.#namedPortKeys()?.[port];
+    const portName =
+      this.#namedPortKeys()?.[port] ?? this.#builtinPortName(port);
     return {
       ...this.#nodeSource(),
       port,
@@ -759,6 +760,18 @@ abstract class IONode<
     }
     if (this.config.completePort) idx++;
     return this.config.statusPort ? idx : null;
+  }
+
+  /** The built-in port name at an output index — the reverse of
+   *  {@link #getBuiltinPortIndex} — so provenance can name an error/complete/status
+   *  frame produced via `send()` (e.g. a source node's `send("error")`), the same
+   *  way {@link #emitLifecycle} names the auto-emitted lifecycle frames. Returns
+   *  `undefined` for a base/data port index. */
+  #builtinPortName(port: number): "error" | "complete" | "status" | undefined {
+    for (const name of ["error", "complete", "status"] as const) {
+      if (this.#getBuiltinPortIndex(name) === port) return name;
+    }
+    return undefined;
   }
 
   #nodeSource(): NodeSource {
