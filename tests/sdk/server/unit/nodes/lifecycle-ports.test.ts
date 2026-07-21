@@ -14,6 +14,7 @@ import TruncateTest from "../fixtures/emit-ports-test/truncate-test";
 import SimpleTest from "../fixtures/emit-ports-test/simple-test";
 import ReturnComplete from "../fixtures/emit-ports-test/return-complete-test";
 import VoidComplete from "../fixtures/emit-ports-test/void-complete-test";
+import SendErrorTest from "../fixtures/emit-ports-test/send-error-test";
 
 const src = (port: number, portName?: string) => ({
   id: expect.any(String),
@@ -226,6 +227,68 @@ describe("lifecycle ports", () => {
       // Error should still be logged through the normal error() path
       expect(
         node.errored().some((e: string) => e.includes("Explicit error")),
+      ).toBe(true);
+    });
+  });
+
+  describe('send("error") — source-node emission', () => {
+    it("emits a normalized ErrorInfo on the error port from an Error instance", async () => {
+      const { node } = await createNode(SendErrorTest, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      await node.receive({ payload: "go" });
+
+      const errorSends = node.sent("error");
+      expect(errorSends).toHaveLength(1);
+      // The Error is normalized to the ErrorInfo contract — name/message, plus the
+      // non-enumerable stack carried explicitly — the same shape the throw path emits.
+      expect(errorSends[0].error).toMatchObject({
+        name: "Error",
+        message: "boom",
+      });
+      expect(errorSends[0].error.stack).toEqual(expect.any(String));
+      // Provenance is stamped on `_meta.source`. NOTE: a `send("error")` frame
+      // carries `type` + `port` but NOT `portName: "error"` — unlike a THROWN
+      // error (which routes through #emitLifecycle and stamps the built-in name).
+      // send("error") wraps via #outputSource, which only names declared data
+      // ports. Documenting the current behavior, not endorsing the asymmetry.
+      expect(errorSends[0]).toMatchObject({
+        _meta: { source: { type: "send-error-test" } },
+      });
+    });
+
+    it("normalizes a plain error object, defaulting name to 'Error'", async () => {
+      const { node } = await createNode(SendErrorTest, {
+        config: { errorPort: true, completePort: false, statusPort: false },
+      });
+
+      await node.receive({ payload: "plain-object" });
+
+      const errorSends = node.sent("error");
+      expect(errorSends).toHaveLength(1);
+      // A plain `{ message, … }` gets the canonical name plus its own fields.
+      expect(errorSends[0].error).toMatchObject({
+        name: "Error",
+        message: "nope",
+        code: "E_NOPE",
+      });
+    });
+
+    it('warns and no-ops when send("error") is called with the error port disabled', async () => {
+      const { node } = await createNode(SendErrorTest, {
+        config: { errorPort: false, completePort: false, statusPort: false },
+      });
+
+      // NEVER throws (a source node emits this from an async callback) — it warns
+      // and drops, so nothing reaches the (absent) error port.
+      await node.receive({ payload: new Error("ignored") });
+
+      expect(node.sent("error")).toHaveLength(0);
+      expect(
+        node
+          .warned()
+          .some((w: string) => w.includes("error port is not enabled")),
       ).toBe(true);
     });
   });
