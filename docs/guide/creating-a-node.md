@@ -230,7 +230,7 @@ The names `"error"`, `"complete"`, and `"status"` are reserved for built-in port
 
 | Method | Description |
 | --- | --- |
-| `this.send(port, additions)` | Merge an object of named fields onto the record and emit it from a user-defined output port, addressed by name or index (`{ ...incoming, ...additions }` plus provenance on `msg[Meta]`); the incoming record is always carried forward. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
+| `this.send(port, additions)` | Merge an object of named fields onto the record and emit it from a user-defined output port, addressed by name or index (`{ ...incoming, ...additions }` plus provenance on `msg._meta`); the incoming record is always carried forward. Built-in ports (error, complete, status) are not allowed — they are managed by the framework. |
 | `this.status({ fill, shape, text })` | Set the node's status indicator |
 | `this.log(msg)` | Log an info message |
 | `this.warn(msg)` | Log a warning |
@@ -317,9 +317,9 @@ When a user enables a built-in port, an extra output is appended to the node:
 
 | Property | Trigger | Output message |
 | --- | --- | --- |
-| `errorPort` | A thrown/uncaught error in `input()` (the terminal failure), **or** an explicit `this.send("error", { error })` — the path a **source node** uses to report a failure from an async callback ([see below](#emitting-the-error-port-from-a-source-node)). `this.error()` is log-only and never emits this port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg[Meta].source`. |
-| `completePort` | `input()` finishes successfully | The processed record merged with `input()`'s returned fields — `{ ...record, ...returnValue }` (a `void`/`undefined` return contributes nothing — arrival on the wire is itself the signal) ([see below](#returning-a-custom-completion-message)). Provenance is read via `msg[Meta].source`. |
-| `statusPort` | Every `this.status()` call | The processed record merged with a `status` block — `{ ...record, status: { fill, shape, text } }`. The record fields are carried only when a record is in scope; they may be absent for a `status()` fired outside `input()` (e.g. a source node). Provenance is read via `msg[Meta].source`. |
+| `errorPort` | A thrown/uncaught error in `input()` (the terminal failure), **or** an explicit `this.send("error", { error })` — the path a **source node** uses to report a failure from an async callback ([see below](#emitting-the-error-port-from-a-source-node)). `this.error()` is log-only and never emits this port | The processed record merged with an `error` block — `{ ...record, error: { name, message, stack? } }` — plus any own fields of a thrown custom `Error` ([see below](#throwing-a-custom-error)). The record that failed carries through; provenance is read via `msg._meta.source`. |
+| `completePort` | `input()` finishes successfully | The processed record merged with `input()`'s returned fields — `{ ...record, ...returnValue }` (a `void`/`undefined` return contributes nothing — arrival on the wire is itself the signal) ([see below](#returning-a-custom-completion-message)). Provenance is read via `msg._meta.source`. |
+| `statusPort` | Every `this.status()` call | The processed record merged with a `status` block — `{ ...record, status: { fill, shape, text } }`. The record fields are carried only when a record is in scope; they may be absent for a `status()` fired outside `input()` (e.g. a source node). Provenance is read via `msg._meta.source`. |
 
 Extra ports are always appended **after** the node's data ports, in a fixed order: error, complete, status. This means existing wires are never broken when toggling a port on or off.
 
@@ -331,7 +331,7 @@ Port 3: Complete     (if completePort enabled)
 Port 4: Status       (if statusPort enabled)
 ```
 
-These built-in port messages are **typed**. Each frame is the accumulated record merged with its lifecycle block: an error frame is `{ ...record, error }`, a complete frame `{ ...record, ...returnFields }`, and a status frame `{ ...record, status }`. There is no `input` sub-frame and no root `source` key — provenance is read via `msg[Meta].source`. The corresponding types (`ErrorPortOutput<TInput, TError>`, `CompletePortOutput<TInput, TReturn>`, and `StatusPortOutput`) are server-owned and not part of the public import surface. When the `@bonsae/node-red-type-check-plugin` is installed, its deploy-time wire check (a whole-flow compile) also type-checks and paints wires coming off a built-in port.
+These built-in port messages are **typed**. Each frame is the accumulated record merged with its lifecycle block: an error frame is `{ ...record, error }`, a complete frame `{ ...record, ...returnFields }`, and a status frame `{ ...record, status }`. There is no `input` sub-frame and no root `source` key — provenance is read via `msg._meta.source`. The corresponding types (`ErrorPortOutput<TInput, TError>`, `CompletePortOutput<TInput, TReturn>`, and `StatusPortOutput`) are server-owned and not part of the public import surface. When the `@bonsae/node-red-type-check-plugin` is installed, its deploy-time wire check (a whole-flow compile) also type-checks and paints wires coming off a built-in port.
 
 #### Framework config fields {#framework-config-fields}
 
@@ -403,7 +403,7 @@ override async input(msg: Input<Port<{ items: unknown[] }>>): Promise<Summary> {
   const results = await Promise.all(this.collect(msg));
   // continues on the complete port as the merged record:
   //   { ...msg, ...summary }
-  // (provenance stays on msg[Meta].source; _msgid lineage is framework-managed)
+  // (provenance stays on msg._meta.source; _msgid lineage is framework-managed)
   return summarize(results);
 }
 ```
@@ -425,7 +425,7 @@ are layered last, so they stay authoritative over anything you add. `msg.error`
 sits at the root alongside the accumulated record fields that failed
 (`{ ...record, error }`) — the same root placement a Node-RED **Catch** node uses
 for `msg.error` — so a node reading it feels familiar; provenance is read via
-`msg[Meta].source` (not an on-data `source`/`input` frame). The error travels
+`msg._meta.source` (not an on-data `source`/`input` frame). The error travels
 the port's wire, it does **not** trigger Catch nodes (the port is the sole handler).
 
 ```typescript
@@ -440,7 +440,7 @@ override async input(msg: Input<Port<{ payload: unknown }>>) {
   throw new RateLimitError(2000);
   // error port: { ...record, error: { name: "RateLimitError", message: "rate limited",
   //                                   stack: "…", retryAfterMs: 2000 } }
-  // (provenance rides msg[Meta].source)
+  // (provenance rides msg._meta.source)
 }
 ```
 

@@ -128,7 +128,7 @@ export default class MyNode extends IONode<Config> {
 Default values from the schema are used by the editor to initialize new node instances.
 
 The value you pass to `this.send()` is merged onto the flow's accumulating
-record (`{ ...incoming, ...additions }`), with provenance stamped on `msg[Meta]`;
+record (`{ ...incoming, ...additions }`), with provenance stamped on `msg._meta`;
 the incoming record is always carried forward. All of that — the record model,
 merging, and provenance — lives in [The Message Model](./message-model).
 

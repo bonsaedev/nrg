@@ -24,7 +24,7 @@ NRG is an **adapter layer**. It runs at author-time (the build) and then *inside
    nothing is added to, or changed in, the Node-RED runtime.
 ```
 
-Everything below — the typed message model, schema-driven forms, off-the-wire channels — is the adapter *improving the APIs you write against*, never a change to the runtime your nodes run on.
+Everything below — the typed message model, schema-driven forms — is the adapter *improving the APIs you write against*, never a change to the runtime your nodes run on.
 
 ## Message Flow
 
@@ -47,44 +47,6 @@ NRG  --  the framework carries the record for you
 In classic Node-RED every node must actively call `send(msg)` to pass the message on; if the node's code forgets that call (or takes a path that skips it), the flow stops silently with no error — and whoever built the flow can't fix it from the outside. NRG flips this: the node contributes just its named fields, and the framework always carries the accumulated record forward for you (`{ ...incoming, ...additions }`) — nothing a node contributes is silently lost. See [The Message Model](./message-model).
 
 > Throughout these docs, the **flow author** is whoever wires nodes together on the Node-RED canvas — as opposed to you, the **node author**, who writes the node package. Many of NRG's controls exist so the node author sets a sensible default while the flow author keeps the final say per node instance.
-
-## Live Objects & Hidden Data
-
-Some data can't safely ride the wire: **live objects** that break when Node-RED clones the message (a DB connection, an open HTTP `res`, a streaming handle), and **secrets** that must never be seen (a decrypted token, a signed id). Yet this data is often *per-message* — derived from one request and needed by a *different* node downstream — so it still has to travel *with* the message.
-
-### Traditional
-
-Node-RED deep-clones `msg` between wires, so a live socket is corrupted or throws — which is exactly why Node-RED had to [hard-code `msg.req` / `msg.res`](https://github.com/node-red/node-red/blob/5.0.0/packages/node_modules/@node-red/util/lib/util.js#L98-L118) as the **only** reference-preserved exceptions (its own source calls it a *"Temporary fix"*), just so its own HTTP In / HTTP Response pair could work. A secret is no safer: put a token on `msg` and it shows up verbatim in the debug panel, copy-pasteable, readable or forgeable by any function node. Context is no help either — it's keyed by a **name**, not a message, so two in-flight messages clobber the same `flow.get("conn")`.
-
-### NRG
-
-Every message gets two **off-the-wire channels** — **`private`** (only your package's nodes) and **`protected`** (shared across packages) — that ride *alongside* the message, keyed by its `_msgid`. They're **never cloned, never serialized, and invisible** to the debug panel and function nodes. It's the `req`/`res` special case, generalized and made safe for everyone:
-
-```
-          on the wire - cloned between nodes, safe to serialize
-   +----------+     msg = { payload, req snapshot }     +---------------+
-   | http-in  |---------------------------------------->| http-response |
-   +----+-----+                                         +-------+-------+
-        :                                                       :
-        :         res - a live socket, can't be cloned          :
-        +.......... private channel, keyed by _msgid ...........+
-                off the wire, never cloned, never logged
-```
-
-`http-in` sends only a clone-safe request snapshot on the wire and parks the live `res` on its **private** channel; `http-response`, anywhere downstream, reads the socket back and replies. The channel rides the `_msgid`, so it survives every merge and any nodes in between:
-
-```typescript
-import { Channels } from "@bonsae/nrg/server";
-
-// http-in: snapshot on the wire, live socket on the private channel
-this.send("out", { payload, req }, { private: { res } });
-
-// http-response: read the socket back off the same message, then release it
-const res = msg[Channels].private.res;
-delete msg[Channels].private.res;
-```
-
-The **`protected`** channel is the same idea with wider reach — an auth node stamps a live principal there and a node in a *different* package authorizes with it, the raw token never touching the wire. Pick `private` vs `protected` by reach — see [Message Channels](./message-channels) for the full guide.
 
 ## Node Registration
 
@@ -554,7 +516,7 @@ override async input(msg: Input<Port<{ items: string[] }>>) {
 Now the loop, its success, and its failure all read top-to-bottom in one method, and on the canvas they are three real wires you can follow — not a self-loop plus two nodes linked by hidden scope. What each port carries:
 
 - **`complete`** — `input()`'s returned fields, merged onto the processed record. `return { count }` puts `count` on the record the complete wire carries; returning nothing makes arrival on the wire itself the "done" signal.
-- **`error`** — the processed record merged with an `error` block (`{ name, message, stack? }`); provenance is read via `msg[Meta].source`. An error handler sees the failure details and the record that caused them side by side — the same information a Catch node reads, but on this wire instead. (`stack` is present only when an `Error` was thrown.) Only a `throw` leaves the error port; `this.error("...")` is log-only observability — it takes only a message string and does not route to any port.
+- **`error`** — the processed record merged with an `error` block (`{ name, message, stack? }`); provenance is read via `msg._meta.source`. An error handler sees the failure details and the record that caused them side by side — the same information a Catch node reads, but on this wire instead. (`stack` is present only when an `Error` was thrown.) Only a `throw` leaves the error port; `this.error("...")` is log-only observability — it takes only a message string and does not route to any port.
 - **`status`** — whatever you pass to `this.status(...)`.
 
 ## TypedInput Resolution

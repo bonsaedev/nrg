@@ -2,13 +2,18 @@
 
 Ports usually carry plain JSON. But a port can also add a **non-serializable**
 field to the message — a stream, a class instance, a `Buffer`, or a live
-connection. This page covers how to type such a field with
-`SchemaType.Unsafe<T>()` and how the framework passes it through intact. It's
-advanced; skip it until you build a node that moves live objects between nodes.
+connection. You type such a field the same way as any other: **directly on the
+`Port`** (`Port<{ body: Readable }>`) — the type comes from the `Input`/`Output`
+generic, and no schema is involved. A schema is optional here, needed only if you
+additionally want runtime validation on the plain-data fields alongside it; that's
+the `SchemaType.Unsafe<T>()` case, covered near the end. It's advanced; skip this
+page until you build a node that moves live objects between nodes.
 
 > A live/non-serializable value survives a **single wire** by reference but not a
-> **fan-out** clone. For connections, streams, and sockets that must cross a
-> fan-out, prefer the [private channel](./message-channels) instead.
+> **fan-out** clone. A connection, stream, or socket that must reach several
+> downstream nodes can't ride the message across a fan-out — keep it in an
+> out-of-band store keyed off the message id and have each node read it back by
+> that id.
 
 Not every port adds plain data. A node might add a function, a class
 instance, a `Buffer` or stream, or a database client to the record — or accept a
@@ -45,8 +50,8 @@ export default class OpenConnection extends IONode<
   override async input(msg: OpenConnectionInput) {
     // The live pool is a non-data value — it rides a single wire intact by
     // reference. This is safe only on a single hop; a live pool does NOT survive
-    // a fan-out clone. For a handle that must cross a fan-out, carry it on the
-    // private channel instead (see message-channels, below).
+    // a fan-out clone. A handle that must reach several nodes across a fan-out
+    // has to live in an out-of-band store keyed off the message id, not on msg.
     this.send("out", { connection: this.#pool, rowCount: 0 });
   }
 }
@@ -157,5 +162,6 @@ is already an empty schema with nothing for AJV to choke on.
 Node-RED passes the message to a **single** downstream wire by reference, so these
 non-data values reach the next node intact on one connection. On a fan-out
 (multiple wires) Node-RED deep-clones the message — a value that can't survive a
-clone, like a live socket or stream, should ride the [private channel](./message-channels)
-instead. See [The Message Model](./message-model#sends-merge-named-fields).
+clone, like a live socket or stream, can't travel on `msg` to several nodes at
+once; keep it in an out-of-band store keyed off the message id and read it back
+by that id. See [The Message Model](./message-model#sends-merge-named-fields).

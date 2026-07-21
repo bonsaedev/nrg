@@ -39,7 +39,6 @@ export default defineConfig({
         text: "Core Concepts",
         items: [
           { text: "The Message Model", link: "/guide/message-model" },
-          { text: "Message Channels", link: "/guide/message-channels" },
         ],
       },
       {

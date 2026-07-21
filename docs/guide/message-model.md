@@ -72,54 +72,37 @@ compile-time only; to *reject* bad messages at runtime, turn on the input's
 **whole incoming message** and is independent of the `Input` type — see
 [Input Data Validation](./schemas#input-schema).
 
-## Provenance: `msg[Meta]`
+## Provenance: `msg._meta` {#provenance}
 
 The framework stamps every emission with its producer — node id, type, name,
 and the port (built-in lifecycle ports stamp their real slot, with the built-in
-name as `portName`). Read it through the `Meta` accessor, typed and read-only:
+name as `portName`). It rides an enumerable **`_meta`** root key, so it survives
+Node-RED's fan-out clone. To **read** it, declare `_meta` on your input port —
+then it's typed like any other field:
 
 ```typescript
-import { Meta } from "@bonsae/nrg/server";
+import { IONode } from "@bonsae/nrg/server";
+import type { Input, MessageMetadata, Port } from "@bonsae/nrg/server";
+
+type MyInput = Input<Port<{ payload: string; _meta: MessageMetadata }>>;
 
 async input(msg: MyInput) {
-  const src = msg[Meta].source; // MessageSource | undefined
-  // undefined = the upstream producer wasn't an nrg node
+  const src = msg._meta.source; // MessageSource | undefined
 }
 ```
 
-Like `msg[Channels]`, the accessor is symbol-keyed — it can never collide with
-data fields and never shows up in enumeration. (Under the hood the data rides a
-clone-safe `_meta` root key, because Node-RED's fan-out clone drops symbol
-properties; that carrier is framework-internal, exactly like `_msgid`.)
+Because you declare it, the wire check treats `_meta` like any field: it reads
+**green** when the upstream is an nrg node (every nrg node stamps `_meta`) and is
+left unchecked behind a core/non-nrg node. A node that doesn't need provenance
+simply omits `_meta` from its port — nothing is imposed on the typed surface.
 
 ## Lineage: `_msgid`
 
 Every message carries Node-RED's `_msgid` lineage id. nrg **preserves it across
-every hop** (a source node mints a fresh one via
-`RED.util.generateId()`), so the message-flow debugger, Catch/Complete grouping,
-and any `_msgid`-based correlation keep working. `_msgid` is framework-managed —
-it's deliberately not on your `Input` type, and you never set it by hand.
-
-## Source nodes and `transactionId`
-
-A **source/trigger node** has no input port (its `Input` generic is `never`, so
-its topology reports `inputs === 0`) and emits on its own — from `created()`, a
-timer, or an external event. When it sends, the framework mints the message's
-`_msgid` and stamps it, read-only, onto the **protected** channel as
-`transactionId`:
-
-```typescript
-// in any downstream node:
-async input(msg: MyInput) {
-  const txn = msg[Channels].protected.transactionId; // the origin trigger's id
-}
-```
-
-Because every downstream node inherits the same `_msgid`, `transactionId` is
-readable across the whole chain to correlate all work back to that one trigger
-firing — off the wire, immutable (any attempt to overwrite or delete it throws),
-and independent of the wire `_msgid` a flow author could otherwise change. See
-[Message Channels](./message-channels#transactionid) for the channel it rides on.
+every hop** (a source node has none to inherit, so Node-RED assigns a fresh one
+on delivery), so the message-flow debugger, Catch/Complete grouping, and any
+`_msgid`-based correlation keep working. `_msgid` is framework-managed — it's
+deliberately not on your `Input` type, and you never set it by hand.
 
 ## Source nodes emit errors as ports {#source-nodes-emit-errors-as-ports}
 
