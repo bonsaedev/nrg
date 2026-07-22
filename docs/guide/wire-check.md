@@ -7,14 +7,16 @@ runtime, on the message that hits production at 3am.
 
 nrg closes that gap. Because a node's ports are **typed** (`Port<T>`), nrg can
 compile your whole flow and ask the TypeScript compiler whether each connection
-actually type-checks — then paint the wrong wires **red on the canvas, before the
-flow ever runs**.
+actually type-checks — then list the wrong ones in a **Type errors** tab and paint
+them **red on the canvas, before the flow ever runs**.
 
 ## See it
 
 The same three nodes, wired two ways. On the left every wire type-checks; on the
 right the middle node was removed, so `invoice` no longer receives the `customer`
-it reads — and that connection is painted red the moment you deploy.
+it reads — and that connection is flagged the moment you deploy: listed in the
+[**Type errors** tab](#the-type-errors-tab) and painted red on the canvas the
+instant you highlight it.
 
 <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
   <figure style="margin:0; flex:1 1 320px;">
@@ -27,6 +29,28 @@ it reads — and that connection is painted red the moment you deploy.
   </figure>
 </div>
 
+## The Type errors tab
+
+Every deploy re-checks the whole flow and lists each failing **connection** in a
+**Type errors** sidebar tab — one row per source → reader route, with the exact
+TypeScript error underneath. The canvas is left clean until you ask, so a large
+flow stays readable and you inspect one problem at a time.
+
+<figure style="margin:0;">
+  <img src="/wire-check/type-errors-tab.png" alt="The Type errors sidebar tab listing a failed connection and an unchecked-boundary warning, each with its TypeScript message, plus a Highlight all button" />
+  <figcaption>One row per connection — 🔴 a real type error, 🟡 an unchecked boundary — each with its <code>tsc</code> message.</figcaption>
+</figure>
+
+Click a row's **eye** to *highlight* that connection: its wires paint red (or
+yellow, for an unchecked boundary) while the rest of the flow dims away, so you see
+exactly which path is wrong. **Highlight all**, at the top, paints every failing
+and unchecked wire at once.
+
+<figure style="margin:0;">
+  <img src="/wire-check/type-errors-canvas.png" alt="The editor with Highlight all enabled — the failing connection drawn red-dashed and the unchecked one yellow-dashed, valid wires untouched" />
+  <figcaption>🔦 <strong>Highlight all</strong>: the failing wire red, the unchecked wire yellow, valid wires left as-is.</figcaption>
+</figure>
+
 ## How it works, in one breath
 
 - Your node's **input `Port<T>`** declares the fields it **reads**; its **output
@@ -35,8 +59,10 @@ it reads — and that connection is painted red the moment you deploy.
   `tsc`. A wire passes when the record arriving at the target carries every field
   the target reads — with a matching shape — whether that field was added one hop
   back or several.
-- Failing wires paint **red**; connections that can't be fully checked (an
-  untyped or non-nrg endpoint) paint **yellow-dashed** but stay valid.
+- Failing connections are listed in the **Type errors** tab; highlight one (or
+  **Highlight all**) to paint its wires **red** on the canvas. Connections that
+  can't be fully checked (an untyped or non-nrg endpoint) show **yellow-dashed**
+  but stay valid.
 
 This is a **deploy-time, whole-flow** check — not a per-wire, while-you-drag one.
 Under the accumulating-record model a wire's validity depends on the *entire* path
