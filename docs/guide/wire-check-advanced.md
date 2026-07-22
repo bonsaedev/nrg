@@ -54,7 +54,7 @@ Source ──▶ Enrich ──▶ Invoice
 `customer` by `Enrich`. Both present, both the right shape → every wire
 type-checks, so every wire is left its plain solid grey.
 
-## 🔴 Red — a missing field
+## Red — a missing field
 
 Drop `Enrich` and wire `Source` straight into `Invoice`:
 
@@ -69,7 +69,7 @@ and the missing field:
     but required in type '{ order: { id: string; total: number }; customer: { id: string; name: string } }'.
 ```
 
-## 🔴 Red — a wrong-type field
+## Red — a wrong-type field
 
 A same-named field with the wrong shape is caught too. Here a source adds `order`
 as a plain `string`, wired into a node that reads `order` as an `Order`:
@@ -82,7 +82,7 @@ as a plain `string`, wired into a node that reads `order` as an `Order`:
     Type 'string' is not assignable to type '{ id: string; total: number }'.
 ```
 
-## 🟡 Yellow — an unverifiable boundary
+## Yellow — an unverifiable boundary
 
 A yellow-dashed wire is **not** a failure — it's a connection the checker can't
 fully verify because one endpoint is untyped. The wire stays valid; the caveat is
@@ -140,8 +140,8 @@ land on the same node at once:
 <img src="/wire-check/fan-in.png" alt="Three arms into one reader — one grey (valid), one red, one yellow" style="max-width:680px" />
 
 Into the same `invoice`: the `order + customer` arm carries everything it reads
-(solid grey — valid), the `order`-only arm is missing `customer` (🔴 red), and the
-untyped arm can't be checked at all (🟡 yellow). Downstream of a join, only fields
+(solid grey — valid), the `order`-only arm is missing `customer` (red), and the
+untyped arm can't be checked at all (yellow). Downstream of a join, only fields
 present on **every** arm are guaranteed — the conservative, sound shape.
 
 ## Junctions

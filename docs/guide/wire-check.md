@@ -21,11 +21,11 @@ instant you highlight it.
 <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
   <figure style="margin:0; flex:1 1 320px;">
     <img src="/wire-check/green.png" alt="A flow where every wire type-checks — all wires solid" />
-    <figcaption>✅ Every connection type-checks.</figcaption>
+    <figcaption>Every connection type-checks.</figcaption>
   </figure>
   <figure style="margin:0; flex:1 1 320px;">
     <img src="/wire-check/red-missing.png" alt="A flow with a red-dashed wire because a required field is missing" />
-    <figcaption>🔴 <code>invoice</code> reads <code>customer</code>, but nothing upstream adds it.</figcaption>
+    <figcaption><code>invoice</code> reads <code>customer</code>, but nothing upstream adds it.</figcaption>
   </figure>
 </div>
 
@@ -38,7 +38,7 @@ flow stays readable and you inspect one problem at a time.
 
 <figure style="margin:0;">
   <img src="/wire-check/type-errors-tab.png" alt="The Type errors sidebar tab listing a failed connection and an unchecked-boundary warning, each with its TypeScript message, plus a Highlight all button" />
-  <figcaption>One row per connection — 🔴 a real type error, 🟡 an unchecked boundary — each with its <code>tsc</code> message.</figcaption>
+  <figcaption>One row per connection — a real type error and an unchecked boundary — each with its <code>tsc</code> message.</figcaption>
 </figure>
 
 Click a row's **eye** to *highlight* that connection: its wires paint red (or
@@ -48,7 +48,7 @@ and unchecked wire at once.
 
 <figure style="margin:0;">
   <img src="/wire-check/type-errors-canvas.png" alt="The editor with Highlight all enabled — the failing connection drawn red-dashed and the unchecked one yellow-dashed, valid wires untouched" />
-  <figcaption>🔦 <strong>Highlight all</strong>: the failing wire red, the unchecked wire yellow, valid wires left as-is.</figcaption>
+  <figcaption><strong>Highlight all</strong>: the failing wire red, the unchecked wire yellow, valid wires left as-is.</figcaption>
 </figure>
 
 ## How it works, in one breath
