@@ -45,9 +45,8 @@ export default defineConfig({
         text: "Authoring a Node",
         items: [
           { text: "The Node Class", link: "/guide/creating-a-node" },
-          { text: "Form Fields", link: "/guide/form-fields" },
+          { text: "The Editor Form", link: "/guide/form-fields" },
           { text: "Schema Validation", link: "/guide/schemas" },
-          { text: "The Editor Form", link: "/guide/editor-form" },
           {
             text: "Config Nodes & Extending",
             link: "/guide/config-nodes",
@@ -87,6 +86,7 @@ export default defineConfig({
       {
         text: "Advanced",
         items: [
+          { text: "Custom Vue Forms", link: "/guide/editor-form" },
           {
             text: "Conditional Validation",
             link: "/guide/conditional-validation",

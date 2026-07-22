@@ -1,6 +1,6 @@
-# The Editor Form
+# Custom Vue Forms
 
-How nrg renders the editor form from your schema, and how to replace or extend it with a custom Vue component using `useFormNode` and the built-in form components.
+How nrg renders the editor form from your schema, and how to replace or extend it with a custom Vue component using `useFormNode` and the built-in form components. For the schema-driven field catalog, see [The Editor Form](./form-fields).
 
 ## The editor form
 
@@ -371,6 +371,18 @@ NRG registers these components globally in every form:
 | `<NodeRedToggle>` | Toggle switch for boolean fields |
 | `<NodeRedJsonSchemaForm>` | Auto-generated form from a JSON schema |
 | `<NodeRedTray>` | Reusable Node-RED tray (slide-out panel) you drive from Vue — for building custom editors |
+
+::: tip Label slot
+Every input component (`<NodeRedInput>`, `<NodeRedTypedInput>`, etc.) accepts `label`, `icon`, `required`, and `help` props (`help` renders a muted note under the input, above the error). You can also override the label entirely using the `label` slot for full customization:
+
+```vue
+<NodeRedInput v-model="node.name">
+  <template #label>
+    <NodeRedInputLabel label="Custom Label" icon="star" />
+  </template>
+</NodeRedInput>
+```
+:::
 
 ### Building a custom tray with `<NodeRedTray>` {#node-red-tray}
 

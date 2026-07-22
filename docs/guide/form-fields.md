@@ -1,6 +1,6 @@
-# Form Fields
+# The Editor Form
 
-How each config, credential, or setting field renders in the editor form — the field-type catalog plus the `x-nrg-form` extensions, `TypedInput`, `NodeRef`, conditional validation, and type inference.
+How each config, credential, or setting field renders in the editor form — the field-type catalog plus the `x-nrg-form` extensions, `TypedInput`, `NodeRef`, conditional validation, and type inference. To replace the generated form with a bespoke Vue component, see [Custom Vue Forms](./editor-form).
 
 ## Defining the schema
 
@@ -119,18 +119,6 @@ export const ConfigsSchema = defineSchema(
   { $id: "my-node:configs" }
 );
 ```
-
-::: tip Label slot
-When building a custom form, all input components (`<NodeRedInput>`, `<NodeRedTypedInput>`, etc.) accept `label`, `icon`, `required`, and `help` props (`help` renders a muted note under the input, above the error). You can also override the label entirely using the `label` slot for full customization:
-
-```vue
-<NodeRedInput v-model="node.name">
-  <template #label>
-    <NodeRedInputLabel label="Custom Label" icon="star" />
-  </template>
-</NodeRedInput>
-```
-:::
 
 ### Text Input
 
@@ -521,4 +509,4 @@ Deriving from the schema keeps one description in one place:
 
 The `SoqlOutputs` generic is what draws the port and type-checks wires; runtime
 data validation is optional and layered on separately. See
-[The editor form](./editor-form#the-editor-form) for exactly what surfaces each section.
+[Custom Vue Forms](./editor-form#the-editor-form) for exactly what surfaces each section.
