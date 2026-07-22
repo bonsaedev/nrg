@@ -65,7 +65,7 @@ const { node, errors } = useFormNode<typeof ConfigsSchema, typeof CredentialsSch
 
 Note the `import type` — it is erased at build time, so it's safe. Never **value**-import a schema module into client or browser code (including component tests): the module imports `defineSchema`/`SchemaType` from `@bonsae/nrg/schema`, which pulls in TypeBox — kept out of the browser bundle by design. In component tests, resolve schemas by node `type` via `createNode({ type })` instead — see [Client Component & E2E › Resolving schemas by node type](/guide/testing-client-e2e#resolving-schemas-by-node-type).
 
-See [Custom Form Component](/guide/editor-form#custom-form-component) for a full example.
+See [Custom Form Component](/guide/custom-vue-forms#custom-form-component) for a full example.
 
 ### Driving node types from schemas {#infer-drives-types}
 

@@ -4,8 +4,8 @@ This page covers the **node class** — its inputs and outputs, lifecycle hooks,
 
 See also:
 
-- [The Editor Form](./form-fields) — schema field types, `x-nrg-form`, TypedInput, NodeRef, conditional validation, inferring the type.
-- [Custom Vue Forms](./editor-form) — the generated edit dialog, custom Vue forms, client-side files, and built-in form components.
+- [The Editor Form](./the-editor-form) — schema field types, `x-nrg-form`, TypedInput, NodeRef, conditional validation, inferring the type.
+- [Custom Vue Forms](./custom-vue-forms) — the generated edit dialog, custom Vue forms, client-side files, and built-in form components.
 - [Registration, config nodes, extending](./config-nodes) — registering the module, config nodes, and extending a published node.
 - [Validation & inference](./schemas) — `defineSchema`, type inference, and input/output data validation.
 - [The message model](./message-model) — the accumulating record, merging, provenance, and source nodes.
@@ -14,7 +14,7 @@ See also:
 
 Nodes are defined server-side and handle runtime logic. Create `src/server/nodes/my-node.ts`:
 
-> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup. The `ConfigsSchema` / `SettingsSchema` imported below are what declare the fields this class reads (`config.prefix`, `settings.apiEndpoint`); see [The Editor Form](./form-fields) for how to write them.
+> Schemas live in `src/shared/schemas`; import them with the `@/schemas` alias — shipped in NRG's base tsconfig, build, and test configs, so `@/schemas/my-node` resolves with no setup. The `ConfigsSchema` / `SettingsSchema` imported below are what declare the fields this class reads (`config.prefix`, `settings.apiEndpoint`); see [The Editor Form](./the-editor-form) for how to write them.
 
 ```typescript
 import {
@@ -291,7 +291,7 @@ By default, Node-RED routes errors, completions, and status changes through impl
 
 NRG turns these into explicit output ports. Turn one on and that event is sent down a wire like any other message, so it shows up in the flow. One difference: the **error** port, when enabled, becomes the _sole_ error handler — the error travels its wire and no longer triggers Node-RED's `catch` nodes. The **complete** and **status** ports are additive: they fire _alongside_ Node-RED's built-in complete/status nodes (see the note at the end of this section).
 
-**You don't declare these in your schema.** The framework injects the `errorPort`, `completePort`, and `statusPort` controls into **every** IONode's config, so a **Lifecycle Output Ports** section (see [Custom Vue Forms](./editor-form#the-editor-form)) with an Error / Complete / Status toggle renders on every node automatically. Each defaults to **off**, and the **flow author** enables the ones they want, per node instance — that toggle value is what makes the port appear. Nothing in your schema controls whether a port renders.
+**You don't declare these in your schema.** The framework injects the `errorPort`, `completePort`, and `statusPort` controls into **every** IONode's config, so a **Lifecycle Output Ports** section (see [Custom Vue Forms](./custom-vue-forms#the-editor-form)) with an Error / Complete / Status toggle renders on every node automatically. Each defaults to **off**, and the **flow author** enables the ones they want, per node instance — that toggle value is what makes the port appear. Nothing in your schema controls whether a port renders.
 
 #### Changing a default
 
